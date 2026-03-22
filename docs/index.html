@@ -8,34 +8,35 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0e17'/%3E%3Cpolyline points='4,24 10,14 16,18 22,8 28,12' fill='none' stroke='%2306b6d4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='12' r='2' fill='%2310b981'/%3E%3C/svg%3E">
 
 <style>
-/* ─── Reset & Base ───────────────────────────────────────────────── */
+/* ─── Reset & Base ─────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
   --bg:           #0a0e17;
   --surface:      #111827;
   --surface-hi:   #162032;
-  --border:       rgba(6, 182, 212, 0.12);
-  --border-hi:    rgba(6, 182, 212, 0.28);
+  --border:       rgba(6,182,212,0.12);
+  --border-hi:    rgba(6,182,212,0.28);
   --cyan:         #06b6d4;
-  --cyan-dim:     rgba(6, 182, 212, 0.15);
+  --cyan-dim:     rgba(6,182,212,0.15);
   --green:        #10b981;
-  --green-dim:    rgba(16, 185, 129, 0.15);
+  --green-dim:    rgba(16,185,129,0.15);
   --red:          #ef4444;
-  --red-dim:      rgba(239, 68, 68, 0.15);
+  --red-dim:      rgba(239,68,68,0.15);
   --amber:        #f59e0b;
-  --amber-dim:    rgba(245, 158, 11, 0.15);
+  --amber-dim:    rgba(245,158,11,0.15);
   --orange:       #f97316;
-  --orange-dim:   rgba(249, 115, 22, 0.15);
+  --orange-dim:   rgba(249,115,22,0.15);
   --text:         #cbd5e1;
   --text-muted:   #475569;
   --text-bright:  #f1f5f9;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
           "Noto Sans KR", "Malgun Gothic", sans-serif;
-  --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+  --font-mono: "SF Mono", "Fira Code", "Consolas", "Menlo", monospace;
   --radius:  10px;
   --radius-sm: 6px;
   --shadow:  0 4px 24px rgba(0,0,0,0.4);
+  --row-even: rgba(255,255,255,0.02);
 }
 
 html { font-size: 15px; scroll-behavior: smooth; }
@@ -45,7 +46,7 @@ body {
   color: var(--text);
   font-family: var(--font);
   min-height: 100vh;
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -54,23 +55,23 @@ body::before {
   content: '';
   position: fixed; inset: 0;
   background-image:
-    linear-gradient(rgba(6,182,212,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(6,182,212,0.025) 1px, transparent 1px);
+    linear-gradient(rgba(6,182,212,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6,182,212,0.02) 1px, transparent 1px);
   background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* ─── Layout ─────────────────────────────────────────────────────── */
+/* ─── Layout ───────────────────────────────────────────── */
 .shell {
   position: relative;
   z-index: 1;
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 16px 48px;
+  padding: 0 20px 48px;
 }
 
-/* ─── Header ─────────────────────────────────────────────────────── */
+/* ─── Header ───────────────────────────────────────────── */
 .header {
   padding: 24px 0 20px;
   border-bottom: 1px solid var(--border);
@@ -129,8 +130,8 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16,185,129,0.1);
+  border: 1px solid rgba(16,185,129,0.3);
   color: var(--green);
   font-size: 0.68rem;
   font-family: var(--font-mono);
@@ -164,18 +165,7 @@ body::before {
   font-family: var(--font-mono);
 }
 
-/* Pull-to-refresh hint */
-.ptr-hint {
-  text-align: center;
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  letter-spacing: 0.06em;
-  padding: 6px 0 0;
-  opacity: 0.6;
-}
-
-/* ─── Section Label ──────────────────────────────────────────────── */
+/* ─── Section Label ────────────────────────────────────── */
 .section-label {
   font-size: 0.68rem;
   font-family: var(--font-mono);
@@ -196,25 +186,13 @@ body::before {
   background: var(--border);
 }
 
-/* ─── Macro Cards ────────────────────────────────────────────────── */
+/* ─── Macro Cards ──────────────────────────────────────── */
 .macro-section { margin-bottom: 32px; }
 
 .macro-scroll {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 4px;
-}
-
-.macro-scroll::-webkit-scrollbar { display: none; }
-
-@media (max-width: 540px) {
-  .macro-scroll {
-    grid-template-columns: repeat(3, minmax(140px, 1fr));
-  }
 }
 
 .macro-card {
@@ -272,7 +250,7 @@ body::before {
   margin-top: 2px;
 }
 
-/* ─── Sector Cards ───────────────────────────────────────────────── */
+/* ─── Sector Cards ─────────────────────────────────────── */
 .sectors-section { display: flex; flex-direction: column; gap: 16px; }
 
 .sector-card {
@@ -280,11 +258,8 @@ body::before {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  transition: border-color 0.2s;
   box-shadow: var(--shadow);
 }
-
-.sector-card:hover { border-color: var(--border-hi); }
 
 .sector-header {
   padding: 14px 18px;
@@ -319,75 +294,166 @@ body::before {
   border-radius: 20px;
 }
 
-/* ─── Stock Table ────────────────────────────────────────────────── */
+/* ─── Stock Table ──────────────────────────────────────── */
 .stock-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.stock-table th {
-  font-size: 0.65rem;
+.stock-table thead th {
+  font-size: 0.62rem;
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding: 10px 18px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+  white-space: nowrap;
   text-align: left;
+  overflow: hidden;
+}
+
+/* Column widths — desktop 7 columns */
+.stock-table .col-name   { width: 22%; }
+.stock-table .col-regime { width: 10%; text-align: center; }
+.stock-table .col-sent   { width: 14%; }
+.stock-table .col-price  { width: 14%; text-align: right; }
+.stock-table .col-mcap   { width: 13%; text-align: right; }
+.stock-table .col-per    { width: 12%; text-align: right; }
+.stock-table .col-roe    { width: 10%; text-align: right; }
+.stock-table .col-arrow  { width: 5%; text-align: center; }
+
+/* Data rows */
+.stock-row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.stock-row:hover {
+  background: rgba(6,182,212,0.05);
+}
+
+.stock-row.is-open {
+  background: rgba(6,182,212,0.07);
+}
+
+.stock-row:nth-child(4n+1) {
+  background: var(--row-even);
+}
+.stock-row:nth-child(4n+1):hover {
+  background: rgba(6,182,212,0.05);
+}
+
+.stock-row td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Name cell */
+.stock-name {
+  font-weight: 600;
+  color: var(--text-bright);
+  line-height: 1.3;
+}
+
+.stock-ticker {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* Regime badges */
+.regime {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.regime-up-strong   { background: rgba(16,185,129,0.2);  color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.regime-up          { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
+.regime-up-weak     { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+.regime-sideways    { background: rgba(245,158,11,0.1);  color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
+.regime-down-weak   { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
+.regime-down        { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+.regime-down-strong { background: rgba(239,68,68,0.22);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); }
+.regime-unknown     { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.2); }
+
+/* Sentiment */
+.sent-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sent-score {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.col-pos  { color: var(--green); }
+.col-neg  { color: var(--red); }
+.col-neut { color: var(--text-muted); }
+
+/* Numeric cells */
+.num {
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--text-bright);
+}
+
+.num-muted {
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--text);
+}
+
+/* Expand arrow */
+.arrow-cell {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  transition: transform 0.2s;
+}
+
+.stock-row.is-open .arrow-cell {
+  color: var(--cyan);
+}
+
+/* ─── Detail Row (expanded) ────────────────────────────── */
+.detail-row {
+  display: none;
+}
+
+.detail-row.is-visible {
+  display: table-row;
+}
+
+.detail-row td {
+  padding: 0;
   border-bottom: 1px solid var(--border);
   background: rgba(0,0,0,0.2);
-  white-space: nowrap;
 }
 
-.stock-table th:last-child { text-align: right; }
-
-/* Details/summary accordion row */
-.stock-table details { display: contents; }
-
-.stock-table summary {
-  display: table-row;
-  list-style: none;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.stock-table summary::-webkit-details-marker { display: none; }
-
-.stock-table summary::marker { display: none; }
-
-.stock-table summary:hover { background: rgba(6,182,212,0.04); }
-
-.stock-table details[open] summary { background: rgba(6,182,212,0.06); }
-
-/* Cells inside summary (tr-like) */
-.stock-table summary .cell {
-  display: table-cell;
-  padding: 13px 18px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-  font-size: 0.84rem;
-}
-
-.stock-table summary .cell:last-child { text-align: right; }
-
-/* Expand row */
-.expand-row {
-  display: table-row;
-}
-
-.expand-cell {
-  display: table-cell;
-  padding: 0;
-  background: rgba(0,0,0,0.25);
-  border-bottom: 1px solid var(--border);
-}
-
-/* Expand panel inner */
-.expand-panel {
-  padding: 14px 18px 16px;
+.detail-panel {
+  padding: 14px 16px 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px 16px;
 }
 
 .detail-item {
@@ -397,29 +463,30 @@ body::before {
 }
 
 .detail-label {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .detail-value {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-bright);
   font-family: var(--font-mono);
 }
 
-/* 52w range */
+/* 52w range bar */
 .range-bar-wrap {
   grid-column: 1 / -1;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .range-label-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
   margin-bottom: 4px;
@@ -430,105 +497,26 @@ body::before {
   background: rgba(255,255,255,0.08);
   border-radius: 2px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .range-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--cyan), var(--green));
   border-radius: 2px;
-  transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .range-current {
   position: absolute;
-  top: -2px;
-  width: 8px; height: 8px;
+  top: -3px;
+  width: 10px; height: 10px;
   background: var(--text-bright);
   border-radius: 50%;
   transform: translateX(-50%);
-  box-shadow: 0 0 6px rgba(255,255,255,0.5);
+  box-shadow: 0 0 6px rgba(255,255,255,0.4);
 }
 
-/* ─── Stock name + ticker ────────────────────────────────────────── */
-.stock-name-wrap { display: flex; flex-direction: column; gap: 1px; }
-
-.stock-name-text {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--text-bright);
-  white-space: nowrap;
-}
-
-.stock-ticker {
-  font-size: 0.65rem;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-}
-
-/* Expand chevron indicator */
-.expand-chevron {
-  display: inline-block;
-  margin-right: 6px;
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  transition: transform 0.2s;
-  vertical-align: middle;
-}
-
-details[open] .expand-chevron { transform: rotate(90deg); }
-
-/* ─── Regime Badges ──────────────────────────────────────────────── */
-.regime {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.regime-up-strong   { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-.regime-up          { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
-.regime-up-weak     { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
-.regime-sideways    { background: rgba(245,158,11,0.1);  color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
-.regime-down-weak   { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
-.regime-down        { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-.regime-down-strong { background: rgba(239,68,68,0.22);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); }
-.regime-unknown     { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.2); }
-
-/* ─── Sentiment ──────────────────────────────────────────────────── */
-.sentiment {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.sentiment-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.sentiment-score {
-  font-size: 0.68rem;
-  font-family: var(--font-mono);
-}
-
-.col-pos   { color: var(--green); }
-.col-neg   { color: var(--red); }
-.col-neut  { color: var(--text-muted); }
-
-/* ─── Price ──────────────────────────────────────────────────────── */
-.price-cell {
-  font-family: var(--font-mono);
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--text-bright);
-  white-space: nowrap;
-}
-
-/* ─── Loading / Error ─────────────────────────────────────────────── */
+/* ─── Loading / Error ──────────────────────────────────── */
 .state-screen {
   display: flex;
   flex-direction: column;
@@ -555,17 +543,8 @@ details[open] .expand-chevron { transform: rotate(90deg); }
   font-family: var(--font-mono);
 }
 
-.error-icon {
-  font-size: 2.5rem;
-  line-height: 1;
-}
-
-.error-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--red);
-}
-
+.error-icon { font-size: 2.5rem; line-height: 1; }
+.error-title { font-size: 1rem; font-weight: 700; color: var(--red); }
 .error-msg {
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -573,7 +552,7 @@ details[open] .expand-chevron { transform: rotate(90deg); }
   max-width: 320px;
 }
 
-/* ─── Footer ─────────────────────────────────────────────────────── */
+/* ─── Footer ───────────────────────────────────────────── */
 .footer {
   margin-top: 48px;
   padding: 20px 0;
@@ -599,24 +578,63 @@ details[open] .expand-chevron { transform: rotate(90deg); }
   font-family: var(--font-mono);
 }
 
-/* ─── Responsive ─────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .brand-title { font-size: 1.1rem; }
+/* ─── Mobile: hide columns, show compact cards ─────────── */
+@media (max-width: 768px) {
+  .shell { padding: 0 12px 32px; }
 
-  .stock-table th { padding: 8px 12px; }
-  .stock-table summary .cell { padding: 11px 12px; }
-  .expand-panel { padding: 12px; gap: 8px; }
+  .macro-scroll {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
 
-  .sector-header { padding: 12px 14px; }
+  .macro-card { padding: 12px; }
+  .macro-icon { width: 28px; height: 28px; margin-bottom: 8px; font-size: 0.85rem; }
+  .macro-value { font-size: 0.9rem; }
+
+  /* Hide desktop-only columns */
+  .stock-table .hide-mobile {
+    display: none;
+  }
+
+  .stock-table { table-layout: auto; }
+
+  .stock-table .col-name   { width: auto; }
+  .stock-table .col-regime { width: auto; }
+  .stock-table .col-price  { width: auto; }
+  .stock-table .col-arrow  { width: 28px; }
+
+  .stock-table thead th { padding: 6px 8px; font-size: 0.58rem; }
+  .stock-row td { padding: 8px 8px; font-size: 0.78rem; }
+
+  .sector-header { padding: 10px 12px; }
   .sector-name { font-size: 0.82rem; }
 
+  .detail-panel { padding: 10px 12px; gap: 8px 12px; grid-template-columns: repeat(2, 1fr); }
+
+  .brand-title { font-size: 1.1rem; }
+
   .footer { flex-direction: column; align-items: flex-start; }
+
+  /* Mobile: show sent below name */
+  .mobile-sent {
+    display: block;
+    font-size: 0.68rem;
+    margin-top: 2px;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-sent { display: none; }
 }
 
 @media (max-width: 400px) {
-  .stock-name-text { font-size: 0.78rem; }
-  .price-cell { font-size: 0.78rem; }
+  .macro-scroll { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .macro-card { padding: 10px; }
+  .macro-value { font-size: 0.82rem; }
+  .macro-sub { font-size: 0.65rem; }
+  .macro-label { font-size: 0.6rem; }
 }
+
 </style>
 </head>
 <body>
@@ -646,7 +664,6 @@ details[open] .expand-chevron { transform: rotate(90deg); }
         <span class="meta-time" id="meta-time"></span>
       </div>
     </div>
-    <p class="ptr-hint">▽ 아래로 당기면 새로고침</p>
   </header>
 
   <!-- Main content area -->
@@ -660,303 +677,311 @@ details[open] .expand-chevron { transform: rotate(90deg); }
 </div>
 
 <script>
-/* ──────────────────────────────────────────
-   Utilities
-────────────────────────────────────────── */
-function fmtPrice(v) {
-  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  return Number(v).toLocaleString('ko-KR') + '원';
+/* ─── Utilities ────────────────────────────────────────── */
+function esc(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function fmtMarketCap(v) {
+function fmtPrice(v, isCrypto) {
   if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  const n = Number(v); // already in 억
+  var n = Number(v);
+  if (isCrypto) {
+    if (n >= 1000) return '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
+    if (n >= 1) return '$' + n.toFixed(2);
+    return '$' + n.toFixed(4);
+  }
+  return n.toLocaleString('ko-KR') + '원';
+}
+
+function fmtMarketCap(v, isCrypto) {
+  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
+  var n = Number(v);
+  if (isCrypto) {
+    if (n >= 10000) return '$' + (n / 10000).toFixed(1) + 'T';
+    return '$' + Math.round(n).toLocaleString('en-US') + 'B';
+  }
   if (n >= 10000) return (n / 10000).toFixed(1) + '조';
   return Math.round(n).toLocaleString('ko-KR') + '억';
 }
 
+function fmtNum(v, d) {
+  if (d === undefined) d = 2;
+  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
+  return Number(v).toFixed(d);
+}
+
 function fmtPct(v) {
   if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  const n = Number(v);
-  const sign = n > 0 ? '+' : '';
-  return sign + n.toFixed(2) + '%';
+  var n = Number(v);
+  return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
 }
 
-function fmtNum(v, decimals = 2) {
-  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  return Number(v).toFixed(decimals);
-}
-
-function sentimentColor(score) {
+function sentColor(score) {
   if (score == null || isNaN(Number(score))) return 'col-neut';
-  const n = Number(score);
+  var n = Number(score);
   if (n > 5)  return 'col-pos';
   if (n < -5) return 'col-neg';
   return 'col-neut';
 }
 
-function sentimentLabelColor(label) {
+function sentLabelColor(label) {
   if (!label) return 'col-neut';
-  if (label.includes('긍정') || label.includes('낙관') || label.includes('탐욕')) return 'col-pos';
-  if (label.includes('부정') || label.includes('약세') || label.includes('공포') || label.includes('하락')) return 'col-neg';
+  if (/긍정|낙관|탐욕/.test(label)) return 'col-pos';
+  if (/부정|약세|공포|하락/.test(label)) return 'col-neg';
   return 'col-neut';
 }
 
-function regimeClass(regime) {
-  if (!regime) return 'regime-unknown';
-  if (regime === '강한상승') return 'regime-up-strong';
-  if (regime === '상승')     return 'regime-up';
-  if (regime === '약한상승') return 'regime-up-weak';
-  if (regime === '횡보')     return 'regime-sideways';
-  if (regime === '약한하락') return 'regime-down-weak';
-  if (regime === '하락')     return 'regime-down';
-  if (regime === '강한하락') return 'regime-down-strong';
-  return 'regime-unknown';
+function regimeClass(r) {
+  if (!r) return 'regime-unknown';
+  var map = {
+    '강한상승': 'regime-up-strong',
+    '상승':     'regime-up',
+    '약한상승': 'regime-up-weak',
+    '횡보':     'regime-sideways',
+    '약한하락': 'regime-down-weak',
+    '하락':     'regime-down',
+    '강한하락': 'regime-down-strong'
+  };
+  return map[r] || 'regime-unknown';
 }
 
-/* Compute 52w position as percentage (0–100) */
 function rangePos(price, low, high) {
   if (!price || !low || !high || high === low) return null;
-  const pct = ((price - low) / (high - low)) * 100;
-  return Math.max(0, Math.min(100, pct));
+  return Math.max(0, Math.min(100, ((price - low) / (high - low)) * 100));
 }
 
-/* ──────────────────────────────────────────
-   Build macro section HTML
-────────────────────────────────────────── */
+function isCryptoTicker(ticker) {
+  return ticker && ticker.includes('-');
+}
+
+function parseScore(s) {
+  if (s == null || s === '' || s === 'N/A') return null;
+  var n = parseFloat(String(s).replace('+', ''));
+  return isNaN(n) ? null : n;
+}
+
+/* ─── Build Macro Section ──────────────────────────────── */
 function buildMacro(macro) {
-  const cycle = macro?.cycle ?? 'N/A';
-  const rate  = macro?.rate  ?? 'N/A';
-  const ffr   = macro?.ffr   ?? 'N/A';
-  const infl  = macro?.inflation ?? 'N/A';
-  const cpi   = macro?.cpi   ?? 'N/A';
+  var cycle = (macro && macro.cycle) || 'N/A';
+  var rate  = (macro && macro.rate)  || 'N/A';
+  var ffr   = (macro && macro.ffr)   || 'N/A';
+  var infl  = (macro && macro.inflation) || 'N/A';
+  var cpi   = (macro && macro.cpi)   || 'N/A';
 
-  return `
-<div class="macro-section">
-  <p class="section-label">매크로 환경</p>
-  <div class="macro-scroll">
+  return '<div class="macro-section">' +
+    '<p class="section-label">매크로 환경</p>' +
+    '<div class="macro-scroll">' +
 
-    <div class="macro-card">
-      <div class="macro-icon cycle">📈</div>
-      <p class="macro-label">경기 사이클</p>
-      <p class="macro-value">${esc(cycle)}</p>
-    </div>
+    '<div class="macro-card">' +
+      '<div class="macro-icon cycle">📈</div>' +
+      '<p class="macro-label">경기 사이클</p>' +
+      '<p class="macro-value">' + esc(cycle) + '</p>' +
+    '</div>' +
 
-    <div class="macro-card">
-      <div class="macro-icon rate">🏦</div>
-      <p class="macro-label">금리 국면</p>
-      <p class="macro-value">${esc(rate)}</p>
-      <p class="macro-sub">FFR ${esc(ffr)}</p>
-    </div>
+    '<div class="macro-card">' +
+      '<div class="macro-icon rate">🏦</div>' +
+      '<p class="macro-label">금리 국면</p>' +
+      '<p class="macro-value">' + esc(rate) + '</p>' +
+      '<p class="macro-sub">FFR ' + esc(ffr) + '</p>' +
+    '</div>' +
 
-    <div class="macro-card">
-      <div class="macro-icon infl">📊</div>
-      <p class="macro-label">인플레이션</p>
-      <p class="macro-value">${esc(infl)}</p>
-      <p class="macro-sub">CPI ${esc(cpi)}</p>
-    </div>
+    '<div class="macro-card">' +
+      '<div class="macro-icon infl">📊</div>' +
+      '<p class="macro-label">인플레이션</p>' +
+      '<p class="macro-value">' + esc(infl) + '</p>' +
+      '<p class="macro-sub">CPI ' + esc(cpi) + '</p>' +
+    '</div>' +
 
-  </div>
-</div>`;
+    '</div></div>';
 }
 
-/* ──────────────────────────────────────────
-   Build one stock row (details/summary)
-────────────────────────────────────────── */
-function buildStockRow(stock, colSpan) {
-  const name    = stock.name    ?? stock['기업명'] ?? '—';
-  const ticker  = stock.ticker  ?? stock['티커']   ?? '';
-  const regime  = stock.regime  ?? '—';
-  const sentLabel = stock.sentiment_label ?? '—';
-  const sentScore = stock.sentiment_score ?? stock['심리점수'] ?? null;
-  const price   = stock.price   ?? stock['현재주가'] ?? null;
-  const mcap    = stock.market_cap ?? stock['시가총액(억)'] ?? null;
-  const fper    = stock.forward_per ?? stock['Forward PER'] ?? null;
-  const roe     = stock.roe     ?? stock['ROE(%)'] ?? null;
-  const revGrow = stock.revenue_growth ?? stock['매출성장률(%)'] ?? null;
-  const hi52    = stock.high_52w ?? stock['52주최고'] ?? null;
-  const lo52    = stock.low_52w  ?? stock['52주최저'] ?? null;
+/* ─── Build Stock Table Rows ───────────────────────────── */
+function buildStockRows(stock, idx, colCount) {
+  var name    = stock.name    || '—';
+  var ticker  = stock.ticker  || '';
+  var regime  = stock.regime  || '—';
+  var sentLbl = stock.sentiment_label || '—';
+  var sentScr = stock.sentiment_score;
+  var price   = stock.price;
+  var mcap    = stock.market_cap;
+  var fper    = stock.forward_per;
+  var roe     = stock.roe;
+  var revGrow = stock.revenue_growth;
+  var hi52    = stock.high_52w;
+  var lo52    = stock.low_52w;
+  var crypto  = isCryptoTicker(ticker);
 
-  const scoreNum = sentScore !== null && sentScore !== undefined
-    ? parseFloat(String(sentScore).replace('+',''))
-    : null;
-
-  const rPos = rangePos(price, lo52, hi52);
-
-  const scoreDisp = scoreNum !== null
+  var scoreNum = parseScore(sentScr);
+  var scoreDisp = scoreNum !== null
     ? (scoreNum >= 0 ? '+' : '') + scoreNum.toFixed(1)
     : 'N/A';
+  var sCls  = sentColor(scoreNum);
+  var slCls = sentLabelColor(sentLbl);
+  var rPos  = rangePos(price, lo52, hi52);
 
-  const sentCls   = sentimentColor(scoreNum);
-  const labelCls  = sentimentLabelColor(sentLabel);
+  var rowId = 'row-' + idx;
+  var detId = 'det-' + idx;
 
-  let rangeHTML = '';
+  // Main row
+  var html = '<tr class="stock-row" data-detail="' + detId + '" id="' + rowId + '" onclick="toggleDetail(\'' + detId + '\',\'' + rowId + '\')">';
+
+  // Name + ticker, plus mobile sentiment inline
+  html += '<td class="col-name">';
+  html += '<span class="stock-name">' + esc(name) + '</span>';
+  html += '<span class="stock-ticker">' + esc(ticker) + '</span>';
+  html += '<span class="mobile-sent"><span class="' + slCls + '">' + esc(sentLbl) + '</span> <span class="' + sCls + '">' + esc(scoreDisp) + '</span></span>';
+  html += '</td>';
+
+  // Regime
+  html += '<td class="col-regime"><span class="regime ' + regimeClass(regime) + '">' + esc(regime) + '</span></td>';
+
+  // Sentiment (desktop only)
+  html += '<td class="col-sent hide-mobile"><span class="sent-label ' + slCls + '">' + esc(sentLbl) + '</span><span class="sent-score ' + sCls + '">' + esc(scoreDisp) + '</span></td>';
+
+  // Price
+  html += '<td class="col-price num">' + fmtPrice(price, crypto) + '</td>';
+
+  // Market cap (desktop)
+  html += '<td class="col-mcap num-muted hide-mobile">' + fmtMarketCap(mcap, crypto) + '</td>';
+
+  // PER (desktop)
+  html += '<td class="col-per num-muted hide-mobile">' + fmtNum(fper) + '</td>';
+
+  // ROE (desktop)
+  html += '<td class="col-roe num-muted hide-mobile">' + fmtNum(roe) + '%</td>';
+
+  // Arrow
+  html += '<td class="col-arrow arrow-cell">&#9662;</td>';
+
+  html += '</tr>';
+
+  // Detail row
+  html += '<tr class="detail-row" id="' + detId + '"><td colspan="' + colCount + '">';
+  html += '<div class="detail-panel">';
+
+  html += '<div class="detail-item"><span class="detail-label">시가총액</span><span class="detail-value">' + fmtMarketCap(mcap, crypto) + '</span></div>';
+  html += '<div class="detail-item"><span class="detail-label">Forward PER</span><span class="detail-value">' + fmtNum(fper) + 'x</span></div>';
+  html += '<div class="detail-item"><span class="detail-label">ROE</span><span class="detail-value">' + fmtNum(roe) + '%</span></div>';
+  html += '<div class="detail-item"><span class="detail-label">매출성장률</span><span class="detail-value">' + fmtPct(revGrow) + '</span></div>';
+
   if (rPos !== null) {
-    rangeHTML = `
-      <div class="range-bar-wrap">
-        <div class="range-label-row">
-          <span>52주 저가 ${fmtPrice(lo52)}</span>
-          <span>고가 ${fmtPrice(hi52)}</span>
-        </div>
-        <div class="range-track">
-          <div class="range-fill" style="width:${rPos.toFixed(1)}%"></div>
-          <div class="range-current" style="left:${rPos.toFixed(1)}%"></div>
-        </div>
-      </div>`;
+    html += '<div class="range-bar-wrap">';
+    html += '<div class="range-label-row"><span>52주 저가 ' + fmtPrice(lo52, crypto) + '</span><span>고가 ' + fmtPrice(hi52, crypto) + '</span></div>';
+    html += '<div class="range-track"><div class="range-fill" style="width:' + rPos.toFixed(1) + '%"></div><div class="range-current" style="left:' + rPos.toFixed(1) + '%"></div></div>';
+    html += '</div>';
   }
 
-  return `
-<details>
-  <summary>
-    <span class="cell">
-      <span class="expand-chevron">▶</span>
-      <span class="stock-name-wrap">
-        <span class="stock-name-text">${esc(name)}</span>
-        <span class="stock-ticker">${esc(ticker)}</span>
-      </span>
-    </span>
-    <span class="cell">
-      <span class="regime ${regimeClass(regime)}">${esc(regime)}</span>
-    </span>
-    <span class="cell">
-      <span class="sentiment">
-        <span class="sentiment-label ${labelCls}">${esc(sentLabel)}</span>
-        <span class="sentiment-score ${sentCls}">${esc(scoreDisp)}</span>
-      </span>
-    </span>
-    <span class="cell price-cell">${fmtPrice(price)}</span>
-  </summary>
-  <tr class="expand-row">
-    <td class="expand-cell" colspan="${colSpan}">
-      <div class="expand-panel">
-        <div class="detail-item">
-          <span class="detail-label">시가총액</span>
-          <span class="detail-value">${fmtMarketCap(mcap)}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Forward PER</span>
-          <span class="detail-value">${fmtNum(fper)}x</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">ROE</span>
-          <span class="detail-value">${fmtNum(roe)}%</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">매출성장률</span>
-          <span class="detail-value ${scoreNum !== null ? sentimentColor(revGrow) : ''}">${fmtNum(revGrow)}%</span>
-        </div>
-        ${rangeHTML}
-      </div>
-    </td>
-  </tr>
-</details>`;
+  html += '</div></td></tr>';
+
+  return html;
 }
 
-/* ──────────────────────────────────────────
-   Build one sector card
-────────────────────────────────────────── */
+/* ─── Build Sector Card ────────────────────────────────── */
+var globalIdx = 0;
+
 function buildSectorCard(sector) {
-  const sectorName = sector.name ?? sector['섹터'] ?? '기타';
-  const stocks     = sector.stocks ?? [];
-  const colSpan    = 4;
+  var sName  = (sector.name || sector['섹터'] || '기타');
+  var stocks = sector.stocks || [];
+  var colCount = 8; // name, regime, sent, price, mcap, per, roe, arrow
 
-  const rows = stocks.map(s => buildStockRow(s, colSpan)).join('');
+  var rowsHTML = '';
+  for (var i = 0; i < stocks.length; i++) {
+    rowsHTML += buildStockRows(stocks[i], globalIdx, colCount);
+    globalIdx++;
+  }
 
-  return `
-<div class="sector-card">
-  <div class="sector-header">
-    <span class="sector-dot"></span>
-    <span class="sector-name">${esc(sectorName)}</span>
-    <span class="sector-count">${stocks.length}종목</span>
-  </div>
-  <table class="stock-table">
-    <thead>
-      <tr>
-        <th>종목</th>
-        <th>레짐</th>
-        <th>시장심리</th>
-        <th>주가</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-</div>`;
+  return '<div class="sector-card">' +
+    '<div class="sector-header">' +
+      '<span class="sector-dot"></span>' +
+      '<span class="sector-name">' + esc(sName) + '</span>' +
+      '<span class="sector-count">' + stocks.length + '종목</span>' +
+    '</div>' +
+    '<div style="overflow-x:auto">' +
+    '<table class="stock-table">' +
+      '<thead><tr>' +
+        '<th class="col-name">종목</th>' +
+        '<th class="col-regime">레짐</th>' +
+        '<th class="col-sent hide-mobile">심리</th>' +
+        '<th class="col-price" style="text-align:right">주가</th>' +
+        '<th class="col-mcap hide-mobile" style="text-align:right">시총</th>' +
+        '<th class="col-per hide-mobile" style="text-align:right">PER</th>' +
+        '<th class="col-roe hide-mobile" style="text-align:right">ROE</th>' +
+        '<th class="col-arrow"></th>' +
+      '</tr></thead>' +
+      '<tbody>' + rowsHTML + '</tbody>' +
+    '</table>' +
+    '</div>' +
+  '</div>';
 }
 
-/* ──────────────────────────────────────────
-   HTML escape
-────────────────────────────────────────── */
-function esc(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+/* ─── Toggle Detail Row ────────────────────────────────── */
+function toggleDetail(detId, rowId) {
+  var det = document.getElementById(detId);
+  var row = document.getElementById(rowId);
+  if (!det || !row) return;
+  var open = det.classList.contains('is-visible');
+  if (open) {
+    det.classList.remove('is-visible');
+    row.classList.remove('is-open');
+  } else {
+    det.classList.add('is-visible');
+    row.classList.add('is-open');
+  }
 }
 
-/* ──────────────────────────────────────────
-   Render full page from data
-────────────────────────────────────────── */
+/* ─── Render ───────────────────────────────────────────── */
 function render(data) {
-  /* Update header meta */
-  const dateStr = data.date ?? '';
-  const genAt   = data.generated_at ?? '';
+  var dateStr = data.date || '';
+  var genAt   = data.generated_at || '';
 
-  document.getElementById('header-date').textContent = dateStr
-    ? dateStr + ' 분석 보고서'
-    : 'AI 분석 보고서';
+  document.getElementById('header-date').textContent =
+    dateStr ? dateStr + ' 분석 보고서' : 'AI 분석 보고서';
 
-  if (dateStr) {
-    document.getElementById('meta-date').textContent = dateStr;
+  if (dateStr) document.getElementById('meta-date').textContent = dateStr;
+  if (genAt)   document.getElementById('meta-time').textContent = '생성: ' + genAt;
+
+  globalIdx = 0;
+
+  var macroHTML   = buildMacro(data.macro || {});
+  var sectors     = data.sectors || [];
+  var sectorsHTML = '';
+  for (var i = 0; i < sectors.length; i++) {
+    sectorsHTML += buildSectorCard(sectors[i]);
   }
-  if (genAt) {
-    document.getElementById('meta-time').textContent = '생성: ' + genAt;
-  }
 
-  /* Build content */
-  const macroHTML   = buildMacro(data.macro ?? {});
-  const sectors     = data.sectors ?? [];
-  const sectorsHTML = sectors.map(buildSectorCard).join('');
+  var footerHTML =
+    '<footer class="footer">' +
+      '<p class="footer-brand">Powered by <span>AI Finance Analysis System</span></p>' +
+      '<p class="footer-time">업데이트: ' + esc(genAt || dateStr || '—') + '</p>' +
+    '</footer>';
 
-  const footerHTML = `
-<footer class="footer">
-  <p class="footer-brand">Powered by <span>AI Finance Analysis System</span></p>
-  <p class="footer-time">업데이트: ${esc(genAt || dateStr || '—')}</p>
-</footer>`;
-
-  document.getElementById('main-content').innerHTML = `
-${macroHTML}
-<p class="section-label">섹터별 종목 분석</p>
-<div class="sectors-section">
-  ${sectorsHTML}
-</div>
-${footerHTML}`;
+  document.getElementById('main-content').innerHTML =
+    macroHTML +
+    '<p class="section-label">섹터별 종목 분석</p>' +
+    '<div class="sectors-section">' + sectorsHTML + '</div>' +
+    footerHTML;
 }
 
-/* ──────────────────────────────────────────
-   Show error state
-────────────────────────────────────────── */
+/* ─── Error State ──────────────────────────────────────── */
 function showError(msg) {
-  document.getElementById('main-content').innerHTML = `
-<div class="state-screen">
-  <div class="error-icon">⚠️</div>
-  <p class="error-title">데이터를 불러올 수 없습니다</p>
-  <p class="error-msg">${esc(msg)}</p>
-</div>`;
+  document.getElementById('main-content').innerHTML =
+    '<div class="state-screen">' +
+      '<div class="error-icon">⚠️</div>' +
+      '<p class="error-title">데이터를 불러올 수 없습니다</p>' +
+      '<p class="error-msg">' + esc(msg) + '</p>' +
+    '</div>';
 }
 
-/* ──────────────────────────────────────────
-   Fetch data.json
-────────────────────────────────────────── */
+/* ─── Load Data ────────────────────────────────────────── */
 async function loadData() {
   try {
-    const res = await fetch('data.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    const data = await res.json();
+    var res = await fetch('data.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+    var data = await res.json();
     render(data);
   } catch (err) {
-    showError(err.message ?? String(err));
+    showError(err.message || String(err));
   }
 }
 
