@@ -443,7 +443,60 @@ def print_dry_run(sectors, skip_macro, skip_portfolio, date_str):
 
 
 # ====================================================================
-# 7. 종합 요약 생성
+# 7. GitHub Pages 자동 업데이트
+# ====================================================================
+def _auto_push_dashboard(date_str):
+    """docs/data.json을 자동 커밋하고 GitHub에 push합니다."""
+    try:
+        # git이 초기화되어 있는지 확인
+        git_dir = os.path.join(BASE_DIR, ".git")
+        if not os.path.isdir(git_dir):
+            return
+
+        # remote가 설정되어 있는지 확인
+        check = subprocess.run(
+            ["git", "remote"],
+            capture_output=True, text=True, cwd=BASE_DIR, timeout=10
+        )
+        if not check.stdout.strip():
+            return
+
+        # docs/data.json 스테이징 및 커밋
+        subprocess.run(
+            ["git", "add", "docs/data.json"],
+            capture_output=True, text=True, cwd=BASE_DIR, timeout=10
+        )
+
+        # 변경사항이 있는지 확인
+        diff_check = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            capture_output=True, text=True, cwd=BASE_DIR, timeout=10
+        )
+        if diff_check.returncode == 0:
+            # 변경사항 없음
+            return
+
+        formatted = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+        subprocess.run(
+            ["git", "commit", "-m", f"Update dashboard data ({formatted})"],
+            capture_output=True, text=True, cwd=BASE_DIR, timeout=30
+        )
+
+        push_result = subprocess.run(
+            ["git", "push"],
+            capture_output=True, text=True, cwd=BASE_DIR, timeout=60
+        )
+        if push_result.returncode == 0:
+            print("  [GitHub Pages] 대시보드 업데이트 push 완료")
+        else:
+            print(f"  [GitHub Pages] push 실패: {push_result.stderr.strip()}")
+
+    except Exception:
+        print("  [GitHub Pages] 자동 push 중 오류 발생 (수동 push 필요)")
+
+
+# ====================================================================
+# 8. 종합 요약 생성
 # ====================================================================
 def generate_summary(date_str, macro_info, sector_results, portfolio_results, daily_dir):
     """종합요약 텍스트 파일 생성."""
@@ -799,6 +852,25 @@ def main():
             print("실패 (Excel 보고서 생략)")
     else:
         print(f"\n[경고] generate_summary_excel.py 파일을 찾을 수 없습니다: {summary_excel_script}")
+
+    # 대시보드 데이터 생성 (docs/data.json)
+    dashboard_script = os.path.join(BASE_DIR, "generate_dashboard_data.py")
+    if os.path.exists(dashboard_script):
+        print(f"\n대시보드 데이터 생성 중...", end=" ", flush=True)
+        dash_result = run_script(
+            dashboard_script,
+            ["--date", date_str, "--daily-dir", daily_dir],
+            "대시보드 데이터",
+        )
+        if dash_result and dash_result.returncode == 0:
+            total_files += 1
+            print("완료")
+            # GitHub Pages 자동 업데이트 (push)
+            _auto_push_dashboard(date_str)
+        else:
+            print("실패 (대시보드 데이터 생략)")
+    else:
+        print(f"\n[경고] generate_dashboard_data.py 파일을 찾을 수 없습니다.")
 
     # 에러 로그 저장
     error_log_path = os.path.join(daily_dir, "errors.log")
