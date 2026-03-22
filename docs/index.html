@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="AI 기반 한국 주식시장 일일 분석 대시보드">
+<title>AI 금융 분석 대시보드</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0e17'/%3E%3Cpolyline points='4,24 10,14 16,18 22,8 28,12' fill='none' stroke='%2306b6d4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='12' r='2' fill='%2310b981'/%3E%3C/svg%3E">
+
+<style>
+/* ─── Reset & Base ───────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:           #0a0e17;
+  --surface:      #111827;
+  --surface-hi:   #162032;
+  --border:       rgba(6, 182, 212, 0.12);
+  --border-hi:    rgba(6, 182, 212, 0.28);
+  --cyan:         #06b6d4;
+  --cyan-dim:     rgba(6, 182, 212, 0.15);
+  --green:        #10b981;
+  --green-dim:    rgba(16, 185, 129, 0.15);
+  --red:          #ef4444;
+  --red-dim:      rgba(239, 68, 68, 0.15);
+  --amber:        #f59e0b;
+  --amber-dim:    rgba(245, 158, 11, 0.15);
+  --orange:       #f97316;
+  --orange-dim:   rgba(249, 115, 22, 0.15);
+  --text:         #cbd5e1;
+  --text-muted:   #475569;
+  --text-bright:  #f1f5f9;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+          "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+  --radius:  10px;
+  --radius-sm: 6px;
+  --shadow:  0 4px 24px rgba(0,0,0,0.4);
+}
+
+html { font-size: 15px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle grid texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(6,182,212,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6,182,212,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Layout ─────────────────────────────────────────────────────── */
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────── */
+.header {
+  padding: 24px 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 40px; height: 40px;
+  background: var(--cyan-dim);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-icon svg { width: 22px; height: 22px; }
+
+.brand-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  font-size: 0.72rem;
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+.header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--green);
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.live-dot {
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+.meta-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.meta-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Pull-to-refresh hint */
+.ptr-hint {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  padding: 6px 0 0;
+  opacity: 0.6;
+}
+
+/* ─── Section Label ──────────────────────────────────────────────── */
+.section-label {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ─── Macro Cards ────────────────────────────────────────────────── */
+.macro-section { margin-bottom: 32px; }
+
+.macro-scroll {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.macro-scroll::-webkit-scrollbar { display: none; }
+
+@media (max-width: 540px) {
+  .macro-scroll {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+}
+
+.macro-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.macro-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+  opacity: 0.6;
+}
+
+.macro-card:hover { border-color: var(--border-hi); }
+
+.macro-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.macro-icon.cycle { background: var(--cyan-dim); }
+.macro-icon.rate  { background: var(--green-dim); }
+.macro-icon.infl  { background: var(--amber-dim); }
+
+.macro-label {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.macro-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.macro-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Sector Cards ───────────────────────────────────────────────── */
+.sectors-section { display: flex; flex-direction: column; gap: 16px; }
+
+.sector-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+  box-shadow: var(--shadow);
+}
+
+.sector-card:hover { border-color: var(--border-hi); }
+
+.sector-header {
+  padding: 14px 18px;
+  background: var(--surface-hi);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sector-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+  flex-shrink: 0;
+}
+
+.sector-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.01em;
+}
+
+.sector-count {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* ─── Stock Table ────────────────────────────────────────────────── */
+.stock-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stock-table th {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 10px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+
+.stock-table th:last-child { text-align: right; }
+
+/* Details/summary accordion row */
+.stock-table details { display: contents; }
+
+.stock-table summary {
+  display: table-row;
+  list-style: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.stock-table summary::-webkit-details-marker { display: none; }
+
+.stock-table summary::marker { display: none; }
+
+.stock-table summary:hover { background: rgba(6,182,212,0.04); }
+
+.stock-table details[open] summary { background: rgba(6,182,212,0.06); }
+
+/* Cells inside summary (tr-like) */
+.stock-table summary .cell {
+  display: table-cell;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 0.84rem;
+}
+
+.stock-table summary .cell:last-child { text-align: right; }
+
+/* Expand row */
+.expand-row {
+  display: table-row;
+}
+
+.expand-cell {
+  display: table-cell;
+  padding: 0;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Expand panel inner */
+.expand-panel {
+  padding: 14px 18px 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-label {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.detail-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+
+/* 52w range */
+.range-bar-wrap {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.range-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.range-track {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.range-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.range-current {
+  position: absolute;
+  top: -2px;
+  width: 8px; height: 8px;
+  background: var(--text-bright);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 0 6px rgba(255,255,255,0.5);
+}
+
+/* ─── Stock name + ticker ────────────────────────────────────────── */
+.stock-name-wrap { display: flex; flex-direction: column; gap: 1px; }
+
+.stock-name-text {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.stock-ticker {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* Expand chevron indicator */
+.expand-chevron {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  vertical-align: middle;
+}
+
+details[open] .expand-chevron { transform: rotate(90deg); }
+
+/* ─── Regime Badges ──────────────────────────────────────────────── */
+.regime {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.regime-up-strong   { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.regime-up          { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
+.regime-up-weak     { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+.regime-sideways    { background: rgba(245,158,11,0.1);  color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
+.regime-down-weak   { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
+.regime-down        { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+.regime-down-strong { background: rgba(239,68,68,0.22);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); }
+.regime-unknown     { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.2); }
+
+/* ─── Sentiment ──────────────────────────────────────────────────── */
+.sentiment {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sentiment-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.sentiment-score {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+}
+
+.col-pos   { color: var(--green); }
+.col-neg   { color: var(--red); }
+.col-neut  { color: var(--text-muted); }
+
+/* ─── Price ──────────────────────────────────────────────────────── */
+.price-cell {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+/* ─── Loading / Error ─────────────────────────────────────────────── */
+.state-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 20px;
+  text-align: center;
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 2px solid var(--border);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.state-label {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.error-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.error-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.error-msg {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  max-width: 320px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────── */
+.footer {
+  margin-top: 48px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer-brand {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.footer-brand span { color: var(--cyan); }
+
+.footer-time {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .brand-title { font-size: 1.1rem; }
+
+  .stock-table th { padding: 8px 12px; }
+  .stock-table summary .cell { padding: 11px 12px; }
+  .expand-panel { padding: 12px; gap: 8px; }
+
+  .sector-header { padding: 12px 14px; }
+  .sector-name { font-size: 0.82rem; }
+
+  .footer { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 400px) {
+  .stock-name-text { font-size: 0.78rem; }
+  .price-cell { font-size: 0.78rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-top">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">AI 금융 분석 대시보드</div>
+          <div class="brand-sub" id="header-date">로딩 중...</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="live-badge">
+          <span class="live-dot"></span>
+          LIVE
+        </span>
+        <span class="meta-date" id="meta-date"></span>
+        <span class="meta-time" id="meta-time"></span>
+      </div>
+    </div>
+    <p class="ptr-hint">▽ 아래로 당기면 새로고침</p>
+  </header>
+
+  <!-- Main content area -->
+  <main id="main-content">
+    <div class="state-screen" id="loading-screen">
+      <div class="spinner"></div>
+      <p class="state-label">데이터를 불러오는 중...</p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+/* ──────────────────────────────────────────
+   Utilities
+────────────────────────────────────────── */
+function fmtPrice(v) {
+  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
+  return Number(v).toLocaleString('ko-KR') + '원';
+}
+
+function fmtMarketCap(v) {
+  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
+  const n = Number(v); // already in 억
+  if (n >= 10000) return (n / 10000).toFixed(1) + '조';
+  return Math.round(n).toLocaleString('ko-KR') + '억';
+}
+
+function fmtPct(v) {
+  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
+  const n = Number(v);
+  const sign = n > 0 ? '+' : '';
+  return sign + n.toFixed(2) + '%';
+}
+
+function fmtNum(v, decimals = 2) {
+  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
+  return Number(v).toFixed(decimals);
+}
+
+function sentimentColor(score) {
+  if (score == null || isNaN(Number(score))) return 'col-neut';
+  const n = Number(score);
+  if (n > 5)  return 'col-pos';
+  if (n < -5) return 'col-neg';
+  return 'col-neut';
+}
+
+function sentimentLabelColor(label) {
+  if (!label) return 'col-neut';
+  if (label.includes('긍정') || label.includes('낙관') || label.includes('탐욕')) return 'col-pos';
+  if (label.includes('부정') || label.includes('약세') || label.includes('공포') || label.includes('하락')) return 'col-neg';
+  return 'col-neut';
+}
+
+function regimeClass(regime) {
+  if (!regime) return 'regime-unknown';
+  if (regime === '강한상승') return 'regime-up-strong';
+  if (regime === '상승')     return 'regime-up';
+  if (regime === '약한상승') return 'regime-up-weak';
+  if (regime === '횡보')     return 'regime-sideways';
+  if (regime === '약한하락') return 'regime-down-weak';
+  if (regime === '하락')     return 'regime-down';
+  if (regime === '강한하락') return 'regime-down-strong';
+  return 'regime-unknown';
+}
+
+/* Compute 52w position as percentage (0–100) */
+function rangePos(price, low, high) {
+  if (!price || !low || !high || high === low) return null;
+  const pct = ((price - low) / (high - low)) * 100;
+  return Math.max(0, Math.min(100, pct));
+}
+
+/* ──────────────────────────────────────────
+   Build macro section HTML
+────────────────────────────────────────── */
+function buildMacro(macro) {
+  const cycle = macro?.cycle ?? 'N/A';
+  const rate  = macro?.rate  ?? 'N/A';
+  const ffr   = macro?.ffr   ?? 'N/A';
+  const infl  = macro?.inflation ?? 'N/A';
+  const cpi   = macro?.cpi   ?? 'N/A';
+
+  return `
+<div class="macro-section">
+  <p class="section-label">매크로 환경</p>
+  <div class="macro-scroll">
+
+    <div class="macro-card">
+      <div class="macro-icon cycle">📈</div>
+      <p class="macro-label">경기 사이클</p>
+      <p class="macro-value">${esc(cycle)}</p>
+    </div>
+
+    <div class="macro-card">
+      <div class="macro-icon rate">🏦</div>
+      <p class="macro-label">금리 국면</p>
+      <p class="macro-value">${esc(rate)}</p>
+      <p class="macro-sub">FFR ${esc(ffr)}</p>
+    </div>
+
+    <div class="macro-card">
+      <div class="macro-icon infl">📊</div>
+      <p class="macro-label">인플레이션</p>
+      <p class="macro-value">${esc(infl)}</p>
+      <p class="macro-sub">CPI ${esc(cpi)}</p>
+    </div>
+
+  </div>
+</div>`;
+}
+
+/* ──────────────────────────────────────────
+   Build one stock row (details/summary)
+────────────────────────────────────────── */
+function buildStockRow(stock, colSpan) {
+  const name    = stock.name    ?? stock['기업명'] ?? '—';
+  const ticker  = stock.ticker  ?? stock['티커']   ?? '';
+  const regime  = stock.regime  ?? '—';
+  const sentLabel = stock.sentiment_label ?? '—';
+  const sentScore = stock.sentiment_score ?? stock['심리점수'] ?? null;
+  const price   = stock.price   ?? stock['현재주가'] ?? null;
+  const mcap    = stock.market_cap ?? stock['시가총액(억)'] ?? null;
+  const fper    = stock.forward_per ?? stock['Forward PER'] ?? null;
+  const roe     = stock.roe     ?? stock['ROE(%)'] ?? null;
+  const revGrow = stock.revenue_growth ?? stock['매출성장률(%)'] ?? null;
+  const hi52    = stock.high_52w ?? stock['52주최고'] ?? null;
+  const lo52    = stock.low_52w  ?? stock['52주최저'] ?? null;
+
+  const scoreNum = sentScore !== null && sentScore !== undefined
+    ? parseFloat(String(sentScore).replace('+',''))
+    : null;
+
+  const rPos = rangePos(price, lo52, hi52);
+
+  const scoreDisp = scoreNum !== null
+    ? (scoreNum >= 0 ? '+' : '') + scoreNum.toFixed(1)
+    : 'N/A';
+
+  const sentCls   = sentimentColor(scoreNum);
+  const labelCls  = sentimentLabelColor(sentLabel);
+
+  let rangeHTML = '';
+  if (rPos !== null) {
+    rangeHTML = `
+      <div class="range-bar-wrap">
+        <div class="range-label-row">
+          <span>52주 저가 ${fmtPrice(lo52)}</span>
+          <span>고가 ${fmtPrice(hi52)}</span>
+        </div>
+        <div class="range-track">
+          <div class="range-fill" style="width:${rPos.toFixed(1)}%"></div>
+          <div class="range-current" style="left:${rPos.toFixed(1)}%"></div>
+        </div>
+      </div>`;
+  }
+
+  return `
+<details>
+  <summary>
+    <span class="cell">
+      <span class="expand-chevron">▶</span>
+      <span class="stock-name-wrap">
+        <span class="stock-name-text">${esc(name)}</span>
+        <span class="stock-ticker">${esc(ticker)}</span>
+      </span>
+    </span>
+    <span class="cell">
+      <span class="regime ${regimeClass(regime)}">${esc(regime)}</span>
+    </span>
+    <span class="cell">
+      <span class="sentiment">
+        <span class="sentiment-label ${labelCls}">${esc(sentLabel)}</span>
+        <span class="sentiment-score ${sentCls}">${esc(scoreDisp)}</span>
+      </span>
+    </span>
+    <span class="cell price-cell">${fmtPrice(price)}</span>
+  </summary>
+  <tr class="expand-row">
+    <td class="expand-cell" colspan="${colSpan}">
+      <div class="expand-panel">
+        <div class="detail-item">
+          <span class="detail-label">시가총액</span>
+          <span class="detail-value">${fmtMarketCap(mcap)}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Forward PER</span>
+          <span class="detail-value">${fmtNum(fper)}x</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">ROE</span>
+          <span class="detail-value">${fmtNum(roe)}%</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">매출성장률</span>
+          <span class="detail-value ${scoreNum !== null ? sentimentColor(revGrow) : ''}">${fmtNum(revGrow)}%</span>
+        </div>
+        ${rangeHTML}
+      </div>
+    </td>
+  </tr>
+</details>`;
+}
+
+/* ──────────────────────────────────────────
+   Build one sector card
+────────────────────────────────────────── */
+function buildSectorCard(sector) {
+  const sectorName = sector.name ?? sector['섹터'] ?? '기타';
+  const stocks     = sector.stocks ?? [];
+  const colSpan    = 4;
+
+  const rows = stocks.map(s => buildStockRow(s, colSpan)).join('');
+
+  return `
+<div class="sector-card">
+  <div class="sector-header">
+    <span class="sector-dot"></span>
+    <span class="sector-name">${esc(sectorName)}</span>
+    <span class="sector-count">${stocks.length}종목</span>
+  </div>
+  <table class="stock-table">
+    <thead>
+      <tr>
+        <th>종목</th>
+        <th>레짐</th>
+        <th>시장심리</th>
+        <th>주가</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>`;
+}
+
+/* ──────────────────────────────────────────
+   HTML escape
+────────────────────────────────────────── */
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ──────────────────────────────────────────
+   Render full page from data
+────────────────────────────────────────── */
+function render(data) {
+  /* Update header meta */
+  const dateStr = data.date ?? '';
+  const genAt   = data.generated_at ?? '';
+
+  document.getElementById('header-date').textContent = dateStr
+    ? dateStr + ' 분석 보고서'
+    : 'AI 분석 보고서';
+
+  if (dateStr) {
+    document.getElementById('meta-date').textContent = dateStr;
+  }
+  if (genAt) {
+    document.getElementById('meta-time').textContent = '생성: ' + genAt;
+  }
+
+  /* Build content */
+  const macroHTML   = buildMacro(data.macro ?? {});
+  const sectors     = data.sectors ?? [];
+  const sectorsHTML = sectors.map(buildSectorCard).join('');
+
+  const footerHTML = `
+<footer class="footer">
+  <p class="footer-brand">Powered by <span>AI Finance Analysis System</span></p>
+  <p class="footer-time">업데이트: ${esc(genAt || dateStr || '—')}</p>
+</footer>`;
+
+  document.getElementById('main-content').innerHTML = `
+${macroHTML}
+<p class="section-label">섹터별 종목 분석</p>
+<div class="sectors-section">
+  ${sectorsHTML}
+</div>
+${footerHTML}`;
+}
+
+/* ──────────────────────────────────────────
+   Show error state
+────────────────────────────────────────── */
+function showError(msg) {
+  document.getElementById('main-content').innerHTML = `
+<div class="state-screen">
+  <div class="error-icon">⚠️</div>
+  <p class="error-title">데이터를 불러올 수 없습니다</p>
+  <p class="error-msg">${esc(msg)}</p>
+</div>`;
+}
+
+/* ──────────────────────────────────────────
+   Fetch data.json
+────────────────────────────────────────── */
+async function loadData() {
+  try {
+    const res = await fetch('data.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    showError(err.message ?? String(err));
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
