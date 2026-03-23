@@ -6,6 +6,7 @@
 <meta name="description" content="AI 기반 한국 주식시장 일일 분석 대시보드">
 <title>AI 금융 분석 대시보드</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0e17'/%3E%3Cpolyline points='4,24 10,14 16,18 22,8 28,12' fill='none' stroke='%2306b6d4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='12' r='2' fill='%2310b981'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 /* ─── Reset & Base ─────────────────────────────────────── */
@@ -15,6 +16,7 @@
   --bg:           #0a0e17;
   --surface:      #111827;
   --surface-hi:   #162032;
+  --surface-glass: rgba(17, 24, 39, 0.7);
   --border:       rgba(6,182,212,0.12);
   --border-hi:    rgba(6,182,212,0.28);
   --cyan:         #06b6d4;
@@ -30,12 +32,13 @@
   --text:         #cbd5e1;
   --text-muted:   #475569;
   --text-bright:  #f1f5f9;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
-          "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "Noto Sans KR", "Malgun Gothic", sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Consolas", "Menlo", monospace;
   --radius:  10px;
   --radius-sm: 6px;
+  --radius-lg: 14px;
   --shadow:  0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 30px rgba(6,182,212,0.08);
   --row-even: rgba(255,255,255,0.02);
 }
 
@@ -62,6 +65,50 @@ body::before {
   z-index: 0;
 }
 
+/* ─── Animations ──────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes gaugeGrow {
+  from { width: 0; }
+}
+
+.anim-item {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.anim-item:nth-child(1) { animation-delay: 0.05s; }
+.anim-item:nth-child(2) { animation-delay: 0.1s; }
+.anim-item:nth-child(3) { animation-delay: 0.15s; }
+.anim-item:nth-child(4) { animation-delay: 0.2s; }
+.anim-item:nth-child(5) { animation-delay: 0.25s; }
+.anim-item:nth-child(6) { animation-delay: 0.3s; }
+
 /* ─── Layout ───────────────────────────────────────────── */
 .shell {
   position: relative;
@@ -71,11 +118,28 @@ body::before {
   padding: 0 20px 48px;
 }
 
+/* ─── Glass Card Base ─────────────────────────────────── */
+.glass-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.glass-card:hover {
+  border-color: var(--border-hi);
+  box-shadow: var(--shadow), var(--shadow-glow);
+}
+
 /* ─── Header ───────────────────────────────────────────── */
 .header {
   padding: 24px 0 20px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  animation: fadeIn 0.4s ease;
 }
 
 .header-top {
@@ -93,7 +157,7 @@ body::before {
 }
 
 .brand-icon {
-  width: 40px; height: 40px;
+  width: 42px; height: 42px;
   background: var(--cyan-dim);
   border: 1px solid var(--border-hi);
   border-radius: var(--radius-sm);
@@ -112,7 +176,7 @@ body::before {
 }
 
 .brand-sub {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--cyan);
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
@@ -133,7 +197,7 @@ body::before {
   background: rgba(16,185,129,0.1);
   border: 1px solid rgba(16,185,129,0.3);
   color: var(--green);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -148,32 +212,27 @@ body::before {
   animation: pulse-dot 2s infinite;
 }
 
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.4; transform: scale(0.7); }
-}
-
 .meta-date {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
 
 .meta-time {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
 
 /* ─── Section Label ────────────────────────────────────── */
 .section-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.14em;
   color: var(--cyan);
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -186,23 +245,74 @@ body::before {
   background: var(--border);
 }
 
-/* ─── Macro Cards ──────────────────────────────────────── */
-.macro-section { margin-bottom: 32px; }
+.section-wrap {
+  margin-bottom: 36px;
+}
 
-.macro-scroll {
+/* ─── Insights Section ─────────────────────────────────── */
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.insight-card {
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.insight-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.insight-card.type-warning::before { background: linear-gradient(90deg, var(--amber), transparent); }
+.insight-card.type-opportunity::before { background: linear-gradient(90deg, var(--green), transparent); }
+.insight-card.type-risk::before { background: linear-gradient(90deg, var(--red), transparent); }
+.insight-card.type-info::before { background: linear-gradient(90deg, var(--cyan), transparent); }
+
+.insight-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.insight-icon.warning { background: var(--amber-dim); }
+.insight-icon.opportunity { background: var(--green-dim); }
+.insight-icon.risk { background: var(--red-dim); }
+.insight-icon.info { background: var(--cyan-dim); }
+
+.insight-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.insight-desc {
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ─── Macro Cards ──────────────────────────────────────── */
+.macro-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .macro-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
+  padding: 18px;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.2s;
 }
 
 .macro-card::before {
@@ -214,10 +324,8 @@ body::before {
   opacity: 0.6;
 }
 
-.macro-card:hover { border-color: var(--border-hi); }
-
 .macro-icon {
-  width: 32px; height: 32px;
+  width: 34px; height: 34px;
   border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 12px;
@@ -229,11 +337,12 @@ body::before {
 .macro-icon.infl  { background: var(--amber-dim); }
 
 .macro-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
   letter-spacing: 0.08em;
   margin-bottom: 4px;
+  text-transform: uppercase;
 }
 
 .macro-value {
@@ -245,20 +354,299 @@ body::before {
 }
 
 .macro-sub {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-family: var(--font-mono);
+}
+
+/* Macro Detail Panel */
+.macro-detail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.macro-detail-toggle:hover {
+  background: var(--cyan-dim);
+  border-color: var(--border-hi);
+}
+
+.macro-detail-toggle .toggle-arrow {
+  transition: transform 0.3s;
+  font-size: 0.65rem;
+}
+
+.macro-detail-toggle.is-open .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.macro-detail-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+.macro-detail-panel.is-open {
+  max-height: 600px;
+  opacity: 1;
+}
+
+.macro-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 16px 0 4px;
+}
+
+.macro-detail-item {
+  padding: 14px;
+}
+
+.macro-detail-item .md-label {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.macro-detail-item .md-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+
+.macro-detail-item .md-sub {
+  font-size: 0.68rem;
   color: var(--text-muted);
   margin-top: 2px;
 }
 
+/* ─── Geopolitical Risk Section ────────────────────────── */
+.geo-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.geo-gauge-card {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-label {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.gauge-wrap {
+  width: 100%;
+  max-width: 300px;
+  position: relative;
+}
+
+.gauge-track {
+  width: 100%;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+.gauge-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    #10b981 0%, #10b981 30%,
+    #f59e0b 30%, #f59e0b 50%,
+    #f97316 50%, #f97316 70%,
+    #ef4444 70%, #ef4444 100%);
+  opacity: 0.25;
+  border-radius: 9px;
+}
+
+.gauge-fill {
+  height: 100%;
+  border-radius: 9px;
+  position: relative;
+  z-index: 1;
+  animation: gaugeGrow 1s ease-out forwards;
+  transition: width 0.6s ease;
+}
+
+.gauge-needle {
+  position: absolute;
+  top: -6px;
+  width: 4px;
+  height: 30px;
+  background: var(--text-bright);
+  border-radius: 2px;
+  z-index: 2;
+  box-shadow: 0 0 8px rgba(255,255,255,0.5);
+  transform: translateX(-50%);
+  transition: left 0.6s ease;
+}
+
+.gauge-score {
+  font-size: 2rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  margin-top: 14px;
+  letter-spacing: -0.02em;
+}
+
+.gauge-score-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.gauge-scale {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 6px;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.geo-details-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.geo-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.geo-cat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.geo-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.geo-cat-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.geo-cat-score {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.geo-cat-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+.geo-cat-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+/* Safe haven mini-cards */
+.safe-haven-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.safe-haven-item {
+  padding: 10px;
+  text-align: center;
+}
+
+.sh-name {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.sh-price {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+
+.sh-change {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.sh-change.pos { color: var(--green); }
+.sh-change.neg { color: var(--red); }
+
+/* Geo news */
+.geo-news {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.geo-news-item {
+  font-size: 0.75rem;
+  color: var(--text);
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--amber);
+  line-height: 1.4;
+}
+
 /* ─── Sector Cards ─────────────────────────────────────── */
-.sectors-section { display: flex; flex-direction: column; gap: 16px; }
+.sectors-section { display: flex; flex-direction: column; gap: 14px; }
 
 .sector-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
 }
 
 .sector-header {
@@ -268,6 +656,13 @@ body::before {
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.sector-header:hover {
+  background: rgba(22, 32, 50, 0.9);
 }
 
 .sector-dot {
@@ -284,14 +679,44 @@ body::before {
   letter-spacing: -0.01em;
 }
 
+.sector-sentiment-badge {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-left: 8px;
+}
+
 .sector-count {
   margin-left: auto;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
   background: rgba(255,255,255,0.05);
   padding: 3px 10px;
   border-radius: 20px;
+}
+
+.sector-toggle {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  transition: transform 0.3s;
+  margin-left: 8px;
+}
+
+.sector-header.is-open .sector-toggle {
+  transform: rotate(180deg);
+}
+
+.sector-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.sector-body.is-open {
+  max-height: 2000px;
 }
 
 /* ─── Stock Table ──────────────────────────────────────── */
@@ -302,7 +727,7 @@ body::before {
 }
 
 .stock-table thead th {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -316,7 +741,6 @@ body::before {
   overflow: hidden;
 }
 
-/* Column widths — desktop 7 columns */
 .stock-table .col-name   { width: 22%; }
 .stock-table .col-regime { width: 10%; text-align: center; }
 .stock-table .col-sent   { width: 14%; }
@@ -326,38 +750,26 @@ body::before {
 .stock-table .col-roe    { width: 10%; text-align: right; }
 .stock-table .col-arrow  { width: 5%; text-align: center; }
 
-/* Data rows */
 .stock-row {
   cursor: pointer;
   transition: background 0.12s;
 }
 
-.stock-row:hover {
-  background: rgba(6,182,212,0.05);
-}
-
-.stock-row.is-open {
-  background: rgba(6,182,212,0.07);
-}
-
-.stock-row:nth-child(4n+1) {
-  background: var(--row-even);
-}
-.stock-row:nth-child(4n+1):hover {
-  background: rgba(6,182,212,0.05);
-}
+.stock-row:hover { background: rgba(6,182,212,0.05); }
+.stock-row.is-open { background: rgba(6,182,212,0.07); }
+.stock-row:nth-child(4n+1) { background: var(--row-even); }
+.stock-row:nth-child(4n+1):hover { background: rgba(6,182,212,0.05); }
 
 .stock-row td {
   padding: 12px 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Name cell */
 .stock-name {
   font-weight: 600;
   color: var(--text-bright);
@@ -365,7 +777,7 @@ body::before {
 }
 
 .stock-ticker {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
   margin-left: 6px;
@@ -374,7 +786,7 @@ body::before {
 /* Regime badges */
 .regime {
   display: inline-block;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-family: var(--font-mono);
   font-weight: 600;
   padding: 3px 8px;
@@ -394,12 +806,12 @@ body::before {
 
 /* Sentiment */
 .sent-label {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 
 .sent-score {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-family: var(--font-mono);
   font-weight: 500;
   margin-left: 4px;
@@ -426,22 +838,15 @@ body::before {
 .arrow-cell {
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   transition: transform 0.2s;
 }
 
-.stock-row.is-open .arrow-cell {
-  color: var(--cyan);
-}
+.stock-row.is-open .arrow-cell { color: var(--cyan); }
 
 /* ─── Detail Row (expanded) ────────────────────────────── */
-.detail-row {
-  display: none;
-}
-
-.detail-row.is-visible {
-  display: table-row;
-}
+.detail-row { display: none; }
+.detail-row.is-visible { display: table-row; }
 
 .detail-row td {
   padding: 0;
@@ -463,7 +868,7 @@ body::before {
 }
 
 .detail-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
   letter-spacing: 0.06em;
@@ -471,22 +876,19 @@ body::before {
 }
 
 .detail-value {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-bright);
   font-family: var(--font-mono);
 }
 
 /* 52w range bar */
-.range-bar-wrap {
-  grid-column: 1 / -1;
-  margin-top: 4px;
-}
+.range-bar-wrap { grid-column: 1 / -1; margin-top: 4px; }
 
 .range-label-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
   margin-bottom: 4px;
@@ -516,6 +918,176 @@ body::before {
   box-shadow: 0 0 6px rgba(255,255,255,0.4);
 }
 
+/* ─── Charts Section ──────────────────────────────────── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.chart-card {
+  padding: 20px;
+  min-height: 280px;
+}
+
+.chart-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-title-icon {
+  width: 24px; height: 24px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem;
+  background: var(--cyan-dim);
+}
+
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  max-height: 260px;
+}
+
+/* ─── Portfolio Section ───────────────────────────────── */
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.portfolio-card {
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.portfolio-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.portfolio-card.aggressive::before { background: linear-gradient(90deg, var(--red), var(--orange)); }
+.portfolio-card.balanced::before { background: linear-gradient(90deg, var(--cyan), var(--green)); }
+.portfolio-card.conservative::before { background: linear-gradient(90deg, var(--green), #06b6d4); }
+
+.portfolio-type {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.portfolio-card.aggressive .portfolio-type { color: var(--red); }
+.portfolio-card.balanced .portfolio-type { color: var(--cyan); }
+.portfolio-card.conservative .portfolio-type { color: var(--green); }
+
+.portfolio-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 12px;
+}
+
+.portfolio-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.port-stat-label {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.port-stat-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+
+.portfolio-weights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weight-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weight-name {
+  font-size: 0.72rem;
+  color: var(--text);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.weight-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.weight-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--cyan);
+  transition: width 0.6s ease;
+}
+
+.weight-pct {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ─── Footer ───────────────────────────────────────────── */
+.footer {
+  margin-top: 48px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer-brand {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.footer-brand span { color: var(--cyan); }
+
+.footer-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
 /* ─── Loading / Error ──────────────────────────────────── */
 .state-screen {
   display: flex;
@@ -535,10 +1107,8 @@ body::before {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-
 .state-label {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -546,43 +1116,17 @@ body::before {
 .error-icon { font-size: 2.5rem; line-height: 1; }
 .error-title { font-size: 1rem; font-weight: 700; color: var(--red); }
 .error-msg {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
   max-width: 320px;
 }
 
-/* ─── Footer ───────────────────────────────────────────── */
-.footer {
-  margin-top: 48px;
-  padding: 20px 0;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.footer-brand {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-.footer-brand span { color: var(--cyan); }
-
-.footer-time {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-/* ─── Mobile: hide columns, show compact cards ─────────── */
+/* ─── Mobile ───────────────────────────────────────────── */
 @media (max-width: 768px) {
   .shell { padding: 0 12px 32px; }
 
-  .macro-scroll {
+  .macro-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
@@ -591,401 +1135,707 @@ body::before {
   .macro-icon { width: 28px; height: 28px; margin-bottom: 8px; font-size: 0.85rem; }
   .macro-value { font-size: 1rem; }
 
-  /* Hide desktop-only columns */
-  .stock-table .hide-mobile {
-    display: none;
+  .geo-container {
+    grid-template-columns: 1fr;
   }
 
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-table .hide-mobile { display: none; }
   .stock-table { table-layout: auto; }
 
   .stock-table .col-name   { width: auto; }
   .stock-table .col-regime { width: auto; }
+  .stock-table .col-sent   { width: auto; }
   .stock-table .col-price  { width: auto; }
-  .stock-table .col-arrow  { width: 28px; }
 
-  .stock-table thead th { padding: 8px 8px; font-size: 0.68rem; }
-  .stock-row td { padding: 10px 8px; font-size: 0.85rem; }
+  .stock-row td { padding: 10px 8px; font-size: 0.82rem; }
+  .stock-table thead th { padding: 6px 8px; font-size: 0.62rem; }
 
-  .sector-header { padding: 10px 12px; }
-  .sector-name { font-size: 0.92rem; }
+  .sector-header { padding: 12px 14px; }
 
-  .detail-panel { padding: 10px 12px; gap: 8px 12px; grid-template-columns: repeat(2, 1fr); }
-
-  .brand-title { font-size: 1.1rem; }
-
-  .footer { flex-direction: column; align-items: flex-start; }
-
-  /* Mobile: show sent below name */
-  .mobile-sent {
-    display: block;
-    font-size: 0.78rem;
-    margin-top: 2px;
+  .detail-panel {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 12px;
   }
+
+  .macro-detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .safe-haven-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .header-brand { gap: 8px; }
+  .brand-title { font-size: 1.05rem; }
+  .brand-icon { width: 36px; height: 36px; }
 }
 
-@media (min-width: 769px) {
-  .mobile-sent { display: none; }
-}
+@media (max-width: 480px) {
+  .macro-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
 
-@media (max-width: 400px) {
-  .macro-scroll { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
   .macro-card { padding: 10px; }
-  .macro-value { font-size: 0.92rem; }
-  .macro-sub { font-size: 0.75rem; }
-  .macro-label { font-size: 0.7rem; }
+  .macro-icon { width: 24px; height: 24px; font-size: 0.75rem; margin-bottom: 6px; }
+  .macro-label { font-size: 0.62rem; }
+  .macro-value { font-size: 0.88rem; }
+  .macro-sub { font-size: 0.68rem; }
 }
-
 </style>
 </head>
 <body>
 
-<div class="shell">
-
-  <!-- Header -->
-  <header class="header">
-    <div class="header-top">
-      <div class="header-brand">
-        <div class="brand-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div>
-          <div class="brand-title">AI 금융 분석 대시보드</div>
-          <div class="brand-sub" id="header-date">로딩 중...</div>
-        </div>
-      </div>
-      <div class="header-meta">
-        <span class="live-badge">
-          <span class="live-dot"></span>
-          LIVE
-        </span>
-        <span class="meta-date" id="meta-date"></span>
-        <span class="meta-time" id="meta-time"></span>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main content area -->
-  <main id="main-content">
-    <div class="state-screen" id="loading-screen">
-      <div class="spinner"></div>
-      <p class="state-label">데이터를 불러오는 중...</p>
-    </div>
-  </main>
-
+<div class="shell" id="app">
+  <div class="state-screen" id="loading">
+    <div class="spinner"></div>
+    <div class="state-label">데이터를 불러오는 중...</div>
+  </div>
 </div>
 
 <script>
-/* ─── Utilities ────────────────────────────────────────── */
-function esc(str) {
-  if (str == null) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+(function() {
+  'use strict';
 
-function fmtPrice(v, isCrypto) {
-  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  var n = Number(v);
-  if (isCrypto) {
-    if (n >= 1000) return '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
-    if (n >= 1) return '$' + n.toFixed(2);
-    return '$' + n.toFixed(4);
+  // ─── Utilities ───────────────────────────────────────
+  const $ = s => document.querySelector(s);
+  const h = s => s == null ? 'N/A' : String(s);
+
+  function fmtPrice(v) {
+    if (v == null) return 'N/A';
+    if (v >= 1000) return Math.round(v).toLocaleString('ko-KR');
+    if (v >= 1) return v.toLocaleString('ko-KR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    return v.toLocaleString('ko-KR', {minimumFractionDigits: 4, maximumFractionDigits: 4});
   }
-  return n.toLocaleString('ko-KR') + '원';
-}
 
-function fmtMarketCap(v, isCrypto) {
-  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  var n = Number(v);
-  if (isCrypto) {
-    if (n >= 10000) return '$' + (n / 10000).toFixed(1) + 'T';
-    return '$' + Math.round(n).toLocaleString('en-US') + 'B';
+  function fmtMcap(v) {
+    if (v == null) return 'N/A';
+    if (v >= 10000) return (v / 10000).toFixed(1) + '조';
+    return Math.round(v).toLocaleString() + '억';
   }
-  if (n >= 10000) return (n / 10000).toFixed(1) + '조';
-  return Math.round(n).toLocaleString('ko-KR') + '억';
-}
 
-function fmtNum(v, d) {
-  if (d === undefined) d = 2;
-  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  return Number(v).toFixed(d);
-}
+  function fmtPct(v) {
+    if (v == null) return 'N/A';
+    return (v >= 0 ? '+' : '') + Number(v).toFixed(1) + '%';
+  }
 
-function fmtPct(v) {
-  if (v == null || v === 'N/A' || isNaN(Number(v))) return 'N/A';
-  var n = Number(v);
-  return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
-}
+  function regimeClass(r) {
+    if (!r) return 'regime-unknown';
+    const map = {
+      '강한상승': 'regime-up-strong', '상승': 'regime-up', '약한상승': 'regime-up-weak',
+      '횡보': 'regime-sideways',
+      '약한하락': 'regime-down-weak', '하락': 'regime-down', '강한하락': 'regime-down-strong'
+    };
+    return map[r] || 'regime-unknown';
+  }
 
-function sentColor(score) {
-  if (score == null || isNaN(Number(score))) return 'col-neut';
-  var n = Number(score);
-  if (n > 5)  return 'col-pos';
-  if (n < -5) return 'col-neg';
-  return 'col-neut';
-}
+  function sentClass(score) {
+    const n = parseFloat(score);
+    if (isNaN(n)) return 'col-neut';
+    return n > 0 ? 'col-pos' : n < 0 ? 'col-neg' : 'col-neut';
+  }
 
-function sentLabelColor(label) {
-  if (!label) return 'col-neut';
-  if (/긍정|낙관|탐욕/.test(label)) return 'col-pos';
-  if (/부정|약세|공포|하락/.test(label)) return 'col-neg';
-  return 'col-neut';
-}
+  function riskColor(score) {
+    if (score <= 30) return '#10b981';
+    if (score <= 50) return '#f59e0b';
+    if (score <= 70) return '#f97316';
+    return '#ef4444';
+  }
 
-function regimeClass(r) {
-  if (!r) return 'regime-unknown';
-  var map = {
-    '강한상승': 'regime-up-strong',
-    '상승':     'regime-up',
-    '약한상승': 'regime-up-weak',
-    '횡보':     'regime-sideways',
-    '약한하락': 'regime-down-weak',
-    '하락':     'regime-down',
-    '강한하락': 'regime-down-strong'
+  function riskGradient(score) {
+    if (score <= 30) return 'linear-gradient(90deg, #10b981, #34d399)';
+    if (score <= 50) return 'linear-gradient(90deg, #10b981, #f59e0b)';
+    if (score <= 70) return 'linear-gradient(90deg, #10b981, #f59e0b, #f97316)';
+    return 'linear-gradient(90deg, #10b981, #f59e0b, #f97316, #ef4444)';
+  }
+
+  function riskLabel(score) {
+    if (score <= 30) return '안정';
+    if (score <= 50) return '경계';
+    if (score <= 70) return '위험';
+    return '심각';
+  }
+
+  // ─── Compute sector averages ─────────────────────────
+  function sectorAvgSentiment(stocks) {
+    let sum = 0, cnt = 0;
+    stocks.forEach(s => {
+      const v = parseFloat(s.sentiment_score);
+      if (!isNaN(v)) { sum += v; cnt++; }
+    });
+    return cnt ? sum / cnt : 0;
+  }
+
+  function countRegimes(sectors) {
+    const counts = {};
+    sectors.forEach(sec => {
+      sec.stocks.forEach(s => {
+        const r = s.regime || '기타';
+        counts[r] = (counts[r] || 0) + 1;
+      });
+    });
+    return counts;
+  }
+
+  // ─── Render ──────────────────────────────────────────
+  function render(data) {
+    const app = $('#app');
+    const dateParts = (data.date || '').split('-');
+    const dateStr = dateParts.length === 3 ? `${dateParts[0]}년 ${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : data.date;
+    const timeStr = data.generated_at ? data.generated_at.split(' ')[1] || '' : '';
+
+    let html = '';
+
+    // ─── HEADER ────────────────────────────────────────
+    html += `
+    <header class="header">
+      <div class="header-top">
+        <div class="header-brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="2,18 7,10 12,14 17,6 22,10"/>
+              <circle cx="22" cy="10" r="1.5" fill="#10b981" stroke="none"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">AI 금융 분석 대시보드</div>
+            <div class="brand-sub">MARKET INTELLIGENCE</div>
+          </div>
+        </div>
+        <div class="header-meta">
+          <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+          <span class="meta-date">${dateStr}</span>
+          ${timeStr ? `<span class="meta-time">생성: ${timeStr}</span>` : ''}
+        </div>
+      </div>
+    </header>`;
+
+    // ─── AI INSIGHTS ───────────────────────────────────
+    if (data.insights && data.insights.length > 0) {
+      html += `<section class="section-wrap"><div class="section-label">AI 인사이트</div><div class="insights-grid">`;
+      const iconMap = { warning: '&#9888;', opportunity: '&#9733;', risk: '&#9888;', info: '&#8505;' };
+      data.insights.forEach((ins, i) => {
+        const type = ins.type || 'info';
+        html += `
+        <div class="insight-card glass-card type-${type} anim-item">
+          <div class="insight-icon ${type}">${iconMap[type] || '&#8505;'}</div>
+          <div class="insight-title">${ins.title || ''}</div>
+          <div class="insight-desc">${ins.description || ''}</div>
+        </div>`;
+      });
+      html += `</div></section>`;
+    }
+
+    // ─── MACRO ─────────────────────────────────────────
+    const m = data.macro || {};
+    html += `
+    <section class="section-wrap">
+      <div class="section-label">매크로 환경</div>
+      <div class="macro-grid">
+        <div class="macro-card glass-card anim-item">
+          <div class="macro-icon cycle">&#9881;</div>
+          <div class="macro-label">경기 사이클</div>
+          <div class="macro-value">${h(m.cycle)}</div>
+          ${m.ffr ? `<div class="macro-sub">기준금리 ${m.ffr}</div>` : ''}
+        </div>
+        <div class="macro-card glass-card anim-item">
+          <div class="macro-icon rate">&#9650;</div>
+          <div class="macro-label">금리 방향</div>
+          <div class="macro-value">${h(m.rate)}</div>
+          ${m.ffr ? `<div class="macro-sub">FFR ${m.ffr}</div>` : ''}
+        </div>
+        <div class="macro-card glass-card anim-item">
+          <div class="macro-icon infl">&#9670;</div>
+          <div class="macro-label">인플레이션</div>
+          <div class="macro-value">${h(m.cpi || m.inflation)}</div>
+          ${m.cpi ? `<div class="macro-sub">CPI 기준</div>` : ''}
+        </div>
+      </div>`;
+
+    // Macro Detail (expandable)
+    if (data.macro_detail) {
+      const md = data.macro_detail;
+      html += `
+      <button class="macro-detail-toggle" onclick="toggleMacroDetail(this)">
+        상세 매크로 지표 <span class="toggle-arrow">&#9660;</span>
+      </button>
+      <div class="macro-detail-panel" id="macroDetailPanel">
+        <div class="macro-detail-grid">`;
+
+      const detailItems = [
+        { label: 'GDP 성장률', value: md.gdp_growth, fmt: v => fmtPct(v) },
+        { label: '실업률', value: md.unemployment, fmt: v => v != null ? v + '%' : 'N/A' },
+        { label: 'VIX', value: md.vix, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
+        { label: '수익률 곡선', value: md.yield_curve, fmt: v => h(v) },
+        { label: '10년물 금리', value: md.treasury_10y, fmt: v => v != null ? v + '%' : 'N/A' },
+        { label: '2년물 금리', value: md.treasury_2y, fmt: v => v != null ? v + '%' : 'N/A' },
+        { label: 'DXY', value: md.dxy, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
+        { label: '원/달러', value: md.usdkrw, fmt: v => v != null ? v.toFixed(0) + '원' : 'N/A' },
+      ];
+
+      detailItems.forEach(item => {
+        if (item.value != null) {
+          html += `
+          <div class="macro-detail-item glass-card">
+            <div class="md-label">${item.label}</div>
+            <div class="md-value">${item.fmt(item.value)}</div>
+          </div>`;
+        }
+      });
+
+      html += `</div></div>`;
+    }
+    html += `</section>`;
+
+    // ─── GEOPOLITICAL RISK ─────────────────────────────
+    if (data.geopolitical) {
+      const geo = data.geopolitical;
+      const score = geo.overall_score || 0;
+      const color = riskColor(score);
+
+      html += `
+      <section class="section-wrap">
+        <div class="section-label">지정학 리스크</div>
+        <div class="geo-container">
+          <div class="geo-gauge-card glass-card anim-item">
+            <div class="gauge-label">종합 리스크 지수</div>
+            <div class="gauge-wrap">
+              <div class="gauge-track">
+                <div class="gauge-fill" style="width:${score}%; background:${riskGradient(score)};"></div>
+                <div class="gauge-needle" style="left:${score}%;"></div>
+              </div>
+              <div class="gauge-scale">
+                <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+              </div>
+            </div>
+            <div class="gauge-score" style="color:${color};">${score}</div>
+            <div class="gauge-score-label">${riskLabel(score)}</div>
+          </div>
+          <div class="geo-details-card glass-card anim-item">`;
+
+      // Category breakdown
+      if (geo.categories && geo.categories.length > 0) {
+        html += `<div class="geo-categories">`;
+        geo.categories.forEach(cat => {
+          const catColor = riskColor(cat.score || 0);
+          html += `
+          <div class="geo-cat-item">
+            <div class="geo-cat-header">
+              <span class="geo-cat-name">${cat.name}</span>
+              <span class="geo-cat-score" style="color:${catColor}">${cat.score}</span>
+            </div>
+            <div class="geo-cat-bar">
+              <div class="geo-cat-fill" style="width:${cat.score}%; background:${catColor};"></div>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Safe haven assets
+      if (geo.safe_havens && geo.safe_havens.length > 0) {
+        html += `<div style="margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">안전자산 동향</div>
+        <div class="safe-haven-grid">`;
+        geo.safe_havens.forEach(sh => {
+          const chg = parseFloat(sh.change);
+          const chgClass = isNaN(chg) ? '' : chg >= 0 ? 'pos' : 'neg';
+          html += `
+          <div class="safe-haven-item glass-card">
+            <div class="sh-name">${sh.name}</div>
+            <div class="sh-price">${sh.price != null ? fmtPrice(sh.price) : 'N/A'}</div>
+            ${sh.change != null ? `<div class="sh-change ${chgClass}">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</div>` : ''}
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      html += `</div></div>`;
+
+      // Top news
+      if (geo.news && geo.news.length > 0) {
+        html += `<div class="geo-news" style="margin-top:14px;">`;
+        geo.news.slice(0, 5).forEach(n => {
+          html += `<div class="geo-news-item">${n}</div>`;
+        });
+        html += `</div>`;
+      }
+
+      html += `</section>`;
+    }
+
+    // ─── SECTORS ───────────────────────────────────────
+    html += `<section class="section-wrap"><div class="section-label">섹터별 종목 분석</div><div class="sectors-section">`;
+
+    (data.sectors || []).forEach((sec, si) => {
+      const isFirst = si === 0;
+      const avgSent = sectorAvgSentiment(sec.stocks);
+      const sentBadgeClass = avgSent > 0 ? 'col-pos' : avgSent < 0 ? 'col-neg' : 'col-neut';
+      const sentBadgeBg = avgSent > 0 ? 'var(--green-dim)' : avgSent < 0 ? 'var(--red-dim)' : 'rgba(100,116,139,0.15)';
+
+      html += `
+      <div class="sector-card glass-card anim-item">
+        <div class="sector-header ${isFirst ? 'is-open' : ''}" onclick="toggleSector(this)">
+          <span class="sector-dot"></span>
+          <span class="sector-name">${sec.name}</span>
+          <span class="sector-sentiment-badge ${sentBadgeClass}" style="background:${sentBadgeBg}">${avgSent >= 0 ? '+' : ''}${avgSent.toFixed(1)}</span>
+          <span class="sector-count">${sec.stocks.length}종목</span>
+          <span class="sector-toggle">&#9660;</span>
+        </div>
+        <div class="sector-body ${isFirst ? 'is-open' : ''}">
+          <table class="stock-table">
+            <thead>
+              <tr>
+                <th class="col-name">종목</th>
+                <th class="col-regime">레짐</th>
+                <th class="col-sent">센티멘트</th>
+                <th class="col-price hide-mobile">현재가</th>
+                <th class="col-mcap hide-mobile">시총</th>
+                <th class="col-per hide-mobile">F.PER</th>
+                <th class="col-roe hide-mobile">ROE</th>
+                <th class="col-arrow"></th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+      sec.stocks.forEach((st, sti) => {
+        const sc = sentClass(st.sentiment_score);
+        const rc = regimeClass(st.regime);
+        html += `
+              <tr class="stock-row" onclick="toggleDetail(this)">
+                <td class="col-name"><span class="stock-name">${st.name}</span><span class="stock-ticker">${st.ticker}</span></td>
+                <td class="col-regime"><span class="regime ${rc}">${st.regime || '?'}</span></td>
+                <td class="col-sent"><span class="sent-label ${sc}">${st.sentiment_label || ''}</span><span class="sent-score ${sc}">${h(st.sentiment_score)}</span></td>
+                <td class="col-price hide-mobile"><span class="num">${fmtPrice(st.price)}</span></td>
+                <td class="col-mcap hide-mobile"><span class="num-muted">${fmtMcap(st.market_cap)}</span></td>
+                <td class="col-per hide-mobile"><span class="num-muted">${st.forward_per != null ? st.forward_per.toFixed(1) : 'N/A'}</span></td>
+                <td class="col-roe hide-mobile"><span class="num-muted">${st.roe != null ? st.roe.toFixed(1) + '%' : 'N/A'}</span></td>
+                <td class="col-arrow"><span class="arrow-cell">&#9660;</span></td>
+              </tr>
+              <tr class="detail-row">
+                <td colspan="8">
+                  <div class="detail-panel">
+                    <div class="detail-item"><div class="detail-label">현재가</div><div class="detail-value">${fmtPrice(st.price)}</div></div>
+                    <div class="detail-item"><div class="detail-label">시가총액</div><div class="detail-value">${fmtMcap(st.market_cap)}</div></div>
+                    <div class="detail-item"><div class="detail-label">PER</div><div class="detail-value">${st.per != null && st.per !== 'N/A' ? Number(st.per).toFixed(1) : 'N/A'}</div></div>
+                    <div class="detail-item"><div class="detail-label">Forward PER</div><div class="detail-value">${st.forward_per != null ? st.forward_per.toFixed(1) : 'N/A'}</div></div>
+                    <div class="detail-item"><div class="detail-label">ROE</div><div class="detail-value">${st.roe != null ? st.roe.toFixed(1) + '%' : 'N/A'}</div></div>
+                    <div class="detail-item"><div class="detail-label">매출성장률</div><div class="detail-value">${st.revenue_growth != null ? fmtPct(st.revenue_growth) : 'N/A'}</div></div>
+                    ${st.high_52w != null && st.low_52w != null ? `
+                    <div class="range-bar-wrap">
+                      <div class="range-label-row"><span>52주 최저 ${fmtPrice(st.low_52w)}</span><span>52주 최고 ${fmtPrice(st.high_52w)}</span></div>
+                      <div class="range-track">
+                        <div class="range-fill" style="width:${Math.min(100, ((st.price - st.low_52w) / (st.high_52w - st.low_52w) * 100)).toFixed(1)}%"></div>
+                        <div class="range-current" style="left:${Math.min(100, ((st.price - st.low_52w) / (st.high_52w - st.low_52w) * 100)).toFixed(1)}%"></div>
+                      </div>
+                    </div>` : ''}
+                  </div>
+                </td>
+              </tr>`;
+      });
+
+      html += `</tbody></table></div></div>`;
+    });
+
+    html += `</div></section>`;
+
+    // ─── CHARTS ────────────────────────────────────────
+    html += `
+    <section class="section-wrap">
+      <div class="section-label">차트 분석</div>
+      <div class="charts-grid">
+        <div class="chart-card glass-card anim-item">
+          <div class="chart-title"><span class="chart-title-icon">&#9632;</span>섹터별 센티멘트</div>
+          <div class="chart-wrap"><canvas id="chartSentiment"></canvas></div>
+        </div>
+        <div class="chart-card glass-card anim-item">
+          <div class="chart-title"><span class="chart-title-icon">&#9673;</span>레짐 분포</div>
+          <div class="chart-wrap"><canvas id="chartRegime"></canvas></div>
+        </div>`;
+
+    if (data.portfolios) {
+      html += `
+        <div class="chart-card glass-card anim-item">
+          <div class="chart-title"><span class="chart-title-icon">&#9650;</span>포트폴리오 Sharpe Ratio</div>
+          <div class="chart-wrap"><canvas id="chartSharpe"></canvas></div>
+        </div>`;
+    }
+
+    html += `</div></section>`;
+
+    // ─── PORTFOLIOS ────────────────────────────────────
+    if (data.portfolios && data.portfolios.length > 0) {
+      const typeMap = { '공격형': 'aggressive', '균형형': 'balanced', '안정형': 'conservative' };
+      html += `<section class="section-wrap"><div class="section-label">포트폴리오 추천</div><div class="portfolio-grid">`;
+
+      data.portfolios.forEach((pf, i) => {
+        const typeClass = typeMap[pf.type] || 'balanced';
+        html += `
+        <div class="portfolio-card glass-card ${typeClass} anim-item">
+          <div class="portfolio-type">${pf.type || '포트폴리오'}</div>
+          <div class="portfolio-name">${pf.name || pf.type || ''}</div>
+          <div class="portfolio-stats">
+            ${pf.expected_return != null ? `<div><div class="port-stat-label">기대수익률</div><div class="port-stat-value">${fmtPct(pf.expected_return)}</div></div>` : ''}
+            ${pf.sharpe_ratio != null ? `<div><div class="port-stat-label">Sharpe Ratio</div><div class="port-stat-value">${pf.sharpe_ratio.toFixed(2)}</div></div>` : ''}
+            ${pf.max_drawdown != null ? `<div><div class="port-stat-label">MDD</div><div class="port-stat-value">${fmtPct(pf.max_drawdown)}</div></div>` : ''}
+            ${pf.volatility != null ? `<div><div class="port-stat-label">변동성</div><div class="port-stat-value">${fmtPct(pf.volatility)}</div></div>` : ''}
+          </div>`;
+
+        if (pf.weights && pf.weights.length > 0) {
+          html += `<div class="portfolio-weights">`;
+          pf.weights.forEach(w => {
+            html += `
+            <div class="weight-row">
+              <span class="weight-name">${w.sector || w.name}</span>
+              <div class="weight-bar-track"><div class="weight-bar-fill" style="width:${w.weight || 0}%"></div></div>
+              <span class="weight-pct">${w.weight || 0}%</span>
+            </div>`;
+          });
+          html += `</div>`;
+        }
+
+        html += `</div>`;
+      });
+
+      html += `</div></section>`;
+    }
+
+    // ─── FOOTER ────────────────────────────────────────
+    html += `
+    <footer class="footer">
+      <div class="footer-brand"><span>AI</span> Finance Dashboard</div>
+      <div class="footer-time">최종 업데이트: ${data.generated_at || data.date || ''}</div>
+    </footer>`;
+
+    app.innerHTML = html;
+
+    // ─── Render Charts ─────────────────────────────────
+    setTimeout(() => renderCharts(data), 100);
+  }
+
+  // ─── Charts ──────────────────────────────────────────
+  function renderCharts(data) {
+    const sectors = data.sectors || [];
+
+    // Chart defaults
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(6,182,212,0.1)';
+    Chart.defaults.font.family = "-apple-system, 'Noto Sans KR', 'Malgun Gothic', sans-serif";
+
+    // 1. Sector Sentiment Bar Chart (horizontal)
+    const sentCtx = document.getElementById('chartSentiment');
+    if (sentCtx) {
+      const labels = sectors.map(s => s.name);
+      const values = sectors.map(s => {
+        let sum = 0, cnt = 0;
+        s.stocks.forEach(st => {
+          const v = parseFloat(st.sentiment_score);
+          if (!isNaN(v)) { sum += v; cnt++; }
+        });
+        return cnt ? +(sum / cnt).toFixed(1) : 0;
+      });
+      const colors = values.map(v => v >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)');
+      const borderColors = values.map(v => v >= 0 ? '#10b981' : '#ef4444');
+
+      new Chart(sentCtx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderColor: borderColors,
+            borderWidth: 1,
+            borderRadius: 4,
+            barThickness: 22
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => `센티멘트: ${ctx.parsed.x >= 0 ? '+' : ''}${ctx.parsed.x}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: { font: { size: 11 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+
+    // 2. Regime Distribution Donut Chart
+    const regimeCtx = document.getElementById('chartRegime');
+    if (regimeCtx) {
+      const regimeCounts = countRegimes(sectors);
+      const regimeLabels = Object.keys(regimeCounts);
+      const regimeValues = Object.values(regimeCounts);
+
+      const regimeColorMap = {
+        '강한상승': '#34d399', '상승': '#6ee7b7', '약한상승': '#fbbf24',
+        '횡보': '#fcd34d',
+        '약한하락': '#fb923c', '하락': '#f87171', '강한하락': '#fca5a5'
+      };
+      const rColors = regimeLabels.map(r => regimeColorMap[r] || '#94a3b8');
+
+      new Chart(regimeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: regimeLabels,
+          datasets: [{
+            data: regimeValues,
+            backgroundColor: rColors.map(c => c + 'bb'),
+            borderColor: rColors,
+            borderWidth: 1,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 12,
+                padding: 10,
+                font: { size: 11 },
+                usePointStyle: true,
+                pointStyleWidth: 8
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${ctx.parsed}개 종목`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Portfolio Sharpe Ratio (if portfolios exist)
+    if (data.portfolios) {
+      const sharpeCtx = document.getElementById('chartSharpe');
+      if (sharpeCtx) {
+        const pfLabels = data.portfolios.map(p => p.type || p.name);
+        const pfValues = data.portfolios.map(p => p.sharpe_ratio || 0);
+        const pfColors = data.portfolios.map(p => {
+          const t = p.type;
+          if (t === '공격형') return 'rgba(239,68,68,0.7)';
+          if (t === '안정형') return 'rgba(16,185,129,0.7)';
+          return 'rgba(6,182,212,0.7)';
+        });
+        const pfBorders = data.portfolios.map(p => {
+          const t = p.type;
+          if (t === '공격형') return '#ef4444';
+          if (t === '안정형') return '#10b981';
+          return '#06b6d4';
+        });
+
+        new Chart(sharpeCtx, {
+          type: 'bar',
+          data: {
+            labels: pfLabels,
+            datasets: [{
+              data: pfValues,
+              backgroundColor: pfColors,
+              borderColor: pfBorders,
+              borderWidth: 1,
+              borderRadius: 4,
+              barThickness: 40
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => `Sharpe: ${ctx.parsed.y.toFixed(2)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 12 } }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { font: { size: 11 } },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  // ─── Interactions ────────────────────────────────────
+  window.toggleSector = function(header) {
+    header.classList.toggle('is-open');
+    const body = header.nextElementSibling;
+    body.classList.toggle('is-open');
   };
-  return map[r] || 'regime-unknown';
-}
 
-function rangePos(price, low, high) {
-  if (!price || !low || !high || high === low) return null;
-  return Math.max(0, Math.min(100, ((price - low) / (high - low)) * 100));
-}
+  window.toggleDetail = function(row) {
+    row.classList.toggle('is-open');
+    const detail = row.nextElementSibling;
+    if (detail && detail.classList.contains('detail-row')) {
+      detail.classList.toggle('is-visible');
+    }
+  };
 
-function isCryptoTicker(ticker) {
-  return ticker && ticker.includes('-');
-}
+  window.toggleMacroDetail = function(btn) {
+    btn.classList.toggle('is-open');
+    const panel = document.getElementById('macroDetailPanel');
+    if (panel) panel.classList.toggle('is-open');
+  };
 
-function parseScore(s) {
-  if (s == null || s === '' || s === 'N/A') return null;
-  var n = parseFloat(String(s).replace('+', ''));
-  return isNaN(n) ? null : n;
-}
+  // ─── Load Data ───────────────────────────────────────
+  fetch('./data.json')
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => render(data))
+    .catch(err => {
+      $('#app').innerHTML = `
+        <div class="state-screen">
+          <div class="error-icon">&#9888;</div>
+          <div class="error-title">데이터 로드 실패</div>
+          <div class="error-msg">${err.message}</div>
+        </div>`;
+    });
 
-/* ─── Build Macro Section ──────────────────────────────── */
-function buildMacro(macro) {
-  var cycle = (macro && macro.cycle) || 'N/A';
-  var rate  = (macro && macro.rate)  || 'N/A';
-  var ffr   = (macro && macro.ffr)   || 'N/A';
-  var infl  = (macro && macro.inflation) || 'N/A';
-  var cpi   = (macro && macro.cpi)   || 'N/A';
-
-  return '<div class="macro-section">' +
-    '<p class="section-label">매크로 환경</p>' +
-    '<div class="macro-scroll">' +
-
-    '<div class="macro-card">' +
-      '<div class="macro-icon cycle">📈</div>' +
-      '<p class="macro-label">경기 사이클</p>' +
-      '<p class="macro-value">' + esc(cycle) + '</p>' +
-    '</div>' +
-
-    '<div class="macro-card">' +
-      '<div class="macro-icon rate">🏦</div>' +
-      '<p class="macro-label">금리 국면</p>' +
-      '<p class="macro-value">' + esc(rate) + '</p>' +
-      '<p class="macro-sub">FFR ' + esc(ffr) + '</p>' +
-    '</div>' +
-
-    '<div class="macro-card">' +
-      '<div class="macro-icon infl">📊</div>' +
-      '<p class="macro-label">인플레이션</p>' +
-      '<p class="macro-value">' + esc(infl) + '</p>' +
-      '<p class="macro-sub">CPI ' + esc(cpi) + '</p>' +
-    '</div>' +
-
-    '</div></div>';
-}
-
-/* ─── Build Stock Table Rows ───────────────────────────── */
-function buildStockRows(stock, idx, colCount) {
-  var name    = stock.name    || '—';
-  var ticker  = stock.ticker  || '';
-  var regime  = stock.regime  || '—';
-  var sentLbl = stock.sentiment_label || '—';
-  var sentScr = stock.sentiment_score;
-  var price   = stock.price;
-  var mcap    = stock.market_cap;
-  var fper    = stock.forward_per;
-  var roe     = stock.roe;
-  var revGrow = stock.revenue_growth;
-  var hi52    = stock.high_52w;
-  var lo52    = stock.low_52w;
-  var crypto  = isCryptoTicker(ticker);
-
-  var scoreNum = parseScore(sentScr);
-  var scoreDisp = scoreNum !== null
-    ? (scoreNum >= 0 ? '+' : '') + scoreNum.toFixed(1)
-    : 'N/A';
-  var sCls  = sentColor(scoreNum);
-  var slCls = sentLabelColor(sentLbl);
-  var rPos  = rangePos(price, lo52, hi52);
-
-  var rowId = 'row-' + idx;
-  var detId = 'det-' + idx;
-
-  // Main row
-  var html = '<tr class="stock-row" data-detail="' + detId + '" id="' + rowId + '" onclick="toggleDetail(\'' + detId + '\',\'' + rowId + '\')">';
-
-  // Name + ticker, plus mobile sentiment inline
-  html += '<td class="col-name">';
-  html += '<span class="stock-name">' + esc(name) + '</span>';
-  html += '<span class="stock-ticker">' + esc(ticker) + '</span>';
-  html += '<span class="mobile-sent"><span class="' + slCls + '">' + esc(sentLbl) + '</span> <span class="' + sCls + '">' + esc(scoreDisp) + '</span></span>';
-  html += '</td>';
-
-  // Regime
-  html += '<td class="col-regime"><span class="regime ' + regimeClass(regime) + '">' + esc(regime) + '</span></td>';
-
-  // Sentiment (desktop only)
-  html += '<td class="col-sent hide-mobile"><span class="sent-label ' + slCls + '">' + esc(sentLbl) + '</span><span class="sent-score ' + sCls + '">' + esc(scoreDisp) + '</span></td>';
-
-  // Price
-  html += '<td class="col-price num">' + fmtPrice(price, crypto) + '</td>';
-
-  // Market cap (desktop)
-  html += '<td class="col-mcap num-muted hide-mobile">' + fmtMarketCap(mcap, crypto) + '</td>';
-
-  // PER (desktop)
-  html += '<td class="col-per num-muted hide-mobile">' + fmtNum(fper) + '</td>';
-
-  // ROE (desktop)
-  html += '<td class="col-roe num-muted hide-mobile">' + fmtNum(roe) + '%</td>';
-
-  // Arrow
-  html += '<td class="col-arrow arrow-cell">&#9662;</td>';
-
-  html += '</tr>';
-
-  // Detail row
-  html += '<tr class="detail-row" id="' + detId + '"><td colspan="' + colCount + '">';
-  html += '<div class="detail-panel">';
-
-  html += '<div class="detail-item"><span class="detail-label">시가총액</span><span class="detail-value">' + fmtMarketCap(mcap, crypto) + '</span></div>';
-  html += '<div class="detail-item"><span class="detail-label">Forward PER</span><span class="detail-value">' + fmtNum(fper) + 'x</span></div>';
-  html += '<div class="detail-item"><span class="detail-label">ROE</span><span class="detail-value">' + fmtNum(roe) + '%</span></div>';
-  html += '<div class="detail-item"><span class="detail-label">매출성장률</span><span class="detail-value">' + fmtPct(revGrow) + '</span></div>';
-
-  if (rPos !== null) {
-    html += '<div class="range-bar-wrap">';
-    html += '<div class="range-label-row"><span>52주 저가 ' + fmtPrice(lo52, crypto) + '</span><span>고가 ' + fmtPrice(hi52, crypto) + '</span></div>';
-    html += '<div class="range-track"><div class="range-fill" style="width:' + rPos.toFixed(1) + '%"></div><div class="range-current" style="left:' + rPos.toFixed(1) + '%"></div></div>';
-    html += '</div>';
-  }
-
-  html += '</div></td></tr>';
-
-  return html;
-}
-
-/* ─── Build Sector Card ────────────────────────────────── */
-var globalIdx = 0;
-
-function buildSectorCard(sector) {
-  var sName  = (sector.name || sector['섹터'] || '기타');
-  var stocks = sector.stocks || [];
-  var colCount = 8; // name, regime, sent, price, mcap, per, roe, arrow
-
-  var rowsHTML = '';
-  for (var i = 0; i < stocks.length; i++) {
-    rowsHTML += buildStockRows(stocks[i], globalIdx, colCount);
-    globalIdx++;
-  }
-
-  return '<div class="sector-card">' +
-    '<div class="sector-header">' +
-      '<span class="sector-dot"></span>' +
-      '<span class="sector-name">' + esc(sName) + '</span>' +
-      '<span class="sector-count">' + stocks.length + '종목</span>' +
-    '</div>' +
-    '<div style="overflow-x:auto">' +
-    '<table class="stock-table">' +
-      '<thead><tr>' +
-        '<th class="col-name">종목</th>' +
-        '<th class="col-regime">레짐</th>' +
-        '<th class="col-sent hide-mobile">심리</th>' +
-        '<th class="col-price" style="text-align:right">주가</th>' +
-        '<th class="col-mcap hide-mobile" style="text-align:right">시총</th>' +
-        '<th class="col-per hide-mobile" style="text-align:right">PER</th>' +
-        '<th class="col-roe hide-mobile" style="text-align:right">ROE</th>' +
-        '<th class="col-arrow"></th>' +
-      '</tr></thead>' +
-      '<tbody>' + rowsHTML + '</tbody>' +
-    '</table>' +
-    '</div>' +
-  '</div>';
-}
-
-/* ─── Toggle Detail Row ────────────────────────────────── */
-function toggleDetail(detId, rowId) {
-  var det = document.getElementById(detId);
-  var row = document.getElementById(rowId);
-  if (!det || !row) return;
-  var open = det.classList.contains('is-visible');
-  if (open) {
-    det.classList.remove('is-visible');
-    row.classList.remove('is-open');
-  } else {
-    det.classList.add('is-visible');
-    row.classList.add('is-open');
-  }
-}
-
-/* ─── Render ───────────────────────────────────────────── */
-function render(data) {
-  var dateStr = data.date || '';
-  var genAt   = data.generated_at || '';
-
-  document.getElementById('header-date').textContent =
-    dateStr ? dateStr + ' 분석 보고서' : 'AI 분석 보고서';
-
-  if (dateStr) document.getElementById('meta-date').textContent = dateStr;
-  if (genAt)   document.getElementById('meta-time').textContent = '생성: ' + genAt;
-
-  globalIdx = 0;
-
-  var macroHTML   = buildMacro(data.macro || {});
-  var sectors     = data.sectors || [];
-  var sectorsHTML = '';
-  for (var i = 0; i < sectors.length; i++) {
-    sectorsHTML += buildSectorCard(sectors[i]);
-  }
-
-  var footerHTML =
-    '<footer class="footer">' +
-      '<p class="footer-brand">Powered by <span>AI Finance Analysis System</span></p>' +
-      '<p class="footer-time">업데이트: ' + esc(genAt || dateStr || '—') + '</p>' +
-    '</footer>';
-
-  document.getElementById('main-content').innerHTML =
-    macroHTML +
-    '<p class="section-label">섹터별 종목 분석</p>' +
-    '<div class="sectors-section">' + sectorsHTML + '</div>' +
-    footerHTML;
-}
-
-/* ─── Error State ──────────────────────────────────────── */
-function showError(msg) {
-  document.getElementById('main-content').innerHTML =
-    '<div class="state-screen">' +
-      '<div class="error-icon">⚠️</div>' +
-      '<p class="error-title">데이터를 불러올 수 없습니다</p>' +
-      '<p class="error-msg">' + esc(msg) + '</p>' +
-    '</div>';
-}
-
-/* ─── Load Data ────────────────────────────────────────── */
-async function loadData() {
-  try {
-    var res = await fetch('data.json');
-    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + res.statusText);
-    var data = await res.json();
-    render(data);
-  } catch (err) {
-    showError(err.message || String(err));
-  }
-}
-
-loadData();
+})();
 </script>
 </body>
 </html>
