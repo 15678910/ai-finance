@@ -845,7 +845,7 @@ def main():
             ["--date", date_str, "--daily-dir", daily_dir],
             "Excel 종합보고서",
         )
-        if excel_result and excel_result.returncode == 0:
+        if excel_result and excel_result["success"]:
             total_files += 1
             print("완료")
         else:
@@ -862,7 +862,7 @@ def main():
             ["--date", date_str, "--daily-dir", daily_dir],
             "대시보드 데이터",
         )
-        if dash_result and dash_result.returncode == 0:
+        if dash_result and dash_result["success"]:
             total_files += 1
             print("완료")
             # GitHub Pages 자동 업데이트 (push)
