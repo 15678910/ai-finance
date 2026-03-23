@@ -1323,18 +1323,52 @@ body::before {
     </header>`;
 
     // ─── AI INSIGHTS ───────────────────────────────────
-    if (data.insights && data.insights.length > 0) {
+    const ins = data.insights;
+    if (ins && (ins.market_assessment || (ins.top_insights && ins.top_insights.length) || (ins.best_opportunities && ins.best_opportunities.length))) {
       html += `<section class="section-wrap"><div class="section-label">AI 인사이트</div><div class="insights-grid">`;
-      const iconMap = { warning: '&#9888;', opportunity: '&#9733;', risk: '&#9888;', info: '&#8505;' };
-      data.insights.forEach((ins, i) => {
-        const type = ins.type || 'info';
-        html += `
-        <div class="insight-card glass-card type-${type} anim-item">
-          <div class="insight-icon ${type}">${iconMap[type] || '&#8505;'}</div>
-          <div class="insight-title">${ins.title || ''}</div>
-          <div class="insight-desc">${ins.description || ''}</div>
+
+      // Market assessment
+      if (ins.market_assessment) {
+        html += `<div class="insight-card glass-card type-info anim-item">
+          <div class="insight-icon info">&#128200;</div>
+          <div class="insight-title">시장 종합 평가</div>
+          <div class="insight-desc">${ins.market_assessment}</div>
         </div>`;
-      });
+      }
+
+      // Top insights
+      if (ins.top_insights && ins.top_insights.length > 0) {
+        ins.top_insights.forEach(tip => {
+          html += `<div class="insight-card glass-card type-opportunity anim-item">
+            <div class="insight-icon opportunity">&#9733;</div>
+            <div class="insight-title">핵심 포인트</div>
+            <div class="insight-desc">${tip}</div>
+          </div>`;
+        });
+      }
+
+      // Key risks
+      if (ins.key_risks && ins.key_risks.length > 0) {
+        ins.key_risks.forEach(risk => {
+          html += `<div class="insight-card glass-card type-warning anim-item">
+            <div class="insight-icon warning">&#9888;</div>
+            <div class="insight-title">주의 사항</div>
+            <div class="insight-desc">${risk}</div>
+          </div>`;
+        });
+      }
+
+      // Best opportunities
+      if (ins.best_opportunities && ins.best_opportunities.length > 0) {
+        ins.best_opportunities.slice(0, 3).forEach(opp => {
+          html += `<div class="insight-card glass-card type-opportunity anim-item">
+            <div class="insight-icon opportunity">&#128161;</div>
+            <div class="insight-title">${opp.asset || '투자 기회'}</div>
+            <div class="insight-desc">${opp.reason || ''}</div>
+          </div>`;
+        });
+      }
+
       html += `</div></section>`;
     }
 
@@ -1374,26 +1408,71 @@ body::before {
       <div class="macro-detail-panel" id="macroDetailPanel">
         <div class="macro-detail-grid">`;
 
+      const ffrD = md.ffr || {};
+      const unempD = md.unemployment || {};
+      const gdpD = md.gdp || {};
+      const vixD = md.vix || {};
+      const ycD = md.yield_curve || {};
+      const t10 = md.treasury_10y || {};
+      const t2 = md.treasury_2y || {};
+      const dolD = md.dollar_index || {};
+      const rcD = md.rate_cycle || {};
+      const ecD = md.economic_cycle || {};
+
       const detailItems = [
-        { label: 'GDP 성장률', value: md.gdp_growth, fmt: v => fmtPct(v) },
-        { label: '실업률', value: md.unemployment, fmt: v => v != null ? v + '%' : 'N/A' },
-        { label: 'VIX', value: md.vix, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
-        { label: '수익률 곡선', value: md.yield_curve, fmt: v => h(v) },
-        { label: '10년물 금리', value: md.treasury_10y, fmt: v => v != null ? v + '%' : 'N/A' },
-        { label: '2년물 금리', value: md.treasury_2y, fmt: v => v != null ? v + '%' : 'N/A' },
-        { label: 'DXY', value: md.dxy, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
-        { label: '원/달러', value: md.usdkrw, fmt: v => v != null ? v.toFixed(0) + '원' : 'N/A' },
+        { label: '기준금리(FFR)', value: ffrD.current, trend: ffrD.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '실업률', value: unempD.current, trend: unempD.trend, fmt: v => v != null ? v.toFixed(1) + '%' : 'N/A' },
+        { label: '실질GDP', value: gdpD.current, trend: gdpD.trend, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
+        { label: 'VIX', value: vixD.current, trend: vixD.trend, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
+        { label: '10Y-2Y 스프레드', value: ycD.spread_10y2y, trend: ycD.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '10년국채', value: t10.current, trend: t10.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '2년국채', value: t2.current, trend: t2.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '달러인덱스', value: dolD.current, trend: dolD.trend, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
+        { label: 'CPI (YoY)', value: md.cpi_yoy, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '기대인플레(10Y)', value: md.breakeven_inflation_10y, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '실질금리', value: md.real_rate, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
       ];
 
       detailItems.forEach(item => {
         if (item.value != null) {
+          const trendIcon = item.trend === '상승' ? '&#9650;' : item.trend === '하락' ? '&#9660;' : item.trend === '안정' ? '&#9644;' : '';
+          const trendColor = item.trend === '상승' ? 'var(--red)' : item.trend === '하락' ? 'var(--green)' : 'var(--text-muted)';
           html += `
           <div class="macro-detail-item glass-card">
             <div class="md-label">${item.label}</div>
-            <div class="md-value">${item.fmt(item.value)}</div>
+            <div class="md-value">${item.fmt(item.value)} ${trendIcon ? `<span style="color:${trendColor};font-size:0.7rem;">${trendIcon}</span>` : ''}</div>
           </div>`;
         }
       });
+
+      // Rate cycle & Economic cycle
+      html += `
+        <div class="macro-detail-item glass-card" style="grid-column:span 2;">
+          <div class="md-label">금리 사이클</div>
+          <div class="md-value">${h(rcD.stage)}${rcD.description && rcD.description !== 'N/A' ? ` <span style="font-size:0.7rem;color:var(--text-muted);">${rcD.description}</span>` : ''}</div>
+        </div>
+        <div class="macro-detail-item glass-card" style="grid-column:span 2;">
+          <div class="md-label">경기 사이클</div>
+          <div class="md-value">${h(ecD.stage)}${ecD.score != null ? ` (${ecD.score})` : ''}${ecD.description && ecD.description !== 'N/A' ? ` <span style="font-size:0.7rem;color:var(--text-muted);">${ecD.description}</span>` : ''}</div>
+        </div>`;
+
+      // Key signals
+      if (md.key_signals && md.key_signals.length > 0) {
+        html += `<div style="grid-column:1/-1;margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--amber);margin-bottom:6px;">KEY SIGNALS</div>`;
+        md.key_signals.forEach(sig => {
+          html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; ${sig}</div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Asset outlook
+      if (md.asset_outlook && md.asset_outlook.length > 0) {
+        html += `<div style="grid-column:1/-1;margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--cyan);margin-bottom:6px;">ASSET OUTLOOK</div>`;
+        md.asset_outlook.forEach(outlook => {
+          html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; ${outlook}</div>`;
+        });
+        html += `</div>`;
+      }
 
       html += `</div></div>`;
     }
@@ -1402,7 +1481,7 @@ body::before {
     // ─── GEOPOLITICAL RISK ─────────────────────────────
     if (data.geopolitical) {
       const geo = data.geopolitical;
-      const score = geo.overall_score || 0;
+      const score = geo.risk_score || geo.overall_score || 0;
       const color = riskColor(score);
 
       html += `
@@ -1429,12 +1508,14 @@ body::before {
       if (geo.categories && geo.categories.length > 0) {
         html += `<div class="geo-categories">`;
         geo.categories.forEach(cat => {
-          const catColor = riskColor(cat.score || 0);
+          const catScore = cat.score || 0;
+          const catColor = riskColor(catScore);
+          const catName = cat.name || cat.category || '';
           html += `
           <div class="geo-cat-item">
             <div class="geo-cat-header">
-              <span class="geo-cat-name">${cat.name}</span>
-              <span class="geo-cat-score" style="color:${catColor}">${cat.score}</span>
+              <span class="geo-cat-name">${catName}${cat.news_count ? ' ('+cat.news_count+')' : ''}</span>
+              <span class="geo-cat-score" style="color:${catColor}">${catScore}</span>
             </div>
             <div class="geo-cat-bar">
               <div class="geo-cat-fill" style="width:${cat.score}%; background:${catColor};"></div>
@@ -1445,17 +1526,20 @@ body::before {
       }
 
       // Safe haven assets
-      if (geo.safe_havens && geo.safe_havens.length > 0) {
+      const safeHavens = geo.safe_haven_assets || geo.safe_havens || [];
+      if (safeHavens.length > 0) {
         html += `<div style="margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">안전자산 동향</div>
         <div class="safe-haven-grid">`;
-        geo.safe_havens.forEach(sh => {
-          const chg = parseFloat(sh.change);
-          const chgClass = isNaN(chg) ? '' : chg >= 0 ? 'pos' : 'neg';
+        safeHavens.forEach(sh => {
+          const weekChg = parseFloat(sh.week_change || sh.change || 0);
+          const chgClass = isNaN(weekChg) ? '' : weekChg >= 0 ? 'pos' : 'neg';
+          const price = sh.current_value || sh.price;
           html += `
           <div class="safe-haven-item glass-card">
             <div class="sh-name">${sh.name}</div>
-            <div class="sh-price">${sh.price != null ? fmtPrice(sh.price) : 'N/A'}</div>
-            ${sh.change != null ? `<div class="sh-change ${chgClass}">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</div>` : ''}
+            <div class="sh-price">${price != null ? fmtPrice(price) : 'N/A'}</div>
+            <div class="sh-change ${chgClass}">${!isNaN(weekChg) ? (weekChg >= 0 ? '+' : '') + weekChg.toFixed(1) + '%' : ''}</div>
+            ${sh.signal ? `<div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${sh.signal}</div>` : ''}
           </div>`;
         });
         html += `</div></div>`;
@@ -1464,10 +1548,18 @@ body::before {
       html += `</div></div>`;
 
       // Top news
-      if (geo.news && geo.news.length > 0) {
-        html += `<div class="geo-news" style="margin-top:14px;">`;
-        geo.news.slice(0, 5).forEach(n => {
-          html += `<div class="geo-news-item">${n}</div>`;
+      const topNews = geo.top_news || geo.news || [];
+      if (topNews.length > 0) {
+        html += `<div class="geo-news" style="margin-top:14px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">주요 뉴스</div>`;
+        topNews.slice(0, 5).forEach(n => {
+          const title = typeof n === 'string' ? n : (n.title || n.headline || '');
+          const src = typeof n === 'object' ? (n.source || '') : '';
+          const nScore = typeof n === 'object' ? (n.risk_score || n.score || '') : '';
+          html += `<div class="geo-news-item">
+            ${title}
+            ${src ? `<span style="color:var(--text-muted);font-size:0.7rem;"> — ${src}</span>` : ''}
+            ${nScore ? `<span style="color:var(--amber);font-size:0.7rem;"> [${nScore}]</span>` : ''}
+          </div>`;
         });
         html += `</div>`;
       }
@@ -1575,32 +1667,70 @@ body::before {
     html += `</div></section>`;
 
     // ─── PORTFOLIOS ────────────────────────────────────
-    if (data.portfolios && data.portfolios.length > 0) {
-      const typeMap = { '공격형': 'aggressive', '균형형': 'balanced', '안정형': 'conservative' };
-      html += `<section class="section-wrap"><div class="section-label">포트폴리오 추천</div><div class="portfolio-grid">`;
+    const pfData = data.portfolios;
+    if (pfData && pfData.sectors && pfData.sectors.length > 0) {
+      html += `<section class="section-wrap"><div class="section-label">포트폴리오 분석</div>`;
 
-      data.portfolios.forEach((pf, i) => {
-        const typeClass = typeMap[pf.type] || 'balanced';
+      // Best/Worst summary
+      if (pfData.best_sector || pfData.worst_sector) {
+        html += `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">`;
+        if (pfData.best_sector) {
+          html += `<div class="glass-card anim-item" style="flex:1;min-width:200px;padding:14px;">
+            <div style="font-size:0.7rem;color:var(--green);font-family:var(--font-mono);">BEST SHARPE</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${pfData.best_sector.name}</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--green);">${(pfData.best_sector.sharpe_ratio || 0).toFixed(2)}</div>
+          </div>`;
+        }
+        if (pfData.worst_sector) {
+          html += `<div class="glass-card anim-item" style="flex:1;min-width:200px;padding:14px;">
+            <div style="font-size:0.7rem;color:var(--red);font-family:var(--font-mono);">WORST SHARPE</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${pfData.worst_sector.name}</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--red);">${(pfData.worst_sector.sharpe_ratio || 0).toFixed(2)}</div>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+
+      // Sector portfolio cards
+      html += `<div class="portfolio-grid">`;
+      pfData.sectors.forEach(sec => {
+        const sharpe = sec.sharpe_ratio || 0;
+        const sharpeColor = sharpe > 1 ? 'var(--green)' : sharpe > 0 ? 'var(--cyan)' : 'var(--red)';
         html += `
-        <div class="portfolio-card glass-card ${typeClass} anim-item">
-          <div class="portfolio-type">${pf.type || '포트폴리오'}</div>
-          <div class="portfolio-name">${pf.name || pf.type || ''}</div>
+        <div class="portfolio-card glass-card anim-item">
+          <div class="portfolio-type" style="color:${sharpeColor};">${sec.name}</div>
           <div class="portfolio-stats">
-            ${pf.expected_return != null ? `<div><div class="port-stat-label">기대수익률</div><div class="port-stat-value">${fmtPct(pf.expected_return)}</div></div>` : ''}
-            ${pf.sharpe_ratio != null ? `<div><div class="port-stat-label">Sharpe Ratio</div><div class="port-stat-value">${pf.sharpe_ratio.toFixed(2)}</div></div>` : ''}
-            ${pf.max_drawdown != null ? `<div><div class="port-stat-label">MDD</div><div class="port-stat-value">${fmtPct(pf.max_drawdown)}</div></div>` : ''}
-            ${pf.volatility != null ? `<div><div class="port-stat-label">변동성</div><div class="port-stat-value">${fmtPct(pf.volatility)}</div></div>` : ''}
+            <div><div class="port-stat-label">Sharpe</div><div class="port-stat-value" style="color:${sharpeColor};">${sharpe.toFixed(2)}</div></div>
+            ${sec.annual_return ? `<div><div class="port-stat-label">연수익률</div><div class="port-stat-value">${sec.annual_return}</div></div>` : ''}
+            ${sec.max_drawdown ? `<div><div class="port-stat-label">MDD</div><div class="port-stat-value">${sec.max_drawdown}</div></div>` : ''}
+            ${sec.annual_volatility ? `<div><div class="port-stat-label">변동성</div><div class="port-stat-value">${sec.annual_volatility}</div></div>` : ''}
+            ${sec.var_95 ? `<div><div class="port-stat-label">VaR 95%</div><div class="port-stat-value">${sec.var_95}</div></div>` : ''}
+            ${sec.beta != null ? `<div><div class="port-stat-label">Beta</div><div class="port-stat-value">${sec.beta}</div></div>` : ''}
           </div>`;
 
-        if (pf.weights && pf.weights.length > 0) {
+        // Show allocation types if available
+        if (sec.allocations) {
+          const allocTypes = [
+            { key: 'aggressive', label: '공격형', color: 'var(--red)' },
+            { key: 'balanced', label: '균형형', color: 'var(--cyan)' },
+            { key: 'conservative', label: '안정형', color: 'var(--green)' }
+          ];
           html += `<div class="portfolio-weights">`;
-          pf.weights.forEach(w => {
-            html += `
-            <div class="weight-row">
-              <span class="weight-name">${w.sector || w.name}</span>
-              <div class="weight-bar-track"><div class="weight-bar-fill" style="width:${w.weight || 0}%"></div></div>
-              <span class="weight-pct">${w.weight || 0}%</span>
-            </div>`;
+          allocTypes.forEach(at => {
+            const alloc = sec.allocations[at.key];
+            if (alloc && alloc.weights) {
+              html += `<div style="margin-top:8px;"><span style="font-size:0.72rem;color:${at.color};font-weight:600;">${at.label}</span>
+                <span style="font-size:0.65rem;color:var(--text-muted);margin-left:6px;">Sharpe ${alloc.sharpe || 'N/A'}</span></div>`;
+              Object.entries(alloc.weights).forEach(([name, weight]) => {
+                const w = parseFloat(weight) || 0;
+                html += `
+                <div class="weight-row">
+                  <span class="weight-name">${name}</span>
+                  <div class="weight-bar-track"><div class="weight-bar-fill" style="width:${Math.min(w, 100)}%"></div></div>
+                  <span class="weight-pct">${weight}</span>
+                </div>`;
+              });
+            }
           });
           html += `</div>`;
         }
@@ -1739,23 +1869,13 @@ body::before {
     }
 
     // 3. Portfolio Sharpe Ratio (if portfolios exist)
-    if (data.portfolios) {
+    if (data.portfolios && data.portfolios.sectors) {
       const sharpeCtx = document.getElementById('chartSharpe');
       if (sharpeCtx) {
-        const pfLabels = data.portfolios.map(p => p.type || p.name);
-        const pfValues = data.portfolios.map(p => p.sharpe_ratio || 0);
-        const pfColors = data.portfolios.map(p => {
-          const t = p.type;
-          if (t === '공격형') return 'rgba(239,68,68,0.7)';
-          if (t === '안정형') return 'rgba(16,185,129,0.7)';
-          return 'rgba(6,182,212,0.7)';
-        });
-        const pfBorders = data.portfolios.map(p => {
-          const t = p.type;
-          if (t === '공격형') return '#ef4444';
-          if (t === '안정형') return '#10b981';
-          return '#06b6d4';
-        });
+        const pfLabels = data.portfolios.sectors.map(s => s.name);
+        const pfValues = data.portfolios.sectors.map(s => s.sharpe_ratio || 0);
+        const pfColors = pfValues.map(v => v > 1 ? 'rgba(16,185,129,0.7)' : v > 0 ? 'rgba(6,182,212,0.7)' : 'rgba(239,68,68,0.7)');
+        const pfBorders = pfValues.map(v => v > 1 ? '#10b981' : v > 0 ? '#06b6d4' : '#ef4444');
 
         new Chart(sharpeCtx, {
           type: 'bar',
