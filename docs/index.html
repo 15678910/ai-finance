@@ -1419,18 +1419,19 @@ body::before {
       const rcD = md.rate_cycle || {};
       const ecD = md.economic_cycle || {};
 
+      const safeFixed = (v, d) => { const n = parseFloat(v); return isNaN(n) ? String(v || 'N/A') : n.toFixed(d); };
       const detailItems = [
-        { label: '기준금리(FFR)', value: ffrD.current, trend: ffrD.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
-        { label: '실업률', value: unempD.current, trend: unempD.trend, fmt: v => v != null ? v.toFixed(1) + '%' : 'N/A' },
-        { label: '실질GDP', value: gdpD.current, trend: gdpD.trend, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
-        { label: 'VIX', value: vixD.current, trend: vixD.trend, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
-        { label: '10Y-2Y 스프레드', value: ycD.spread_10y2y, trend: ycD.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
-        { label: '10년국채', value: t10.current, trend: t10.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
-        { label: '2년국채', value: t2.current, trend: t2.trend, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
-        { label: '달러인덱스', value: dolD.current, trend: dolD.trend, fmt: v => v != null ? v.toFixed(1) : 'N/A' },
-        { label: 'CPI (YoY)', value: md.cpi_yoy, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
-        { label: '기대인플레(10Y)', value: md.breakeven_inflation_10y, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
-        { label: '실질금리', value: md.real_rate, fmt: v => v != null ? v.toFixed(2) + '%' : 'N/A' },
+        { label: '기준금리(FFR)', value: ffrD.current, trend: ffrD.trend, fmt: v => safeFixed(v, 2) + '%' },
+        { label: '실업률', value: unempD.current, trend: unempD.trend, fmt: v => safeFixed(v, 1) + '%' },
+        { label: '실질GDP', value: gdpD.current, trend: gdpD.trend, fmt: v => safeFixed(v, 1) },
+        { label: 'VIX', value: vixD.current, trend: vixD.trend, fmt: v => safeFixed(v, 1) },
+        { label: '10Y-2Y 스프레드', value: ycD.spread_10y2y, trend: ycD.trend, fmt: v => safeFixed(v, 2) + '%' },
+        { label: '10년국채', value: t10.current, trend: t10.trend, fmt: v => safeFixed(v, 2) + '%' },
+        { label: '2년국채', value: t2.current, trend: t2.trend, fmt: v => safeFixed(v, 2) + '%' },
+        { label: '달러인덱스', value: dolD.current, trend: dolD.trend, fmt: v => safeFixed(v, 1) },
+        { label: 'CPI (YoY)', value: md.cpi_yoy, fmt: v => typeof v === 'string' ? v : safeFixed(v, 2) + '%' },
+        { label: '기대인플레(10Y)', value: md.breakeven_inflation_10y, fmt: v => safeFixed(v, 2) + '%' },
+        { label: '실질금리', value: md.real_rate, fmt: v => typeof v === 'string' ? v : safeFixed(v, 2) + '%' },
       ];
 
       detailItems.forEach(item => {
