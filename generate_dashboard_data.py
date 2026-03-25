@@ -17,6 +17,90 @@ from datetime import datetime
 from glob import glob
 
 # ---------------------------------------------------------------------------
+# 헤드라인 번역 (키워드 기반)
+# ---------------------------------------------------------------------------
+
+_HEADLINE_KR_MAP = {
+    "war": "전쟁",
+    "Iran": "이란",
+    "Russia": "러시아",
+    "Ukraine": "우크라이나",
+    "Trump": "트럼프",
+    "ceasefire": "휴전",
+    "attack": "공격",
+    "drone": "드론",
+    "drones": "드론",
+    "missile": "미사일",
+    "sanctions": "제재",
+    "tariff": "관세",
+    "China": "중국",
+    "North Korea": "북한",
+    "nuclear": "핵",
+    "oil": "석유/유가",
+    "trade": "무역",
+    "military": "군사",
+    "conflict": "분쟁",
+    "peace": "평화",
+    "NATO": "나토",
+    "U.S.": "미국",
+    "Japan": "일본",
+    "Israel": "이스라엘",
+    "Gaza": "가자",
+    "Hamas": "하마스",
+    "Hezbollah": "헤즈볼라",
+    "Syria": "시리아",
+    "Taiwan": "대만",
+    "Korea": "한국",
+    "Asia": "아시아",
+    "Europe": "유럽",
+    "launches": "발사",
+    "threatens": "위협",
+    "bomb": "폭탄",
+    "invasion": "침공",
+    "defense": "방어",
+    "weapons": "무기",
+    "Biden": "바이든",
+    "plan": "계획",
+    "says": "발언",
+    "report": "보도",
+    "President": "대통령",
+    "largest": "최대규모",
+    "effort": "노력",
+    "end": "종결",
+    "accept": "수용",
+    "received": "수령",
+    "shows": "보여줌",
+    "norms": "규범",
+    "overturned": "전복",
+    "accelerate": "가속화",
+    "shift": "전환",
+    "renewable": "재생에너지",
+    "moment": "순간",
+    "international": "국제",
+    "period": "기간",
+}
+
+
+def translate_headline(title: str) -> str:
+    """영어 헤드라인 키워드에 한글 주석을 괄호로 추가합니다.
+    예: 'Iran war' → 'Iran(이란) war(전쟁)'
+    """
+    result = title
+    sorted_keys = sorted(_HEADLINE_KR_MAP.keys(), key=lambda k: len(k), reverse=True)
+    replaced = set()
+    for kw in sorted_keys:
+        if kw in replaced:
+            continue
+        kr = _HEADLINE_KR_MAP[kw]
+        if f"{kw}({kr})" in result:
+            continue
+        if kw in result:
+            result = result.replace(kw, f"{kw}({kr})", 1)
+            replaced.add(kw)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # 상수 / 기본값
 # ---------------------------------------------------------------------------
 
@@ -606,9 +690,16 @@ def extract_geopolitical(daily_dir: str, date_str: str) -> dict:
             source = _to_str(ws3.cell(r, 4).value, "")
             category = _to_str(ws3.cell(r, 5).value, "")
             risk_score = _to_float(ws3.cell(r, 6).value, 0)
+            # col 7: 한글제목, col 8: 링크 (신규 컬럼 - 구버전 파일 호환)
+            title_kr_val = ws3.cell(r, 7).value
+            link_val = ws3.cell(r, 8).value
+            title_str = _to_str(title)
+            title_kr = _to_str(title_kr_val, "") if title_kr_val else translate_headline(title_str)
             news.append({
                 "date": _to_str(date_val),
-                "title": _to_str(title),
+                "title": title_str,
+                "title_kr": title_kr,
+                "link": _to_str(link_val, "") if link_val else "",
                 "source": source,
                 "category": category,
                 "risk_score": risk_score,

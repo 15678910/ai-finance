@@ -1554,12 +1554,22 @@ body::before {
         html += `<div class="geo-news" style="margin-top:14px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">주요 뉴스</div>`;
         topNews.slice(0, 5).forEach(n => {
           const title = typeof n === 'string' ? n : (n.title || n.headline || '');
+          const titleKr = typeof n === 'object' ? (n.title_kr || '') : '';
+          const link = typeof n === 'object' ? (n.link || '') : '';
           const src = typeof n === 'object' ? (n.source || '') : '';
           const nScore = typeof n === 'object' ? (n.risk_score || n.score || '') : '';
+          const displayTitle = titleKr || title;
+          const titleHtml = link
+            ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:var(--text);text-decoration:none;font-weight:500;" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text)'">${displayTitle}</a>`
+            : `<span style="font-weight:500;">${displayTitle}</span>`;
+          const origHtml = (titleKr && title && titleKr !== title)
+            ? `<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${title}</div>`
+            : '';
           html += `<div class="geo-news-item">
-            ${title}
+            ${titleHtml}
             ${src ? `<span style="color:var(--text-muted);font-size:0.7rem;"> — ${src}</span>` : ''}
             ${nScore ? `<span style="color:var(--amber);font-size:0.7rem;"> [${nScore}]</span>` : ''}
+            ${origHtml}
           </div>`;
         });
         html += `</div>`;

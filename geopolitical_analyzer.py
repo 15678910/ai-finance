@@ -55,6 +55,93 @@ Path("output").mkdir(exist_ok=True)
 
 
 # ====================================================================
+# 0. 헤드라인 번역 (키워드 기반)
+# ====================================================================
+
+HEADLINE_KR_MAP = {
+    "war": "전쟁",
+    "Iran": "이란",
+    "Russia": "러시아",
+    "Ukraine": "우크라이나",
+    "Trump": "트럼프",
+    "ceasefire": "휴전",
+    "attack": "공격",
+    "drone": "드론",
+    "drones": "드론",
+    "missile": "미사일",
+    "sanctions": "제재",
+    "tariff": "관세",
+    "China": "중국",
+    "North Korea": "북한",
+    "nuclear": "핵",
+    "oil": "석유/유가",
+    "trade": "무역",
+    "military": "군사",
+    "conflict": "분쟁",
+    "peace": "평화",
+    "NATO": "나토",
+    "U.S.": "미국",
+    "Japan": "일본",
+    "Israel": "이스라엘",
+    "Gaza": "가자",
+    "Hamas": "하마스",
+    "Hezbollah": "헤즈볼라",
+    "Syria": "시리아",
+    "Taiwan": "대만",
+    "Korea": "한국",
+    "Asia": "아시아",
+    "Europe": "유럽",
+    "launches": "발사",
+    "threatens": "위협",
+    "bomb": "폭탄",
+    "invasion": "침공",
+    "defense": "방어",
+    "weapons": "무기",
+    "Biden": "바이든",
+    "plan": "계획",
+    "says": "발언",
+    "report": "보도",
+    "President": "대통령",
+    "largest": "최대규모",
+    "effort": "노력",
+    "end": "종결",
+    "accept": "수용",
+    "received": "수령",
+    "shows": "보여줌",
+    "norms": "규범",
+    "overturned": "전복",
+    "accelerate": "가속화",
+    "shift": "전환",
+    "renewable": "재생에너지",
+    "moment": "순간",
+    "international": "국제",
+    "period": "기간",
+}
+
+
+def translate_headline(title: str) -> str:
+    """영어 헤드라인 키워드에 한글 주석을 괄호로 추가합니다.
+    예: 'Iran war' → 'Iran(이란) war(전쟁)'
+    긴 키워드(다중 단어)를 먼저 처리합니다.
+    """
+    result = title
+    # 다중 단어 키워드 우선 처리 (긴 것 먼저)
+    sorted_keys = sorted(HEADLINE_KR_MAP.keys(), key=lambda k: len(k), reverse=True)
+    replaced = set()
+    for kw in sorted_keys:
+        if kw in replaced:
+            continue
+        kr = HEADLINE_KR_MAP[kw]
+        # 이미 주석이 달린 부분은 건너뜀
+        if f"{kw}({kr})" in result:
+            continue
+        if kw in result:
+            result = result.replace(kw, f"{kw}({kr})", 1)
+            replaced.add(kw)
+    return result
+
+
+# ====================================================================
 # 1. 지정학 뉴스 수집기
 # ====================================================================
 class GeopoliticalNewsCollector:
@@ -305,6 +392,8 @@ class GeopoliticalNewsCollector:
                     self.category_scores[cat_name]['news_count'] += 1
                     self.category_scores[cat_name]['top_news'].append({
                         'title': news['title'],
+                        'title_kr': translate_headline(news['title']),
+                        'link': news.get('link', ''),
                         'score': cat_score,
                         'source': news['source'],
                         'date': news['date'],
@@ -1064,7 +1153,7 @@ class GeopoliticalExcelBuilder:
         ws.sheet_view.showGridLines = False
 
         # 제목
-        ws.merge_cells('B2:H2')
+        ws.merge_cells('B2:I2')
         title = ws['B2']
         title.value = "지정학 리스크 관련 주요 뉴스"
         title.font = Font(bold=True, size=14, color='1B4F72', name='맑은 고딕')
@@ -1073,12 +1162,12 @@ class GeopoliticalExcelBuilder:
 
         # 헤더
         row = 4
-        ws.merge_cells(f'B{row}:H{row}')
+        ws.merge_cells(f'B{row}:I{row}')
         self._style_header(ws, row, 2, f"최근 뉴스 목록 (상위 {min(50, len(scored_news))}건)", 'header_dark', size=12)
         ws.row_dimensions[row].height = 30
         row += 1
 
-        headers = ['날짜', '제목', '출처', '카테고리', '리스크 점수']
+        headers = ['날짜', '제목', '출처', '카테고리', '리스크 점수', '한글제목', '링크']
         for col, h in enumerate(headers, 2):
             self._style_header(ws, row, col, h, 'header_blue', size=10)
         ws.row_dimensions[row].height = 28
@@ -1113,6 +1202,14 @@ class GeopoliticalExcelBuilder:
             # 리스크 점수
             self._style_data(ws, row, 6, risk, bg_color=bg, bold=True)
 
+            # 한글제목 (키워드 번역)
+            title_kr = translate_headline(news['title'])
+            self._style_text(ws, row, 7, title_kr[:100], bg_color=bg)
+
+            # 링크 (URL)
+            link_val = news.get('link', '')
+            self._style_text(ws, row, 8, link_val[:200], bg_color=bg)
+
             ws.row_dimensions[row].height = 26
             row += 1
 
@@ -1123,8 +1220,8 @@ class GeopoliticalExcelBuilder:
         ws.column_dimensions['D'].width = 12
         ws.column_dimensions['E'].width = 20
         ws.column_dimensions['F'].width = 12
-        ws.column_dimensions['G'].width = 5
-        ws.column_dimensions['H'].width = 5
+        ws.column_dimensions['G'].width = 45
+        ws.column_dimensions['H'].width = 50
 
     def add_sector_sheet(self, sector_analyzer: SectorImpactAnalyzer, category_scores: dict):
         """시트 4: 섹터 영향 분석"""
