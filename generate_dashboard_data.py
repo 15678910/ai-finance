@@ -20,83 +20,168 @@ from glob import glob
 # 헤드라인 번역 (키워드 기반)
 # ---------------------------------------------------------------------------
 
-_HEADLINE_KR_MAP = {
-    "war": "전쟁",
-    "Iran": "이란",
-    "Russia": "러시아",
-    "Ukraine": "우크라이나",
-    "Trump": "트럼프",
-    "ceasefire": "휴전",
-    "attack": "공격",
-    "drone": "드론",
-    "drones": "드론",
-    "missile": "미사일",
-    "sanctions": "제재",
-    "tariff": "관세",
-    "China": "중국",
-    "North Korea": "북한",
-    "nuclear": "핵",
-    "oil": "석유/유가",
-    "trade": "무역",
-    "military": "군사",
-    "conflict": "분쟁",
-    "peace": "평화",
-    "NATO": "나토",
-    "U.S.": "미국",
-    "Japan": "일본",
-    "Israel": "이스라엘",
-    "Gaza": "가자",
-    "Hamas": "하마스",
-    "Hezbollah": "헤즈볼라",
-    "Syria": "시리아",
-    "Taiwan": "대만",
-    "Korea": "한국",
-    "Asia": "아시아",
-    "Europe": "유럽",
-    "launches": "발사",
-    "threatens": "위협",
-    "bomb": "폭탄",
-    "invasion": "침공",
-    "defense": "방어",
-    "weapons": "무기",
-    "Biden": "바이든",
-    "plan": "계획",
-    "says": "발언",
-    "report": "보도",
-    "President": "대통령",
-    "largest": "최대규모",
-    "effort": "노력",
-    "end": "종결",
-    "accept": "수용",
-    "received": "수령",
-    "shows": "보여줌",
-    "norms": "규범",
-    "overturned": "전복",
-    "accelerate": "가속화",
-    "shift": "전환",
-    "renewable": "재생에너지",
-    "moment": "순간",
-    "international": "국제",
-    "period": "기간",
-}
-
-
 def translate_headline(title: str) -> str:
-    """영어 헤드라인 키워드에 한글 주석을 괄호로 추가합니다.
-    예: 'Iran war' → 'Iran(이란) war(전쟁)'
-    """
+    """영어 뉴스 제목을 한글로 번역 (키워드 기반)"""
+    if not title:
+        return title
+
+    # 구문 단위 치환 (긴 것부터)
+    PHRASE_MAP = {
+        "North Korea": "북한",
+        "South Korea": "한국",
+        "United States": "미국",
+        "Saudi Arabia": "사우디아라비아",
+        "ceasefire in war": "전쟁 휴전",
+        "state media reports": "국영매체 보도",
+        "state media": "국영매체",
+        "oil prices": "유가",
+        "Oil giants": "석유 대기업들",
+        "energy shortages": "에너지 부족",
+        "trade war": "무역전쟁",
+        "nuclear weapons": "핵무기",
+        "drone strike": "드론 공격",
+        "drone attack": "드론 공격",
+        "peace deal": "평화 협정",
+        "peace talks": "평화 협상",
+        "15-point plan": "15개항 계획",
+        "end war": "전쟁 종결",
+        "to end": "종결",
+        "won't accept": "거부",
+        "have been overturned": "전복되었다",
+        "has received": "수령했다",
+        "raises the alarm": "경고 울려",
+        "raise the alarm": "경고 울려",
+        "drags on": "장기화",
+        "largest attack": "최대규모 공격",
+        "24-hour period": "24시간 동안",
+        "over 24-ho": "24시간 동안",
+        "international conflicts": "국제 분쟁",
+        "could accelerate": "가속화할 수 있다",
+        "a shift into": "전환을",
+        "President says": "대통령 발언",
+        "report says": "보도에 따르면",
+    }
+
+    # 단어 단위 치환
+    WORD_MAP = {
+        "Iran": "이란",
+        "Iranian": "이란의",
+        "Russia": "러시아",
+        "Russian": "러시아의",
+        "Ukraine": "우크라이나",
+        "U.S.": "미국",
+        "US": "미국",
+        "China": "중국",
+        "Chinese": "중국의",
+        "Japan": "일본",
+        "Israel": "이스라엘",
+        "Gaza": "가자",
+        "Hamas": "하마스",
+        "Taiwan": "대만",
+        "NATO": "나토",
+        "Trump": "트럼프",
+        "Biden": "바이든",
+        "Asia": "아시아",
+        "Europe": "유럽",
+        "Korea": "한국",
+        "Syria": "시리아",
+        "war": "전쟁",
+        "attack": "공격",
+        "attacks": "공격",
+        "missile": "미사일",
+        "missiles": "미사일",
+        "drone": "드론",
+        "drones": "드론",
+        "launches": "발사",
+        "ceasefire": "휴전",
+        "sanctions": "제재",
+        "tariff": "관세",
+        "tariffs": "관세",
+        "military": "군사",
+        "conflict": "분쟁",
+        "defense": "방어",
+        "weapons": "무기",
+        "nuclear": "핵",
+        "oil": "석유",
+        "trade": "무역",
+        "threatens": "위협",
+        "invasion": "침공",
+        "bomb": "폭탄",
+        "effort": "노력",
+        "plan": "계획",
+        "norms": "규범",
+        "shows": "보여준다",
+        "moment": "국면",
+        "shift": "전환",
+        "renewable": "재생에너지",
+        "accelerate": "가속화",
+        "President": "대통령",
+        "injure": "부상",
+        "kill": "사망",
+        "killed": "사망",
+        "troops": "병력",
+        "soldiers": "군인",
+        "bombing": "폭격",
+        "power": "전력/권력",
+        "plant": "시설",
+        "fighting": "전투",
+        "illegally": "불법적으로",
+        "towns": "마을",
+        "prices": "가격",
+        "stabilize": "안정화",
+        "investors": "투자자",
+        "weigh": "저울질",
+        "How": "어떻게",
+        "the": "",
+        "The": "",
+        "a": "",
+        "an": "",
+        "of": "",
+        "in": "",
+        "at": "",
+        "on": "",
+        "to": "",
+        "for": "",
+        "by": "",
+        "as": "",
+        "is": "",
+        "are": "",
+        "was": "",
+        "were": "",
+        "has": "",
+        "have": "",
+        "had": "",
+        "been": "",
+        "being": "",
+        "with": "",
+        "from": "",
+        "that": "",
+        "this": "",
+        "and": "",
+        "or": "",
+        "but": "",
+        "not": "",
+        "its": "",
+        "their": "",
+        "over": "",
+        "into": "",
+        "near": "인근",
+    }
+
+    import re
     result = title
-    sorted_keys = sorted(_HEADLINE_KR_MAP.keys(), key=lambda k: len(k), reverse=True)
-    replaced = set()
-    for kw in sorted_keys:
-        if kw in replaced:
-            continue
-        kr = _HEADLINE_KR_MAP[kw]
-        if f"{kw}({kr})" in result:
-            continue
-        if kw in result:
-            result = result.replace(kw, f"{kw}({kr})", 1)
-            replaced.add(kw)
+
+    # 1단계: 구문 치환 (긴 것부터)
+    for eng, kor in sorted(PHRASE_MAP.items(), key=lambda x: -len(x[0])):
+        result = result.replace(eng, kor)
+
+    # 2단계: 단어 치환 (정확한 단어 경계에서만)
+    for eng, kor in sorted(WORD_MAP.items(), key=lambda x: -len(x[0])):
+        result = re.sub(r'\b' + re.escape(eng) + r'\b', kor, result)
+
+    # 3단계: 다중 공백 정리
+    result = re.sub(r'\s+', ' ', result).strip()
+
     return result
 
 
