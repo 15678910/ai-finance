@@ -1,0 +1,86 @@
+name: Daily Finance Analysis
+
+on:
+  schedule:
+    # 매일 한국시간 오전 8시 (UTC 23시, 전날)
+    - cron: '0 23 * * *'
+  workflow_dispatch: # 수동 실행 버튼
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create config if not exists
+        run: |
+          mkdir -p config
+          if [ ! -f config/sectors.json ]; then
+            cat > config/sectors.json << 'SECTORS'
+          {
+            "IT_반도체": ["005930", "000660", "035420", "035720"],
+            "미국_빅테크": ["AAPL", "NVDA", "MSFT", "GOOGL"],
+            "바이오_헬스케어": ["005380", "068270", "128940"],
+            "방산": ["012450", "079550", "079160"],
+            "배터리_2차전지": ["373220", "247540", "006400"],
+            "암호화폐": ["BTC-USD", "ETH-USD", "XRP-USD"],
+            "에너지": ["XOM", "CVX", "ENPH"]
+          }
+          SECTORS
+          fi
+
+      - name: Run daily analysis
+        run: python daily_sector_analysis.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: Generate dashboard data
+        run: |
+          DATE=$(date -u -d '+9 hours' +%Y%m%d)
+          if [ -f generate_dashboard_data.py ]; then
+            python generate_dashboard_data.py --date "$DATE" --daily-dir "output/daily/$DATE" || echo "Dashboard data generation had issues, continuing..."
+          fi
+
+      - name: Commit and push results
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          # Stage dashboard data
+          git add docs/data.json || true
+
+          # Check if there are changes
+          if git diff --cached --quiet; then
+            echo "No dashboard changes to commit"
+          else
+            DATE=$(date -u -d '+9 hours' +%Y-%m-%d)
+            git commit -m "Update dashboard data ($DATE) [automated]"
+            git push
+            echo "Dashboard updated successfully"
+          fi
+
+      - name: Upload analysis artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analysis-results-${{ github.run_number }}
+          path: |
+            output/daily/
+          retention-days: 30
