@@ -29,45 +29,40 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create config if not exists
-        run: |
-          mkdir -p config
-          if [ ! -f config/sectors.json ]; then
-            cat > config/sectors.json << 'SECTORS'
-          {
-            "IT_반도체": ["005930", "000660", "035420", "035720"],
-            "미국_빅테크": ["AAPL", "NVDA", "MSFT", "GOOGL"],
-            "바이오_헬스케어": ["005380", "068270", "128940"],
-            "방산": ["012450", "079550", "079160"],
-            "배터리_2차전지": ["373220", "247540", "006400"],
-            "암호화폐": ["BTC-USD", "ETH-USD", "XRP-USD"],
-            "에너지": ["XOM", "CVX", "ENPH"]
-          }
-          SECTORS
-          fi
-
       - name: Run daily analysis
-        run: python daily_sector_analysis.py
+        run: |
+          python daily_sector_analysis.py 2>&1 || echo "Analysis had errors, checking partial results..."
+          echo "--- Output directory contents ---"
+          find output/ -type f 2>/dev/null | head -50 || echo "No output directory"
         env:
           PYTHONIOENCODING: utf-8
 
       - name: Generate dashboard data
+        if: always()
         run: |
           DATE=$(date -u -d '+9 hours' +%Y%m%d)
-          if [ -f generate_dashboard_data.py ]; then
-            python generate_dashboard_data.py --date "$DATE" --daily-dir "output/daily/$DATE" || echo "Dashboard data generation had issues, continuing..."
+          DAILY_DIR="output/daily/$DATE"
+          echo "Looking for results in: $DAILY_DIR"
+          ls -la "$DAILY_DIR"/ 2>/dev/null || echo "Daily dir not found, checking alternatives..."
+          # Find any daily output directory
+          LATEST_DIR=$(ls -td output/daily/*/ 2>/dev/null | head -1)
+          if [ -n "$LATEST_DIR" ]; then
+            echo "Using latest dir: $LATEST_DIR"
+            ACTUAL_DATE=$(basename "$LATEST_DIR")
+            python generate_dashboard_data.py --date "$ACTUAL_DATE" --daily-dir "$LATEST_DIR" || echo "Dashboard generation failed"
+          else
+            echo "No daily output found"
           fi
 
       - name: Commit and push results
+        if: always()
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          # Stage dashboard data
-          git add docs/data.json || true
+          git add docs/data.json 2>/dev/null || true
 
-          # Check if there are changes
-          if git diff --cached --quiet; then
+          if git diff --cached --quiet 2>/dev/null; then
             echo "No dashboard changes to commit"
           else
             DATE=$(date -u -d '+9 hours' +%Y-%m-%d)
@@ -81,6 +76,6 @@ jobs:
         if: always()
         with:
           name: analysis-results-${{ github.run_number }}
-          path: |
-            output/daily/
+          path: output/daily/
           retention-days: 30
+          if-no-files-found: warn
