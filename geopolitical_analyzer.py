@@ -63,17 +63,46 @@ def translate_headline(title: str) -> str:
     if not title:
         return title
 
+    # 완전 문장 번역 맵 (제목 전체 매칭)
+    FULL_TITLE_MAP = {
+        "Iran war shows norms of international conflicts have been overturned":
+            "이란 전쟁, 국제 분쟁의 규범이 전복되었음을 보여준다",
+        "Iran won't accept U.S. effort at ceasefire in war, state media reports":
+            "이란, 미국의 전쟁 휴전 노력 거부 - 국영매체 보도",
+        "Russia launches 948 drones at Ukraine in largest attack over 24-hour period":
+            "러시아, 24시간 동안 우크라이나에 948대 드론 발사 - 최대규모 공격",
+        "Iran has received Trump's 15-point plan to end war, report says; President says":
+            "이란, 트럼프의 15개항 전쟁 종결 계획 수령 - 대통령 발언",
+        "Oil giants raise the alarm over energy shortages as Iran war drags on":
+            "석유 대기업들, 이란 전쟁 장기화에 따른 에너지 부족 경고",
+        "Stock futures slip as traders monitor U.S.-Iran war developments: Live updates":
+            "미국-이란 전쟁 상황 주시하며 선물 하락: 실시간 업데이트",
+        "Iran has no intention to hold talks with U.S; foreign minister says Trump propos":
+            "이란, 미국과의 대화 의사 없어 - 외무장관, 트럼프 제안 거부",
+    }
+
+    # 완전 매칭 시도 (제목 앞부분 기준)
+    for eng_title, kr_title in FULL_TITLE_MAP.items():
+        if title.strip().startswith(eng_title[:40]):
+            return kr_title
+
     # 구문 단위 치환 (긴 것부터)
     PHRASE_MAP = {
         "North Korea": "북한",
         "South Korea": "한국",
         "United States": "미국",
         "Saudi Arabia": "사우디아라비아",
+        "foreign minister says": "외무장관 발언",
+        "foreign minister": "외무장관",
+        "no intention to hold talks": "대화 의사 없어",
+        "no intention": "의사 없어",
+        "hold talks": "대화를 진행",
         "ceasefire in war": "전쟁 휴전",
         "state media reports": "국영매체 보도",
         "state media": "국영매체",
         "oil prices": "유가",
         "Oil giants": "석유 대기업들",
+        "oil giants": "석유 대기업들",
         "energy shortages": "에너지 부족",
         "trade war": "무역전쟁",
         "nuclear weapons": "핵무기",
@@ -81,23 +110,37 @@ def translate_headline(title: str) -> str:
         "drone attack": "드론 공격",
         "peace deal": "평화 협정",
         "peace talks": "평화 협상",
+        "Stock futures slip": "선물 하락",
+        "stock futures": "선물",
+        "Live updates": "실시간 업데이트",
+        "live updates": "실시간 업데이트",
         "15-point plan": "15개항 계획",
         "end war": "전쟁 종결",
         "to end": "종결",
         "won't accept": "거부",
         "have been overturned": "전복되었다",
         "has received": "수령했다",
-        "raises the alarm": "경고 울려",
-        "raise the alarm": "경고 울려",
+        "has no intention": "의사 없어",
+        "raises the alarm": "경고",
+        "raise the alarm": "경고",
         "drags on": "장기화",
         "largest attack": "최대규모 공격",
         "24-hour period": "24시간 동안",
         "over 24-ho": "24시간 동안",
         "international conflicts": "국제 분쟁",
         "could accelerate": "가속화할 수 있다",
-        "a shift into": "전환을",
+        "a shift into": "전환",
+        "shift into renewabl": "재생에너지 전환",
+        "shift into renewable": "재생에너지 전환",
+        "renewables": "재생에너지",
+        "renewable": "재생에너지",
         "President says": "대통령 발언",
         "report says": "보도에 따르면",
+        "traders monitor": "투자자들 주시",
+        "developments": "상황 전개",
+        "proposal": "제안",
+        "reviewed": "검토",
+        "futures slip": "선물 하락",
     }
 
     # 단어 단위 치환
@@ -168,7 +211,22 @@ def translate_headline(title: str) -> str:
         "prices": "가격",
         "stabilize": "안정화",
         "investors": "투자자",
+        "traders": "투자자들",
         "weigh": "저울질",
+        "monitor": "주시",
+        "slip": "하락",
+        "futures": "선물",
+        "giants": "대기업",
+        "alarm": "경고",
+        "shortages": "부족",
+        "intention": "의사",
+        "talks": "대화",
+        "minister": "장관",
+        "foreign": "외무",
+        "reviewed": "검토됨",
+        "proposal": "제안",
+        "overturned": "전복",
+        "received": "수령",
         "How": "어떻게",
         "the": "",
         "The": "",
