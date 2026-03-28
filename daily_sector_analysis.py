@@ -900,7 +900,6 @@ def main():
     # ----------------------------------------------------------------
     # 텔레그램 전송
     # ----------------------------------------------------------------
-    _wait_until_kst_0800()
     send_telegram_report(daily_dir, date_str)
 
 
@@ -931,20 +930,6 @@ def _parse_env_file(env_path: str) -> dict:
             env_vars[key] = value
     return env_vars
 
-
-def _wait_until_kst_0800():
-    """KST 08:00까지 대기합니다. 이미 08:00 이후면 즉시 반환합니다."""
-    KST = timezone(timedelta(hours=9))
-    now = datetime.now(KST)
-    target = now.replace(hour=8, minute=0, second=0, microsecond=0)
-    if now >= target:
-        print(f"\n  [텔레그램] 현재 {now.strftime('%H:%M')} KST → 08:00 이후이므로 즉시 전송")
-        return
-    wait_sec = (target - now).total_seconds()
-    wait_min = int(wait_sec / 60)
-    print(f"\n  [텔레그램] 현재 {now.strftime('%H:%M')} KST → 08:00까지 약 {wait_min}분 대기 중...")
-    time.sleep(wait_sec)
-    print(f"  [텔레그램] 08:00 KST 도달, 전송 시작")
 
 
 def send_telegram_report(daily_dir: str, date_str: str):
