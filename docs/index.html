@@ -396,12 +396,13 @@ body::before {
 .macro-detail-panel {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.4s ease, opacity 0.3s ease;
+  transition: max-height 0.5s ease-out, opacity 0.3s ease;
   opacity: 0;
 }
 
 .macro-detail-panel.is-open {
-  max-height: 2000px;
+  max-height: none;
+  overflow: visible;
   opacity: 1;
 }
 
@@ -1963,7 +1964,25 @@ body::before {
   window.toggleMacroDetail = function(btn) {
     btn.classList.toggle('is-open');
     const panel = document.getElementById('macroDetailPanel');
-    if (panel) panel.classList.toggle('is-open');
+    if (!panel) return;
+    const isOpening = btn.classList.contains('is-open');
+    if (isOpening) {
+      panel.style.maxHeight = panel.scrollHeight + 'px';
+      panel.style.overflow = 'hidden';
+      panel.classList.add('is-open');
+      panel.addEventListener('transitionend', function onEnd(e) {
+        if (e.propertyName !== 'max-height') return;
+        panel.removeEventListener('transitionend', onEnd);
+        panel.style.maxHeight = 'none';
+        panel.style.overflow = 'visible';
+      });
+    } else {
+      panel.style.maxHeight = panel.scrollHeight + 'px';
+      panel.style.overflow = 'hidden';
+      panel.offsetHeight; // force reflow
+      panel.style.maxHeight = '0';
+      panel.classList.remove('is-open');
+    }
   };
 
   // ─── Load Data ───────────────────────────────────────
