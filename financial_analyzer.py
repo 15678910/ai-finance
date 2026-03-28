@@ -76,7 +76,6 @@ class FinancialDataCollector:
         self.company_name = self.info.get('longName') or self.info.get('shortName', ticker)
 
     @staticmethod
-    @staticmethod
     def _detect_market(ticker_code):
         """코스피(.KS) / 코스닥(.KQ) 자동 감지"""
         for suffix in [".KS", ".KQ"]:

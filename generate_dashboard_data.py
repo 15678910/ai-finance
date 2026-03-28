@@ -485,6 +485,7 @@ def extract_macro_detail(daily_dir: str, date_str: str) -> dict:
         "treasury_10y": {"current": None, "trend": "N/A"},
         "treasury_2y": {"current": None, "trend": "N/A"},
         "asset_outlook": [],
+        "fomc": {},
     }
 
     macro_path = os.path.join(daily_dir, "macro", f"매크로분석_{date_str}.xlsx")
@@ -670,6 +671,71 @@ def extract_macro_detail(daily_dir: str, date_str: str) -> dict:
         result["asset_outlook"] = outlooks
     except Exception as e:
         print(f"[WARN] 자산별 전망 시트 파싱 실패: {e}")
+
+    # --- Sheet 5: FOMC 분석 ---
+    try:
+        ws5 = wb["FOMC 분석"]
+
+        # 현재 금리 정보 (label-based lookup)
+        target_upper_raw = _find_cell_by_label(ws5, "FF목표금리 상단 (DFEDTARU)", max_row=60)
+        target_lower_raw = _find_cell_by_label(ws5, "FF목표금리 하단 (DFEDTARL)", max_row=60)
+        effective_raw = _find_cell_by_label(ws5, "실효 연방기금금리 (FEDFUNDS)", max_row=60)
+        market_exp_raw = _find_cell_by_label(ws5, "시장 금리 기대", max_row=60)
+
+        # 다음 회의 정보
+        next_meeting_raw = _find_cell_by_label(ws5, "다음 FOMC 결정일", max_row=60)
+        dday_raw = _find_cell_by_label(ws5, "D-day (남은 일수)", max_row=60)
+
+        # 시장 기대: "동결 (Hold)" → "hold", "인하 기대 (Cut Expected)" → "cut", "인상 기대 (Hike Expected)" → "hike"
+        market_exp_str = _to_str(market_exp_raw, "")
+        if "Cut" in market_exp_str or "인하" in market_exp_str:
+            market_expectation = "cut"
+        elif "Hike" in market_exp_str or "인상" in market_exp_str:
+            market_expectation = "hike"
+        else:
+            market_expectation = "hold"
+
+        # D-day 숫자 추출: "D-7" → 7
+        days_until = None
+        dday_str = _to_str(dday_raw, "")
+        dday_match = re.search(r"D-(\d+)", dday_str)
+        if dday_match:
+            days_until = int(dday_match.group(1))
+
+        # 최근 금리 결정 이력: 헤더 행("결정월") 찾아서 그 다음 행부터 파싱
+        recent_decisions = []
+        decision_header_row = None
+        for r in range(1, ws5.max_row + 1):
+            b_val = ws5.cell(r, 2).value
+            if b_val and str(b_val).strip() == "결정월":
+                decision_header_row = r
+                break
+        if decision_header_row:
+            for r in range(decision_header_row + 1, min(ws5.max_row + 1, decision_header_row + 20)):
+                date_val = ws5.cell(r, 2).value
+                if not date_val:
+                    break
+                rate_val = ws5.cell(r, 3).value
+                change_val = ws5.cell(r, 4).value
+                action_val = ws5.cell(r, 5).value
+                recent_decisions.append({
+                    "date": _to_str(date_val),
+                    "rate": _to_str(rate_val),
+                    "change": _to_str(change_val),
+                    "direction": _to_str(action_val),
+                })
+
+        result["fomc"] = {
+            "next_meeting": _to_str(next_meeting_raw),
+            "days_until": days_until,
+            "target_upper": _to_float(target_upper_raw),
+            "target_lower": _to_float(target_lower_raw),
+            "effective_rate": _to_float(effective_raw),
+            "market_expectation": market_expectation,
+            "recent_decisions": recent_decisions,
+        }
+    except Exception as e:
+        print(f"[WARN] FOMC 분석 시트 파싱 실패: {e}")
 
     wb.close()
     print(f"[INFO] 매크로 상세 데이터 추출 완료")

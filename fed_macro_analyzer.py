@@ -69,6 +69,8 @@ class MacroDataCollector:
         'DGS10':     ('10년국채금리',        '%',     '10년 만기 국채 수익률'),
         'DGS2':      ('2년국채금리',         '%',     '2년 만기 국채 수익률'),
         'DTWEXBGS':  ('달러인덱스(TWI)',     'Index', '무역가중 달러 지수'),
+        'DFEDTARU':  ('FF목표금리(상단)',    '%',     '연방기금금리 목표 상단'),
+        'DFEDTARL':  ('FF목표금리(하단)',    '%',     '연방기금금리 목표 하단'),
     }
 
     FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
@@ -663,18 +665,155 @@ class FedAnalyzer:
         self.asset_outlook = outlook
         return outlook
 
+    # FOMC 회의 일정 (결정일 기준 - 마지막 날)
+    FOMC_SCHEDULE_2025 = [
+        '2025-01-29',  # Jan 28-29
+        '2025-03-19',  # Mar 18-19
+        '2025-05-07',  # May 6-7
+        '2025-06-18',  # Jun 17-18
+        '2025-07-30',  # Jul 29-30
+        '2025-09-17',  # Sep 16-17
+        '2025-10-29',  # Oct 28-29
+        '2025-12-17',  # Dec 16-17
+    ]
+
+    FOMC_SCHEDULE_2026 = [
+        '2026-01-28',  # Jan 27-28
+        '2026-03-18',  # Mar 17-18
+        '2026-05-06',  # May 5-6
+        '2026-06-17',  # Jun 16-17
+        '2026-07-29',  # Jul 28-29
+        '2026-09-16',  # Sep 15-16
+        '2026-10-28',  # Oct 27-28
+        '2026-12-16',  # Dec 15-16
+    ]
+
+    def analyze_fomc(self) -> dict:
+        """FOMC 회의 일정 및 시장 금리 기대 분석"""
+        print("[분석] FOMC 일정 및 금리 기대 분석 중...")
+
+        today = datetime.now().date()
+
+        # 전체 일정 (2025 + 2026) 파싱
+        all_dates = []
+        for d in self.FOMC_SCHEDULE_2025:
+            all_dates.append(datetime.strptime(d, '%Y-%m-%d').date())
+        for d in self.FOMC_SCHEDULE_2026:
+            all_dates.append(datetime.strptime(d, '%Y-%m-%d').date())
+        all_dates.sort()
+
+        # 다음 FOMC 날짜 탐색
+        next_meeting = None
+        days_until = None
+        for d in all_dates:
+            if d >= today:
+                next_meeting = d
+                days_until = (d - today).days
+                break
+
+        # 현재 목표금리 상/하단 (DFEDTARU / DFEDTARL)
+        taru_trend = self.trends.get('DFEDTARU', {})
+        tarl_trend = self.trends.get('DFEDTARL', {})
+        ffr_trend  = self.trends.get('FEDFUNDS', {})
+
+        current_target_upper = taru_trend.get('current')
+        current_target_lower = tarl_trend.get('current')
+        current_effective    = ffr_trend.get('current')
+
+        # 목표금리 중간값
+        target_mid = None
+        if current_target_upper is not None and current_target_lower is not None:
+            target_mid = (current_target_upper + current_target_lower) / 2
+
+        # 최근 결정 이력: DFEDTARU 월간 값 기준으로 변화 감지
+        recent_decisions = []
+        if 'DFEDTARU' in self.data:
+            taru_df = self.data['DFEDTARU']
+            # 월간 리샘플 후 변화가 있는 지점만 추출
+            monthly = taru_df.resample('ME').last().dropna()
+            prev_val = None
+            for date, row in monthly.iterrows():
+                val = row['VALUE']
+                if prev_val is not None and abs(val - prev_val) >= 0.01:
+                    direction = '인상' if val > prev_val else '인하'
+                    recent_decisions.append({
+                        'date': date.strftime('%Y-%m'),
+                        'rate': round(val, 2),
+                        'change': round(val - prev_val, 2),
+                        'action': direction,
+                    })
+                prev_val = val
+            # 최근 3건만 유지
+            recent_decisions = recent_decisions[-3:]
+
+        # 시장 기대 판단 (실효금리 vs 목표 중간값, 추세)
+        market_expectation = 'hold'
+        if current_effective is not None and target_mid is not None:
+            diff = current_effective - target_mid
+
+        # 실효금리 6개월 추세로 기대 방향 판단
+        ffr_chg_6m = ffr_trend.get('chg_6m')
+        ffr_chg_3m = ffr_trend.get('chg_3m')
+
+        # DFEDTARU 추세가 더 직접적인 신호
+        taru_chg_6m = taru_trend.get('chg_6m')
+        taru_chg_3m = taru_trend.get('chg_3m')
+
+        if taru_chg_3m is not None:
+            if taru_chg_3m < -0.05:
+                market_expectation = 'cut'
+            elif taru_chg_3m > 0.05:
+                market_expectation = 'hike'
+            else:
+                # 6개월 추세도 확인
+                if taru_chg_6m is not None:
+                    if taru_chg_6m < -0.1:
+                        market_expectation = 'cut'
+                    elif taru_chg_6m > 0.1:
+                        market_expectation = 'hike'
+                    else:
+                        market_expectation = 'hold'
+                else:
+                    market_expectation = 'hold'
+        elif ffr_chg_3m is not None:
+            # DFEDTARU 없으면 실효금리 추세로 대체
+            if ffr_chg_3m < -0.1:
+                market_expectation = 'cut'
+            elif ffr_chg_3m > 0.1:
+                market_expectation = 'hike'
+            else:
+                market_expectation = 'hold'
+
+        # 2026 일정 문자열 목록
+        fomc_2026_list = list(self.FOMC_SCHEDULE_2026)
+
+        self.fomc_analysis = {
+            'next_meeting': next_meeting.strftime('%Y-%m-%d') if next_meeting else 'N/A',
+            'days_until': days_until if days_until is not None else 'N/A',
+            'current_target_upper': current_target_upper,
+            'current_target_lower': current_target_lower,
+            'current_effective': current_effective,
+            'target_mid': target_mid,
+            'recent_decisions': recent_decisions,
+            'market_expectation': market_expectation,
+            'fomc_schedule_2026': fomc_2026_list,
+        }
+        return self.fomc_analysis
+
     def run_full_analysis(self) -> dict:
         """전체 분석 실행"""
         self.analyze_rates()
         self.analyze_inflation()
         self.analyze_cycle()
         self.analyze_asset_outlook()
+        self.analyze_fomc()
 
         return {
             'rates': self.rate_analysis,
             'inflation': self.inflation_analysis,
             'cycle': self.cycle_analysis,
             'assets': self.asset_outlook,
+            'fomc': self.fomc_analysis,
         }
 
 
@@ -1352,6 +1491,167 @@ class MacroExcelBuilder:
         ws.column_dimensions['D'].width = 16
         ws.column_dimensions['E'].width = 30
 
+    def add_fomc_sheet(self, fomc_analysis: dict):
+        """시트 5: FOMC 일정 및 금리 기대"""
+        ws = self.wb.create_sheet("FOMC 분석")
+        ws.sheet_view.showGridLines = False
+
+        # 제목
+        ws.merge_cells('B2:G2')
+        title = ws['B2']
+        title.value = "FOMC 회의 일정 및 금리 정책 분석"
+        title.font = Font(bold=True, size=14, color='1B4F72', name='맑은 고딕')
+        title.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[2].height = 35
+
+        ws['B3'] = f"생성일: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        ws['B3'].font = Font(size=9, color='7F8C8D', name='맑은 고딕')
+
+        # --- 현재 금리 상태 ---
+        ws.merge_cells('B5:G5')
+        self._style_header(ws, 5, 2, "현재 연준 금리 현황", 'header_dark', size=12)
+        ws.row_dimensions[5].height = 30
+
+        # 시장 기대 번역
+        expectation_map = {
+            'hold': '동결 (Hold)',
+            'cut':  '인하 기대 (Cut Expected)',
+            'hike': '인상 기대 (Hike Expected)',
+        }
+        expectation_colors = {
+            'hold': 'FEF9E7',
+            'cut':  'EAFAF1',
+            'hike': 'FDEDEC',
+        }
+        market_exp = fomc_analysis.get('market_expectation', 'hold')
+        exp_label = expectation_map.get(market_exp, market_exp)
+        exp_bg = expectation_colors.get(market_exp, 'light_gray')
+
+        rate_items = [
+            ('FF목표금리 상단 (DFEDTARU)', self._fmt_val(fomc_analysis.get('current_target_upper'), '%')),
+            ('FF목표금리 하단 (DFEDTARL)', self._fmt_val(fomc_analysis.get('current_target_lower'), '%')),
+            ('목표금리 중간값',             self._fmt_val(fomc_analysis.get('target_mid'), '%')),
+            ('실효 연방기금금리 (FEDFUNDS)', self._fmt_val(fomc_analysis.get('current_effective'), '%')),
+            ('시장 금리 기대',              exp_label),
+        ]
+
+        row = 6
+        for key, value in rate_items:
+            bg = 'light_gray' if row % 2 == 0 else 'white'
+            self._style_text(ws, row, 2, key, bg_color='light_blue', bold=True)
+            ws.merge_cells(f'C{row}:G{row}')
+            # 시장 기대 행에는 색상 강조
+            if key == '시장 금리 기대':
+                cell = ws.cell(row=row, column=3, value=str(value))
+                cell.fill = PatternFill("solid", fgColor=exp_bg)
+                cell.font = Font(size=11, name='맑은 고딕', bold=True)
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            else:
+                self._style_text(ws, row, 3, str(value), bg_color=bg)
+            ws.row_dimensions[row].height = 26
+            row += 1
+
+        # --- 다음 FOMC 회의 ---
+        row += 1
+        ws.merge_cells(f'B{row}:G{row}')
+        self._style_header(ws, row, 2, "다음 FOMC 회의", 'header_dark', size=12)
+        ws.row_dimensions[row].height = 30
+        row += 1
+
+        next_meeting = fomc_analysis.get('next_meeting', 'N/A')
+        days_until = fomc_analysis.get('days_until', 'N/A')
+
+        meeting_items = [
+            ('다음 FOMC 결정일', str(next_meeting)),
+            ('D-day (남은 일수)', f"D-{days_until}" if isinstance(days_until, int) else str(days_until)),
+        ]
+        for key, value in meeting_items:
+            bg = 'light_gray' if row % 2 == 0 else 'white'
+            self._style_text(ws, row, 2, key, bg_color='light_blue', bold=True)
+            ws.merge_cells(f'C{row}:G{row}')
+            self._style_text(ws, row, 3, value, bg_color=bg, bold=True)
+            ws.row_dimensions[row].height = 26
+            row += 1
+
+        # --- 최근 금리 결정 이력 ---
+        row += 1
+        ws.merge_cells(f'B{row}:G{row}')
+        self._style_header(ws, row, 2, "최근 금리 결정 이력 (목표금리 변동 기준)", 'header_blue', size=11)
+        ws.row_dimensions[row].height = 28
+        row += 1
+
+        dec_headers = ['결정월', '목표금리(상단,%)', '변화폭(%p)', '결정']
+        for col, h in enumerate(dec_headers, 2):
+            self._style_header(ws, row, col, h, 'header_blue', size=10)
+        ws.row_dimensions[row].height = 24
+        row += 1
+
+        recent_decisions = fomc_analysis.get('recent_decisions', [])
+        if recent_decisions:
+            for dec in recent_decisions:
+                bg = 'light_gray' if row % 2 == 0 else 'white'
+                action_bg = 'positive' if dec.get('action') == '인하' else ('negative' if dec.get('action') == '인상' else bg)
+                self._style_data(ws, row, 2, dec.get('date', 'N/A'), bg_color=bg)
+                self._style_data(ws, row, 3, dec.get('rate', 'N/A'), bg_color=bg, number_format='0.00')
+                chg = dec.get('change', 0)
+                self._style_data(ws, row, 4, f"{chg:+.2f}" if isinstance(chg, float) else chg, bg_color=action_bg)
+                self._style_data(ws, row, 5, dec.get('action', 'N/A'), bg_color=action_bg, bold=True)
+                ws.row_dimensions[row].height = 22
+                row += 1
+        else:
+            ws.merge_cells(f'C{row}:F{row}')
+            self._style_text(ws, row, 2, '(분석 기간 내 금리 변동 없음 또는 데이터 없음)', bg_color='light_gray')
+            ws.row_dimensions[row].height = 22
+            row += 1
+
+        # --- 2026 FOMC 일정표 ---
+        row += 1
+        ws.merge_cells(f'B{row}:G{row}')
+        self._style_header(ws, row, 2, "2026년 FOMC 회의 일정", 'header_blue', size=11)
+        ws.row_dimensions[row].height = 28
+        row += 1
+
+        sched_headers = ['회차', '결정일', '비고']
+        for col, h in enumerate(sched_headers, 2):
+            self._style_header(ws, row, col, h, 'header_blue', size=10)
+        ws.row_dimensions[row].height = 24
+        row += 1
+
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        schedule_2026 = fomc_analysis.get('fomc_schedule_2026', [])
+        for idx, meeting_date in enumerate(schedule_2026, 1):
+            bg = 'light_gray' if row % 2 == 0 else 'white'
+            # 다음 회의는 강조
+            if meeting_date == fomc_analysis.get('next_meeting'):
+                bg = 'light_blue'
+                note = '← 다음 회의'
+            elif meeting_date < today_str:
+                note = '완료'
+            else:
+                note = ''
+            self._style_data(ws, row, 2, f"{idx}차", bg_color=bg)
+            self._style_data(ws, row, 3, meeting_date, bg_color=bg, bold=(bg == 'light_blue'))
+            self._style_text(ws, row, 4, note, bg_color=bg)
+            ws.row_dimensions[row].height = 22
+            row += 1
+
+        # 출처 주석
+        row += 1
+        ws.merge_cells(f'B{row}:G{row}')
+        note_cell = ws.cell(row=row, column=2,
+            value="* 출처: FRED (DFEDTARU/DFEDTARL/FEDFUNDS). FOMC 일정은 연준 공식 발표 기준.")
+        note_cell.font = Font(size=9, color='7F8C8D', name='맑은 고딕', italic=True)
+        note_cell.alignment = Alignment(horizontal='left', vertical='center', indent=1)
+
+        # 열 너비
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 16
+        ws.column_dimensions['E'].width = 16
+        ws.column_dimensions['F'].width = 20
+        ws.column_dimensions['G'].width = 20
+
     def save(self, filepath: str):
         self.wb.save(filepath)
         print(f"\n  [저장 완료] {filepath}")
@@ -1445,6 +1745,26 @@ def print_console_report(trends: dict, analysis: dict, series_map: dict):
             strategy_short = strategy
         print(f"  {asset_class:<22s} [{impact:>2s}]  {strategy_short}")
 
+    # 6. FOMC 분석
+    fomc = analysis.get('fomc', {})
+    print(f"\n  --- FOMC 분석 ---")
+    print(f"  다음 회의: {fomc.get('next_meeting', 'N/A')}  "
+          f"(D-{fomc.get('days_until', 'N/A')})")
+    upper = fomc.get('current_target_upper')
+    lower = fomc.get('current_target_lower')
+    eff   = fomc.get('current_effective')
+    if upper is not None and lower is not None:
+        eff_str = f"(실효: {eff:.2f}%)" if eff is not None else "(실효: N/A)"
+        print(f"  목표금리: {lower:.2f}% ~ {upper:.2f}%  {eff_str}")
+    expectation_label = {'hold': '동결', 'cut': '인하 기대', 'hike': '인상 기대'}
+    print(f"  시장 기대: [{expectation_label.get(fomc.get('market_expectation', 'hold'), 'N/A')}]")
+    recent = fomc.get('recent_decisions', [])
+    if recent:
+        print(f"  최근 결정:")
+        for dec in recent:
+            print(f"    {dec.get('date')}  {dec.get('action')}  "
+                  f"({dec.get('change', 0):+.2f}%p → {dec.get('rate', 'N/A'):.2f}%)")
+
     print("\n" + "=" * 65)
 
 
@@ -1500,6 +1820,7 @@ def main():
     builder.add_rates_inflation_sheet(analysis['rates'], analysis['inflation'], collector)
     builder.add_cycle_sheet(analysis['cycle'], collector)
     builder.add_asset_outlook_sheet(analysis['assets'], analysis['cycle'], analysis['rates'])
+    builder.add_fomc_sheet(analysis['fomc'])
 
     if corr_df is not None and not corr_df.empty:
         builder.add_correlation_sheet(corr_df, args.ticker, corr_company)

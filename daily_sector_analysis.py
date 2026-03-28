@@ -26,6 +26,9 @@ import shutil
 import argparse
 import logging
 import subprocess
+import urllib.request
+import urllib.parse
+import urllib.error
 from datetime import datetime
 from pathlib import Path
 
@@ -893,6 +896,130 @@ def main():
     print("=" * 60)
 
     error_logger.print_summary()
+
+    # ----------------------------------------------------------------
+    # 텔레그램 전송
+    # ----------------------------------------------------------------
+    send_telegram_report(daily_dir, date_str)
+
+
+# ====================================================================
+# 텔레그램 전송 기능
+# ====================================================================
+def _parse_env_file(env_path: str) -> dict:
+    """config/.env 파일을 파싱합니다 (따옴표, 주석 처리)."""
+    env_vars = {}
+    if not os.path.exists(env_path):
+        return env_vars
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            # 인라인 주석 제거 (따옴표 밖의 #만)
+            if not value.startswith(("'", '"')) and "#" in value:
+                value = value.split("#")[0].strip()
+            # 따옴표 제거
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1]
+            env_vars[key] = value
+    return env_vars
+
+
+def send_telegram_report(daily_dir: str, date_str: str):
+    """분석 완료 후 텔레그램으로 요약 보고서를 전송합니다."""
+    # .env에서 토큰/chat_id 로드
+    env_path = os.path.join(CONFIG_DIR, ".env")
+    env_vars = _parse_env_file(env_path)
+    bot_token = env_vars.get("TELEGRAM_FINANCE_BOT_TOKEN")
+    chat_id = env_vars.get("TELEGRAM_FINANCE_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        print("\n  [텔레그램] 봇 토큰 또는 chat_id가 설정되지 않았습니다. 전송 건너뜀.")
+        return
+
+    # 종합요약 파일 읽기
+    summary_path = os.path.join(daily_dir, f"종합요약_{date_str}.txt")
+    if not os.path.exists(summary_path):
+        print(f"\n  [텔레그램] 종합요약 파일이 없습니다: {summary_path}")
+        return
+
+    with open(summary_path, "r", encoding="utf-8") as f:
+        summary_text = f.read()
+
+    # 헤더 조립 후 전체 길이 기준으로 truncate (텔레그램 제한: 4096자)
+    header = f"AI Finance Report ({date_str})\n{'='*35}\n\n"
+    max_body = 4096 - len(header) - 50  # 여유 50자
+    if len(summary_text) > max_body:
+        summary_text = summary_text[:max_body] + "\n\n... (Excel 참조)"
+    message = header + summary_text
+
+    print(f"\n  텔레그램 전송 중...", end=" ", flush=True)
+
+    try:
+        _telegram_send_message(bot_token, chat_id, message)
+        print("완료")
+    except Exception as e:
+        print(f"실패: {e}")
+
+    # Excel 파일도 전송
+    excel_path = os.path.join(daily_dir, f"종합보고서_{date_str}.xlsx")
+    if os.path.exists(excel_path):
+        print(f"  Excel 보고서 전송 중...", end=" ", flush=True)
+        try:
+            _telegram_send_document(bot_token, chat_id, excel_path, f"종합보고서_{date_str}.xlsx")
+            print("완료")
+        except Exception as e:
+            print(f"실패: {e}")
+
+
+def _telegram_send_message(bot_token: str, chat_id: str, text: str):
+    """텔레그램 Bot API로 메시지를 전송합니다 (plain text, HTML 없음)."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": text,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=data, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+        if not result.get("ok"):
+            raise RuntimeError(f"Telegram API error: {result}")
+
+
+def _telegram_send_document(bot_token: str, chat_id: str, file_path: str, filename: str):
+    """텔레그램 Bot API로 파일을 전송합니다 (multipart/form-data)."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
+    boundary = "----PythonFormBoundary"
+
+    with open(file_path, "rb") as f:
+        file_data = f.read()
+
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="chat_id"\r\n\r\n'
+        f"{chat_id}\r\n"
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
+        f"Content-Type: application/octet-stream\r\n\r\n"
+    ).encode("utf-8") + file_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+        if not result.get("ok"):
+            raise RuntimeError(f"Telegram API error: {result}")
 
 
 if __name__ == "__main__":

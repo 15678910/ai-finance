@@ -75,7 +75,6 @@ class PortfolioDataCollector:
                 self.ticker_markets[yf_ticker] = market
 
     @staticmethod
-    @staticmethod
     def _detect_market(ticker_code):
         """코스피(.KS) / 코스닥(.KQ) 자동 감지"""
         for suffix in [".KS", ".KQ"]:

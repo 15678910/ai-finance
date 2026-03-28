@@ -1461,7 +1461,8 @@ body::before {
       if (md.key_signals && md.key_signals.length > 0) {
         html += `<div style="grid-column:1/-1;margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--amber);margin-bottom:6px;">KEY SIGNALS</div>`;
         md.key_signals.forEach(sig => {
-          html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; ${sig}</div>`;
+          let signalText = typeof sig === 'string' ? sig : `${sig.signal} — <span style="color:${sig.direction === 'positive' ? 'var(--green,#4ade80)' : sig.direction === 'negative' ? 'var(--red,#f87171)' : 'var(--text)'}">${sig.interpretation}</span>`;
+          html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; ${signalText}</div>`;
         });
         html += `</div>`;
       }
@@ -1470,8 +1471,23 @@ body::before {
       if (md.asset_outlook && md.asset_outlook.length > 0) {
         html += `<div style="grid-column:1/-1;margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--cyan);margin-bottom:6px;">ASSET OUTLOOK</div>`;
         md.asset_outlook.forEach(outlook => {
-          html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; ${outlook}</div>`;
+          let outlookText = typeof outlook === 'string' ? outlook : `<b>${outlook.asset}</b> <span style="color:${outlook.outlook === '긍정' ? 'var(--green,#4ade80)' : outlook.outlook === '부정' ? 'var(--red,#f87171)' : 'var(--text)'}">[${outlook.outlook}]</span> ${outlook.strategy}`;
+          html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; ${outlookText}</div>`;
         });
+        html += `</div>`;
+      }
+
+      // FOMC outlook
+      if (md.fomc && md.fomc.next_meeting) {
+        const fomc = md.fomc;
+        const expColor = fomc.market_expectation === 'cut' ? 'var(--green,#4ade80)' : fomc.market_expectation === 'hike' ? 'var(--red,#f87171)' : 'var(--amber,#fbbf24)';
+        const expLabel = fomc.market_expectation === 'cut' ? '인하 기대' : fomc.market_expectation === 'hike' ? '인상 기대' : '동결 예상';
+        const dday = fomc.days_until != null ? ` (D-${fomc.days_until})` : '';
+        const rateRange = (fomc.target_lower != null && fomc.target_upper != null) ? `${fomc.target_lower.toFixed(2)}% ~ ${fomc.target_upper.toFixed(2)}%` : 'N/A';
+        html += `<div style="grid-column:1/-1;margin-top:4px;"><div style="font-size:0.68rem;font-family:var(--font-mono);color:var(--purple,#a78bfa);margin-bottom:6px;">FOMC OUTLOOK</div>`;
+        html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; 다음 회의: <b>${h(fomc.next_meeting)}</b>${dday}</div>`;
+        html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; 시장 전망: <span style="color:${expColor};font-weight:600;">${expLabel}</span></div>`;
+        html += `<div style="font-size:0.78rem;color:var(--text);margin-bottom:3px;">&#8226; 목표금리: ${rateRange}</div>`;
         html += `</div>`;
       }
 
