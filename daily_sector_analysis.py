@@ -686,6 +686,9 @@ def main():
     if not args.skip_macro:
         print(f"\n  |- 지정학 리스크 분석...")
 
+        # Load previous geopolitical risk score for comparison
+        prev_geo_score = _load_previous_geo_risk_score()
+
         result = run_script(SCRIPTS["geopolitical"], [], "지정학 리스크 분석")
 
         if result["success"]:
@@ -695,6 +698,17 @@ def main():
             moved = move_output_file(geo_file, dest_dir)
             if moved:
                 total_files += 1
+
+            # After successful geopolitical analysis, check for risk score change
+            curr_geo_score = _get_current_geo_risk_score(daily_dir, date_str)
+            if prev_geo_score is not None and curr_geo_score is not None:
+                change = abs(curr_geo_score - prev_geo_score)
+                if change >= 5:
+                    _send_geo_alert(prev_geo_score, curr_geo_score, daily_dir, date_str)
+                else:
+                    print(f"  [지정학] 리스크 변동 {change:.1f}p (임계값 5p 미만, 알림 생략)")
+            elif curr_geo_score is not None:
+                print(f"  [지정학] 현재 리스크 점수: {curr_geo_score} (이전 데이터 없음)")
         else:
             print(f"     실패 ({format_elapsed(result['elapsed'])})")
             error_logger.add("지정학", "", "geopolitical_analyzer.py",
@@ -1021,6 +1035,76 @@ def _telegram_send_document(bot_token: str, chat_id: str, file_path: str, filena
         result = json.loads(resp.read().decode("utf-8"))
         if not result.get("ok"):
             raise RuntimeError(f"Telegram API error: {result}")
+
+
+# ====================================================================
+# 지정학 리스크 알림 기능
+# ====================================================================
+def _load_previous_geo_risk_score() -> float:
+    """이전 실행의 지정학 리스크 점수를 로드합니다."""
+    data_json = os.path.join(BASE_DIR, "docs", "data.json")
+    try:
+        with open(data_json, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        score = data.get("geopolitical", {}).get("risk_score")
+        return float(score) if score is not None else None
+    except Exception:
+        return None
+
+
+def _get_current_geo_risk_score(daily_dir: str, date_str: str) -> float:
+    """현재 실행에서 생성된 지정학 리스크 점수를 읽습니다."""
+    import openpyxl
+    import re
+    geo_path = os.path.join(daily_dir, "macro", f"지정학리스크_{date_str}.xlsx")
+    try:
+        wb = openpyxl.load_workbook(geo_path, data_only=True)
+        ws = wb["리스크 대시보드"]
+        # Row 6 col B contains something like "[주의]  77.6/100"
+        thermometer = str(ws.cell(6, 2).value or "")
+        m = re.match(r"\[.+?\]\s+([\d.]+)/100", thermometer)
+        wb.close()
+        if m:
+            return float(m.group(1))
+    except Exception:
+        pass
+    return None
+
+
+def _send_geo_alert(prev_score, curr_score, daily_dir, date_str):
+    """지정학 리스크 급등 시 텔레그램 긴급 알림을 전송합니다."""
+    env_path = os.path.join(CONFIG_DIR, ".env")
+    env_vars = _parse_env_file(env_path)
+    bot_token = env_vars.get("TELEGRAM_FINANCE_BOT_TOKEN")
+    chat_id = env_vars.get("TELEGRAM_FINANCE_CHAT_ID")
+    if not bot_token or not chat_id:
+        return
+
+    change = curr_score - (prev_score or 0)
+    direction = "상승" if change > 0 else "하락"
+
+    # Determine severity
+    if abs(change) >= 15:
+        severity = "🔴 긴급"
+    elif abs(change) >= 10:
+        severity = "🟠 경고"
+    else:
+        severity = "🟡 주의"
+
+    message = (
+        f"{severity} 지정학 리스크 변동 알림\n"
+        f"{'='*30}\n\n"
+        f"리스크 점수: {prev_score or 'N/A'} → {curr_score} ({direction} {abs(change):.1f}p)\n"
+        f"분석 시각: {date_str}\n\n"
+        f"대시보드에서 상세 내용을 확인하세요:\n"
+        f"https://15678910.github.io/ai-finance/"
+    )
+
+    try:
+        _telegram_send_message(bot_token, chat_id, message)
+        print(f"  [지정학 알림] 전송 완료 ({severity})")
+    except Exception as e:
+        print(f"  [지정학 알림] 전송 실패: {e}")
 
 
 if __name__ == "__main__":

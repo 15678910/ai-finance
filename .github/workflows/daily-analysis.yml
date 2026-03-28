@@ -2,8 +2,13 @@ name: Daily Finance Analysis
 
 on:
   schedule:
-    # 매일 한국시간 오전 5시 (GH Actions 지연 감안, 실제 도착 ~8시 KST)
-    - cron: '0 20 * * *'
+    # 4시간마다 (일 6회): KST 00, 04, 08, 12, 16, 20시
+    - cron: '0 15 * * *'   # UTC 15:00 = KST 00:00
+    - cron: '0 19 * * *'   # UTC 19:00 = KST 04:00
+    - cron: '0 23 * * *'   # UTC 23:00 = KST 08:00
+    - cron: '0 3 * * *'    # UTC 03:00 = KST 12:00
+    - cron: '0 7 * * *'    # UTC 07:00 = KST 16:00
+    - cron: '0 11 * * *'   # UTC 11:00 = KST 20:00
   workflow_dispatch: # 수동 실행 버튼
 
 permissions:
