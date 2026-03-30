@@ -301,6 +301,174 @@ body::before {
   line-height: 1.5;
 }
 
+/* ─── AI Commentary Section ───────────────────────────────── */
+.commentary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.commentary-overview {
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.commentary-overview::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+}
+
+.commentary-overview-text {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.commentary-subsection {
+  margin-top: 8px;
+}
+
+.commentary-subsection-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commentary-subsection-title .icon {
+  font-size: 1rem;
+}
+
+.sector-picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.sector-pick-card {
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sector-pick-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.sector-pick-card.signal-positive::before { background: linear-gradient(90deg, var(--green), transparent); }
+.sector-pick-card.signal-negative::before { background: linear-gradient(90deg, var(--red), transparent); }
+.sector-pick-card.signal-neutral::before  { background: linear-gradient(90deg, var(--amber), transparent); }
+
+.sector-pick-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sector-pick-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.signal-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+
+.signal-badge.positive { background: var(--green-dim); color: var(--green); }
+.signal-badge.negative { background: var(--red-dim); color: var(--red); }
+.signal-badge.neutral  { background: var(--amber-dim); color: var(--amber); }
+
+.sector-pick-comment {
+  font-size: 0.75rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.sector-pick-tops {
+  font-size: 0.7rem;
+  color: var(--cyan);
+}
+
+.risk-list, .action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.risk-item, .action-item {
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.risk-item::before, .action-item::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+}
+
+.risk-item.severity-high::before   { background: var(--red); }
+.risk-item.severity-medium::before { background: var(--amber); }
+
+.action-item.priority-high::before   { background: var(--red); }
+.action-item.priority-medium::before { background: var(--amber); }
+.action-item.priority-low::before    { background: var(--green); }
+
+.risk-header, .action-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.severity-badge, .priority-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+
+.severity-badge.high, .priority-badge.high     { background: var(--red-dim); color: var(--red); }
+.severity-badge.medium, .priority-badge.medium { background: var(--amber-dim); color: var(--amber); }
+.priority-badge.low                             { background: var(--green-dim); color: var(--green); }
+
+.risk-type {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.risk-desc, .action-detail {
+  font-size: 0.75rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.action-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
 /* ─── Macro Cards ──────────────────────────────────────── */
 .macro-grid {
   display: grid;
@@ -1144,6 +1312,10 @@ body::before {
     grid-template-columns: 1fr;
   }
 
+  .sector-picks-grid {
+    grid-template-columns: 1fr;
+  }
+
   .charts-grid {
     grid-template-columns: 1fr;
   }
@@ -1368,6 +1540,76 @@ body::before {
             <div class="insight-desc">${opp.reason || ''}</div>
           </div>`;
         });
+      }
+
+      html += `</div></section>`;
+    }
+
+    // ─── AI COMMENTARY ────────────────────────────────
+    const ac = data.ai_commentary;
+    if (ac && ac.market_overview) {
+      html += `<section class="section-wrap"><div class="section-label" style="color:var(--cyan)">AI 투자 코멘트</div><div class="commentary-grid">`;
+
+      // Market overview
+      html += `<div class="commentary-overview glass-card anim-item">
+        <div class="commentary-subsection-title"><span class="icon">&#128202;</span> 시장 종합 평가</div>
+        <div class="commentary-overview-text">${ac.market_overview}</div>
+      </div>`;
+
+      // Sector picks
+      if (ac.sector_picks && ac.sector_picks.length > 0) {
+        html += `<div class="commentary-subsection">
+          <div class="commentary-subsection-title"><span class="icon">&#128640;</span> 섹터별 투자 판단</div>
+          <div class="sector-picks-grid">`;
+        ac.sector_picks.forEach(sp => {
+          const sigClass = sp.signal === '긍정' ? 'positive' : sp.signal === '부정' ? 'negative' : 'neutral';
+          const sigCard  = sp.signal === '긍정' ? 'signal-positive' : sp.signal === '부정' ? 'signal-negative' : 'signal-neutral';
+          html += `<div class="sector-pick-card glass-card anim-item ${sigCard}">
+            <div class="sector-pick-header">
+              <span class="sector-pick-name">${sp.sector}</span>
+              <span class="signal-badge ${sigClass}">${sp.signal}</span>
+            </div>
+            <div class="sector-pick-comment">${sp.comment}</div>
+            ${sp.top_picks && sp.top_picks.length ? `<div class="sector-pick-tops">&#9733; 주목: ${sp.top_picks.join(', ')}</div>` : ''}
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      // Risk assessment
+      if (ac.risk_assessment && ac.risk_assessment.length > 0) {
+        html += `<div class="commentary-subsection">
+          <div class="commentary-subsection-title"><span class="icon">&#9888;</span> 리스크 평가</div>
+          <div class="risk-list">`;
+        ac.risk_assessment.forEach(r => {
+          const sevClass = r.severity === '높음' ? 'high' : 'medium';
+          html += `<div class="risk-item glass-card anim-item severity-${sevClass}">
+            <div class="risk-header">
+              <span class="severity-badge ${sevClass}">${r.severity}</span>
+              <span class="risk-type">${r.type}</span>
+            </div>
+            <div class="risk-desc">${r.description}</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      // Action items
+      if (ac.action_items && ac.action_items.length > 0) {
+        html += `<div class="commentary-subsection">
+          <div class="commentary-subsection-title"><span class="icon">&#128161;</span> 투자 행동 권고</div>
+          <div class="action-list">`;
+        ac.action_items.forEach(a => {
+          const priClass = a.priority === '높음' ? 'high' : a.priority === '중간' ? 'medium' : 'low';
+          html += `<div class="action-item glass-card anim-item priority-${priClass}">
+            <div class="action-header">
+              <span class="priority-badge ${priClass}">${a.priority}</span>
+              <span class="action-title">${a.action}</span>
+            </div>
+            <div class="action-detail">${a.detail}</div>
+          </div>`;
+        });
+        html += `</div></div>`;
       }
 
       html += `</div></section>`;

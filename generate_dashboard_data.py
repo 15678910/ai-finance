@@ -16,6 +16,8 @@ import sys
 from datetime import datetime
 from glob import glob
 
+from commentary_engine import generate_commentary
+
 # ---------------------------------------------------------------------------
 # 헤드라인 번역 (Google Translate API)
 # ---------------------------------------------------------------------------
@@ -1122,7 +1124,15 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         "sectors": parsed["sectors"],
     }
 
-    # 10) docs/ 디렉터리 생성 및 파일 저장
+    # 10) AI 투자 코멘트 생성
+    try:
+        output_data["ai_commentary"] = generate_commentary(output_data)
+        print("[INFO] AI 투자 코멘트 생성 완료")
+    except Exception as e:
+        print(f"[WARN] AI 코멘트 생성 실패: {e}")
+        output_data["ai_commentary"] = {}
+
+    # 11) docs/ 디렉터리 생성 및 파일 저장
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
