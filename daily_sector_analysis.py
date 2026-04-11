@@ -912,6 +912,12 @@ def main():
     error_logger.print_summary()
 
     # ----------------------------------------------------------------
+    # 회로 차단기 체크 (일일 손실률 임계값 초과 시 긴급 알림)
+    # ----------------------------------------------------------------
+    print(f"\n회로 차단기 체크 중...")
+    _check_circuit_breakers(sectors, date_str)
+
+    # ----------------------------------------------------------------
     # 텔레그램 전송
     # ----------------------------------------------------------------
     send_telegram_report(daily_dir, date_str)
@@ -1105,6 +1111,81 @@ def _send_geo_alert(prev_score, curr_score, daily_dir, date_str):
         print(f"  [지정학 알림] 전송 완료 ({severity})")
     except Exception as e:
         print(f"  [지정학 알림] 전송 실패: {e}")
+
+
+# ====================================================================
+# 회로 차단기 알림 기능
+# ====================================================================
+def _check_circuit_breakers(sectors: dict, date_str: str):
+    """종목별 일일 손실률을 체크하고 임계값 초과 시 텔레그램 알림을 전송합니다.
+
+    yfinance를 사용해 각 종목의 당일 등락률을 조회합니다.
+    -2% 이하: 🟡 주의, -3% 이하: 🟠 경고, -5% 이하: 🔴 긴급
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        print("  [회로차단기] yfinance 미설치 (pip install yfinance)")
+        return
+
+    env_path = os.path.join(CONFIG_DIR, ".env")
+    env_vars = _parse_env_file(env_path)
+    bot_token = env_vars.get("TELEGRAM_FINANCE_BOT_TOKEN")
+    chat_id = env_vars.get("TELEGRAM_FINANCE_CHAT_ID")
+    if not bot_token or not chat_id:
+        return
+
+    alerts = []  # (severity, name, ticker, daily_change, sector_name)
+
+    for sector_key, sector_info in sectors.items():
+        sector_name = sector_info["name"]
+        tickers = sector_info.get("tickers", {})
+
+        for ticker, ticker_name in tickers.items():
+            try:
+                hist = yf.Ticker(ticker).history(period="2d")
+                if hist is None or len(hist) < 2:
+                    continue
+                prev_close = float(hist["Close"].iloc[-2])
+                curr_close = float(hist["Close"].iloc[-1])
+                if prev_close == 0:
+                    continue
+                daily_change = (curr_close - prev_close) / prev_close * 100
+
+                if daily_change <= -5:
+                    alerts.append(("🔴 긴급", ticker_name, ticker, daily_change, sector_name))
+                elif daily_change <= -3:
+                    alerts.append(("🟠 경고", ticker_name, ticker, daily_change, sector_name))
+                elif daily_change <= -2:
+                    alerts.append(("🟡 주의", ticker_name, ticker, daily_change, sector_name))
+
+            except Exception:
+                continue
+
+    if not alerts:
+        print("  [회로차단기] 임계값 초과 종목 없음")
+        return
+
+    # 심각도 순 정렬 (긴급 → 경고 → 주의)
+    severity_order = {"🔴 긴급": 0, "🟠 경고": 1, "🟡 주의": 2}
+    alerts.sort(key=lambda x: severity_order.get(x[0], 3))
+
+    # 메시지 조립
+    lines = ["⚡ 회로 차단기 알림 ⚡", "=" * 25, ""]
+    for severity, name, ticker, change, sector in alerts:
+        lines.append(f"{severity} {name} ({sector}): {change:+.1f}%")
+
+    lines.append("")
+    lines.append(f"분석 시각: {date_str}")
+    lines.append("대시보드: https://15678910.github.io/ai-finance/")
+
+    message = "\n".join(lines)
+
+    try:
+        _telegram_send_message(bot_token, chat_id, message)
+        print(f"  [회로차단기] 알림 전송 완료 ({len(alerts)}건)")
+    except Exception as e:
+        print(f"  [회로차단기] 알림 전송 실패: {e}")
 
 
 if __name__ == "__main__":

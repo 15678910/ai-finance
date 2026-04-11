@@ -1231,6 +1231,48 @@ body::before {
   text-align: right;
 }
 
+/* ─── Benchmark Table ──────────────────────────────────── */
+.benchmark-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.72rem;
+}
+.benchmark-table th {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 6px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.benchmark-table th:first-child { text-align: left; }
+.benchmark-table td {
+  padding: 4px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text);
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.benchmark-table td:first-child {
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+.benchmark-table .bm-beat { color: var(--green); }
+.benchmark-table .bm-lag  { color: var(--red); }
+.benchmark-section-title {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  color: var(--amber);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 12px 0 4px;
+}
+
 /* ─── Footer ───────────────────────────────────────────── */
 .footer {
   margin-top: 48px;
@@ -1977,6 +2019,55 @@ body::before {
             ${sec.var_95 ? `<div><div class="port-stat-label">VaR 95%</div><div class="port-stat-value">${sec.var_95}</div></div>` : ''}
             ${sec.beta != null ? `<div><div class="port-stat-label">Beta</div><div class="port-stat-value">${sec.beta}</div></div>` : ''}
           </div>`;
+
+        // Benchmark comparison table
+        if (sec.benchmarks) {
+          const bm = sec.benchmarks;
+          const portAnnual = sec.annual_return || '';
+          const portSharpe = sharpe;
+          const portMdd = sec.max_drawdown || '';
+
+          function bmClass(portVal, bmVal, higherIsBetter) {
+            const p = parseFloat(portVal);
+            const b = parseFloat(bmVal);
+            if (isNaN(p) || isNaN(b)) return '';
+            return higherIsBetter ? (p >= b ? 'bm-beat' : 'bm-lag') : (p <= b ? 'bm-beat' : 'bm-lag');
+          }
+
+          const bhAnnual = bm.buy_hold ? (bm.buy_hold.annual_return || 'N/A') : 'N/A';
+          const bhSharpe = bm.buy_hold ? (bm.buy_hold.sharpe || 'N/A') : 'N/A';
+          const bhMdd    = bm.buy_hold ? (bm.buy_hold.max_drawdown || 'N/A') : 'N/A';
+          const smaAnnual = bm.sma200 ? (bm.sma200.annual_return || 'N/A') : 'N/A';
+          const smaSharpe = bm.sma200 ? (bm.sma200.sharpe || 'N/A') : 'N/A';
+          const smaMdd    = bm.sma200 ? (bm.sma200.max_drawdown || 'N/A') : 'N/A';
+
+          html += `
+          <div class="benchmark-section-title">벤치마크 비교</div>
+          <table class="benchmark-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>연수익률</th>
+                <th>Sharpe</th>
+                <th>MDD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Buy &amp; Hold</td>
+                <td class="${bmClass(portAnnual, bhAnnual, true)}">${bhAnnual}%</td>
+                <td class="${bmClass(portSharpe, bhSharpe, true)}">${bhSharpe}</td>
+                <td class="${bmClass(portMdd, bhMdd, false)}">${bhMdd}%</td>
+              </tr>
+              <tr>
+                <td>SMA200</td>
+                <td class="${bmClass(portAnnual, smaAnnual, true)}">${smaAnnual}%</td>
+                <td class="${bmClass(portSharpe, smaSharpe, true)}">${smaSharpe}</td>
+                <td class="${bmClass(portMdd, smaMdd, false)}">${smaMdd}%</td>
+              </tr>
+            </tbody>
+          </table>`;
+        }
 
         // Show allocation types if available
         if (sec.allocations) {

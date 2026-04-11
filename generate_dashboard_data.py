@@ -780,6 +780,7 @@ def extract_portfolios(daily_dir: str, date_str: str) -> dict:
                 "stable": {},
             },
             "assets": [],
+            "benchmarks": None,
         }
 
         # --- Sheet: 포트폴리오 요약 ---
@@ -822,6 +823,29 @@ def extract_portfolios(daily_dir: str, date_str: str) -> dict:
             sector_data["assets"] = assets
         except Exception as e:
             print(f"[WARN] 포트폴리오 요약 시트 파싱 실패 ({sector_name}): {e}")
+
+        # --- Sheet: 벤치마크 비교 ---
+        try:
+            ws_bm = wb["벤치마크 비교"]
+            benchmarks = {}
+            label_to_key = {
+                "연간 수익률(%)": "annual_return",
+                "Sharpe Ratio": "sharpe",
+                "최대 낙폭(MDD%)": "max_drawdown",
+            }
+            # Columns: B=지표, C=현재 포트폴리오, D=Buy & Hold, E=SMA200 전략
+            for r in range(1, ws_bm.max_row + 1):
+                label = _to_str(ws_bm.cell(r, 2).value, "")
+                if label in label_to_key:
+                    key = label_to_key[label]
+                    bh_val = _to_str(ws_bm.cell(r, 4).value, "")
+                    sma_val = _to_str(ws_bm.cell(r, 5).value, "")
+                    benchmarks.setdefault("buy_hold", {})[key] = bh_val
+                    benchmarks.setdefault("sma200", {})[key] = sma_val
+            if benchmarks:
+                sector_data["benchmarks"] = benchmarks
+        except Exception:
+            pass  # 벤치마크 시트 없으면 조용히 무시
 
         # --- Sheet: 최적화 결과 ---
         try:

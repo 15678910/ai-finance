@@ -205,17 +205,64 @@ class MarketRegimeDetector:
         # 라벨 컬럼 추가
         self.features_df['Regime'] = self.features_df['State'].map(self.state_map)
 
+        # 안정성 필터 적용
+        raw_regimes = self.features_df['Regime'].tolist()
+        stable_regimes = self.apply_stability_filter(raw_regimes, min_bars=3)
+        self.features_df['StableRegime'] = stable_regimes
+
+        # 국면 전환 횟수 비교 출력
+        raw_changes = sum(1 for i in range(1, len(raw_regimes)) if raw_regimes[i] != raw_regimes[i - 1])
+        stable_changes = sum(1 for i in range(1, len(stable_regimes)) if stable_regimes[i] != stable_regimes[i - 1])
+        print(f"  ├-- 국면 전환: {raw_changes}회 → {stable_changes}회 (안정성 필터 적용)")
+
         print(f"  ├-- 모델 학습 완료 (수렴 점수: {self.model.score(X_scaled):.2f})")
         return self.model
 
+    def apply_stability_filter(self, regimes: list, min_bars: int = 3) -> list:
+        """국면 안정성 필터: 최소 min_bars 연속 동일 국면이어야 확정합니다.
+
+        노이즈를 방지하여 신뢰도 높은 국면 전환 신호만 사용합니다.
+        """
+        if not regimes or len(regimes) < min_bars:
+            return regimes
+
+        filtered = list(regimes)  # copy
+        confirmed_regime = regimes[0]  # start with first regime as confirmed
+
+        for i in range(1, len(regimes)):
+            current = regimes[i]
+            if current == confirmed_regime:
+                filtered[i] = confirmed_regime
+                continue
+
+            # Check if new regime persists for min_bars
+            consecutive = 1
+            for j in range(i + 1, min(i + min_bars, len(regimes))):
+                if regimes[j] == current:
+                    consecutive += 1
+                else:
+                    break
+
+            if consecutive >= min_bars:
+                # New regime confirmed
+                confirmed_regime = current
+                filtered[i] = current
+            else:
+                # Not confirmed - keep previous confirmed regime
+                filtered[i] = confirmed_regime
+
+        return filtered
+
     def get_current_regime(self) -> dict:
-        """현재 레짐 정보 반환"""
+        """현재 레짐 정보 반환 (안정성 필터 적용된 레짐 사용)"""
         latest = self.features_df.iloc[-1]
         current_state = int(latest['State'])
-        current_regime = self.state_map[current_state]
+        # Use stable regime if available, otherwise fall back to raw regime
+        current_regime = latest['StableRegime'] if 'StableRegime' in self.features_df.columns else self.state_map[current_state]
 
-        # 현재 레짐의 통계
-        regime_mask = self.features_df['Regime'] == current_regime
+        # 현재 레짐의 통계 (안정 레짐 기준)
+        regime_col = 'StableRegime' if 'StableRegime' in self.features_df.columns else 'Regime'
+        regime_mask = self.features_df[regime_col] == current_regime
         regime_data = self.features_df.loc[regime_mask]
 
         return {
@@ -551,15 +598,22 @@ class RegimeExcelBuilder:
             size=9, color='7F8C8D', name='맑은 고딕')
 
     def add_daily_regime_sheet(self, features_df: pd.DataFrame):
-        """시트 3: 일별 레짐"""
+        """시트 3: 일별 레짐 (원시 레짐 + 확정 레짐 포함)"""
         ws = self.wb.create_sheet("일별 레짐")
         ws.sheet_view.showGridLines = False
 
-        headers = ['날짜', '종가', '수익률(%)', '변동성(%)', '레짐']
+        has_stable = 'StableRegime' in features_df.columns
+        headers = ['날짜', '종가', '수익률(%)', '변동성(%)', '원시 레짐', '확정 레짐 (안정성 필터)'] if has_stable else ['날짜', '종가', '수익률(%)', '변동성(%)', '레짐']
         for col, h in enumerate(headers, 1):
             self._style_header(ws, 1, col, h, 'header_dark')
-            ws.column_dimensions[get_column_letter(col)].width = 16
+            ws.column_dimensions[get_column_letter(col)].width = 16 if col < len(headers) else 24
         ws.row_dimensions[1].height = 28
+
+        # 안정성 필터 적용 안내 메모
+        if has_stable:
+            note_row = 0  # will write after data; just track it
+            ws.cell(row=1, column=len(headers) + 1, value="* 확정 레짐: 3일 이상 연속 동일 국면이어야 전환 확정").font = Font(
+                size=9, color='7F8C8D', name='맑은 고딕', italic=True)
 
         # 최근 252일
         recent = features_df.tail(252).copy()
@@ -586,11 +640,25 @@ class RegimeExcelBuilder:
             vol_val = round(row_data['Volatility_5d'] * 100, 4)
             self._style_data(ws, row_idx, 4, vol_val, number_format='0.0000')
 
-            # 레짐 (색상)
+            # 원시 레짐 (색상)
             regime_cell = ws.cell(row=row_idx, column=5, value=regime)
             regime_cell.fill = PatternFill("solid", fgColor=rc)
             regime_cell.font = Font(size=10, name='맑은 고딕', bold=True, color=rf)
             regime_cell.alignment = Alignment(horizontal='center', vertical='center')
+
+            # 확정 레짐 (안정성 필터 적용)
+            if has_stable:
+                stable_regime = row_data['StableRegime']
+                src = self.REGIME_COLORS.get(stable_regime, 'F2F3F4')
+                srf = self.REGIME_FONT_COLORS.get(stable_regime, '0D1B2A')
+                stable_cell = ws.cell(row=row_idx, column=6, value=stable_regime)
+                stable_cell.fill = PatternFill("solid", fgColor=src)
+                stable_cell.font = Font(size=10, name='맑은 고딕', bold=True, color=srf)
+                stable_cell.alignment = Alignment(horizontal='center', vertical='center')
+                # Highlight rows where stable differs from raw (regime was filtered out)
+                if stable_regime != regime:
+                    for col_idx in range(1, 6):
+                        ws.cell(row=row_idx, column=col_idx).fill = PatternFill("solid", fgColor='FFF9C4')
 
             ws.row_dimensions[row_idx].height = 18
 
@@ -676,16 +744,29 @@ def print_console_report(detector: MarketRegimeDetector):
     next_probs = detector.get_next_regime_probs()
     strategy = detector.get_strategy()
 
+    # Raw regime for comparison
+    latest_raw_regime = detector.features_df.iloc[-1]['Regime']
+    latest_stable_regime = detector.features_df.iloc[-1]['StableRegime'] if 'StableRegime' in detector.features_df.columns else latest_raw_regime
+
     print("\n" + "=" * 60)
     print(f"  HMM 마켓 레짐 분석 결과 - {detector.company_name}")
     print("=" * 60)
 
     print(f"\n  기준일: {current['date']}")
     print(f"  종가: {current['close']:,.0f}")
-    print(f"  현재 레짐: [{current['regime']}]")
+    print(f"  원시 레짐: [{latest_raw_regime}]")
+    print(f"  확정 레짐 (안정성 필터): [{latest_stable_regime}]")
     print(f"  평균 수익률: {current['mean_return']:.4f}%")
     print(f"  평균 변동성: {current['volatility']:.4f}%")
     print(f"  레짐 일수: {current['days_in_regime']}일 ({current['pct_of_total']:.1f}%)")
+
+    # Regime change statistics
+    if 'StableRegime' in detector.features_df.columns:
+        raw_regimes = detector.features_df['Regime'].tolist()
+        stable_regimes = detector.features_df['StableRegime'].tolist()
+        raw_changes = sum(1 for i in range(1, len(raw_regimes)) if raw_regimes[i] != raw_regimes[i - 1])
+        stable_changes = sum(1 for i in range(1, len(stable_regimes)) if stable_regimes[i] != stable_regimes[i - 1])
+        print(f"  국면 전환: {raw_changes}회 → {stable_changes}회 (안정성 필터 적용)")
 
     print(f"\n  투자 전략: {strategy}")
 

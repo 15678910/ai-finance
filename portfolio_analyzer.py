@@ -501,7 +501,63 @@ class PortfolioAnalyzer:
         }
 
     # ----------------------------------------------------------------
-    # f) 자산배분 제안
+    # f) 벤치마크 비교 (Buy & Hold vs SMA200)
+    # ----------------------------------------------------------------
+    def calculate_benchmarks(self) -> dict:
+        """Buy & Hold 및 SMA200 전략과의 벤치마크 비교를 수행합니다."""
+        benchmarks = {}
+
+        if self.returns.empty or len(self.returns) < 200:
+            return benchmarks
+
+        # 가중치 기반 포트폴리오 일간 수익률
+        portfolio_returns = (self.returns * self.weights).sum(axis=1)
+
+        # 1. Buy & Hold: cumulative returns
+        bh_cumulative = (1 + portfolio_returns).cumprod()
+        bh_total_return = (bh_cumulative.iloc[-1] - 1) * 100
+        bh_annual_return = ((bh_cumulative.iloc[-1]) ** (252 / len(portfolio_returns)) - 1) * 100
+        bh_volatility = portfolio_returns.std() * np.sqrt(252) * 100
+        bh_sharpe = bh_annual_return / bh_volatility if bh_volatility > 0 else 0
+        bh_max_dd = ((bh_cumulative / bh_cumulative.cummax()) - 1).min() * 100
+
+        benchmarks['buy_hold'] = {
+            'total_return': round(bh_total_return, 1),
+            'annual_return': round(bh_annual_return, 1),
+            'volatility': round(bh_volatility, 1),
+            'sharpe': round(bh_sharpe, 2),
+            'max_drawdown': round(bh_max_dd, 1),
+        }
+
+        # 2. SMA200 Strategy
+        prices = bh_cumulative  # proxy for portfolio price
+        sma200 = prices.rolling(200).mean()
+
+        # Signal: 1 when price > SMA200, 0 otherwise (cash); shift(1) to avoid look-ahead bias
+        signal = (prices > sma200).astype(float)
+        signal = signal.shift(1).fillna(0)
+
+        sma_returns = portfolio_returns * signal
+        sma_cumulative = (1 + sma_returns).cumprod()
+        sma_total_return = (sma_cumulative.iloc[-1] - 1) * 100
+        sma_annual_return = ((sma_cumulative.iloc[-1]) ** (252 / len(sma_returns)) - 1) * 100
+        active_returns = sma_returns[sma_returns != 0]
+        sma_volatility = active_returns.std() * np.sqrt(252) * 100 if len(active_returns) > 0 else 0
+        sma_sharpe = sma_annual_return / sma_volatility if sma_volatility > 0 else 0
+        sma_max_dd = ((sma_cumulative / sma_cumulative.cummax()) - 1).min() * 100
+
+        benchmarks['sma200'] = {
+            'total_return': round(sma_total_return, 1),
+            'annual_return': round(sma_annual_return, 1),
+            'volatility': round(sma_volatility, 1),
+            'sharpe': round(sma_sharpe, 2),
+            'max_drawdown': round(sma_max_dd, 1),
+        }
+
+        return benchmarks
+
+    # ----------------------------------------------------------------
+    # g) 자산배분 제안
     # ----------------------------------------------------------------
     def suggest_allocations(self, mc_result: dict) -> list:
         """3가지 포트폴리오 제안: 공격형, 균형형, 안정형"""
@@ -1192,6 +1248,125 @@ class PortfolioExcelBuilder:
         for c in 'FGH':
             ws.column_dimensions[c].width = 15
 
+    # ----------------------------------------------------------------
+    # 시트 6: 벤치마크 비교
+    # ----------------------------------------------------------------
+    def add_benchmark_sheet(self, benchmarks: dict, portfolio_perf: dict):
+        """Buy & Hold 및 SMA200 벤치마크 비교 시트 추가"""
+        ws = self.wb.create_sheet("벤치마크 비교")
+        ws.sheet_view.showGridLines = False
+
+        # 제목
+        ws.merge_cells('B2:G2')
+        title = ws['B2']
+        title.value = "벤치마크 비교 분석 (Buy & Hold vs SMA200)"
+        title.font = Font(bold=True, size=13, color='1B4F72', name='맑은 고딕')
+        title.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[2].height = 35
+
+        # 설명
+        ws['B3'] = "포트폴리오 성과를 Buy & Hold 전략 및 SMA200 기반 시장 타이밍 전략과 비교합니다."
+        ws['B3'].font = Font(size=9, color='7F8C8D', name='맑은 고딕')
+
+        row = 5
+        # 헤더
+        ws.merge_cells(f'B{row}:G{row}')
+        self._style_header(ws, row, 2, "전략별 성과 비교", 'header_dark', size=11)
+        ws.row_dimensions[row].height = 28
+        row += 1
+
+        comp_headers = ['지표', '현재 포트폴리오', 'Buy & Hold', 'SMA200 전략']
+        for col, h in enumerate(comp_headers, 2):
+            self._style_header(ws, row, col, h, 'header_blue', size=10)
+        ws.row_dimensions[row].height = 24
+        row += 1
+
+        bh = benchmarks.get('buy_hold', {})
+        sma = benchmarks.get('sma200', {})
+        port_annual = portfolio_perf.get('ann_return', 0) * 100
+        port_vol = portfolio_perf.get('ann_volatility', 0) * 100
+        port_sharpe = portfolio_perf.get('sharpe', 0)
+        port_mdd = portfolio_perf.get('max_drawdown', 0) * 100
+
+        def _color_compare(val, ref):
+            """val > ref → positive (green), else negative (red)"""
+            if val is None or ref is None:
+                return 'white'
+            return 'positive' if float(val) >= float(ref) else 'negative'
+
+        metrics = [
+            ('연간 수익률(%)', f"{port_annual:.1f}%",
+             f"{bh.get('annual_return', 'N/A')}%" if bh else 'N/A',
+             f"{sma.get('annual_return', 'N/A')}%" if sma else 'N/A',
+             bh.get('annual_return'), sma.get('annual_return'), port_annual),
+            ('연간 변동성(%)', f"{port_vol:.1f}%",
+             f"{bh.get('volatility', 'N/A')}%" if bh else 'N/A',
+             f"{sma.get('volatility', 'N/A')}%" if sma else 'N/A',
+             None, None, None),
+            ('Sharpe Ratio', f"{port_sharpe:.2f}",
+             f"{bh.get('sharpe', 'N/A')}" if bh else 'N/A',
+             f"{sma.get('sharpe', 'N/A')}" if sma else 'N/A',
+             bh.get('sharpe'), sma.get('sharpe'), port_sharpe),
+            ('최대 낙폭(MDD%)', f"{port_mdd:.1f}%",
+             f"{bh.get('max_drawdown', 'N/A')}%" if bh else 'N/A',
+             f"{sma.get('max_drawdown', 'N/A')}%" if sma else 'N/A',
+             None, None, None),
+        ]
+
+        for label, v_port, v_bh, v_sma, bh_val, sma_val, port_val in metrics:
+            bg = 'light_gray' if row % 2 == 0 else 'white'
+            cell_k = ws.cell(row=row, column=2, value=label)
+            cell_k.font = Font(bold=True, size=10, name='맑은 고딕')
+            cell_k.fill = PatternFill("solid", fgColor=self.COLORS['light_blue'])
+            cell_k.alignment = Alignment(horizontal='left', vertical='center', indent=1)
+
+            self._style_data(ws, row, 3, v_port, bg_color=bg)
+
+            # Color-code benchmark cells: green if portfolio beats them
+            bh_bg = _color_compare(port_val, bh_val) if (bh_val is not None and port_val is not None) else bg
+            sma_bg = _color_compare(port_val, sma_val) if (sma_val is not None and port_val is not None) else bg
+
+            self._style_data(ws, row, 4, v_bh, bg_color=bh_bg)
+            self._style_data(ws, row, 5, v_sma, bg_color=sma_bg)
+            ws.row_dimensions[row].height = 22
+            row += 1
+
+        # 설명 섹션
+        row += 1
+        ws.merge_cells(f'B{row}:G{row}')
+        self._style_header(ws, row, 2, "전략 설명", 'header_dark', size=11)
+        ws.row_dimensions[row].height = 28
+        row += 1
+
+        descriptions = [
+            ('Buy & Hold', '기간 내 포트폴리오를 매수 후 리밸런싱 없이 보유. 시장 평균 수익률의 기준선.'),
+            ('SMA200 전략', '200일 이동평균선 위에 있을 때만 투자, 그 외에는 현금 보유. 시장 하락을 일부 회피.'),
+            ('현재 포트폴리오', '몬테카를로 최적화 가중치 적용. 초과 성과 여부를 위 두 전략과 비교.'),
+        ]
+
+        for name, desc in descriptions:
+            bg = 'light_gray' if row % 2 == 0 else 'white'
+            cell_k = ws.cell(row=row, column=2, value=name)
+            cell_k.font = Font(bold=True, size=10, name='맑은 고딕')
+            cell_k.fill = PatternFill("solid", fgColor=self.COLORS['light_blue'])
+            cell_k.alignment = Alignment(horizontal='left', vertical='center', indent=1)
+            ws.merge_cells(f'C{row}:G{row}')
+            desc_cell = ws.cell(row=row, column=3, value=desc)
+            desc_cell.font = Font(size=10, name='맑은 고딕')
+            desc_cell.fill = PatternFill("solid", fgColor=self.COLORS[bg])
+            desc_cell.alignment = Alignment(horizontal='left', vertical='center', indent=1, wrap_text=True)
+            ws.row_dimensions[row].height = 30
+            row += 1
+
+        # 열 너비
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 22
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 20
+        ws.column_dimensions['E'].width = 20
+        ws.column_dimensions['F'].width = 20
+        ws.column_dimensions['G'].width = 20
+
     def save(self, filepath: str):
         self.wb.save(filepath)
         print(f"\n  [저장 완료] {filepath}")
@@ -1363,6 +1538,10 @@ def main():
     benchmark = '^KS11' if majority_market == 'KR' else '^GSPC'
     risk = analyzer.analyze_risk(benchmark_ticker=benchmark)
 
+    # f) 벤치마크 비교
+    print(f"  |- 벤치마크 비교 (Buy & Hold / SMA200) 계산 중...")
+    benchmarks = analyzer.calculate_benchmarks()
+
     # 기간 정보
     start_date = collector.aligned_prices.index[0].strftime('%Y-%m-%d')
     end_date = collector.aligned_prices.index[-1].strftime('%Y-%m-%d')
@@ -1393,6 +1572,10 @@ def main():
         builder.add_optimization_sheet(suggestions, valid_tickers, analyzer.weights, mc_result)
 
     builder.add_risk_sheet(risk, portfolio_perf, suggestions)
+
+    if benchmarks:
+        builder.add_benchmark_sheet(benchmarks, portfolio_perf)
+
     builder.save(filename)
 
     print(f"\n  다음 단계: output 폴더의 Excel 파일을 확인하세요.")
