@@ -176,7 +176,7 @@ class MacroDataCollector:
 
             # 방향 결정 (3개월 변화 기준)
             if chg_3m is not None:
-                if abs(chg_3m) < 0.01 * abs(current_val) if current_val != 0 else abs(chg_3m) < 0.01:
+                if abs(chg_3m) < (0.01 * abs(current_val) if current_val != 0 else 0.01):
                     direction = "보합"
                     arrow = "-> "
                 elif chg_3m > 0:

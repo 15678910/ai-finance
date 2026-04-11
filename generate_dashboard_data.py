@@ -22,22 +22,11 @@ from commentary_engine import generate_commentary
 # 헤드라인 번역 (Google Translate API)
 # ---------------------------------------------------------------------------
 
-def translate_headline(title: str) -> str:
-    """영어 뉴스 제목을 한글로 번역 (Google Translate API)"""
-    if not title or not title.strip():
-        return title
-
-    # 이미 한글이 포함되어 있으면 번역 불필요
-    if any('\uac00' <= c <= '\ud7a3' for c in title):
-        return title
-
-    try:
-        from deep_translator import GoogleTranslator
-        translated = GoogleTranslator(source='en', target='ko').translate(title.strip())
-        return translated if translated else title
-    except Exception as e:
-        print(f"  [번역 실패] {title[:50]}... → 원문 유지 ({e})")
-        return title  # 실패 시 영어 원문 유지 (깨진 혼합 번역 방지)
+try:
+    from geopolitical_analyzer import translate_headline
+except ImportError:
+    def translate_headline(title):
+        return title  # fallback if import fails
 
 
 # ---------------------------------------------------------------------------
