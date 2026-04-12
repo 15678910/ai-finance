@@ -319,6 +319,21 @@ def parse_regime_stdout(stdout):
     regime = "N/A"
     for line in stdout.splitlines():
         stripped = line.strip()
+        # 1순위: 안정성 필터 적용된 확정 레짐
+        if "확정 레짐" in stripped:
+            start = stripped.find('[')
+            end = stripped.find(']')
+            if start != -1 and end != -1:
+                regime = stripped[start + 1:end]
+            break
+        # 2순위: 원시 레짐 (폴백)
+        if "원시 레짐:" in stripped:
+            start = stripped.find('[')
+            end = stripped.find(']')
+            if start != -1 and end != -1:
+                regime = stripped[start + 1:end]
+            # break하지 않음 — 확정 레짐이 뒤에 올 수 있음
+        # 3순위: 이전 형식 호환
         if "현재 레짐:" in stripped:
             start = stripped.find('[')
             end = stripped.find(']')
