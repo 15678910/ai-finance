@@ -757,6 +757,7 @@ def extract_portfolios(daily_dir: str, date_str: str) -> dict:
             "sharpe_ratio": None,
             "annual_return": None,
             "annual_volatility": None,
+            "sortino_ratio": None,
             "max_drawdown": None,
             "cumulative_return": None,
             "beta": None,
@@ -782,6 +783,9 @@ def extract_portfolios(daily_dir: str, date_str: str) -> dict:
 
             sharpe_val = _find_cell_by_label(ws, "Sharpe Ratio")
             sector_data["sharpe_ratio"] = _to_float(sharpe_val)
+
+            sortino_val = _find_cell_by_label(ws, "Sortino Ratio")
+            sector_data["sortino_ratio"] = _to_float(sortino_val)
 
             sector_data["cumulative_return"] = _to_str(_find_cell_by_label(ws, "누적 수익률"))
             sector_data["max_drawdown"] = _to_str(_find_cell_by_label(ws, "최대 낙폭(MDD)"))

@@ -236,6 +236,11 @@ class PortfolioAnalyzer:
             # Sharpe 비율
             sharpe = (ann_return - self.RISK_FREE_RATE) / ann_vol if ann_vol > 0 else 0
 
+            # Sortino 비율 (하락 변동성만 고려)
+            downside_ret = ret[ret < 0]
+            downside_vol = downside_ret.std() * np.sqrt(self.TRADING_DAYS) if len(downside_ret) > 0 else 0
+            sortino = (ann_return - self.RISK_FREE_RATE) / downside_vol if downside_vol > 0 else 0
+
             # 최대 낙폭 (Max Drawdown)
             cummax = price.cummax()
             drawdown = (price - cummax) / cummax
@@ -261,6 +266,7 @@ class PortfolioAnalyzer:
                 'ann_return': ann_return,
                 'ann_volatility': ann_vol,
                 'sharpe': sharpe,
+                'sortino': sortino,
                 'max_drawdown': max_dd,
                 'calmar': calmar,
                 'best_day': best_day,
@@ -341,6 +347,11 @@ class PortfolioAnalyzer:
         # Sharpe
         sharpe = (ann_return - self.RISK_FREE_RATE) / ann_vol if ann_vol > 0 else 0
 
+        # Sortino (하락 변동성만 고려)
+        downside_ret = port_returns[port_returns < 0]
+        downside_vol = downside_ret.std() * np.sqrt(self.TRADING_DAYS) if len(downside_ret) > 0 else 0
+        sortino = (ann_return - self.RISK_FREE_RATE) / downside_vol if downside_vol > 0 else 0
+
         # 최대 낙폭
         cummax = cumulative.cummax()
         drawdown = (cumulative - cummax) / cummax
@@ -352,6 +363,7 @@ class PortfolioAnalyzer:
             'ann_return': ann_return,
             'ann_volatility': ann_vol,
             'sharpe': sharpe,
+            'sortino': sortino,
             'max_drawdown': max_dd,
             'port_returns': port_returns,
             'cumulative': cumulative,
@@ -730,6 +742,7 @@ class PortfolioExcelBuilder:
             ('연간 수익률', f"{perf['ann_return']*100:.1f}%"),
             ('연간 변동성', f"{perf['ann_volatility']*100:.1f}%"),
             ('Sharpe Ratio', f"{perf['sharpe']:.2f}"),
+            ('Sortino Ratio', f"{perf.get('sortino', 0):.2f}"),
             ('누적 수익률', f"{perf['total_return']*100:.1f}%"),
             ('최대 낙폭(MDD)', f"{perf['max_drawdown']*100:.1f}%"),
         ]
@@ -1400,6 +1413,7 @@ def print_console_report(tickers: list, weights: np.ndarray, ticker_names: dict,
     print(f"  연간 수익률:  {perf['ann_return']*100:.1f}%")
     print(f"  연간 변동성:  {perf['ann_volatility']*100:.1f}%")
     print(f"  Sharpe Ratio: {perf['sharpe']:.2f}")
+    print(f"  Sortino Ratio: {perf.get('sortino', 0):.2f}")
     print(f"  Max Drawdown: {perf['max_drawdown']*100:.1f}%")
 
     # 개별 자산

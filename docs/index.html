@@ -2013,6 +2013,7 @@ body::before {
           <div class="portfolio-type" style="color:${sharpeColor};">${sec.name}</div>
           <div class="portfolio-stats">
             <div><div class="port-stat-label">Sharpe</div><div class="port-stat-value" style="color:${sharpeColor};">${sharpe.toFixed(2)}</div></div>
+            ${sec.sortino_ratio != null ? `<div><div class="port-stat-label">Sortino</div><div class="port-stat-value" style="color:${sec.sortino_ratio > 1.5 ? 'var(--green)' : sec.sortino_ratio < 0 ? 'var(--red)' : 'var(--text-bright)'};">${sec.sortino_ratio.toFixed(2)}</div></div>` : ''}
             ${sec.annual_return ? `<div><div class="port-stat-label">연수익률</div><div class="port-stat-value">${sec.annual_return}</div></div>` : ''}
             ${sec.max_drawdown ? `<div><div class="port-stat-label">MDD</div><div class="port-stat-value">${sec.max_drawdown}</div></div>` : ''}
             ${sec.annual_volatility ? `<div><div class="port-stat-label">변동성</div><div class="port-stat-value">${sec.annual_volatility}</div></div>` : ''}
