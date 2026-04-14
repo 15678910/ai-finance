@@ -131,7 +131,9 @@ def parse_summary_txt(filepath: str) -> dict:
     macro = {}
     cycle_m = re.search(r"경기 사이클:\s*(.+)", text)
     rate_m = re.search(r"금리:\s*([^\s(]+)(?:\s*\(FFR\s*([\d.]+%)\))?", text)
-    infl_m = re.search(r"인플레이션:\s*([^\s(]+)(?:\s*\(CPI\s*([\d.]+%)\))?", text)
+    infl_m = re.search(r"인플레이션:\s*(.+?)\s*\(CPI\s*([\d.]+%)\)", text)
+    if not infl_m:
+        infl_m = re.search(r"인플레이션:\s*([^\n]+)", text)
 
     if cycle_m:
         macro["cycle"] = cycle_m.group(1).strip()
@@ -140,7 +142,10 @@ def parse_summary_txt(filepath: str) -> dict:
         macro["ffr"] = rate_m.group(2).strip() if rate_m.group(2) else "N/A"
     if infl_m:
         macro["inflation"] = infl_m.group(1).strip()
-        macro["cpi"] = infl_m.group(2).strip() if infl_m.group(2) else "N/A"
+        try:
+            macro["cpi"] = infl_m.group(2).strip() if infl_m.lastindex >= 2 and infl_m.group(2) else "N/A"
+        except (IndexError, AttributeError):
+            macro["cpi"] = "N/A"
 
     result["macro"] = macro
 
