@@ -1592,6 +1592,27 @@ body::before {
     if (ac && ac.market_overview) {
       html += `<section class="section-wrap"><div class="section-label" style="color:var(--cyan)">AI 투자 코멘트</div><div class="commentary-grid">`;
 
+      // Macro Regime (Russell Napier framework)
+      if (ac.macro_regime && ac.macro_regime.regime) {
+        const mr = ac.macro_regime;
+        const regimeColor = mr.severity === 'red' ? 'var(--red,#f87171)' :
+                            mr.severity === 'amber' ? 'var(--amber,#fbbf24)' :
+                            'var(--green,#4ade80)';
+        const regimeBorder = mr.severity === 'red' ? '#ef4444' :
+                             mr.severity === 'amber' ? '#f59e0b' :
+                             '#10b981';
+        html += `<div class="commentary-overview glass-card anim-item" style="border-left:4px solid ${regimeBorder};">
+          <div class="commentary-subsection-title"><span class="icon">&#127963;</span> 매크로 체제 분류 <span style="font-size:0.65rem;color:var(--text-muted);">(러셀 내피어 프레임워크)</span></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;align-items:baseline;">
+            <div style="font-size:1.3rem;font-weight:700;color:${regimeColor};">${mr.regime}</div>
+            ${mr.real_rate !== null && mr.real_rate !== undefined ? `<div style="font-size:0.9rem;color:var(--text);">실질금리 <b style="color:${regimeColor};">${mr.real_rate > 0 ? '+' : ''}${mr.real_rate.toFixed(2)}%</b></div>` : ''}
+          </div>
+          <div class="commentary-overview-text" style="margin-bottom:10px;">${mr.description || ''}</div>
+          ${mr.beneficiaries && mr.beneficiaries.length ? `<div style="margin-top:8px;font-size:0.8rem;"><b style="color:var(--green,#4ade80);">수혜:</b> <span style="color:var(--text);">${mr.beneficiaries.join(', ')}</span></div>` : ''}
+          ${mr.losers && mr.losers.length ? `<div style="margin-top:4px;font-size:0.8rem;"><b style="color:var(--red,#f87171);">기피:</b> <span style="color:var(--text);">${mr.losers.join(', ')}</span></div>` : ''}
+        </div>`;
+      }
+
       // Market overview
       html += `<div class="commentary-overview glass-card anim-item">
         <div class="commentary-subsection-title"><span class="icon">&#128202;</span> 시장 종합 평가</div>

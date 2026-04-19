@@ -20,15 +20,92 @@ def generate_commentary(data: dict) -> dict:
     portfolios = data.get("portfolios", {})
     insights = data.get("insights", {})
 
+    macro_regime = _classify_macro_regime(macro, macro_detail)
+
     commentary = {
+        "macro_regime": macro_regime,
         "market_overview": _generate_market_overview(macro, macro_detail, geo),
-        "sector_picks": _generate_sector_picks(sectors, macro, geo, portfolios),
+        "sector_picks": _generate_sector_picks(sectors, macro, geo, portfolios, macro_regime),
         "risk_assessment": _generate_risk_assessment(macro_detail, geo),
-        "action_items": _generate_action_items(macro, macro_detail, geo, sectors, portfolios),
+        "action_items": _generate_action_items(macro, macro_detail, geo, sectors, portfolios, macro_regime),
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
 
     return commentary
+
+
+def _classify_macro_regime(macro, macro_detail) -> dict:
+    """매크로 체제 분류: 금융 억압 vs 정상 시장 (러셀 내피어 프레임워크)"""
+    # 실질금리 파싱
+    real_rate_val = None
+    real_rate_str = macro_detail.get("real_rate", "") if macro_detail else ""
+    try:
+        real_rate_val = float(str(real_rate_str).replace("%", "").strip())
+    except (ValueError, TypeError):
+        pass
+
+    # 10년 국채 금리
+    treasury_10y = None
+    t10_data = macro_detail.get("treasury_10y", {}) if macro_detail else {}
+    if isinstance(t10_data, dict):
+        treasury_10y = t10_data.get("current")
+    elif isinstance(t10_data, (int, float)):
+        treasury_10y = t10_data
+
+    # CPI
+    cpi_val = None
+    cpi_str = macro_detail.get("cpi_yoy", "") if macro_detail else ""
+    try:
+        cpi_val = float(str(cpi_str).replace("%", "").strip())
+    except (ValueError, TypeError):
+        pass
+
+    # 달러 인덱스
+    dollar_idx = None
+    dx = macro_detail.get("dollar_index", {}) if macro_detail else {}
+    if isinstance(dx, dict):
+        dollar_idx = dx.get("current")
+    elif isinstance(dx, (int, float)):
+        dollar_idx = dx
+
+    # 체제 판정
+    regime = "정상 시장"
+    severity = "green"
+    description = ""
+    beneficiaries = []
+    losers = []
+
+    if real_rate_val is not None:
+        if real_rate_val < 0:
+            regime = "금융 억압 국면"
+            severity = "red"
+            description = f"실질금리 {real_rate_val:+.2f}%로 마이너스. 정부가 인플레이션보다 낮은 금리로 부채 실질 가치를 희석하는 국면입니다. 저축자(채권보유자)의 부가 채무자(정부)로 이전됩니다."
+            beneficiaries = ["방산", "재산업화(제조업/반도체)", "에너지/원자재", "금/귀금속", "실물자산", "가치주"]
+            losers = ["장기 국채", "고평가 성장주", "현금성 자산"]
+        elif real_rate_val < 1.0:
+            regime = "약한 금융 억압"
+            severity = "amber"
+            description = f"실질금리 {real_rate_val:+.2f}%로 낮은 수준. 명시적 억압은 아니나 저축자에게 불리한 환경이 지속되고 있습니다."
+            beneficiaries = ["방산", "에너지", "금", "인프라", "배당 가치주"]
+            losers = ["장기채권", "저배당 성장주"]
+        else:
+            regime = "정상 시장"
+            severity = "green"
+            description = f"실질금리 {real_rate_val:+.2f}%로 양(+). 자유 시장 가격 결정 메커니즘이 정상 작동 중입니다."
+            beneficiaries = ["성장주", "장기채권", "부동산"]
+            losers = ["원자재 일부", "금"]
+
+    return {
+        "regime": regime,
+        "severity": severity,
+        "description": description,
+        "real_rate": real_rate_val,
+        "treasury_10y": treasury_10y,
+        "cpi": cpi_val,
+        "dollar_index": dollar_idx,
+        "beneficiaries": beneficiaries,
+        "losers": losers,
+    }
 
 
 def _generate_market_overview(macro, macro_detail, geo) -> str:
@@ -85,7 +162,7 @@ def _generate_market_overview(macro, macro_detail, geo) -> str:
     return ". ".join(parts) + "."
 
 
-def _generate_sector_picks(sectors, macro, geo, portfolios) -> list:
+def _generate_sector_picks(sectors, macro, geo, portfolios, macro_regime=None) -> list:
     """섹터별 투자 코멘트"""
     picks = []
     rate = str(macro.get("rate", ""))
@@ -179,6 +256,27 @@ def _generate_sector_picks(sectors, macro, geo, portfolios) -> list:
             elif sharpe < 0:
                 comment_parts.append(f"Sharpe {sharpe:.2f}로 위험 대비 수익 열악")
 
+        # 금융 억압 체제 기반 코멘트 (러셀 내피어 프레임워크)
+        if macro_regime and macro_regime.get("regime") in ("금융 억압 국면", "약한 금융 억압"):
+            is_benef = False
+            is_loser = False
+            if "방산" in name:
+                is_benef = True
+                comment_parts.append("금융 억압 국면 재무장 수혜 명확")
+            elif "에너지" in name or "원자재" in name:
+                is_benef = True
+                comment_parts.append("실물 자산으로 인플레이션 헤지 효과")
+            elif "반도체" in name or "IT" in name or "배터리" in name or "2차전지" in name:
+                is_benef = True
+                comment_parts.append("재산업화(Re-industrialization) 수혜 대상")
+            elif "암호화폐" in name:
+                comment_parts.append("자본 통제 회피 수단으로 분산 고려")
+
+            if is_benef and signal == "중립":
+                signal = "긍정"
+            if is_benef and macro_regime.get("severity") == "red":
+                comment_parts.append("실질금리 마이너스 환경에서 비중 확대 권고")
+
         # Top stock picks within sector
         top_stocks = []
         for stock in stocks:
@@ -259,7 +357,7 @@ def _generate_risk_assessment(macro_detail, geo) -> list:
     return risks
 
 
-def _generate_action_items(macro, macro_detail, geo, sectors, portfolios) -> list:
+def _generate_action_items(macro, macro_detail, geo, sectors, portfolios, macro_regime=None) -> list:
     """구체적 투자 행동 권고"""
     actions = []
 
@@ -285,6 +383,33 @@ def _generate_action_items(macro, macro_detail, geo, sectors, portfolios) -> lis
             "action": "금리 인상 방어 포지션",
             "detail": "단기채 비중 확대, 고PER 성장주 비중 축소를 검토하세요."
         })
+
+    # 금융 억압 체제 기반 행동 권고 (러셀 내피어 프레임워크)
+    if macro_regime:
+        regime_name = macro_regime.get("regime", "")
+        real_rate = macro_regime.get("real_rate")
+        if regime_name == "금융 억압 국면":
+            actions.append({
+                "priority": "높음",
+                "action": "장기 채권 비중 축소 (금융 억압 국면)",
+                "detail": f"실질금리 {real_rate:+.2f}%로 마이너스. 장기 국채 실질 가치 손실 경고. 밸류 주식과 실물 자산으로 대체하세요."
+            })
+            actions.append({
+                "priority": "높음",
+                "action": "재산업화/재무장 수혜주 비중 확대",
+                "detail": "국가 자본주의 체제에서 정부가 자본을 집중하는 방산, 반도체, 배터리, 에너지 인프라 섹터에 투자하세요."
+            })
+            actions.append({
+                "priority": "중간",
+                "action": "금/귀금속 배분 검토 (인플레이션 헤지)",
+                "detail": "금융 억압 + 자본 통제 방어 수단. 포트폴리오의 5-10%를 금으로 배분을 고려하세요."
+            })
+        elif regime_name == "약한 금융 억압":
+            actions.append({
+                "priority": "중간",
+                "action": "채권 비중 점진적 축소",
+                "detail": f"실질금리 {real_rate:+.2f}%로 낮은 수준. 장기채 듀레이션을 줄이고 가치주/배당주 비중을 늘리세요."
+            })
 
     # Geopolitical actions
     if geo_score >= 70:
