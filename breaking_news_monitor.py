@@ -32,7 +32,8 @@ RSS_FEEDS = [
     {"name": "BBC World", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "lang": "en"},
     {"name": "연합뉴스(경제)", "url": "https://www.yna.co.kr/rss/economy.xml", "lang": "ko"},
     {"name": "연합뉴스(국제)", "url": "https://www.yna.co.kr/rss/international.xml", "lang": "ko"},
-    {"name": "Google News(경제)", "url": "https://news.google.com/rss/search?q=%EA%B8%B4%EA%B8%89+%EA%B2%BD%EC%A0%9C+%EC%86%8D%EB%B3%B4&hl=ko&gl=KR&ceid=KR:ko", "lang": "ko"},
+    # when:1d = 최근 1일 이내 뉴스만
+    {"name": "Google News(경제)", "url": "https://news.google.com/rss/search?q=%EA%B8%B4%EA%B8%89+%EA%B2%BD%EC%A0%9C+%EC%86%8D%EB%B3%B4+when%3A1d&hl=ko&gl=KR&ceid=KR:ko", "lang": "ko"},
 ]
 
 # ====================================================================
@@ -171,6 +172,54 @@ def _get_text(el, tag):
     return child.text.strip()
 
 
+def parse_pub_date(pub_str):
+    """RSS pubDate 문자열을 datetime(UTC)으로 파싱.
+    여러 포맷 지원: RFC822, ISO8601, etc. 실패 시 None."""
+    if not pub_str:
+        return None
+    pub_str = pub_str.strip()
+
+    # 시도할 포맷들
+    formats = [
+        "%a, %d %b %Y %H:%M:%S %z",       # RFC822: Mon, 19 Apr 2026 15:30:00 +0900
+        "%a, %d %b %Y %H:%M:%S %Z",       # RFC822 with timezone name
+        "%Y-%m-%dT%H:%M:%S%z",            # ISO8601: 2026-04-19T15:30:00+0900
+        "%Y-%m-%dT%H:%M:%SZ",             # ISO8601 UTC: 2026-04-19T15:30:00Z
+        "%Y-%m-%dT%H:%M:%S.%fZ",          # ISO8601 with ms
+        "%Y-%m-%d %H:%M:%S",              # Simple format
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(pub_str, fmt)
+            # timezone 없으면 UTC로 간주
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except ValueError:
+            continue
+
+    # "GMT" 같은 문자열 치환 후 재시도
+    cleaned = pub_str.replace(" GMT", " +0000").replace(" UT", " +0000")
+    try:
+        dt = datetime.strptime(cleaned, "%a, %d %b %Y %H:%M:%S %z")
+        return dt.astimezone(timezone.utc)
+    except ValueError:
+        pass
+
+    return None
+
+
+def is_recent(pub_str, hours=6):
+    """뉴스가 최근 N시간 이내에 발행되었는지 확인.
+    pub_str 파싱 실패 시 True 반환 (관대한 처리)."""
+    pub_dt = parse_pub_date(pub_str)
+    if pub_dt is None:
+        return True  # 파싱 실패 시 포함 (false positive 감수)
+    now = datetime.now(timezone.utc)
+    return (now - pub_dt) <= timedelta(hours=hours)
+
+
 # ====================================================================
 # 긴급 키워드 감지
 # ====================================================================
@@ -274,12 +323,19 @@ def main():
             if item["link"] in seen_links:
                 continue
 
+            # 최근 6시간 이내 뉴스만 긴급 알림 대상
+            # (pubDate 파싱 실패 시 관대하게 포함)
+            if not is_recent(item.get("pub", ""), hours=6):
+                seen_links.add(item["link"])  # 오래된 뉴스도 seen 처리
+                continue
+
             matched = detect_urgent(item["title"], lang=feed["lang"])
             if matched:
                 all_urgent.append({
                     "source": feed["name"],
                     "title": item["title"],
                     "link": item["link"],
+                    "pub": item.get("pub", ""),
                     "matched": matched,
                     "lang": feed["lang"],
                 })
