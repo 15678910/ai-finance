@@ -2124,6 +2124,66 @@ body::before {
       html += `</div></section>`;
     }
 
+    // ─── VALUE SCREENER (Top 10 Undervalued) ───────────
+    const vs = data.value_screener;
+    if (vs && vs.top_picks && vs.top_picks.length > 0) {
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:var(--green,#4ade80);">&#128269; 저평가 종목 Top 10 <span style="font-size:0.65rem;color:var(--text-muted);">(가치투자 스크리너)</span></div>
+
+        <div class="glass-card anim-item" style="border:2px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.04);padding:12px;margin-bottom:14px;">
+          <div style="font-size:0.85rem;color:var(--red,#f87171);font-weight:600;">&#128680; 시뮬레이션/분석용 - 자동 매매 절대 금지</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
+            가치점수 = 밸류에이션(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%) · 시가총액 1000억 미만 / ROE 음수 / 부채비율 300% 초과 자동 제외
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">`;
+
+      vs.top_picks.forEach((stock, idx) => {
+        const rank = idx + 1;
+        const m = stock.metrics || {};
+        const sc = stock.scores || {};
+        const total = sc.total_score || 0;
+        const scoreColor = total >= 70 ? 'var(--green,#4ade80)' : total >= 50 ? 'var(--cyan,#06b6d4)' : 'var(--amber,#fbbf24)';
+        const rankColor = rank <= 3 ? 'var(--amber,#fbbf24)' : rank <= 7 ? 'var(--cyan,#06b6d4)' : 'var(--text-muted)';
+
+        html += `<div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${scoreColor};">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <div>
+              <span style="font-size:0.7rem;color:${rankColor};font-family:var(--font-mono);font-weight:700;">#${rank}</span>
+              <span style="font-size:1.0rem;font-weight:700;color:var(--text-bright);margin-left:6px;">${h(stock.name)}</span>
+            </div>
+            <div style="font-size:1.1rem;font-weight:700;color:${scoreColor};">${total.toFixed(1)}점</div>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;font-family:var(--font-mono);">
+            ${stock.ticker} · ${h(stock.sector || '')} · ${stock.market}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.75rem;margin-bottom:8px;">
+            <div><span style="color:var(--text-muted);">현재가</span> <b style="color:var(--text);">${m.per ? (stock.current_price?.toLocaleString() || 'N/A') : 'N/A'}원</b></div>
+            <div><span style="color:var(--text-muted);">시총</span> <b style="color:var(--text);">${stock.market_cap_billion ? Math.round(stock.market_cap_billion / 10) + '조' : 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">PER</span> <b style="color:${m.per && m.per < 10 ? 'var(--green)' : 'var(--text)'};">${m.per ?? 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">PBR</span> <b style="color:${m.pbr && m.pbr < 1 ? 'var(--green)' : 'var(--text)'};">${m.pbr ?? 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">ROE</span> <b style="color:${m.roe_pct && m.roe_pct > 15 ? 'var(--green)' : 'var(--text)'};">${m.roe_pct != null ? m.roe_pct + '%' : 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">부채비율</span> <b style="color:${m.debt_to_equity && m.debt_to_equity < 100 ? 'var(--green)' : 'var(--text)'};">${m.debt_to_equity != null ? m.debt_to_equity + '%' : 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">매출성장</span> <b style="color:${m.revenue_growth_pct && m.revenue_growth_pct > 5 ? 'var(--green)' : 'var(--text)'};">${m.revenue_growth_pct != null ? m.revenue_growth_pct + '%' : 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">배당</span> <b style="color:var(--text);">${m.dividend_yield_pct != null ? m.dividend_yield_pct + '%' : 'N/A'}</b></div>
+          </div>
+          <div style="display:flex;gap:4px;font-size:0.65rem;flex-wrap:wrap;">
+            <span style="background:rgba(74,222,128,0.1);color:var(--green);padding:2px 6px;border-radius:3px;">밸류 ${sc.valuation_score}</span>
+            <span style="background:rgba(6,182,212,0.1);color:var(--cyan);padding:2px 6px;border-radius:3px;">수익 ${sc.quality_score}</span>
+            <span style="background:rgba(251,191,36,0.1);color:var(--amber);padding:2px 6px;border-radius:3px;">성장 ${sc.growth_score}</span>
+            <span style="background:rgba(167,139,250,0.1);color:var(--purple,#a78bfa);padding:2px 6px;border-radius:3px;">주주 ${sc.shareholder_score}</span>
+          </div>
+        </div>`;
+      });
+
+      html += `</div>`;
+      html += `<div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
+        분석: ${vs.total_analyzed}개 종목 · 통과: ${vs.filter_passed}개 · 거부: ${vs.filter_rejected}개 · 생성: ${h(vs.generated_at || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── AUTO-RESEARCH (Experimental) ──────────────────
     const ar = data.auto_research;
     if (ar && ar.evolved_metrics) {
