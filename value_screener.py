@@ -44,13 +44,15 @@ OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "value_screener.json")
 # 분석 대상 종목 (KOSPI 대형주 + KOSDAQ 우량주)
 # ====================================================================
 TARGET_STOCKS = [
-    # IT/반도체
+    # IT/반도체 (HBM, AI 메모리, 장비 포함)
     {"ticker": "005930.KS", "name": "삼성전자", "sector": "IT/반도체"},
     {"ticker": "000660.KS", "name": "SK하이닉스", "sector": "IT/반도체"},
-    {"ticker": "035420.KS", "name": "네이버", "sector": "IT/반도체"},
-    {"ticker": "035720.KS", "name": "카카오", "sector": "IT/반도체"},
-    {"ticker": "066570.KS", "name": "LG전자", "sector": "IT/반도체"},
-    {"ticker": "018260.KS", "name": "삼성에스디에스", "sector": "IT/반도체"},
+    {"ticker": "042700.KS", "name": "한미반도체", "sector": "반도체장비"},
+    {"ticker": "000990.KS", "name": "DB하이텍", "sector": "반도체"},
+    {"ticker": "035420.KS", "name": "네이버", "sector": "IT"},
+    {"ticker": "035720.KS", "name": "카카오", "sector": "IT"},
+    {"ticker": "066570.KS", "name": "LG전자", "sector": "전자"},
+    {"ticker": "018260.KS", "name": "삼성에스디에스", "sector": "IT"},
 
     # 금융
     {"ticker": "055550.KS", "name": "신한지주", "sector": "금융"},
@@ -67,6 +69,7 @@ TARGET_STOCKS = [
     {"ticker": "051910.KS", "name": "LG화학", "sector": "화학"},
     {"ticker": "010950.KS", "name": "S-Oil", "sector": "에너지"},
     {"ticker": "096770.KS", "name": "SK이노베이션", "sector": "에너지"},
+    {"ticker": "015760.KS", "name": "한국전력", "sector": "유틸리티"},
 
     # 철강/조선
     {"ticker": "005490.KS", "name": "POSCO홀딩스", "sector": "철강"},
@@ -75,7 +78,8 @@ TARGET_STOCKS = [
     # 바이오/제약
     {"ticker": "068270.KS", "name": "셀트리온", "sector": "바이오"},
     {"ticker": "207940.KS", "name": "삼성바이오로직스", "sector": "바이오"},
-    {"ticker": "128940.KS", "name": "한미약품", "sector": "바이오"},
+    {"ticker": "128940.KS", "name": "한미약품", "sector": "제약"},
+    {"ticker": "000100.KS", "name": "유한양행", "sector": "제약"},
 
     # 방산
     {"ticker": "012450.KS", "name": "한화에어로스페이스", "sector": "방산"},
@@ -96,10 +100,24 @@ TARGET_STOCKS = [
     {"ticker": "097950.KS", "name": "CJ제일제당", "sector": "소비재"},
     {"ticker": "139480.KS", "name": "이마트", "sector": "유통"},
     {"ticker": "023530.KS", "name": "롯데쇼핑", "sector": "유통"},
+    {"ticker": "008770.KS", "name": "호텔신라", "sector": "관광"},
 
-    # 건설
+    # 건설/물류
     {"ticker": "000720.KS", "name": "현대건설", "sector": "건설"},
     {"ticker": "047040.KS", "name": "대우건설", "sector": "건설"},
+    {"ticker": "000120.KS", "name": "CJ대한통운", "sector": "물류"},
+
+    # 게임/엔터
+    {"ticker": "036570.KS", "name": "엔씨소프트", "sector": "게임"},
+    {"ticker": "259960.KS", "name": "크래프톤", "sector": "게임"},
+    {"ticker": "352820.KS", "name": "하이브", "sector": "엔터"},
+    {"ticker": "035900.KQ", "name": "JYP엔터테인먼트", "sector": "엔터"},
+
+    # 항공
+    {"ticker": "003490.KS", "name": "대한항공", "sector": "항공"},
+
+    # AI/로봇
+    {"ticker": "277810.KQ", "name": "레인보우로보틱스", "sector": "로봇"},
 ]
 
 
