@@ -1154,6 +1154,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         print(f"[WARN] AI 코멘트 생성 실패: {e}")
         output_data["ai_commentary"] = {}
 
+    # 10.5) 오토리서치 결과 병합 (있는 경우)
+    auto_research_path = os.path.join(os.path.dirname(output_path), "auto_research_portfolio.json")
+    if os.path.exists(auto_research_path):
+        try:
+            with open(auto_research_path, encoding="utf-8") as f:
+                output_data["auto_research"] = json.load(f)
+            print("[INFO] 오토리서치 결과 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 오토리서치 데이터 로드 실패: {e}")
+
     # 11) docs/ 디렉터리 생성 및 파일 저장
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)

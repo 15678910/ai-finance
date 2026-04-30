@@ -1,0 +1,71 @@
+name: Auto-Research Portfolio Evolution
+
+on:
+  schedule:
+    # 매일 KST 03:00 (UTC 18:00) - 분석 워크플로와 시간 분리
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  evolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      TZ: Asia/Seoul
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sector: IT_반도체
+            tickers: "005930,000660,035420,035720"
+          - sector: 미국_빅테크
+            tickers: "AAPL,NVDA,MSFT,GOOGL"
+          - sector: 방산
+            tickers: "012450,079550,064350"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install numpy pandas yfinance
+
+      - name: Run auto-research evolution
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python auto_research_portfolio.py \
+            --sector "${{ matrix.sector }}" \
+            --tickers "${{ matrix.tickers }}" \
+            --time-budget 240
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add docs/auto_research_portfolio.json 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+          else
+            git pull --rebase
+            git commit -m "Auto-research evolution: ${{ matrix.sector }} [automated]"
+            git push
+          fi

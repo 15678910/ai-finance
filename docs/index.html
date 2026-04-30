@@ -2124,6 +2124,91 @@ body::before {
       html += `</div></section>`;
     }
 
+    // ─── AUTO-RESEARCH (Experimental) ──────────────────
+    const ar = data.auto_research;
+    if (ar && ar.evolved_metrics) {
+      const baseSortino = ar.baseline_metrics?.in_sample?.sortino ?? 0;
+      const evolvedSortinoIn = ar.evolved_metrics?.in_sample?.sortino ?? 0;
+      const evolvedSortinoOut = ar.evolved_metrics?.out_of_sample?.sortino ?? 0;
+      const validation = ar.validation_passed;
+      const improvement = ar.improvement_pct ?? 0;
+      const validColor = validation ? 'var(--green,#4ade80)' : 'var(--amber,#fbbf24)';
+      const validIcon = validation ? '&#9989;' : '&#9888;&#65039;';
+
+      html += `<section class="section-wrap" style="margin-top:32px;border-top:1px dashed rgba(255,193,7,0.3);padding-top:24px;">
+        <div class="section-label" style="color:var(--amber,#fbbf24);">&#129514; 오토리서치 (실험적)</div>
+
+        <div class="glass-card anim-item" style="border:2px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.05);padding:14px;margin-bottom:16px;">
+          <div style="font-size:1.0rem;color:var(--red,#f87171);font-weight:700;margin-bottom:6px;">&#128680; 실제 매매 절대 금지</div>
+          <div style="font-size:0.85rem;color:var(--text);">
+            본 결과는 <b>시뮬레이션 전용</b>입니다. AutoResearch가 베이스라인 가중치를 진화시켜 Sortino Ratio를 최적화한 결과로,
+            과거 데이터 기반 추론이며 미래 수익을 보장하지 않습니다. 자동 매매 또는 브로커리지 연동 절대 불가.
+          </div>
+        </div>
+
+        <div class="glass-card anim-item" style="padding:18px;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">SECTOR</div>
+              <div style="font-size:1.2rem;font-weight:700;color:var(--text-bright);">${h(ar.sector || 'N/A')}</div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">VALIDATION</div>
+              <div style="font-size:1.0rem;font-weight:600;color:${validColor};">${validIcon} ${validation ? '검증 통과' : '검증 미흡'}</div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">ITERATIONS</div>
+              <div style="font-size:1.0rem;font-weight:600;color:var(--text-bright);">${ar.iterations || 0}회 (채택 ${ar.accepted || 0})</div>
+            </div>
+          </div>
+
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:12px;">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:500;"></th>
+                <th style="text-align:right;padding:8px;color:var(--text-muted);font-weight:500;">In-Sample Sortino</th>
+                <th style="text-align:right;padding:8px;color:var(--text-muted);font-weight:500;">Out-of-Sample Sortino</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:8px;color:var(--text);">베이스라인 (동일 가중)</td>
+                <td style="padding:8px;text-align:right;color:var(--text);">${baseSortino.toFixed(3)}</td>
+                <td style="padding:8px;text-align:right;color:var(--text-muted);">${(ar.baseline_metrics?.out_of_sample?.sortino ?? 0).toFixed(3)}</td>
+              </tr>
+              <tr style="border-top:1px solid rgba(255,255,255,0.05);">
+                <td style="padding:8px;color:var(--cyan);font-weight:600;">진화 후 가중치</td>
+                <td style="padding:8px;text-align:right;color:var(--green,#4ade80);font-weight:700;">${evolvedSortinoIn.toFixed(3)}</td>
+                <td style="padding:8px;text-align:right;color:${validation ? 'var(--green,#4ade80)' : 'var(--amber,#fbbf24)'};font-weight:600;">${evolvedSortinoOut.toFixed(3)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="background:rgba(6,182,212,0.05);padding:10px;border-radius:6px;font-size:0.85rem;margin-bottom:12px;">
+            <span style="color:var(--text-muted);">개선율:</span>
+            <b style="color:${improvement > 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'};margin-left:8px;">${improvement > 0 ? '+' : ''}${improvement.toFixed(1)}%</b>
+          </div>
+
+          <div style="margin-top:14px;">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">EVOLVED WEIGHTS</div>
+            ${Object.entries(ar.evolved_weights || {}).map(([asset, w]) => `
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <span style="min-width:100px;font-size:0.8rem;color:var(--text);">${h(asset)}</span>
+                <div style="flex:1;height:14px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;">
+                  <div style="width:${(w*100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));"></div>
+                </div>
+                <span style="min-width:50px;text-align:right;font-size:0.8rem;color:var(--text-bright);">${(w*100).toFixed(1)}%</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="margin-top:14px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
+            생성: ${h(ar.generated_at || '')} · 소요 ${ar.elapsed_sec || 0}초 · 과적합 거부 ${ar.rejected_overfit || 0}회
+          </div>
+        </div>
+      </section>`;
+    }
+
     // ─── FOOTER ────────────────────────────────────────
     html += `
     <footer class="footer">
