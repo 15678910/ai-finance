@@ -1,0 +1,61 @@
+name: Overseas Market Monitor
+
+on:
+  schedule:
+    # KOSPI 마감 후~다음날 개장 전: 매시간 정시
+    # KST 16:00, 17:00, ... 23:00, 00:00, ... 08:00 = UTC 07:00, 08:00, ... 23:00
+    # = 모든 정시에 실행하되 KOSPI 운영 중(09:00~15:00 KST = 00:00~06:00 UTC)에는 스킵
+    - cron: '0 7-23 * * *'  # UTC 07:00~23:00 = KST 16:00~다음날 08:00
+    - cron: '0 0 * * *'     # UTC 00:00 = KST 09:00 (KOSPI 시초가 직전)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance
+
+      - name: Run overseas market monitor
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python overseas_market_monitor.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add docs/overseas_market.json docs/overseas_market_state.json 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+          else
+            git pull --rebase
+            git commit -m "Update overseas market data [automated]"
+            git push
+            echo "Overseas market data updated"
+          fi

@@ -1801,6 +1801,94 @@ body::before {
     }
     html += `</section>`;
 
+    // ─── OVERSEAS MARKET ───────────────────────────────
+    const om = data.overseas_market;
+    if (om && om.markets) {
+      const isClosed = om.kospi_closed;
+      const activeMarket = om.active_market || '';
+      const kospiPred = om.kospi_open_prediction || '';
+      const alertCount = om.alert_count || 0;
+      const updateBadge = isClosed ? 'KOSPI 휴장 중' : 'KOSPI 운영 중';
+      const updateColor = isClosed ? 'var(--amber,#fbbf24)' : 'var(--green,#4ade80)';
+
+      html += `<section class="section-wrap">
+        <div class="section-label">&#127760; 해외 시장 동향 <span style="font-size:0.65rem;color:var(--text-muted);">(KOSPI 시간외 모니터링)</span></div>
+
+        <div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;">
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">ACTIVE MARKET</div>
+              <div style="font-size:1.0rem;font-weight:600;color:${updateColor};">${h(activeMarket)}</div>
+            </div>
+            ${kospiPred && isClosed ? `<div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">KOSPI 시초가 예상</div>
+              <div style="font-size:1.0rem;font-weight:600;color:var(--cyan);">${h(kospiPred)}</div>
+            </div>` : ''}
+            ${alertCount > 0 ? `<div>
+              <div style="font-size:0.7rem;color:var(--red,#f87171);font-family:var(--font-mono);">ALERTS</div>
+              <div style="font-size:1.0rem;font-weight:600;color:var(--red,#f87171);">&#128680; ${alertCount}건</div>
+            </div>` : ''}
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">UPDATED</div>
+              <div style="font-size:0.85rem;color:var(--text);">${h(om.generated_at || '')}</div>
+            </div>
+          </div>
+        </div>`;
+
+      // 카테고리별 시장
+      const catLabels = {
+        "미국_지수": "🇺🇸 미국 지수",
+        "미국_선물": "🇺🇸 미국 선물 (24H)",
+        "아시아": "🌏 아시아",
+        "유럽": "🇪🇺 유럽",
+        "통화_금리": "💱 통화/금리"
+      };
+
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">`;
+
+      Object.entries(om.markets).forEach(([cat, items]) => {
+        if (!items || items.length === 0) return;
+        html += `<div class="glass-card anim-item" style="padding:14px;">
+          <div style="font-size:0.75rem;color:var(--cyan);font-family:var(--font-mono);font-weight:600;letter-spacing:0.05em;margin-bottom:10px;">
+            ${h(catLabels[cat] || cat)}
+          </div>`;
+
+        items.forEach(m => {
+          const change = m.change_pct || 0;
+          const arrow = change > 0 ? '▲' : change < 0 ? '▼' : '→';
+          const color = change > 0 ? 'var(--green,#4ade80)' : change < 0 ? 'var(--red,#f87171)' : 'var(--text)';
+          const isVix = m.is_vix;
+          const vixColor = isVix && m.current > 25 ? 'var(--red)' : isVix && m.current > 20 ? 'var(--amber)' : 'var(--text-bright)';
+
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:0.8rem;color:var(--text);">
+              ${m.region} ${h(m.name)}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:${color};">${arrow} ${change >= 0 ? '+' : ''}${change.toFixed(2)}%</div>
+            </div>
+          </div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+
+      // 알림 메시지
+      if (om.alerts && om.alerts.length > 0) {
+        html += `<div style="margin-top:14px;background:rgba(239,68,68,0.05);border-left:3px solid var(--red,#f87171);padding:10px 14px;border-radius:4px;">
+          <div style="font-size:0.75rem;color:var(--red,#f87171);font-family:var(--font-mono);font-weight:600;margin-bottom:6px;">&#128680; ACTIVE ALERTS</div>`;
+        om.alerts.forEach(alert => {
+          html += `<div style="font-size:0.85rem;color:var(--text);margin:3px 0;">${h(alert.message)}</div>`;
+        });
+        html += `</div>`;
+      }
+
+      html += `</section>`;
+    }
+
     // ─── GEOPOLITICAL RISK ─────────────────────────────
     if (data.geopolitical) {
       const geo = data.geopolitical;
