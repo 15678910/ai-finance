@@ -1,0 +1,59 @@
+name: Japan Crisis Monitor
+
+on:
+  schedule:
+    # 매일 KST 09:30 (KOSPI 시초가 직후) + KST 22:00 (미국 시작 직전)
+    - cron: '30 0 * * *'   # UTC 00:30 = KST 09:30
+    - cron: '0 13 * * *'   # UTC 13:00 = KST 22:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas numpy
+
+      - name: Run Japan crisis monitor
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python japan_crisis_monitor.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add docs/japan_crisis.json docs/japan_crisis_state.json 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+          else
+            git pull --rebase
+            git commit -m "Update Japan crisis data [automated]"
+            git push
+            echo "Japan crisis data updated"
+          fi

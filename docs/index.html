@@ -1889,6 +1889,119 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── JAPAN CRISIS MONITOR ──────────────────────────
+    const jc = data.japan_crisis;
+    if (jc && jc.crisis) {
+      const crisisScore = jc.crisis.score || 0;
+      const crisisLevel = jc.crisis.level || 'N/A';
+      const crisisColor = jc.crisis.severity === 'red' ? 'var(--red,#f87171)' :
+                          jc.crisis.severity === 'amber' ? 'var(--amber,#fbbf24)' :
+                          'var(--green,#4ade80)';
+
+      const carryScore = jc.carry_pressure?.score || 0;
+      const carryLevel = jc.carry_pressure?.level || 'N/A';
+      const carryColor = jc.carry_pressure?.severity === 'red' ? 'var(--red,#f87171)' :
+                        jc.carry_pressure?.severity === 'amber' ? 'var(--amber,#fbbf24)' :
+                        'var(--green,#4ade80)';
+
+      const usdJpy = jc.market?.usd_jpy?.current || 0;
+      const usdJpy1w = jc.market?.usd_jpy?.change_1w || 0;
+      const nikkei = jc.market?.nikkei?.current || 0;
+      const nikkei1w = jc.market?.nikkei?.change_1w || 0;
+      const policyRate = jc.macro?.policy_rate?.current;
+      const yield10y = jc.macro?.yield_10y?.current;
+      const us10y = jc.macro?.us_10y?.current;
+      const cpi = jc.macro?.cpi?.current;
+      const debtGdp = jc.macro?.debt_gdp?.current;
+      const spread = jc.carry_pressure?.spread_us_jp;
+
+      html += `<section class="section-wrap">
+        <div class="section-label">&#127471;&#127477; 일본 경제 위기 모니터 <span style="font-size:0.65rem;color:var(--text-muted);">(엔화 캐리 트레이드 / BOJ 금리)</span></div>
+
+        <!-- 위기 점수 + 캐리 압력 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${crisisColor};">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">위기 종합 점수</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;">
+              <div style="font-size:2rem;font-weight:700;color:${crisisColor};">${crisisScore}</div>
+              <div style="font-size:0.85rem;color:${crisisColor};font-weight:600;">${h(crisisLevel)}</div>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="height:100%;width:${crisisScore}%;background:${crisisColor};border-radius:3px;"></div>
+            </div>
+          </div>
+          <div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${carryColor};">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">캐리 트레이드 압력</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;">
+              <div style="font-size:2rem;font-weight:700;color:${carryColor};">${carryScore}</div>
+              <div style="font-size:0.85rem;color:${carryColor};font-weight:600;">${h(carryLevel)}</div>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="height:100%;width:${carryScore}%;background:${carryColor};border-radius:3px;"></div>
+            </div>
+            ${spread != null ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">일미 금리차: <b style="color:var(--text);">${spread}%p</b></div>` : ''}
+          </div>
+        </div>
+
+        <!-- 핵심 지표 그리드 -->
+        <div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--cyan);font-family:var(--font-mono);margin-bottom:10px;">CORE INDICATORS</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">USD/JPY</div>
+              <div style="font-size:1.1rem;font-weight:700;color:${usdJpy > 160 ? 'var(--red)' : usdJpy > 150 ? 'var(--amber)' : 'var(--text-bright)'};">${usdJpy}</div>
+              <div style="font-size:0.7rem;color:${usdJpy1w < 0 ? 'var(--green)' : 'var(--red)'};">1주 ${usdJpy1w >= 0 ? '+' : ''}${usdJpy1w.toFixed(2)}%</div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">Nikkei 225</div>
+              <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${nikkei.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:${nikkei1w >= 0 ? 'var(--green)' : 'var(--red)'};">1주 ${nikkei1w >= 0 ? '+' : ''}${nikkei1w.toFixed(2)}%</div>
+            </div>
+            ${policyRate != null ? `<div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">BOJ 정책금리</div>
+              <div style="font-size:1.1rem;font-weight:700;color:${policyRate > 0.5 ? 'var(--red)' : 'var(--text-bright)'};">${policyRate}%</div>
+            </div>` : ''}
+            ${yield10y != null ? `<div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">일본 10Y 국채</div>
+              <div style="font-size:1.1rem;font-weight:700;color:${yield10y > 1.5 ? 'var(--red)' : 'var(--text-bright)'};">${yield10y}%</div>
+            </div>` : ''}
+            ${us10y != null ? `<div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">미국 10Y 국채</div>
+              <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${us10y}%</div>
+            </div>` : ''}
+            ${cpi != null ? `<div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">일본 CPI</div>
+              <div style="font-size:1.1rem;font-weight:700;color:${cpi > 130 ? 'var(--amber)' : 'var(--text-bright)'};">${cpi}</div>
+            </div>` : ''}
+            ${debtGdp != null ? `<div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">GDP 대비 부채</div>
+              <div style="font-size:1.1rem;font-weight:700;color:${debtGdp > 250 ? 'var(--red)' : 'var(--amber)'};">${debtGdp}%</div>
+            </div>` : ''}
+          </div>
+        </div>
+
+        <!-- 캐리 압력 요인 -->
+        ${jc.carry_pressure?.factors?.length ? `<div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--amber);font-family:var(--font-mono);margin-bottom:8px;">CARRY UNWIND FACTORS</div>
+          ${jc.carry_pressure.factors.map(f => `<div style="font-size:0.85rem;color:var(--text);margin:4px 0;">&bull; ${h(f)}</div>`).join('')}
+        </div>` : ''}
+
+        <!-- 글로벌 영향 -->
+        ${jc.global_impacts?.length ? `<div class="glass-card anim-item" style="padding:14px;">
+          <div style="font-size:0.7rem;color:var(--purple,#a78bfa);font-family:var(--font-mono);margin-bottom:10px;">GLOBAL IMPACT ANALYSIS</div>
+          <div style="display:grid;gap:8px;">
+            ${jc.global_impacts.map(imp => {
+              const impColor = imp.impact === '긍정' ? 'var(--green)' : imp.impact === '부정' ? 'var(--red)' : 'var(--amber)';
+              return `<div style="border-left:2px solid ${impColor};padding-left:10px;">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text-bright);">${h(imp.category)} <span style="font-size:0.7rem;color:${impColor};">[${h(imp.impact)}]</span></div>
+                <div style="font-size:0.78rem;color:var(--text);margin-top:2px;">${h(imp.description)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+      </section>`;
+    }
+
     // ─── GEOPOLITICAL RISK ─────────────────────────────
     if (data.geopolitical) {
       const geo = data.geopolitical;

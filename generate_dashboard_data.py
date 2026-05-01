@@ -1204,6 +1204,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 해외 시장 데이터 로드 실패: {e}")
 
+    # 10.8) 일본 위기 모니터링 결과 병합 (있는 경우)
+    japan_crisis_path = os.path.join(os.path.dirname(output_path), "japan_crisis.json")
+    if os.path.exists(japan_crisis_path):
+        try:
+            with open(japan_crisis_path, encoding="utf-8") as f:
+                output_data["japan_crisis"] = json.load(f)
+            print("[INFO] 일본 위기 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 일본 위기 데이터 로드 실패: {e}")
+
     # 11) docs/ 디렉터리 생성 및 파일 저장
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
