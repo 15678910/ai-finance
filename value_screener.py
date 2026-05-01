@@ -197,18 +197,48 @@ class DartAPI:
 # yfinance 데이터 수집
 # ====================================================================
 def fetch_yfinance_data(ticker: str) -> dict:
-    """yfinance에서 가치 지표 수집."""
+    """yfinance에서 가치 지표 수집. PBR 등 누락 시 BVPS로 계산."""
     try:
         stock = yf.Ticker(ticker)
         info = stock.info or {}
+
+        # PBR 폴백 1: priceToBook
+        # PBR 폴백 2: 시가총액 / 자기자본총계 (balance sheet)
+        price_to_book = info.get("priceToBook")
+        current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+        market_cap = info.get("marketCap")
+
+        if not price_to_book:
+            book_value = info.get("bookValue")
+            if current_price and book_value and book_value > 0:
+                price_to_book = round(current_price / book_value, 2)
+
+        if not price_to_book and market_cap:
+            # balance sheet에서 자기자본총계 추출
+            try:
+                bs = stock.balance_sheet
+                if bs is not None and not bs.empty:
+                    # 최신 분기 자기자본 ('Stockholders Equity' 또는 'Total Equity Gross Minority Interest')
+                    equity_keys = ['Stockholders Equity', 'Total Equity Gross Minority Interest',
+                                   'Total Stockholder Equity', 'Common Stock Equity']
+                    equity = None
+                    for key in equity_keys:
+                        if key in bs.index:
+                            equity = bs.loc[key].iloc[0]
+                            break
+                    if equity and equity > 0:
+                        price_to_book = round(market_cap / equity, 2)
+            except Exception:
+                pass
 
         return {
             "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
             "market_cap": info.get("marketCap"),
             "trailing_pe": info.get("trailingPE"),
             "forward_pe": info.get("forwardPE"),
-            "price_to_book": info.get("priceToBook"),
+            "price_to_book": price_to_book,
             "price_to_sales": info.get("priceToSalesTrailing12Months"),
+            "book_value": info.get("bookValue"),
             "roe": info.get("returnOnEquity"),  # 소수
             "operating_margin": info.get("operatingMargins"),
             "profit_margin": info.get("profitMargins"),

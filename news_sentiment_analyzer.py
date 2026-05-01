@@ -644,6 +644,19 @@ class MarketSentimentAnalyzer:
         vix_score = self.vix_data.get('score', 0)
         rs_score = self.relative_strength.get('score', 0)
 
+        # NaN/None 방어: 각 점수를 안전하게 변환
+        def _safe(v, default=0.0):
+            try:
+                f = float(v)
+                return f if f == f else default  # NaN 체크
+            except (ValueError, TypeError):
+                return default
+
+        news_score = _safe(news_score)
+        tech_score = _safe(tech_score)
+        vix_score = _safe(vix_score)
+        rs_score = _safe(rs_score)
+
         composite = (
             news_score * 0.20 +
             tech_score * 0.50 +
@@ -651,6 +664,8 @@ class MarketSentimentAnalyzer:
             rs_score * 0.15
         )
         composite = np.clip(composite, -100, 100)
+        if composite != composite:  # 여전히 NaN이면 0으로
+            composite = 0.0
 
         # 라벨 매핑
         label = '중립'
@@ -932,8 +947,16 @@ class SentimentExcelBuilder:
 
     def _build_gauge(self, score: float) -> str:
         """텍스트 기반 게이지 생성"""
+        # NaN/None 방어: 0(중립)으로 처리
+        try:
+            score_val = float(score)
+            if score_val != score_val:  # NaN 체크 (NaN != NaN)
+                score_val = 0.0
+        except (ValueError, TypeError):
+            score_val = 0.0
+
         # -100 ~ +100 을 0 ~ 40 위치로 매핑
-        pos = int((score + 100) / 200 * 40)
+        pos = int((score_val + 100) / 200 * 40)
         pos = max(0, min(40, pos))
         bar = ['-'] * 41
         bar[pos] = '*'
