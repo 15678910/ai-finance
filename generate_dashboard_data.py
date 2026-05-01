@@ -176,6 +176,7 @@ def parse_summary_txt(filepath: str) -> dict:
             sectors.append(current_sector)
             continue
 
+        # 1순위: 심리: 라벨(점수) 형식
         stock_m = re.match(
             r"^(.+?)\s*-\s*레짐:\s*(.+?)\s*/\s*심리:\s*(.+?)\(([+-]?[\d.]+)\)\s*$",
             stripped,
@@ -192,6 +193,25 @@ def parse_summary_txt(filepath: str) -> dict:
                     "regime": regime,
                     "sentiment_label": sentiment_label,
                     "sentiment_score": score_str,
+                }
+            )
+            continue
+
+        # 2순위: 심리: N/A 또는 다른 형식 (점수 없음)
+        stock_m_na = re.match(
+            r"^(.+?)\s*-\s*레짐:\s*(.+?)\s*/\s*심리:\s*(.+?)\s*$",
+            stripped,
+        )
+        if stock_m_na and current_sector is not None:
+            name = stock_m_na.group(1).strip()
+            regime = stock_m_na.group(2).strip()
+            sentiment_label = stock_m_na.group(3).strip()
+            current_sector["stocks"].append(
+                {
+                    "name": name,
+                    "regime": regime,
+                    "sentiment_label": sentiment_label,
+                    "sentiment_score": "N/A",
                 }
             )
 
