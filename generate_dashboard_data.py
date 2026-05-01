@@ -1214,6 +1214,26 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 일본 위기 데이터 로드 실패: {e}")
 
+    # 10.9) 오토리서치 가치 가중치 진화 결과
+    arv_path = os.path.join(os.path.dirname(output_path), "auto_research_value.json")
+    if os.path.exists(arv_path):
+        try:
+            with open(arv_path, encoding="utf-8") as f:
+                output_data["auto_research_value"] = json.load(f)
+            print("[INFO] 오토리서치 가치 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 오토리서치 가치 데이터 로드 실패: {e}")
+
+    # 10.10) Forward Test 평가 결과
+    fte_path = os.path.join(os.path.dirname(output_path), "forward_test_evaluation.json")
+    if os.path.exists(fte_path):
+        try:
+            with open(fte_path, encoding="utf-8") as f:
+                output_data["forward_test"] = json.load(f)
+            print("[INFO] Forward Test 평가 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] Forward Test 데이터 로드 실패: {e}")
+
     # 11) docs/ 디렉터리 생성 및 파일 저장
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)

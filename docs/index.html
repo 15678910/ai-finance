@@ -2434,6 +2434,155 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── AUTO-RESEARCH VALUE (Weight Evolution) ───────
+    const arv = data.auto_research_value;
+    if (arv && arv.evolved_weights) {
+      const evw = arv.evolved_weights;
+      const bw = arv.baseline_weights;
+      const evAlpha = arv.evolved_alpha_pct || 0;
+      const baseAlpha = arv.baseline_alpha_pct || 0;
+      const improvementPP = arv.improvement_pp || 0;
+      const evHit = arv.evolved_hit_rate || 0;
+      const baseHit = arv.baseline_hit_rate || 0;
+      const cvMean = arv.cv_mean;
+      const cvStd = arv.cv_std;
+
+      const alphaColor = evAlpha > 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)';
+      const improvColor = improvementPP > 0 ? 'var(--green,#4ade80)' : 'var(--text-muted)';
+
+      html += `<section class="section-wrap" style="margin-top:32px;border-top:1px dashed rgba(167,139,250,0.3);padding-top:24px;">
+        <div class="section-label" style="color:var(--purple,#a78bfa);">&#129516; 오토리서치 - 가치 가중치 진화 <span style="font-size:0.65rem;color:var(--text-muted);">(매주 학습)</span></div>
+
+        <div class="glass-card anim-item" style="border:2px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.05);padding:14px;margin-bottom:16px;">
+          <div style="font-size:1.0rem;color:var(--red,#f87171);font-weight:700;margin-bottom:6px;">&#128680; 시뮬레이션 전용 - 자동 매매 절대 금지</div>
+          <div style="font-size:0.85rem;color:var(--text);">
+            가중치 진화로 KOSPI 대비 알파(초과수익) 최대화. 6개월 forward 알파를 황금 지표로 사용하며, 5-fold cross-validation으로 과적합 방지.
+          </div>
+        </div>
+
+        <!-- 알파 비교 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="glass-card anim-item" style="padding:14px;">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">베이스라인 (35/35/20/10)</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;">
+              <div style="font-size:1.6rem;font-weight:700;color:${baseAlpha > 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'};">${baseAlpha >= 0 ? '+' : ''}${baseAlpha.toFixed(2)}%</div>
+              <div style="font-size:0.85rem;color:var(--text-muted);">알파 (Hit ${baseHit}%)</div>
+            </div>
+          </div>
+          <div class="glass-card anim-item" style="padding:14px;border-left:3px solid var(--purple,#a78bfa);">
+            <div style="font-size:0.7rem;color:var(--purple,#a78bfa);font-family:var(--font-mono);">진화된 가중치</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px;">
+              <div style="font-size:1.6rem;font-weight:700;color:${alphaColor};">${evAlpha >= 0 ? '+' : ''}${evAlpha.toFixed(2)}%</div>
+              <div style="font-size:0.85rem;color:var(--text-muted);">알파 (Hit ${evHit}%)</div>
+            </div>
+            <div style="font-size:0.75rem;color:${improvColor};margin-top:4px;">개선 ${improvementPP >= 0 ? '+' : ''}${improvementPP.toFixed(2)}%p</div>
+            ${cvMean != null ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">CV: ${cvMean >= 0 ? '+' : ''}${cvMean}% ± ${cvStd}%</div>` : ''}
+          </div>
+        </div>
+
+        <!-- 가중치 비교 -->
+        <div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--cyan);font-family:var(--font-mono);margin-bottom:10px;">WEIGHT COMPARISON</div>
+          ${[
+            {label: '밸류에이션 (PER, PBR)', key: 'valuation'},
+            {label: '수익성 (ROE, 부채)', key: 'quality'},
+            {label: '성장 (매출 성장)', key: 'growth'},
+            {label: '주주환원 (배당)', key: 'shareholder'},
+          ].map(item => {
+            const baseV = (bw[item.key] || 0) * 100;
+            const evV = (evw[item.key] || 0) * 100;
+            const diff = evV - baseV;
+            const diffColor = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text-muted)';
+            return `<div style="display:grid;grid-template-columns:130px 1fr 1fr 60px;gap:8px;font-size:0.78rem;align-items:center;margin:6px 0;">
+              <span style="color:var(--text-muted);">${item.label}</span>
+              <div>
+                <div style="font-size:0.65rem;color:var(--text-muted);">기존 ${baseV.toFixed(0)}%</div>
+                <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;"><div style="width:${baseV}%;height:100%;background:rgba(255,255,255,0.3);border-radius:3px;"></div></div>
+              </div>
+              <div>
+                <div style="font-size:0.65rem;color:var(--purple,#a78bfa);">진화 ${evV.toFixed(0)}%</div>
+                <div style="height:6px;background:rgba(167,139,250,0.1);border-radius:3px;"><div style="width:${evV}%;height:100%;background:var(--purple,#a78bfa);border-radius:3px;"></div></div>
+              </div>
+              <span style="color:${diffColor};font-weight:600;text-align:right;">${diff > 0 ? '+' : ''}${diff.toFixed(0)}%p</span>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Top 10 추천 -->
+        ${arv.evolved_top_picks?.length ? `<div class="glass-card anim-item" style="padding:14px;">
+          <div style="font-size:0.7rem;color:var(--green);font-family:var(--font-mono);margin-bottom:10px;">EVOLVED TOP 10 (6M 예상)</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+          ${arv.evolved_top_picks.map((p, i) => `<div style="background:rgba(74,222,128,0.04);padding:8px 10px;border-left:2px solid var(--green);border-radius:3px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:0.85rem;font-weight:600;color:var(--text-bright);">#${i+1} ${h(p.name)}</span>
+              <span style="font-size:0.75rem;color:${p.return_6m > 0 ? 'var(--green)' : 'var(--red)'};">${p.return_6m >= 0 ? '+' : ''}${p.return_6m}%</span>
+            </div>
+            <div style="font-size:0.65rem;color:var(--text-muted);">${p.ticker} · 점수 ${p.score}</div>
+          </div>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
+          진화 ${arv.iterations}회 시도, ${arv.accepted}회 채택, CV 거부 ${arv.rejected_cv}회 · 생성: ${h(arv.generated_at || '')}
+        </div>
+      </section>`;
+    }
+
+    // ─── FORWARD TEST EVALUATION ───────────────────────
+    const ft = data.forward_test;
+    if (ft && ft.cumulative_stats && Object.keys(ft.cumulative_stats).length > 0) {
+      html += `<section class="section-wrap" style="margin-top:24px;">
+        <div class="section-label" style="color:var(--cyan);">&#128202; Forward Test 실현 성과 <span style="font-size:0.65rem;color:var(--text-muted);">(과거 추천의 실제 결과)</span></div>
+
+        <div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:0.85rem;color:var(--text-muted);">
+            <div>총 추천 기록: <b style="color:var(--text);">${ft.total_recommendations}건</b></div>
+            <div>평가 완료: <b style="color:var(--text);">${ft.evaluated_recommendations}건</b></div>
+            <div>최종 평가: <b style="color:var(--text);">${h(ft.generated_at || '')}</b></div>
+          </div>
+        </div>
+
+        <!-- Horizon별 통계 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:14px;">`;
+
+      Object.entries(ft.cumulative_stats).forEach(([key, s]) => {
+        const days = s.horizon_days;
+        const alphaC = s.avg_realized_alpha_pct > 0 ? 'var(--green)' : 'var(--red)';
+        const winRateC = s.win_rate_pct >= 50 ? 'var(--green)' : 'var(--amber)';
+        html += `<div class="glass-card anim-item" style="padding:14px;">
+          <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">${days}일 SHIFT</div>
+          <div style="font-size:1.4rem;font-weight:700;color:${alphaC};">${s.avg_realized_alpha_pct >= 0 ? '+' : ''}${s.avg_realized_alpha_pct}%</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);">평균 실현 알파 (±${s.std_alpha_pct}%)</div>
+          <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.75rem;">
+            <div><span style="color:var(--text-muted);">Hit Rate</span> <b style="color:var(--text);">${s.avg_hit_rate_pct}%</b></div>
+            <div><span style="color:var(--text-muted);">Win Rate</span> <b style="color:${winRateC};">${s.win_rate_pct}%</b></div>
+            <div><span style="color:var(--text-muted);">IR</span> <b style="color:var(--text);">${s.information_ratio}</b></div>
+            <div><span style="color:var(--text-muted);">N</span> <b style="color:var(--text);">${s.evaluations_count}</b></div>
+          </div>
+        </div>`;
+      });
+
+      html += `</div>`;
+
+      // 학습 곡선 (시계열)
+      if (ft.learning_curve && ft.learning_curve.length > 1) {
+        html += `<div class="glass-card anim-item" style="padding:14px;">
+          <div style="font-size:0.7rem;color:var(--cyan);font-family:var(--font-mono);margin-bottom:10px;">LEARNING CURVE (30일 알파 시계열)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+        ft.learning_curve.slice(-12).forEach(pt => {
+          const ralpha = pt.realized_alpha_30d || 0;
+          const color = ralpha > 0 ? 'var(--green)' : 'var(--red)';
+          html += `<div style="background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:3px;font-size:0.7rem;text-align:center;">
+            <div style="color:var(--text-muted);">${h(pt.date.split(' ')[0])}</div>
+            <div style="color:${color};font-weight:600;">${ralpha >= 0 ? '+' : ''}${ralpha}%</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      html += `</section>`;
+    }
+
     // ─── AUTO-RESEARCH (Experimental) ──────────────────
     const ar = data.auto_research;
     if (ar && ar.evolved_metrics) {
