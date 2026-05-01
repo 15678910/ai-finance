@@ -412,14 +412,14 @@ def value_trap_filter(metrics: dict) -> tuple:
     if market_cap and market_cap < 100_000_000_000:
         return False, f"시가총액 {market_cap/1e8:.0f}억 미만 (1000억 기준)"
 
-    # ROE 음수 제외
+    # ROE 매우 음수 (-20% 미만) 제외 - 일시적 적자는 허용
     roe = metrics.get("roe")
-    if roe is not None and roe < 0:
-        return False, f"ROE {roe*100:.1f}% (음수)"
+    if roe is not None and roe < -0.20:
+        return False, f"ROE {roe*100:.1f}% (심각한 적자)"
 
-    # 부채비율 200% 초과 제외
+    # 부채비율 500% 초과 제외 (완화: 200→500)
     debt = metrics.get("debt_to_equity")
-    if debt and debt > 300:
+    if debt and debt > 500:
         return False, f"부채비율 {debt:.0f}% 과다"
 
     return True, "통과"
@@ -583,6 +583,10 @@ def main():
               f"- PER {m.get('per', 'N/A')} PBR {m.get('pbr', 'N/A')} "
               f"ROE {m.get('roe_pct', 'N/A')}%")
 
+    # 사용자 관심 종목 (필터/순위 무관 항상 표시)
+    WATCHLIST = ["042700", "006400"]  # 한미반도체, 삼성SDI
+    watchlist_results = [r for r in results if r["ticker"] in WATCHLIST]
+
     # 저장
     output = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -590,6 +594,7 @@ def main():
         "filter_passed": len(passed),
         "filter_rejected": len(rejected),
         "top_picks": top_10,
+        "watchlist": watchlist_results,  # 관심 종목
         "all_passed": passed,  # 전체 통과 종목 (대시보드용)
         "scoring_formula": {
             "valuation_weight": 0.35,
