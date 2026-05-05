@@ -1889,6 +1889,104 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── BITCOIN STANDARD MONITOR ──────────────────────
+    const bs = data.bitcoin_standard;
+    if (bs && bs.bts_score) {
+      const bts = bs.bts_score;
+      const btsScore = bts.score || 0;
+      const btsLevel = bts.level || 'N/A';
+      const btsColor = bts.severity === 'red' ? 'var(--red,#f87171)' :
+                       bts.severity === 'amber' ? 'var(--amber,#fbbf24)' :
+                       'var(--green,#4ade80)';
+
+      const btc = bs.btc || {};
+      const btcCurrent = btc.current || 0;
+      const btc1d = btc.change_1d || 0;
+      const btc1y = btc.change_1y || 0;
+      const aboveMA200 = btc.above_ma200;
+
+      const totalStable = bs.stablecoins?.__total__?.market_cap_billion || 0;
+      const btcDom = bs.dominance?.btc_dominance_pct || 0;
+
+      html += `<section class="section-wrap">
+        <div class="section-label" style="color:var(--amber,#fbbf24);">&#129534; 비트코인 본위제 모니터 <span style="font-size:0.65rem;color:var(--text-muted);">(컴퓨트 달러 시나리오 추적)</span></div>
+
+        <div class="glass-card anim-item" style="border:2px solid rgba(251,191,36,0.4);background:rgba(251,191,36,0.04);padding:12px;margin-bottom:14px;">
+          <div style="font-size:0.85rem;color:var(--amber,#fbbf24);font-weight:600;">&#9888;&#65039; 정책 추측 영역 - 시뮬레이션 전용</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
+            ARMA/GENIUS Act, 컴퓨트 달러 등은 정책 추측 영역. 본 시스템은 시장이 시나리오를 얼마나 반영하는지만 추적합니다.
+          </div>
+        </div>
+
+        <!-- 본위제 점수 + BTC 핵심 지표 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${btsColor};">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">본위제 점수</div>
+            <div style="font-size:2rem;font-weight:700;color:${btsColor};margin-top:4px;">${btsScore}</div>
+            <div style="font-size:0.85rem;color:${btsColor};font-weight:600;">${h(btsLevel)}</div>
+            <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="height:100%;width:${btsScore}%;background:${btsColor};border-radius:3px;"></div>
+            </div>
+          </div>
+          <div class="glass-card anim-item" style="padding:14px;">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">BITCOIN</div>
+            <div style="font-size:1.4rem;font-weight:700;color:var(--text-bright);margin-top:4px;">$${btcCurrent.toLocaleString()}</div>
+            <div style="font-size:0.75rem;color:${btc1d > 0 ? 'var(--green)' : 'var(--red)'};">1D ${btc1d >= 0 ? '+' : ''}${btc1d.toFixed(2)}%</div>
+            <div style="font-size:0.75rem;color:${btc1y > 0 ? 'var(--green)' : 'var(--red)'};">1Y ${btc1y >= 0 ? '+' : ''}${btc1y.toFixed(0)}%</div>
+            ${aboveMA200 != null ? `<div style="font-size:0.7rem;color:${aboveMA200 ? 'var(--green)' : 'var(--red)'};margin-top:4px;">${aboveMA200 ? '✓ 200MA 상회' : '✗ 200MA 하회'}</div>` : ''}
+          </div>
+          <div class="glass-card anim-item" style="padding:14px;">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">디지털 달러 채택</div>
+            <div style="font-size:1.4rem;font-weight:700;color:var(--text-bright);margin-top:4px;">$${totalStable.toFixed(0)}B</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);">스테이블코인 시총</div>
+            <div style="font-size:0.75rem;color:var(--cyan);margin-top:4px;">BTC 도미넌스 ${btcDom.toFixed(1)}%</div>
+          </div>
+        </div>
+
+        <!-- 점수 요인 -->
+        ${bts.factors?.length ? `<div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--amber);font-family:var(--font-mono);margin-bottom:8px;">SCORE FACTORS</div>
+          ${bts.factors.map(f => `<div style="font-size:0.85rem;color:var(--text);margin:4px 0;">&bull; ${h(f)}</div>`).join('')}
+        </div>` : ''}
+
+        <!-- 스테이블코인 시총 -->
+        ${bs.stablecoins ? `<div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--cyan);font-family:var(--font-mono);margin-bottom:10px;">STABLECOIN MARKET CAPS</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;">
+            ${Object.entries(bs.stablecoins).filter(([k]) => k !== '__total__').map(([k, v]) => {
+              const change = v.change_24h_pct || 0;
+              const changeColor = change > 0 ? 'var(--green)' : change < 0 ? 'var(--red)' : 'var(--text-muted)';
+              return `<div style="background:rgba(6,182,212,0.05);padding:8px 10px;border-radius:4px;">
+                <div style="font-size:0.75rem;color:var(--text);font-weight:600;">${h(v.name)}</div>
+                <div style="font-size:0.95rem;font-weight:700;color:var(--text-bright);">$${(v.market_cap_billion || 0).toFixed(1)}B</div>
+                <div style="font-size:0.7rem;color:${changeColor};">${change >= 0 ? '+' : ''}${change.toFixed(2)}% 24H</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- 한국 영향 분석 -->
+        ${bs.korea_impacts?.length ? `<div class="glass-card anim-item" style="padding:14px;">
+          <div style="font-size:0.7rem;color:var(--purple,#a78bfa);font-family:var(--font-mono);margin-bottom:10px;">KOREA IMPACT ANALYSIS</div>
+          <div style="display:grid;gap:8px;">
+            ${bs.korea_impacts.map(imp => {
+              const impColor = imp.impact === '긍정' ? 'var(--green)' :
+                               imp.impact === '부정' ? 'var(--red)' :
+                               imp.impact === '긴급' ? 'var(--red)' : 'var(--amber)';
+              return `<div style="border-left:2px solid ${impColor};padding-left:10px;">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text-bright);">${h(imp.category)} <span style="font-size:0.7rem;color:${impColor};">[${h(imp.impact)}]</span></div>
+                <div style="font-size:0.78rem;color:var(--text);margin-top:2px;">${h(imp.description)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
+          생성: ${h(bs.generated_at || '')}
+        </div>
+      </section>`;
+    }
+
     // ─── JAPAN CRISIS MONITOR ──────────────────────────
     const jc = data.japan_crisis;
     if (jc && jc.crisis) {

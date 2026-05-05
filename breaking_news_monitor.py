@@ -71,6 +71,17 @@ URGENT_KEYWORDS = {
         "en": ["oil surges", "gold record", "crude spike", "energy crisis"],
         "ko": ["유가 급등", "금 최고가", "에너지 위기", "원유 급등"],
     },
+    "비트코인_정책": {
+        "en": ["Bitcoin Reserve", "Strategic Bitcoin", "Bitcoin Standard",
+               "ARMA Act", "GENIUS Act", "Bitcoin Act", "Lummis bill",
+               "Stablecoin regulation", "Compute dollar", "SDAC",
+               "Bitcoin treasury", "Petro-dollar end", "digital dollar",
+               "national Bitcoin", "kill switch stablecoin"],
+        "ko": ["비트코인 비축", "비트코인 본위제", "준비금 현대화법",
+               "스테이블코인 규제", "컴퓨트 달러", "전략 비트코인",
+               "디지털 달러", "비트코인 법안", "암호화폐 패권",
+               "비트코인 국가", "스테이블코인 의무"],
+    },
 }
 
 # 모든 키워드 플랫 리스트
