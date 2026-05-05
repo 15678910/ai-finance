@@ -44,9 +44,20 @@ jobs:
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No state changes"
-          else
-            git commit -m "Update breaking news state [automated]"
-            git pull --rebase
-            git push
-            echo "State updated"
+            exit 0
           fi
+
+          git commit -m "Update breaking news state [automated]"
+
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, rebasing..."
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+
+          echo "Failed to push after 5 attempts"
+          exit 1
