@@ -1865,8 +1865,8 @@ body::before {
               ${m.region} ${h(m.name)}
             </div>
             <div style="text-align:right;">
-              <div style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current.toLocaleString()}</div>
-              <div style="font-size:0.7rem;color:${color};">${arrow} ${change >= 0 ? '+' : ''}${change.toFixed(2)}%</div>
+              <div style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current != null ? m.current.toLocaleString() : 'N/A'}</div>
+              <div style="font-size:0.7rem;color:${color};">${arrow} ${change != null ? (change >= 0 ? '+' : '') + change.toFixed(2) + '%' : 'N/A'}</div>
             </div>
           </div>`;
         });
@@ -1930,9 +1930,9 @@ body::before {
           </div>
           <div class="glass-card anim-item" style="padding:14px;">
             <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">BITCOIN</div>
-            <div style="font-size:1.4rem;font-weight:700;color:var(--text-bright);margin-top:4px;">$${btcCurrent.toLocaleString()}</div>
-            <div style="font-size:0.75rem;color:${btc1d > 0 ? 'var(--green)' : 'var(--red)'};">1D ${btc1d >= 0 ? '+' : ''}${btc1d.toFixed(2)}%</div>
-            <div style="font-size:0.75rem;color:${btc1y > 0 ? 'var(--green)' : 'var(--red)'};">1Y ${btc1y >= 0 ? '+' : ''}${btc1y.toFixed(0)}%</div>
+            <div style="font-size:1.4rem;font-weight:700;color:var(--text-bright);margin-top:4px;">$${btcCurrent != null ? btcCurrent.toLocaleString() : 'N/A'}</div>
+            <div style="font-size:0.75rem;color:${(btc1d || 0) > 0 ? 'var(--green)' : 'var(--red)'};">1D ${btc1d != null ? (btc1d >= 0 ? '+' : '') + btc1d.toFixed(2) + '%' : 'N/A'}</div>
+            <div style="font-size:0.75rem;color:${(btc1y || 0) > 0 ? 'var(--green)' : 'var(--red)'};">1Y ${btc1y != null ? (btc1y >= 0 ? '+' : '') + btc1y.toFixed(0) + '%' : 'N/A'}</div>
             ${aboveMA200 != null ? `<div style="font-size:0.7rem;color:${aboveMA200 ? 'var(--green)' : 'var(--red)'};margin-top:4px;">${aboveMA200 ? '✓ 200MA 상회' : '✗ 200MA 하회'}</div>` : ''}
           </div>
           <div class="glass-card anim-item" style="padding:14px;">
@@ -2124,8 +2124,8 @@ body::before {
             </div>
             <div>
               <div style="font-size:0.7rem;color:var(--text-muted);">Nikkei 225</div>
-              <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${nikkei.toLocaleString()}</div>
-              <div style="font-size:0.7rem;color:${nikkei1w >= 0 ? 'var(--green)' : 'var(--red)'};">1주 ${nikkei1w >= 0 ? '+' : ''}${nikkei1w.toFixed(2)}%</div>
+              <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${nikkei != null ? nikkei.toLocaleString() : 'N/A'}</div>
+              <div style="font-size:0.7rem;color:${(nikkei1w || 0) >= 0 ? 'var(--green)' : 'var(--red)'};">1주 ${nikkei1w != null ? (nikkei1w >= 0 ? '+' : '') + nikkei1w.toFixed(2) + '%' : 'N/A'}</div>
             </div>
             ${policyRate != null ? `<div>
               <div style="font-size:0.7rem;color:var(--text-muted);">BOJ 정책금리</div>
