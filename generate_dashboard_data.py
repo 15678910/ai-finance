@@ -1155,15 +1155,28 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     )
 
     # 9) 최종 JSON 구조 조립
+    # 새 sectors가 비어있으면 기존 data.json의 sectors 보존 (덮어쓰기 방지)
+    final_sectors = parsed["sectors"]
+    if not final_sectors and os.path.exists(output_path):
+        try:
+            with open(output_path, encoding="utf-8") as f:
+                old_data = json.load(f)
+            old_sectors = old_data.get("sectors", [])
+            if old_sectors:
+                final_sectors = old_sectors
+                print(f"[INFO] 새 분석 데이터 없음 → 기존 sectors 보존 ({len(old_sectors)}개)")
+        except Exception as e:
+            print(f"[WARN] 기존 sectors 로드 실패: {e}")
+
     output_data = {
         "date": parsed["date"],
         "generated_at": parsed["generated_at"],
-        "macro": parsed["macro"],
+        "macro": parsed["macro"] if parsed["macro"] else (old_data.get("macro", {}) if 'old_data' in dir() else {}),
         "macro_detail": macro_detail,
         "geopolitical": geopolitical,
         "portfolios": portfolios,
         "insights": insights,
-        "sectors": parsed["sectors"],
+        "sectors": final_sectors,
     }
 
     # 10) AI 투자 코멘트 생성
@@ -1244,7 +1257,7 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 비트코인 본위제 데이터 로드 실패: {e}")
 
-    # 10.12) 섹터 종목 가격을 info.currentPrice로 최신화 (history()보다 정확)
+    # 10.12) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf
         refreshed = 0
@@ -1265,16 +1278,35 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         info = t.info or {}
                         cp = info.get("currentPrice") or info.get("regularMarketPrice")
                         if cp:
+                            # 가격
                             stock["price"] = round(float(cp), 0) if not ticker.endswith("-USD") else round(float(cp), 2)
+                            # 시총
                             if info.get("marketCap"):
                                 stock["market_cap"] = round(info["marketCap"] / 1e12, 1)
+                            # PER (trailing 우선, forward fallback)
+                            trailing_pe = info.get("trailingPE")
+                            forward_pe = info.get("forwardPE")
+                            if trailing_pe and trailing_pe > 0:
+                                stock["per"] = round(float(trailing_pe), 2)
+                            elif forward_pe and forward_pe > 0:
+                                stock["per"] = round(float(forward_pe), 2)
+                            if forward_pe and forward_pe > 0:
+                                stock["forward_per"] = round(float(forward_pe), 2)
+                            # ROE (소수 → %)
+                            roe = info.get("returnOnEquity")
+                            if roe is not None:
+                                stock["roe"] = round(float(roe) * 100, 2) if abs(roe) < 5 else round(float(roe), 2)
+                            # 매출성장률
+                            rev_growth = info.get("revenueGrowth")
+                            if rev_growth is not None:
+                                stock["revenue_growth"] = round(float(rev_growth) * 100, 2) if abs(rev_growth) < 5 else round(float(rev_growth), 2)
                             refreshed += 1
                             break
                     except Exception:
                         continue
-        print(f"[INFO] 섹터 가격 최신화 완료: {refreshed}개 (info.currentPrice 사용)")
+        print(f"[INFO] 섹터 가격/PER/ROE 최신화 완료: {refreshed}개 (info 사용)")
     except Exception as e:
-        print(f"[WARN] 섹터 가격 최신화 실패: {e}")
+        print(f"[WARN] 섹터 데이터 최신화 실패: {e}")
 
     # 11) docs/ 디렉터리 생성 및 파일 저장
     try:

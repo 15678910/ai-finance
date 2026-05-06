@@ -2298,7 +2298,7 @@ body::before {
                 <th class="col-sent">센티멘트</th>
                 <th class="col-price hide-mobile">현재가</th>
                 <th class="col-mcap hide-mobile">시총</th>
-                <th class="col-per hide-mobile">F.PER</th>
+                <th class="col-per hide-mobile">PER</th>
                 <th class="col-roe hide-mobile">ROE</th>
                 <th class="col-arrow"></th>
               </tr>
@@ -2315,7 +2315,7 @@ body::before {
                 <td class="col-sent"><span class="sent-label ${sc}">${st.sentiment_label || ''}</span><span class="sent-score ${sc}">${h(st.sentiment_score)}</span></td>
                 <td class="col-price hide-mobile"><span class="num">${fmtPrice(st.price)}</span></td>
                 <td class="col-mcap hide-mobile"><span class="num-muted">${fmtMcap(st.market_cap)}</span></td>
-                <td class="col-per hide-mobile"><span class="num-muted">${st.forward_per != null ? st.forward_per.toFixed(1) : 'N/A'}</span></td>
+                <td class="col-per hide-mobile"><span class="num-muted">${(st.per != null && st.per !== 'N/A') ? Number(st.per).toFixed(1) : (st.forward_per != null ? st.forward_per.toFixed(1) : 'N/A')}</span></td>
                 <td class="col-roe hide-mobile"><span class="num-muted">${st.roe != null ? st.roe.toFixed(1) + '%' : 'N/A'}</span></td>
                 <td class="col-arrow"><span class="arrow-cell">&#9660;</span></td>
               </tr>
