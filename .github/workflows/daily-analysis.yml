@@ -45,6 +45,23 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
 
+      - name: Run value screener (sync prices)
+        if: always()
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python value_screener.py --no-telegram 2>&1 || echo "Value screener had errors, continuing..."
+        continue-on-error: true
+
+      - name: Run auto-research value (weight evolution)
+        if: always()
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python auto_research_value.py --time-budget 60 --no-telegram 2>&1 || echo "Auto-research had errors, continuing..."
+        continue-on-error: true
+
       - name: Generate dashboard data
         if: always()
         run: |

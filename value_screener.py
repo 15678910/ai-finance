@@ -535,6 +535,11 @@ def send_telegram(top_picks: list):
 # 메인
 # ====================================================================
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="저평가 종목 스크리너")
+    parser.add_argument("--no-telegram", action="store_true", help="텔레그램 전송 생략")
+    args = parser.parse_args()
+
     print("=" * 65)
     print("  저평가 종목 스크리너")
     print(f"  대상: {len(TARGET_STOCKS)}개 종목")
@@ -611,7 +616,8 @@ def main():
     print(f"\n  결과 저장: {OUTPUT_FILE}")
 
     # 텔레그램
-    send_telegram(top_10)
+    if not args.no_telegram:
+        send_telegram(top_10)
 
     print("\n" + "=" * 65)
     print("  ⚠️ 본 결과는 시뮬레이션 전용입니다.")
