@@ -682,9 +682,21 @@ def main():
         "warning": "🚨 시뮬레이션. 정책 시점/내용은 추측 영역.",
     }
 
+    # NaN/Infinity → None 변환 (JS JSON.parse 호환)
+    import math as _m
+    def _clean_nan(obj):
+        if isinstance(obj, float):
+            return None if (_m.isnan(obj) or _m.isinf(obj)) else obj
+        if isinstance(obj, dict):
+            return {k: _clean_nan(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_clean_nan(item) for item in obj]
+        return obj
+    output = _clean_nan(output)
+
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2, default=str)
+        json.dump(output, f, ensure_ascii=False, indent=2, default=str, allow_nan=False)
     print(f"\n  결과 저장: {OUTPUT_FILE}")
 
     print("\n" + "=" * 65)

@@ -1312,11 +1312,26 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     except Exception as e:
         print(f"[WARN] 섹터 데이터 최신화 실패: {e}")
 
-    # 11) docs/ 디렉터리 생성 및 파일 저장
+    # 10.99) NaN/Infinity → None 변환 (JavaScript JSON.parse 호환)
+    def _clean_nan(obj):
+        import math
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+            return obj
+        if isinstance(obj, dict):
+            return {k: _clean_nan(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_clean_nan(item) for item in obj]
+        return obj
+
+    output_data = _clean_nan(output_data)
+
+    # 11) docs/ 디렉터리 생성 및 파일 저장 (allow_nan=False로 강제 검증)
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(output_data, f, ensure_ascii=False, indent=2)
+            json.dump(output_data, f, ensure_ascii=False, indent=2, allow_nan=False)
         print(f"[OK] docs/data.json 생성 완료: {output_path}")
         return True
     except Exception as e:
