@@ -1244,6 +1244,38 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 비트코인 본위제 데이터 로드 실패: {e}")
 
+    # 10.12) 섹터 종목 가격을 info.currentPrice로 최신화 (history()보다 정확)
+    try:
+        import yfinance as yf
+        refreshed = 0
+        for sector in output_data.get("sectors", []):
+            for stock in sector.get("stocks", []):
+                ticker = stock.get("ticker", "")
+                if not ticker:
+                    continue
+                if ticker.endswith("-USD"):
+                    yt_list = [ticker]
+                elif ticker.isdigit() and len(ticker) == 6:
+                    yt_list = [ticker + ".KS", ticker + ".KQ"]
+                else:
+                    yt_list = [ticker]
+                for yt in yt_list:
+                    try:
+                        t = yf.Ticker(yt)
+                        info = t.info or {}
+                        cp = info.get("currentPrice") or info.get("regularMarketPrice")
+                        if cp:
+                            stock["price"] = round(float(cp), 0) if not ticker.endswith("-USD") else round(float(cp), 2)
+                            if info.get("marketCap"):
+                                stock["market_cap"] = round(info["marketCap"] / 1e12, 1)
+                            refreshed += 1
+                            break
+                    except Exception:
+                        continue
+        print(f"[INFO] 섹터 가격 최신화 완료: {refreshed}개 (info.currentPrice 사용)")
+    except Exception as e:
+        print(f"[WARN] 섹터 가격 최신화 실패: {e}")
+
     # 11) docs/ 디렉터리 생성 및 파일 저장
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
