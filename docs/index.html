@@ -2663,17 +2663,21 @@ body::before {
             const evV = (evw[item.key] || 0) * 100;
             const diff = evV - baseV;
             const diffColor = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text-muted)';
-            return `<div style="display:grid;grid-template-columns:130px 1fr 1fr 60px;gap:8px;font-size:0.78rem;align-items:center;margin:6px 0;">
-              <span style="color:var(--text-muted);">${item.label}</span>
-              <div>
-                <div style="font-size:0.65rem;color:var(--text-muted);">기존 ${baseV.toFixed(0)}%</div>
-                <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;"><div style="width:${baseV}%;height:100%;background:rgba(255,255,255,0.3);border-radius:3px;"></div></div>
+            return `<div style="font-size:0.78rem;margin:14px 0;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.05);">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+                <span style="color:var(--text-bright);font-weight:600;">${item.label}</span>
+                <span style="color:${diffColor};font-weight:700;font-size:0.85rem;">${diff > 0 ? '+' : ''}${diff.toFixed(0)}%p</span>
               </div>
-              <div>
-                <div style="font-size:0.65rem;color:var(--purple,#a78bfa);">진화 ${evV.toFixed(0)}%</div>
-                <div style="height:6px;background:rgba(167,139,250,0.1);border-radius:3px;"><div style="width:${evV}%;height:100%;background:var(--purple,#a78bfa);border-radius:3px;"></div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                  <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:3px;">기존 ${baseV.toFixed(0)}%</div>
+                  <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;"><div style="width:${baseV}%;height:100%;background:rgba(255,255,255,0.3);"></div></div>
+                </div>
+                <div>
+                  <div style="font-size:0.7rem;color:var(--purple,#a78bfa);margin-bottom:3px;">진화 ${evV.toFixed(0)}%</div>
+                  <div style="height:8px;background:rgba(167,139,250,0.1);border-radius:4px;overflow:hidden;"><div style="width:${evV}%;height:100%;background:var(--purple,#a78bfa);"></div></div>
+                </div>
               </div>
-              <span style="color:${diffColor};font-weight:600;text-align:right;">${diff > 0 ? '+' : ''}${diff.toFixed(0)}%p</span>
             </div>`;
           }).join('')}
         </div>
