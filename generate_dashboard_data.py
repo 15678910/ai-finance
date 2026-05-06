@@ -1155,8 +1155,10 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     )
 
     # 9) 최종 JSON 구조 조립
-    # 새 sectors가 비어있으면 기존 data.json의 sectors 보존 (덮어쓰기 방지)
+    # 새 sectors가 비어있으면 기존 data.json의 sectors/macro 보존 (덮어쓰기 방지)
     final_sectors = parsed["sectors"]
+    final_macro = parsed["macro"]
+    old_data = {}
     if not final_sectors and os.path.exists(output_path):
         try:
             with open(output_path, encoding="utf-8") as f:
@@ -1165,13 +1167,15 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
             if old_sectors:
                 final_sectors = old_sectors
                 print(f"[INFO] 새 분석 데이터 없음 → 기존 sectors 보존 ({len(old_sectors)}개)")
+            if not final_macro:
+                final_macro = old_data.get("macro", {})
         except Exception as e:
             print(f"[WARN] 기존 sectors 로드 실패: {e}")
 
     output_data = {
         "date": parsed["date"],
         "generated_at": parsed["generated_at"],
-        "macro": parsed["macro"] if parsed["macro"] else (old_data.get("macro", {}) if 'old_data' in dir() else {}),
+        "macro": final_macro,
         "macro_detail": macro_detail,
         "geopolitical": geopolitical,
         "portfolios": portfolios,
