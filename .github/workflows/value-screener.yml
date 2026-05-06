@@ -1,9 +1,10 @@
-name: Value Screener (Weekly)
+name: Value Screener (Daily)
 
 on:
   schedule:
-    # 매주 월요일 KST 06:00 (UTC 21:00 일요일)
-    - cron: '0 21 * * 0'
+    # 매일 KST 06:00 (UTC 21:00 전날)
+    # 매일 실행으로 누락 시 자동 복구 + 최신 펀더멘털 반영
+    - cron: '0 21 * * *'
   workflow_dispatch:
 
 permissions:

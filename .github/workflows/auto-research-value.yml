@@ -1,9 +1,10 @@
-name: Auto-Research Value (Weekly Evolution)
+name: Auto-Research Value (Daily Evolution)
 
 on:
   schedule:
-    # 매주 월요일 KST 07:00 (value_screener 06:00 직후)
-    - cron: '0 22 * * 0'  # UTC 22:00 일 = KST 07:00 월
+    # 매일 KST 07:00 (value_screener 06:00 직후)
+    # 매일 실행으로 누락 시 자동 복구 + 시장 변화 추적
+    - cron: '0 22 * * *'  # UTC 22:00 매일 = KST 07:00 다음날
   workflow_dispatch:
 
 permissions:
