@@ -51,6 +51,21 @@ TARGETS = {
         {"ticker": "BTC-USD", "name": "Bitcoin", "key": "btc"},
         {"ticker": "ETH-USD", "name": "Ethereum", "key": "eth"},
     ],
+    "BTC_ETF_기관": [
+        {"ticker": "IBIT", "name": "BlackRock IBIT", "key": "ibit"},
+        {"ticker": "FBTC", "name": "Fidelity FBTC", "key": "fbtc"},
+        {"ticker": "GBTC", "name": "Grayscale GBTC", "key": "gbtc"},
+        {"ticker": "BITB", "name": "Bitwise BITB", "key": "bitb"},
+        {"ticker": "MSTR", "name": "MicroStrategy", "key": "mstr"},
+        {"ticker": "COIN", "name": "Coinbase", "key": "coin"},
+    ],
+    "BTC_채굴": [
+        {"ticker": "MARA", "name": "Marathon Digital", "key": "mara"},
+        {"ticker": "RIOT", "name": "Riot Platforms", "key": "riot"},
+        {"ticker": "CLSK", "name": "CleanSpark", "key": "clsk"},
+        {"ticker": "BITF", "name": "Bitfarms", "key": "bitf"},
+        {"ticker": "HUT", "name": "Hut 8", "key": "hut"},
+    ],
     "AI_컴퓨트": [
         {"ticker": "NVDA", "name": "NVIDIA", "key": "nvda"},
         {"ticker": "AVGO", "name": "Broadcom", "key": "avgo"},
@@ -67,6 +82,50 @@ TARGETS = {
         {"ticker": "DX-Y.NYB", "name": "달러 인덱스", "key": "dxy"},
         {"ticker": "^TNX", "name": "미 10Y 국채", "key": "us10y"},
     ],
+}
+
+# ====================================================================
+# 미국 정부 BTC 보유 (공개 데이터, 수동 업데이트)
+# 출처: https://bitcointreasuries.net/, Arkham Intelligence
+# ====================================================================
+US_GOVT_BTC_HOLDINGS = {
+    "current": 207189,        # 2026-05 추정 (Silk Road, Bitfinex 압수분 일부 매각)
+    "previous_estimate": 213297,  # 이전 추정
+    "peak": 328372,            # 2024년 4월 최고치 (압수분)
+    "source": "bitcointreasuries.net (수동 갱신)",
+    "as_of": "2026-05",
+    "note": "기존 압수 자산. ARMA 통과 시 능동 매입 전환 가능성.",
+}
+
+# ARMA 법안 진행 단계 (수동 갱신)
+ARMA_BILL_STATUS = {
+    "bill_number": "H.R. (ARMA Act)",
+    "introduced_by": "Nick Kich (R)",
+    "introduced_date": "2024-04-27",
+    "current_stage": "하원 금융서비스위원회 회부",
+    "stages": [
+        {"stage": "발의", "date": "2024-04-27", "completed": True},
+        {"stage": "위원회 회부", "date": "2024-04-27", "completed": True},
+        {"stage": "위원회 표결", "date": None, "completed": False},
+        {"stage": "본회의 표결", "date": None, "completed": False},
+        {"stage": "상원 표결", "date": None, "completed": False},
+        {"stage": "대통령 서명", "date": None, "completed": False},
+    ],
+    "scenarios": [
+        {"name": "낙관", "timeline": "2026 6-9월", "probability": "20%",
+         "outcome": "법안 통과 + 매집 명령. 추세적 상승 진입"},
+        {"name": "중립 (가장 가능성 높음)", "timeline": "지속", "probability": "60%",
+         "outcome": "법안 지연, 행정명령 매집 지속. 변동성 확대 후 완만 상승"},
+        {"name": "비관", "timeline": "2026 하반기", "probability": "20%",
+         "outcome": "거품 붕괴 + 한국 과세 강화 시점 중첩. 급락 위험"},
+    ],
+}
+
+# 한국 가상자산 과세 일정 (참고)
+KOREA_CRYPTO_TAX = {
+    "current_status": "유예 중 (2026년 시행 예정 → 2027년 연기)",
+    "tax_rate": "20% (250만원 초과 차익)",
+    "concern": "미국 매집기 + 한국 과세 시작 시점 충돌 → 개인 투자자 비대칭 위험",
 }
 
 
@@ -262,6 +321,123 @@ def calculate_bts_score(btc: dict, stablecoins: dict, dominance: dict, semis: di
         "level": level,
         "severity": severity,
         "factors": factors,
+    }
+
+
+# ====================================================================
+# ETF 자금 흐름 분석 (기관 매수 강도)
+# ====================================================================
+def analyze_etf_flow(etf_data: list) -> dict:
+    """BTC ETF 그룹의 자금 유입 강도 측정.
+    1주/1개월 평균 변동을 통해 기관 자금 흐름을 추정."""
+    if not etf_data:
+        return {"level": "데이터 없음", "score": 0, "signals": []}
+
+    signals = []
+    score = 0
+
+    # IBIT (BlackRock) - 가장 큰 ETF
+    ibit = next((e for e in etf_data if e.get("key") == "ibit"), None)
+    if ibit:
+        ibit_1w = ibit.get("change_1w", 0)
+        ibit_1m = ibit.get("change_1m", 0)
+        if ibit_1w > 5:
+            score += 25
+            signals.append(f"IBIT 1주 +{ibit_1w:.1f}% (블랙록 자금 유입 가속)")
+        elif ibit_1w > 2:
+            score += 12
+            signals.append(f"IBIT 1주 +{ibit_1w:.1f}% (안정적 유입)")
+        elif ibit_1w < -3:
+            score -= 10
+            signals.append(f"IBIT 1주 {ibit_1w:.1f}% (자금 이탈)")
+
+    # MSTR - 기업형 매집 신호
+    mstr = next((e for e in etf_data if e.get("key") == "mstr"), None)
+    if mstr:
+        mstr_3m = mstr.get("change_3m", 0)
+        if mstr_3m > 30:
+            score += 20
+            signals.append(f"MSTR 3M +{mstr_3m:.0f}% (기업형 매집 강세)")
+        elif mstr_3m > 10:
+            score += 10
+            signals.append(f"MSTR 3M +{mstr_3m:.0f}%")
+
+    # COIN - 거래소 비즈니스
+    coin = next((e for e in etf_data if e.get("key") == "coin"), None)
+    if coin and coin.get("above_ma200"):
+        score += 10
+        signals.append(f"COIN 200MA 상회 (거래소 비즈니스 강세)")
+
+    # ETF 평균 1개월 변동
+    etf_only = [e for e in etf_data if e.get("key") in ("ibit", "fbtc", "gbtc", "bitb")]
+    if etf_only:
+        avg_1m = sum(e.get("change_1m", 0) for e in etf_only) / len(etf_only)
+        if avg_1m > 8:
+            score += 15
+            signals.append(f"ETF 평균 1M +{avg_1m:.1f}% (전반적 강세)")
+
+    score = max(0, min(100, score))
+
+    if score >= 60:
+        level = "🔴 기관 매수 강력"
+    elif score >= 40:
+        level = "🟠 기관 매수 활발"
+    elif score >= 20:
+        level = "🟡 보통"
+    else:
+        level = "🟢 약함"
+
+    return {"score": score, "level": level, "signals": signals}
+
+
+# ====================================================================
+# 채굴 인프라 강도 분석
+# ====================================================================
+def analyze_miner_strength(miner_data: list) -> dict:
+    """미국 BTC 채굴 인프라 강도. ARMA 법안의 채굴 인프라 투자와 직결."""
+    if not miner_data:
+        return {"level": "데이터 없음", "score": 0, "signals": []}
+
+    signals = []
+    above_ma200_count = sum(1 for m in miner_data if m.get("above_ma200"))
+    avg_1m = sum(m.get("change_1m", 0) for m in miner_data) / len(miner_data)
+    avg_3m = sum(m.get("change_3m", 0) for m in miner_data) / len(miner_data)
+
+    score = 0
+    if above_ma200_count >= len(miner_data) * 0.7:
+        score += 30
+        signals.append(f"채굴 종목 {above_ma200_count}/{len(miner_data)} 200MA 상회 (강세)")
+    elif above_ma200_count >= len(miner_data) * 0.4:
+        score += 15
+
+    if avg_1m > 10:
+        score += 25
+        signals.append(f"채굴 평균 1M +{avg_1m:.1f}% (BTC 강세 + 채굴 마진 확대)")
+    elif avg_1m > 5:
+        score += 12
+
+    if avg_3m > 30:
+        score += 20
+        signals.append(f"채굴 평균 3M +{avg_3m:.0f}% (구조적 상승)")
+
+    score = max(0, min(100, score))
+
+    if score >= 60:
+        level = "🔴 채굴 슈퍼사이클"
+    elif score >= 40:
+        level = "🟠 채굴 활황"
+    elif score >= 20:
+        level = "🟡 보통"
+    else:
+        level = "🟢 약세"
+
+    return {
+        "score": score,
+        "level": level,
+        "signals": signals,
+        "above_ma200_ratio": f"{above_ma200_count}/{len(miner_data)}",
+        "avg_change_1m_pct": round(avg_1m, 2),
+        "avg_change_3m_pct": round(avg_3m, 2),
     }
 
 
@@ -476,6 +652,18 @@ def main():
     if alerts:
         send_telegram(score_data, btc_data, stablecoins, alerts)
 
+    # ETF 자금 흐름 분석 (1주 거래량 변화)
+    etf_flow_signal = analyze_etf_flow(grouped.get("BTC_ETF_기관", []))
+    print(f"\n[ETF/기관 자금 흐름] {etf_flow_signal['level']}")
+    for sig in etf_flow_signal.get("signals", []):
+        print(f"  • {sig}")
+
+    # 채굴 인프라 강도
+    miner_signal = analyze_miner_strength(grouped.get("BTC_채굴", []))
+    print(f"\n[미국 채굴 인프라] {miner_signal['level']}")
+    for sig in miner_signal.get("signals", []):
+        print(f"  • {sig}")
+
     # 결과 저장
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
@@ -486,6 +674,11 @@ def main():
         "dominance": dominance,
         "korea_impacts": impacts,
         "alerts": alerts,
+        "etf_flow": etf_flow_signal,
+        "miner_strength": miner_signal,
+        "us_govt_holdings": US_GOVT_BTC_HOLDINGS,
+        "arma_bill_status": ARMA_BILL_STATUS,
+        "korea_crypto_tax": KOREA_CRYPTO_TAX,
         "warning": "🚨 시뮬레이션. 정책 시점/내용은 추측 영역.",
     }
 

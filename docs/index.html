@@ -1965,6 +1965,71 @@ body::before {
           </div>
         </div>` : ''}
 
+        <!-- ETF 기관 자금 흐름 + 채굴 인프라 -->
+        ${(bs.etf_flow || bs.miner_strength) ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          ${bs.etf_flow ? `<div class="glass-card anim-item" style="padding:14px;">
+            <div style="font-size:0.7rem;color:var(--cyan);font-family:var(--font-mono);margin-bottom:8px;">ETF / 기관 자금 흐름</div>
+            <div style="font-size:1.0rem;font-weight:700;color:var(--text-bright);margin-bottom:6px;">${h(bs.etf_flow.level)}</div>
+            ${bs.etf_flow.signals?.length ? bs.etf_flow.signals.map(s => `<div style="font-size:0.78rem;color:var(--text);margin:3px 0;">&bull; ${h(s)}</div>`).join('') : '<div style="font-size:0.75rem;color:var(--text-muted);">신호 약함</div>'}
+          </div>` : ''}
+          ${bs.miner_strength ? `<div class="glass-card anim-item" style="padding:14px;">
+            <div style="font-size:0.7rem;color:var(--amber);font-family:var(--font-mono);margin-bottom:8px;">미국 BTC 채굴 인프라</div>
+            <div style="font-size:1.0rem;font-weight:700;color:var(--text-bright);margin-bottom:6px;">${h(bs.miner_strength.level)}</div>
+            ${bs.miner_strength.signals?.length ? bs.miner_strength.signals.map(s => `<div style="font-size:0.78rem;color:var(--text);margin:3px 0;">&bull; ${h(s)}</div>`).join('') : '<div style="font-size:0.75rem;color:var(--text-muted);">신호 약함</div>'}
+            ${bs.miner_strength.above_ma200_ratio ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">200MA 상회: ${bs.miner_strength.above_ma200_ratio} · 1M 평균 ${bs.miner_strength.avg_change_1m_pct}%</div>` : ''}
+          </div>` : ''}
+        </div>` : ''}
+
+        <!-- ARMA 법안 진행 단계 -->
+        ${bs.arma_bill_status ? `<div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--purple,#a78bfa);font-family:var(--font-mono);margin-bottom:10px;">ARMA 법안 진행 단계</div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+            <span style="color:var(--text-muted);">발의자: <b style="color:var(--text);">${h(bs.arma_bill_status.introduced_by || '')}</b></span>
+            <span style="color:var(--text-muted);">발의일: <b style="color:var(--text);">${h(bs.arma_bill_status.introduced_date || '')}</b></span>
+            <span style="color:var(--text-muted);">현재: <b style="color:var(--cyan);">${h(bs.arma_bill_status.current_stage || '')}</b></span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            ${(bs.arma_bill_status.stages || []).map(st => {
+              const c = st.completed ? 'var(--green)' : 'var(--text-muted)';
+              const bg = st.completed ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.03)';
+              return `<div style="background:${bg};border:1px solid ${c};color:${c};padding:4px 10px;border-radius:14px;font-size:0.7rem;">
+                ${st.completed ? '✓' : '○'} ${h(st.stage)}
+              </div>`;
+            }).join('')}
+          </div>
+          ${bs.arma_bill_status.scenarios ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">시나리오 (확률 추정)</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;">
+            ${bs.arma_bill_status.scenarios.map(sc => {
+              const scColor = sc.name.includes('낙관') ? 'var(--green)' : sc.name.includes('비관') ? 'var(--red)' : 'var(--amber)';
+              return `<div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:4px;border-left:2px solid ${scColor};">
+                <div style="font-size:0.78rem;font-weight:600;color:${scColor};">${h(sc.name)} <span style="color:var(--text-muted);font-weight:400;">${h(sc.probability)}</span></div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">${h(sc.timeline)}</div>
+                <div style="font-size:0.72rem;color:var(--text);margin-top:2px;">${h(sc.outcome)}</div>
+              </div>`;
+            }).join('')}
+            </div>` : ''}
+        </div>` : ''}
+
+        <!-- 미 정부 BTC 보유 -->
+        ${bs.us_govt_holdings ? `<div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--green,#4ade80);font-family:var(--font-mono);margin-bottom:8px;">미국 정부 BTC 보유</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">현재 추정 보유</div>
+              <div style="font-size:1.2rem;font-weight:700;color:var(--text-bright);">${(bs.us_govt_holdings.current || 0).toLocaleString()}</div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">2024 최고치</div>
+              <div style="font-size:1.0rem;color:var(--text);">${(bs.us_govt_holdings.peak || 0).toLocaleString()}</div>
+            </div>
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">기준일</div>
+              <div style="font-size:1.0rem;color:var(--text);">${h(bs.us_govt_holdings.as_of || '')}</div>
+            </div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;">${h(bs.us_govt_holdings.note || '')}</div>
+        </div>` : ''}
+
         <!-- 한국 영향 분석 -->
         ${bs.korea_impacts?.length ? `<div class="glass-card anim-item" style="padding:14px;">
           <div style="font-size:0.7rem;color:var(--purple,#a78bfa);font-family:var(--font-mono);margin-bottom:10px;">KOREA IMPACT ANALYSIS</div>
@@ -1979,6 +2044,13 @@ body::before {
               </div>`;
             }).join('')}
           </div>
+        </div>` : ''}
+
+        <!-- 한국 가상자산 과세 알림 -->
+        ${bs.korea_crypto_tax ? `<div class="glass-card anim-item" style="padding:12px;margin-top:12px;border-left:3px solid var(--amber);">
+          <div style="font-size:0.7rem;color:var(--amber);font-family:var(--font-mono);margin-bottom:6px;">⚠️ 한국 가상자산 과세 비대칭 위험</div>
+          <div style="font-size:0.78rem;color:var(--text);">현황: ${h(bs.korea_crypto_tax.current_status || '')} · 세율: ${h(bs.korea_crypto_tax.tax_rate || '')}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">${h(bs.korea_crypto_tax.concern || '')}</div>
         </div>` : ''}
 
         <div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
