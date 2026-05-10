@@ -28,6 +28,8 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timezone, timedelta
 
+from core import send_message, load_state, save_state, is_recent_alert, mark_alert_sent
+
 try:
     import yfinance as yf
     import pandas as pd
@@ -37,9 +39,7 @@ except ImportError as e:
     sys.exit(1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR = os.path.join(BASE_DIR, "config")
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "bitcoin_standard.json")
-STATE_FILE = os.path.join(BASE_DIR, "docs", "bitcoin_standard_state.json")
 KST = timezone(timedelta(hours=9))
 
 
@@ -495,25 +495,6 @@ def send_telegram(score_data: dict, btc: dict, stablecoins: dict, alerts: list):
     if not alerts:
         return
 
-    env_path = os.path.join(CONFIG_DIR, ".env")
-    bot_token, chat_id = None, None
-    if os.path.exists(env_path):
-        with open(env_path, encoding="utf-8") as f:
-            for line in f:
-                if "=" not in line or line.startswith("#"):
-                    continue
-                k, v = line.strip().split("=", 1)
-                v = v.strip().strip("'\"")
-                if k.strip() == "TELEGRAM_FINANCE_BOT_TOKEN":
-                    bot_token = v
-                elif k.strip() == "TELEGRAM_FINANCE_CHAT_ID":
-                    chat_id = v
-    bot_token = bot_token or os.environ.get("TELEGRAM_FINANCE_BOT_TOKEN")
-    chat_id = chat_id or os.environ.get("TELEGRAM_FINANCE_CHAT_ID")
-
-    if not bot_token or not chat_id:
-        return
-
     lines = [
         "🪙 비트코인 본위제 모니터",
         "=" * 25,
@@ -531,72 +512,35 @@ def send_telegram(score_data: dict, btc: dict, stablecoins: dict, alerts: list):
     lines.append("\n🚨 시뮬레이션. 정책은 추측 영역.")
     lines.append("\n대시보드: https://15678910.github.io/ai-finance/")
 
-    try:
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        body = urllib.parse.urlencode({"chat_id": chat_id, "text": "\n".join(lines)}).encode()
-        req = urllib.request.Request(url, data=body, method="POST")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            json.loads(resp.read())
+    ok = send_message("\n".join(lines))
+    if ok:
         print("  [텔레그램] 전송 완료")
-    except Exception as e:
-        print(f"  [텔레그램] 실패: {e}")
-
-
-# ====================================================================
-# 상태 관리 (중복 알림 방지)
-# ====================================================================
-def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {"last_alerts": {}}
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"last_alerts": {}}
-
-
-def save_state(state):
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+    else:
+        print("  [텔레그램] 실패")
 
 
 def check_alerts(score_data, btc, stablecoins, state) -> list:
     alerts = []
-    now = datetime.now(timezone.utc).isoformat()
-
-    def is_recent(key, hours=24):
-        last = state.get("last_alerts", {}).get(key)
-        if not last:
-            return False
-        try:
-            last_dt = datetime.fromisoformat(last)
-            return (datetime.now(timezone.utc) - last_dt) < timedelta(hours=hours)
-        except Exception:
-            return False
-
-    def mark(key):
-        state.setdefault("last_alerts", {})[key] = now
 
     # 점수 70+ 알림
-    if score_data["score"] >= 70 and not is_recent("score_70"):
+    if score_data["score"] >= 70 and not is_recent_alert(state, "score_70", hours=24):
         alerts.append(f"🔴 본위제 점수 {score_data['score']}/100 - {score_data['level']}")
-        mark("score_70")
+        mark_alert_sent(state, "score_70")
 
     # BTC 신고가 돌파 (1D +10% 이상)
     btc_1d = btc.get("change_1d", 0)
-    if btc_1d > 10 and not is_recent("btc_surge"):
+    if btc_1d > 10 and not is_recent_alert(state, "btc_surge", hours=24):
         alerts.append(f"🔴 BTC 1일 +{btc_1d:.1f}% 급등 (현재가 ${btc.get('current', 0):,.0f})")
-        mark("btc_surge")
-    elif btc_1d < -10 and not is_recent("btc_dump"):
+        mark_alert_sent(state, "btc_surge")
+    elif btc_1d < -10 and not is_recent_alert(state, "btc_dump", hours=24):
         alerts.append(f"🔴 BTC 1일 {btc_1d:.1f}% 급락")
-        mark("btc_dump")
+        mark_alert_sent(state, "btc_dump")
 
     # 스테이블코인 시총 마일스톤
     total_b = stablecoins.get("__total__", {}).get("market_cap_billion", 0)
-    if total_b > 500 and not is_recent("stable_500"):
+    if total_b > 500 and not is_recent_alert(state, "stable_500", hours=24):
         alerts.append(f"🟠 스테이블코인 시총 ${total_b:.0f}B 돌파 (디지털 달러 채택 가속)")
-        mark("stable_500")
+        mark_alert_sent(state, "stable_500")
 
     return alerts
 
@@ -646,9 +590,9 @@ def main():
             print(f"  [{imp['impact']}] {imp['category']}")
 
     # 알림
-    state = load_state()
+    state = load_state("bitcoin_standard", default={"last_alerts": {}})
     alerts = check_alerts(score_data, btc_data, stablecoins, state)
-    save_state(state)
+    save_state("bitcoin_standard", state)
     if alerts:
         send_telegram(score_data, btc_data, stablecoins, alerts)
 

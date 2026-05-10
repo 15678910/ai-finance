@@ -141,7 +141,10 @@ class DartAPI:
 
         import zipfile
         from io import BytesIO
-        import xml.etree.ElementTree as ET
+        try:
+            from defusedxml import ElementTree as ET  # type: ignore
+        except ImportError:
+            import xml.etree.ElementTree as ET  # XXE 위험. defusedxml 권장.
 
         url = f"{self.BASE_URL}/corpCode.xml?crtfc_key={self.api_key}"
         try:

@@ -28,6 +28,8 @@ import urllib.parse
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+from core import send_message, load_state, save_state, is_recent_alert, mark_alert_sent
+
 try:
     import yfinance as yf
 except ImportError:
@@ -35,9 +37,7 @@ except ImportError:
     sys.exit(1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR = os.path.join(BASE_DIR, "config")
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "overseas_market.json")
-STATE_FILE = os.path.join(BASE_DIR, "docs", "overseas_market_state.json")
 
 KST = timezone(timedelta(hours=9))
 
@@ -214,75 +214,6 @@ def predict_kospi_open(markets: list) -> str:
 
 
 # ====================================================================
-# 텔레그램
-# ====================================================================
-def parse_env(env_path: str) -> dict:
-    env_vars = {}
-    if not os.path.exists(env_path):
-        return env_vars
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            k = k.strip()
-            v = v.strip().strip("'\"")
-            env_vars[k] = v
-    return env_vars
-
-
-def telegram_send(bot_token, chat_id, text):
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    data = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": text,
-        "disable_web_page_preview": "true",
-    }).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        result = json.loads(resp.read().decode("utf-8"))
-        if not result.get("ok"):
-            raise RuntimeError(f"Telegram error: {result}")
-
-
-# ====================================================================
-# 상태 관리 (중복 알림 방지)
-# ====================================================================
-def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {"last_alerts": {}}
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"last_alerts": {}}
-
-
-def save_state(state):
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-
-
-def is_alert_recent(state, ticker, hours=4):
-    """최근 N시간 내 알림 발송 여부."""
-    last = state.get("last_alerts", {}).get(ticker)
-    if not last:
-        return False
-    try:
-        last_dt = datetime.fromisoformat(last)
-        now = datetime.now(timezone.utc)
-        return (now - last_dt) < timedelta(hours=hours)
-    except Exception:
-        return False
-
-
-def mark_alert_sent(state, ticker):
-    state.setdefault("last_alerts", {})[ticker] = datetime.now(timezone.utc).isoformat()
-
-
-# ====================================================================
 # 메인
 # ====================================================================
 def main():
@@ -311,24 +242,20 @@ def main():
     kospi_pred = predict_kospi_open(all_markets)
 
     # 알림 조건 체크
-    state = load_state()
+    state = load_state("overseas_market", default={"last_alerts": {}})
     alerts = []
     for market in all_markets:
         need, severity, msg = should_alert(market)
-        if need and not is_alert_recent(state, market["ticker"]):
+        if need and not is_recent_alert(state, market["ticker"], hours=4):
             alerts.append({"market": market, "severity": severity, "message": msg})
             mark_alert_sent(state, market["ticker"])
 
-    save_state(state)
+    save_state("overseas_market", state)
 
     print(f"\n[알림 대상] {len(alerts)}건")
 
     # 텔레그램 전송 (알림이 있는 경우만)
-    env_vars = parse_env(os.path.join(CONFIG_DIR, ".env"))
-    bot_token = env_vars.get("TELEGRAM_FINANCE_BOT_TOKEN") or os.environ.get("TELEGRAM_FINANCE_BOT_TOKEN")
-    chat_id = env_vars.get("TELEGRAM_FINANCE_CHAT_ID") or os.environ.get("TELEGRAM_FINANCE_CHAT_ID")
-
-    if alerts and bot_token and chat_id:
+    if alerts:
         msg_lines = [
             "🌎 해외 시장 동향 알림",
             "=" * 25,
@@ -355,11 +282,11 @@ def main():
         msg_lines.append("\n🚨 시뮬레이션. 자동 매매 금지.")
         msg_lines.append("\n대시보드: https://15678910.github.io/ai-finance/")
 
-        try:
-            telegram_send(bot_token, chat_id, "\n".join(msg_lines))
+        ok = send_message("\n".join(msg_lines))
+        if ok:
             print(f"  [텔레그램] 알림 전송 완료 ({len(alerts)}건)")
-        except Exception as e:
-            print(f"  [텔레그램] 전송 실패: {e}")
+        else:
+            print("  [텔레그램] 전송 실패")
 
     # 결과 저장 (대시보드용)
     output = {

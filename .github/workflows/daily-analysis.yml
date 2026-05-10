@@ -11,6 +11,10 @@ on:
     - cron: '0 11 * * *'   # UTC 11:00 = KST 20:00
   workflow_dispatch: # 수동 실행 버튼
 
+concurrency:
+  group: docs-write
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

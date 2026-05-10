@@ -30,6 +30,8 @@ import urllib.parse
 from datetime import datetime, timezone, timedelta
 from io import StringIO
 
+from core import send_message, load_state, save_state, is_recent_alert, mark_alert_sent
+
 try:
     import yfinance as yf
     import pandas as pd
@@ -39,9 +41,7 @@ except ImportError as e:
     sys.exit(1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR = os.path.join(BASE_DIR, "config")
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "japan_crisis.json")
-STATE_FILE = os.path.join(BASE_DIR, "docs", "japan_crisis_state.json")
 
 KST = timezone(timedelta(hours=9))
 
@@ -362,20 +362,6 @@ def analyze_global_impact(carry: dict, crisis: dict, data: dict) -> list:
 def check_alerts(data: dict, state: dict) -> list:
     """알림 조건 체크."""
     alerts = []
-    now_iso = datetime.now(timezone.utc).isoformat()
-
-    def is_recent(key, hours=12):
-        last = state.get("last_alerts", {}).get(key)
-        if not last:
-            return False
-        try:
-            last_dt = datetime.fromisoformat(last)
-            return (datetime.now(timezone.utc) - last_dt) < timedelta(hours=hours)
-        except Exception:
-            return False
-
-    def mark(key):
-        state.setdefault("last_alerts", {})[key] = now_iso
 
     usd_jpy = data["market"]["usd_jpy"]
     yen_1w = usd_jpy.get("change_1w") or 0
@@ -384,40 +370,40 @@ def check_alerts(data: dict, state: dict) -> list:
     crisis = data["crisis"]
 
     # USD/JPY 160 돌파
-    if yen_now > 160 and not is_recent("usd_jpy_160"):
+    if yen_now > 160 and not is_recent_alert(state, "usd_jpy_160", hours=12):
         alerts.append({
             "severity": "긴급",
             "title": "USD/JPY 160 돌파",
             "message": f"🔴 USD/JPY {yen_now} - 엔화 심각한 약세. BOJ 개입/금리 인상 압력 극대화.",
         })
-        mark("usd_jpy_160")
+        mark_alert_sent(state, "usd_jpy_160")
 
     # 엔화 1주 5% 이상 강세 (캐리 청산)
-    if yen_1w < -5 and not is_recent("yen_strong"):
+    if yen_1w < -5 and not is_recent_alert(state, "yen_strong", hours=12):
         alerts.append({
             "severity": "긴급",
             "title": "엔화 급강세 - 캐리 청산 신호",
             "message": f"🔴 엔화 1주 +{abs(yen_1w):.1f}% 강세. 글로벌 자산 매도 압력 증가 (미국 기술주, 국채).",
         })
-        mark("yen_strong")
+        mark_alert_sent(state, "yen_strong")
 
     # 캐리 압력 70+
-    if carry["score"] >= 70 and not is_recent("carry_70"):
+    if carry["score"] >= 70 and not is_recent_alert(state, "carry_70", hours=12):
         alerts.append({
             "severity": "경고",
             "title": "캐리 트레이드 청산 위험",
             "message": f"🟠 캐리 압력 지수 {carry['score']}/100 ({carry['level']}). 글로벌 변동성 확대 주의.",
         })
-        mark("carry_70")
+        mark_alert_sent(state, "carry_70")
 
     # 위기 점수 70+
-    if crisis["score"] >= 70 and not is_recent("crisis_70"):
+    if crisis["score"] >= 70 and not is_recent_alert(state, "crisis_70", hours=12):
         alerts.append({
             "severity": "긴급",
             "title": "일본 위기 심각 단계",
             "message": f"🔴 위기 종합 점수 {crisis['score']}/100 ({crisis['level']}). 글로벌 금융 충격 가능성.",
         })
-        mark("crisis_70")
+        mark_alert_sent(state, "crisis_70")
 
     return alerts
 
@@ -427,25 +413,6 @@ def check_alerts(data: dict, state: dict) -> list:
 # ====================================================================
 def send_telegram(data: dict, alerts: list):
     """위기 알림 또는 일일 요약 전송."""
-    env_path = os.path.join(CONFIG_DIR, ".env")
-    bot_token, chat_id = None, None
-    if os.path.exists(env_path):
-        with open(env_path, encoding="utf-8") as f:
-            for line in f:
-                if "=" not in line or line.startswith("#"):
-                    continue
-                k, v = line.strip().split("=", 1)
-                v = v.strip().strip("'\"")
-                if k.strip() == "TELEGRAM_FINANCE_BOT_TOKEN":
-                    bot_token = v
-                elif k.strip() == "TELEGRAM_FINANCE_CHAT_ID":
-                    chat_id = v
-    bot_token = bot_token or os.environ.get("TELEGRAM_FINANCE_BOT_TOKEN")
-    chat_id = chat_id or os.environ.get("TELEGRAM_FINANCE_CHAT_ID")
-
-    if not bot_token or not chat_id:
-        return
-
     # 알림이 있을 때만 전송 (일일 요약은 daily 분석에서 처리)
     if not alerts:
         return
@@ -469,34 +436,11 @@ def send_telegram(data: dict, alerts: list):
     lines.append("\n🚨 시뮬레이션. 자동 매매 금지.")
     lines.append("\n대시보드: https://15678910.github.io/ai-finance/")
 
-    try:
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        body = urllib.parse.urlencode({"chat_id": chat_id, "text": "\n".join(lines)}).encode()
-        req = urllib.request.Request(url, data=body, method="POST")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            json.loads(resp.read())
+    ok = send_message("\n".join(lines))
+    if ok:
         print(f"  [텔레그램] 전송 완료 ({len(alerts)}건 알림)")
-    except Exception as e:
-        print(f"  [텔레그램] 전송 실패: {e}")
-
-
-# ====================================================================
-# 상태 관리
-# ====================================================================
-def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {"last_alerts": {}}
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"last_alerts": {}}
-
-
-def save_state(state):
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+    else:
+        print("  [텔레그램] 전송 실패")
 
 
 # ====================================================================
@@ -564,9 +508,9 @@ def main():
             print(f"  [{imp['impact']}] {imp['category']}: {imp['description'][:80]}")
 
     # 알림 체크
-    state = load_state()
+    state = load_state("japan_crisis", default={"last_alerts": {}})
     alerts = check_alerts(data, state)
-    save_state(state)
+    save_state("japan_crisis", state)
     data["alerts"] = alerts
 
     # 텔레그램 전송

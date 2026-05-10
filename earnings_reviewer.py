@@ -23,7 +23,10 @@ import urllib.request
 import urllib.parse
 import zipfile
 from io import BytesIO
-import xml.etree.ElementTree as ET
+try:
+    from defusedxml import ElementTree as ET  # type: ignore
+except ImportError:
+    import xml.etree.ElementTree as ET  # XXE 위험. defusedxml 권장.
 from datetime import datetime, timezone, timedelta
 
 try:

@@ -14,13 +14,16 @@ import re
 import urllib.request
 import urllib.parse
 import urllib.error
-import xml.etree.ElementTree as ET
+try:
+    from defusedxml import ElementTree as ET  # type: ignore
+except ImportError:
+    import xml.etree.ElementTree as ET  # XXE/billion-laughs 위험. defusedxml 권장.
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+from core import get_secret, send_message, load_state, save_state
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR = os.path.join(BASE_DIR, "config")
-STATE_FILE = os.path.join(BASE_DIR, "docs", "breaking_news_state.json")
 
 # ====================================================================
 # RSS 피드 소스
@@ -90,48 +93,6 @@ ALL_KEYWORDS_KO = []
 for cat, data in URGENT_KEYWORDS.items():
     ALL_KEYWORDS_EN.extend(data["en"])
     ALL_KEYWORDS_KO.extend(data["ko"])
-
-
-# ====================================================================
-# .env 파싱
-# ====================================================================
-def parse_env_file(env_path):
-    """config/.env 파일을 파싱합니다."""
-    env_vars = {}
-    if not os.path.exists(env_path):
-        return env_vars
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip()
-            if not value.startswith(("'", '"')) and "#" in value:
-                value = value.split("#")[0].strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-                value = value[1:-1]
-            env_vars[key] = value
-    return env_vars
-
-
-# ====================================================================
-# 텔레그램 전송
-# ====================================================================
-def telegram_send(bot_token, chat_id, text):
-    """텔레그램 메시지 전송."""
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    data = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": text,
-        "disable_web_page_preview": "false",
-    }).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        result = json.loads(resp.read().decode("utf-8"))
-        if not result.get("ok"):
-            raise RuntimeError(f"Telegram API error: {result}")
 
 
 # ====================================================================
@@ -276,31 +237,6 @@ def category_name(category):
 
 
 # ====================================================================
-# 상태 관리 (이미 본 뉴스 추적)
-# ====================================================================
-def load_state():
-    """이전 실행에서 본 뉴스 ID 목록을 로드."""
-    if not os.path.exists(STATE_FILE):
-        return {"seen_links": [], "last_updated": None}
-    try:
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"seen_links": [], "last_updated": None}
-
-
-def save_state(seen_links):
-    """현재 본 뉴스 링크를 저장 (최근 500개만 유지)."""
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    state = {
-        "seen_links": list(seen_links)[-500:],
-        "last_updated": datetime.now(timezone.utc).isoformat(),
-    }
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-
-
-# ====================================================================
 # 메인
 # ====================================================================
 def main():
@@ -310,16 +246,14 @@ def main():
     print("=" * 60)
 
     # 텔레그램 설정 로드
-    env_path = os.path.join(CONFIG_DIR, ".env")
-    env_vars = parse_env_file(env_path)
-    bot_token = env_vars.get("TELEGRAM_FINANCE_BOT_TOKEN") or os.environ.get("TELEGRAM_FINANCE_BOT_TOKEN")
-    chat_id = env_vars.get("TELEGRAM_FINANCE_CHAT_ID") or os.environ.get("TELEGRAM_FINANCE_CHAT_ID")
+    bot_token = get_secret("TELEGRAM_FINANCE_BOT_TOKEN")
+    chat_id = get_secret("TELEGRAM_FINANCE_CHAT_ID")
 
     if not bot_token or not chat_id:
         print("  [경고] 텔레그램 토큰/chat_id 미설정. 콘솔 출력만 진행.")
 
     # 이전 상태 로드
-    state = load_state()
+    state = load_state("breaking_news", default={"seen_links": [], "last_updated": None})
     seen_links = set(state.get("seen_links", []))
     print(f"  이전 본 뉴스: {len(seen_links)}건")
 
@@ -354,7 +288,10 @@ def main():
             seen_links.add(item["link"])
 
     # 저장
-    save_state(seen_links)
+    save_state("breaking_news", {
+        "seen_links": list(seen_links)[-500:],
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+    })
 
     print(f"\n{'=' * 60}")
     print(f"  긴급 뉴스 감지: {len(all_urgent)}건")
@@ -407,11 +344,11 @@ def main():
         if len(message) > 4000:
             message = message[:4000] + "\n\n... (추가 뉴스는 대시보드 참조)"
 
-        try:
-            telegram_send(bot_token, chat_id, message)
+        ok = send_message(message, disable_preview=False)
+        if ok:
             print(f"  텔레그램 전송 완료: {total_shown}건")
-        except Exception as e:
-            print(f"  [텔레그램 실패] {e}")
+        else:
+            print("  [텔레그램 실패]")
             return 1
     else:
         # 콘솔에만 출력

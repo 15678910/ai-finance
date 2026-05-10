@@ -45,7 +45,10 @@ import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
-import xml.etree.ElementTree as ET
+try:
+    from defusedxml import ElementTree as ET  # type: ignore
+except ImportError:
+    import xml.etree.ElementTree as ET  # XXE 위험. defusedxml 권장.
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
