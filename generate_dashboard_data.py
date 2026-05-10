@@ -1261,7 +1261,27 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 비트코인 본위제 데이터 로드 실패: {e}")
 
-    # 10.12) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
+    # 10.12) 분기 실적 리뷰 결과
+    er_path = os.path.join(os.path.dirname(output_path), "earnings_reviews.json")
+    if os.path.exists(er_path):
+        try:
+            with open(er_path, encoding="utf-8") as f:
+                output_data["earnings_reviews"] = json.load(f)
+            print("[INFO] 분기 실적 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 분기 실적 데이터 로드 실패: {e}")
+
+    # 10.13) DCF 평가 결과
+    dcf_path = os.path.join(os.path.dirname(output_path), "dcf_valuations.json")
+    if os.path.exists(dcf_path):
+        try:
+            with open(dcf_path, encoding="utf-8") as f:
+                output_data["dcf_valuations"] = json.load(f)
+            print("[INFO] DCF 평가 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] DCF 평가 데이터 로드 실패: {e}")
+
+    # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf
         refreshed = 0

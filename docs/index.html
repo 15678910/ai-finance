@@ -1889,6 +1889,108 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── EARNINGS REVIEWER (분기 실적) ─────────────────
+    const er = data.earnings_reviews;
+    if (er && er.reviews && er.reviews.length > 0) {
+      html += `<section class="section-wrap">
+        <div class="section-label" style="color:var(--cyan);">&#128202; 분기 실적 리뷰 <span style="font-size:0.65rem;color:var(--text-muted);">(${h(er.period_label || '')})</span></div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">`;
+
+      const fmtAmount = (amt) => {
+        if (amt == null) return 'N/A';
+        const a = Math.abs(amt);
+        if (a >= 1e12) return (amt / 1e12).toFixed(2) + '조';
+        if (a >= 1e8) return (amt / 1e8).toFixed(0) + '억';
+        return amt.toLocaleString('ko-KR') + '원';
+      };
+
+      er.reviews.forEach(r => {
+        const ratingColor = r.score >= 75 ? 'var(--green,#4ade80)' :
+                           r.score >= 60 ? 'var(--green,#4ade80)' :
+                           r.score >= 45 ? 'var(--amber,#fbbf24)' :
+                           r.score >= 30 ? 'var(--red,#f87171)' :
+                           'var(--red,#f87171)';
+        const yoyColor = (v) => v == null ? 'var(--text-muted)' : v > 10 ? 'var(--green)' : v > 0 ? 'var(--cyan)' : v < -10 ? 'var(--red)' : 'var(--amber)';
+
+        html += `<div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${ratingColor};">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <div>
+              <span style="font-size:1.0rem;font-weight:700;color:var(--text-bright);">${h(r.name)}</span>
+              <span style="font-size:0.7rem;color:var(--text-muted);margin-left:6px;font-family:var(--font-mono);">${r.stock_code}</span>
+            </div>
+            <div style="font-size:1.2rem;font-weight:700;color:${ratingColor};">${r.score}</div>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">${h(r.fs_div || 'N/A')} · ${h(r.rating || '')}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:0.75rem;margin-bottom:8px;">
+            <div>
+              <div style="color:var(--text-muted);font-size:0.7rem;">매출</div>
+              <div style="color:var(--text-bright);font-weight:600;">${fmtAmount(r.revenue_current)}</div>
+              <div style="color:${yoyColor(r.revenue_yoy_pct)};">YoY ${r.revenue_yoy_pct >= 0 ? '+' : ''}${r.revenue_yoy_pct ? r.revenue_yoy_pct.toFixed(1) : 'N/A'}%</div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.7rem;">영업이익</div>
+              <div style="color:var(--text-bright);font-weight:600;">${fmtAmount(r.operating_profit_current)}</div>
+              <div style="color:${yoyColor(r.operating_profit_yoy_pct)};">YoY ${r.operating_profit_yoy_pct >= 0 ? '+' : ''}${r.operating_profit_yoy_pct ? r.operating_profit_yoy_pct.toFixed(1) : 'N/A'}%</div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.7rem;">순이익</div>
+              <div style="color:var(--text-bright);font-weight:600;">${fmtAmount(r.net_income_current)}</div>
+              <div style="color:${yoyColor(r.net_income_yoy_pct)};">YoY ${r.net_income_yoy_pct >= 0 ? '+' : ''}${r.net_income_yoy_pct ? r.net_income_yoy_pct.toFixed(1) : 'N/A'}%</div>
+            </div>
+          </div>
+          ${r.signals?.length ? `<div style="font-size:0.72rem;color:var(--text);">${r.signals.slice(0,2).map(s => `&bull; ${h(s)}`).join('<br>')}</div>` : ''}
+        </div>`;
+      });
+
+      html += `</div>`;
+      html += `<div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">생성: ${h(er.generated_at || '')}</div>`;
+      html += `</section>`;
+    }
+
+    // ─── DCF VALUATIONS ─────────────────────────────────
+    const dcf = data.dcf_valuations;
+    if (dcf && dcf.valuations && dcf.valuations.length > 0) {
+      const a = dcf.assumptions || {};
+      html += `<section class="section-wrap">
+        <div class="section-label" style="color:var(--green,#4ade80);">&#128176; DCF 적정가 평가 <span style="font-size:0.65rem;color:var(--text-muted);">(현금흐름할인 모델)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(74,222,128,0.04);">
+          <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
+            가정: 무위험금리 ${a.risk_free_rate_pct?.toFixed(1) || '3.5'}% · 시장프리미엄 ${a.equity_risk_premium_pct?.toFixed(1) || '6.0'}% · 영구성장 ${a.terminal_growth_pct?.toFixed(1) || '2.0'}% · 추정 ${a.projection_years || 5}년
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">`;
+
+      dcf.valuations.forEach(v => {
+        const upColor = v.upside_pct > 30 ? 'var(--green,#4ade80)' :
+                        v.upside_pct > 15 ? 'var(--green,#4ade80)' :
+                        v.upside_pct > -15 ? 'var(--amber,#fbbf24)' :
+                        'var(--red,#f87171)';
+
+        html += `<div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${upColor};">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <div style="font-size:1.0rem;font-weight:700;color:var(--text-bright);">${h(v.name)}</div>
+            <div style="font-size:1.1rem;font-weight:700;color:${upColor};">${v.upside_pct >= 0 ? '+' : ''}${v.upside_pct.toFixed(1)}%</div>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">${h(v.signal || '')}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:0.78rem;margin-bottom:8px;">
+            <div><span style="color:var(--text-muted);">현재가</span> <b style="color:var(--text);">${v.current_price ? v.current_price.toLocaleString() : 'N/A'}원</b></div>
+            <div><span style="color:var(--text-muted);">적정가</span> <b style="color:${upColor};">${v.fair_price_dcf ? v.fair_price_dcf.toLocaleString() : 'N/A'}원</b></div>
+            <div><span style="color:var(--text-muted);">WACC</span> <b style="color:var(--text);">${v.wacc_pct ? v.wacc_pct.toFixed(2) : 'N/A'}%</b></div>
+            <div><span style="color:var(--text-muted);">성장률</span> <b style="color:var(--text);">${v.growth_rate_pct ? v.growth_rate_pct.toFixed(1) : 'N/A'}%</b></div>
+            <div><span style="color:var(--text-muted);">Beta</span> <b style="color:var(--text);">${v.beta != null ? v.beta : 'N/A'}</b></div>
+            <div><span style="color:var(--text-muted);">매출 CAGR</span> <b style="color:var(--text);">${v.revenue_cagr_pct != null ? v.revenue_cagr_pct.toFixed(1) + '%' : 'N/A'}</b></div>
+          </div>
+        </div>`;
+      });
+
+      html += `</div>`;
+      html += `<div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">생성: ${h(dcf.generated_at || '')}</div>`;
+      html += `</section>`;
+    }
+
     // ─── BITCOIN STANDARD MONITOR ──────────────────────
     const bs = data.bitcoin_standard;
     if (bs && bs.bts_score) {
