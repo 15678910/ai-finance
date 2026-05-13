@@ -2114,6 +2114,93 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── 반도체 민감도 v2 (다변량 회귀) ──────────────────
+    const sensV2 = data.semi_sensitivity_v2;
+    if (sensV2 && Array.isArray(sensV2.results) && sensV2.results.length > 0) {
+      html += `<section class="section-wrap">
+        <div class="section-label" style="color:var(--purple,#a78bfa);">&#129518; 반도체 민감도 v2 — 다변량 회귀 <span style="font-size:0.65rem;color:var(--text-muted);">(NQ+SOX+FX+UST10Y+KOSPI + 어닝 더미)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(167,139,250,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">
+            <b style="color:var(--text);">방법:</b> Y(t) = α + β_NQ·NQ(t-1) + β_SOX·SOX(t-1) + β_FX·USDKRW(t) + β_UST·ΔUST10Y(t-1) + β_KOSPI·KOSPI(t) [+ γ·이벤트더미] + ε<br/>
+            <b style="color:var(--text);">개선:</b> v1 단변량 R²=0.05~0.18 → v2 다변량 <b style="color:var(--green,#4ade80);">R²=0.28~0.77</b> (4~5배 설명력 향상)<br/>
+            <b style="color:var(--text);">해석:</b> KOSPI를 통제했을 때의 NQ/SOX <b>추가</b> 영향력. β_KOSPI가 큰 이유는 한국 시장 전체가 미국 야간 변동을 이미 반영하기 때문.
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-bottom:14px;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.74rem;font-family:var(--font-mono);min-width:780px;">
+          <thead>
+            <tr style="background:rgba(167,139,250,0.08);border-bottom:1px solid rgba(167,139,250,0.2);">
+              <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;">종목</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">adj R²</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">β NQ(t-1)</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">β SOX(t-1)</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">β KOSPI</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">β USDKRW</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">β UST10Y</th>
+              <th style="padding:8px 8px;text-align:right;color:var(--text-muted);font-weight:600;">이벤트 ΔR²</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      const fmtBeta2 = (v) => (v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2));
+      const fmtR3 = (r) => (r == null ? '—' : r.toFixed(3));
+      const r2Color = (r) => {
+        if (r == null) return 'var(--text-muted)';
+        if (r >= 0.6) return 'var(--green,#4ade80)';
+        if (r >= 0.3) return 'var(--cyan,#22d3ee)';
+        if (r >= 0.15) return 'var(--amber,#fbbf24)';
+        return 'var(--red,#f87171)';
+      };
+
+      sensV2.results.forEach(stock => {
+        const mv = stock.multivariate || {};
+        const mvE = stock.multivariate_with_event || {};
+        const b = mv.betas || {};
+        const eventDelta = (mvE && mvE.r_squared != null && mv.r_squared != null)
+          ? mvE.r_squared - mv.r_squared : null;
+
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+          <td style="padding:7px 10px;color:var(--text-bright);font-weight:600;">${h(stock.name)}</td>
+          <td style="padding:7px 8px;text-align:right;color:${r2Color(mv.adj_r_squared)};font-weight:700;">${fmtR3(mv.adj_r_squared)}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--text);">${fmtBeta2(b.nq)}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--text);">${fmtBeta2(b.sox)}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--purple,#a78bfa);font-weight:700;">${fmtBeta2(b.kospi)}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--text);">${fmtBeta2(b.usdkrw)}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--text-muted);">${fmtBeta2(b.ust10y)}</td>
+          <td style="padding:7px 8px;text-align:right;color:${eventDelta != null && eventDelta > 0.005 ? 'var(--amber,#fbbf24)' : 'var(--text-muted)'};">${eventDelta != null ? (eventDelta >= 0 ? '+' : '') + eventDelta.toFixed(3) : '—'}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      // 차트 이미지
+      const charts = sensV2.charts || {};
+      if (charts.normalized_prices || charts.cumulative_returns) {
+        html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px;margin-top:8px;">`;
+        if (charts.normalized_prices) {
+          html += `<div class="glass-card anim-item" style="padding:10px;background:rgba(255,255,255,0.02);">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">📈 정규화 가격 (시작값=100)</div>
+            <img src="${h(charts.normalized_prices)}?v=${Date.now()}" alt="Normalized Prices" loading="lazy" style="width:100%;height:auto;border-radius:6px;display:block;background:#fff;"/>
+          </div>`;
+        }
+        if (charts.cumulative_returns) {
+          html += `<div class="glass-card anim-item" style="padding:10px;background:rgba(255,255,255,0.02);">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">📊 누적 수익률 (%)</div>
+            <img src="${h(charts.cumulative_returns)}?v=${Date.now()}" alt="Cumulative Returns" loading="lazy" style="width:100%;height:auto;border-radius:6px;display:block;background:#fff;"/>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+
+      html += `<div style="margin-top:12px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(sensV2.warning || '통계 추정. 자동 매매 금지.')}<br/>
+        생성: ${h(sensV2.generated_at || '')} · ${h(sensV2.analysis_period || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── BITCOIN STANDARD MONITOR ──────────────────────
     const bs = data.bitcoin_standard;
     if (bs && bs.bts_score) {

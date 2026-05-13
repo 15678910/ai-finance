@@ -34,9 +34,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install yfinance pandas numpy
+          pip install yfinance pandas numpy matplotlib
 
-      - name: Run semi sensitivity analyzer
+      - name: Run semi sensitivity analyzer (v1 univariate)
         env:
           TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
           TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
@@ -44,20 +44,28 @@ jobs:
         run: |
           python semi_sensitivity_analyzer.py
 
+      - name: Run semi sensitivity analyzer v2 (multivariate + charts)
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python semi_sensitivity_v2.py
+
       - name: Commit results
         if: always()
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/semi_sensitivity.json 2>/dev/null || true
+          git add docs/semi_sensitivity.json docs/semi_sensitivity_v2.json docs/charts/semi_normalized.png docs/charts/semi_cumulative.png 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes"
             exit 0
           fi
 
-          git commit -m "Update semi sensitivity analysis [automated]"
+          git commit -m "Update semi sensitivity analysis v1+v2 [automated]"
 
           for i in 1 2 3 4 5; do
             if git push 2>/dev/null; then

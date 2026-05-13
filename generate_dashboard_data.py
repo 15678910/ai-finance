@@ -1281,7 +1281,7 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] DCF 평가 데이터 로드 실패: {e}")
 
-    # 10.13b) 반도체 민감도 분석 결과 (NQ/SOX → 한국 반도체 베타)
+    # 10.13b) 반도체 민감도 분석 결과 (NQ/SOX → 한국 반도체 베타, v1 단변량)
     sens_path = os.path.join(os.path.dirname(output_path), "semi_sensitivity.json")
     if os.path.exists(sens_path):
         try:
@@ -1290,6 +1290,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
             print("[INFO] 반도체 민감도 데이터 병합 완료")
         except Exception as e:
             print(f"[WARN] 반도체 민감도 데이터 로드 실패: {e}")
+
+    # 10.13c) 반도체 민감도 v2 (다변량 회귀 + 이벤트 더미)
+    sens_v2_path = os.path.join(os.path.dirname(output_path), "semi_sensitivity_v2.json")
+    if os.path.exists(sens_v2_path):
+        try:
+            with open(sens_v2_path, encoding="utf-8") as f:
+                output_data["semi_sensitivity_v2"] = json.load(f)
+            print("[INFO] 반도체 민감도 v2 (다변량) 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 반도체 민감도 v2 데이터 로드 실패: {e}")
 
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
