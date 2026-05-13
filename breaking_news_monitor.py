@@ -37,6 +37,8 @@ RSS_FEEDS = [
     {"name": "연합뉴스(국제)", "url": "https://www.yna.co.kr/rss/international.xml", "lang": "ko"},
     # when:1d = 최근 1일 이내 뉴스만
     {"name": "Google News(경제)", "url": "https://news.google.com/rss/search?q=%EA%B8%B4%EA%B8%89+%EA%B2%BD%EC%A0%9C+%EC%86%8D%EB%B3%B4+when%3A1d&hl=ko&gl=KR&ceid=KR:ko", "lang": "ko"},
+    # 이공계 석박사 전문 기술 분석 (반도체, AI, 바이오, 핵융합 등)
+    {"name": "Heisenberg(기술분석)", "url": "https://heisenberg.kr/feed/", "lang": "ko"},
 ]
 
 # ====================================================================
@@ -84,6 +86,15 @@ URGENT_KEYWORDS = {
                "스테이블코인 규제", "컴퓨트 달러", "전략 비트코인",
                "디지털 달러", "비트코인 법안", "암호화폐 패권",
                "비트코인 국가", "스테이블코인 의무"],
+    },
+    "기술_트렌드": {
+        "en": ["token shortage", "HBM shortage", "EUV", "foundry capacity",
+               "CXL memory", "quantum supremacy", "fusion ignition",
+               "humanoid robot", "virtual cell", "foundation model"],
+        "ko": ["토큰 쇼티지", "HBM 부족", "파운드리 증설", "EUV",
+               "양자컴퓨터 상용화", "핵융합 점화", "토카막",
+               "휴머노이드", "가상세포", "파운데이션 모델",
+               "AI 인프라", "GPU 부족"],
     },
 }
 
