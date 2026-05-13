@@ -1281,6 +1281,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] DCF 평가 데이터 로드 실패: {e}")
 
+    # 10.13b) 반도체 민감도 분석 결과 (NQ/SOX → 한국 반도체 베타)
+    sens_path = os.path.join(os.path.dirname(output_path), "semi_sensitivity.json")
+    if os.path.exists(sens_path):
+        try:
+            with open(sens_path, encoding="utf-8") as f:
+                output_data["semi_sensitivity"] = json.load(f)
+            print("[INFO] 반도체 민감도 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 반도체 민감도 데이터 로드 실패: {e}")
+
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf

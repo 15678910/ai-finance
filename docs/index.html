@@ -2023,6 +2023,97 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── 반도체 민감도 (NQ/SOX → 한국 반도체) ──────────────
+    const sens = data.semi_sensitivity;
+    if (sens && Array.isArray(sens.results) && sens.results.length > 0) {
+      html += `<section class="section-wrap">
+        <div class="section-label" style="color:var(--cyan,#22d3ee);">&#128202; 반도체 민감도 분석 <span style="font-size:0.65rem;color:var(--text-muted);">(미국 → 한국 베타, T-1일 lag OLS)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(34,211,238,0.04);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;">
+            <b style="color:var(--text);">해석:</b> β=1.0 이면 미국 ±1% 변동 시 한국 ±1% 동조 변동. β&gt;1 = 증폭(고민감), β&lt;1 = 둔감. R²은 설명력(0~1).<br/>
+            <b style="color:var(--text);">방법:</b> 최근 1년 일별 수익률 OLS — Y(한국, t일) = α + β × X(미국, t-1일).
+            미국 종가가 한국 다음 날 개장에 반영되는 시간 차이 보정.
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-bottom:8px;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.78rem;font-family:var(--font-mono);min-width:640px;">
+          <thead>
+            <tr style="background:rgba(34,211,238,0.08);border-bottom:1px solid rgba(34,211,238,0.2);">
+              <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;">종목</th>
+              <th style="padding:8px 10px;text-align:right;color:var(--text-muted);font-weight:600;">NQ선물 β</th>
+              <th style="padding:8px 10px;text-align:right;color:var(--text-muted);font-weight:600;">NQ R²</th>
+              <th style="padding:8px 10px;text-align:right;color:var(--text-muted);font-weight:600;">SOX β</th>
+              <th style="padding:8px 10px;text-align:right;color:var(--text-muted);font-weight:600;">SOX R²</th>
+              <th style="padding:8px 10px;text-align:right;color:var(--text-muted);font-weight:600;">ES선물 β</th>
+              <th style="padding:8px 10px;text-align:right;color:var(--text-muted);font-weight:600;">민감도</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      const betaColor = (b) => {
+        if (b == null) return 'var(--text-muted)';
+        const a = Math.abs(b);
+        if (a > 1.5) return 'var(--red,#f87171)';
+        if (a > 1.0) return 'var(--amber,#fbbf24)';
+        if (a > 0.5) return 'var(--cyan,#22d3ee)';
+        return 'var(--green,#4ade80)';
+      };
+      const fmtBeta = (b) => (b == null ? '—' : (b >= 0 ? '+' : '') + b.toFixed(2));
+      const fmtR2 = (r) => (r == null ? '—' : r.toFixed(2));
+
+      sens.results.forEach(stock => {
+        const bm = stock.benchmarks || {};
+        const nq = bm.nq || {};
+        const sox = bm.sox || {};
+        const es = bm.es || {};
+        // 대표 민감도: SOX 우선 (반도체 직접), 없으면 NQ
+        const primaryBeta = sox.beta != null ? sox.beta : nq.beta;
+        const primaryLevel = (sox.interpretation && sox.interpretation.level) || (nq.interpretation && nq.interpretation.level) || '—';
+
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+          <td style="padding:7px 10px;color:var(--text-bright);font-weight:600;">${h(stock.name)}</td>
+          <td style="padding:7px 10px;text-align:right;color:${betaColor(nq.beta)};font-weight:600;">${fmtBeta(nq.beta)}</td>
+          <td style="padding:7px 10px;text-align:right;color:var(--text-muted);">${fmtR2(nq.r_squared)}</td>
+          <td style="padding:7px 10px;text-align:right;color:${betaColor(sox.beta)};font-weight:600;">${fmtBeta(sox.beta)}</td>
+          <td style="padding:7px 10px;text-align:right;color:var(--text-muted);">${fmtR2(sox.r_squared)}</td>
+          <td style="padding:7px 10px;text-align:right;color:${betaColor(es.beta)};">${fmtBeta(es.beta)}</td>
+          <td style="padding:7px 10px;text-align:right;color:${betaColor(primaryBeta)};font-size:0.72rem;">${h(primaryLevel)}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      // 시나리오 예측 (SOX +1% 기준)
+      html += `<div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">
+        <b style="color:var(--text);">📈 시나리오 (SOX ±1% / ±3% 변동 시 예상 한국 변동)</b>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">`;
+      sens.results.forEach(stock => {
+        const sox = (stock.benchmarks && stock.benchmarks.sox) || {};
+        const impact = sox.impact || {};
+        if (sox.beta == null) return;
+        const c = betaColor(sox.beta);
+        html += `<div class="glass-card anim-item" style="padding:9px 12px;border-left:2px solid ${c};">
+          <div style="font-size:0.78rem;font-weight:600;color:var(--text-bright);margin-bottom:4px;">${h(stock.name)}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5;">
+            SOX +1% → <b style="color:var(--green,#4ade80);">${impact.up_1pct != null ? (impact.up_1pct >= 0 ? '+' : '') + impact.up_1pct.toFixed(2) + '%' : '—'}</b><br/>
+            SOX -1% → <b style="color:var(--red,#f87171);">${impact.down_1pct != null ? (impact.down_1pct >= 0 ? '+' : '') + impact.down_1pct.toFixed(2) + '%' : '—'}</b><br/>
+            SOX +3% → <b style="color:var(--green,#4ade80);">${impact.up_3pct != null ? (impact.up_3pct >= 0 ? '+' : '') + impact.up_3pct.toFixed(2) + '%' : '—'}</b><br/>
+            SOX -3% → <b style="color:var(--red,#f87171);">${impact.down_3pct != null ? (impact.down_3pct >= 0 ? '+' : '') + impact.down_3pct.toFixed(2) + '%' : '—'}</b>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+
+      html += `<div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(sens.warning || '시뮬레이션. 자동 매매 금지.')}<br/>
+        생성: ${h(sens.generated_at || '')} · ${h(sens.analysis_period || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── BITCOIN STANDARD MONITOR ──────────────────────
     const bs = data.bitcoin_standard;
     if (bs && bs.bts_score) {
