@@ -1332,6 +1332,14 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     except Exception as e:
         print(f"[WARN] 섹터 데이터 최신화 실패: {e}")
 
+    # 10.98) date 필드를 generated_at의 날짜로 동기화 (실시간 갱신 시 데이터 정합성)
+    gen_at = output_data.get("generated_at", "")
+    if gen_at and " " in gen_at:
+        new_date = gen_at.split(" ")[0]
+        if output_data.get("date") != new_date:
+            output_data["date"] = new_date
+            print(f"[INFO] date 동기화: {new_date}")
+
     # 10.99) NaN/Infinity → None 변환 (JavaScript JSON.parse 호환)
     def _clean_nan(obj):
         import math
