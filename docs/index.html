@@ -2254,19 +2254,26 @@ body::before {
         </div>`;
       }
 
-      // 최근 뉴스
+      // 최근 뉴스 (한국어 우선 + 원문 보조)
       const news = clarity.recent_news || [];
       if (news.length > 0) {
         html += `<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">
-          <b style="color:var(--text);">📰 최근 입법 뉴스 (CoinDesk · The Block · Decrypt — 키워드 매칭)</b>
+          <b style="color:var(--text);">📰 최근 입법 뉴스 (CoinDesk · The Block · Decrypt — 자동 한국어 번역)</b>
         </div>
         <div style="display:grid;grid-template-columns:1fr;gap:8px;">`;
         news.slice(0, 10).forEach(n => {
+          const titleKo = n.title_ko;
+          const titleEn = n.title || '';
+          const summaryKo = n.summary_ko;
+          const summaryEn = n.summary || '';
+          const hasKoTitle = !!titleKo;
+          const hasKoSummary = !!summaryKo;
           html += `<div class="glass-card anim-item" style="padding:9px 12px;">
             <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
-              <div style="flex:1;">
-                <a href="${h(n.link || '#')}" target="_blank" rel="noopener" style="color:var(--text-bright);font-size:0.82rem;font-weight:600;text-decoration:none;line-height:1.4;">${h(n.title || '')}</a>
-                ${n.summary ? `<div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;line-height:1.5;">${h(n.summary.substring(0, 200))}${n.summary.length > 200 ? '…' : ''}</div>` : ''}
+              <div style="flex:1;min-width:0;">
+                <a href="${h(n.link || '#')}" target="_blank" rel="noopener" style="color:var(--text-bright);font-size:0.85rem;font-weight:600;text-decoration:none;line-height:1.45;display:block;">${h(hasKoTitle ? titleKo : titleEn)}</a>
+                ${hasKoTitle ? `<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;font-style:italic;opacity:0.7;">🇺🇸 ${h(titleEn)}</div>` : ''}
+                ${(hasKoSummary || summaryEn) ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:5px;line-height:1.5;">${h((hasKoSummary ? summaryKo : summaryEn).substring(0, 220))}${(hasKoSummary ? summaryKo : summaryEn).length > 220 ? '…' : ''}</div>` : ''}
               </div>
               <div style="flex-shrink:0;text-align:right;">
                 <div style="font-size:0.65rem;color:var(--orange,#fb923c);font-weight:600;">${h(n.source || '')}</div>

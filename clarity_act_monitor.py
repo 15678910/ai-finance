@@ -134,6 +134,50 @@ def http_get(url: str, headers: dict | None = None, timeout: int = TIMEOUT_SEC) 
 
 
 # ====================================================================
+# 영어 → 한국어 자동 번역 (Google Translate 무료 endpoint)
+# ====================================================================
+def translate_to_korean(text: str, max_chars: int = 1500) -> str | None:
+    """영어 → 한국어. Google Translate 무료(unauthenticated) endpoint 사용.
+
+    구조: https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=...
+    응답: [[["번역결과", "원문", null, null, ...], ...], ...]
+
+    Returns:
+        번역된 한국어 (성공 시) / None (실패 시 — 호출부에서 원문 사용)
+    """
+    if not text or not text.strip():
+        return None
+    text = text.strip()
+    if len(text) > max_chars:
+        text = text[:max_chars]
+
+    try:
+        params = {
+            "client": "gtx",
+            "sl": "en",
+            "tl": "ko",
+            "dt": "t",
+            "q": text,
+        }
+        url = "https://translate.googleapis.com/translate_a/single?" + urllib.parse.urlencode(params)
+        raw = http_get(url, headers={"Accept": "application/json"}, timeout=10)
+        data = json.loads(raw.decode("utf-8"))
+        # 응답 구조 검증
+        if not isinstance(data, list) or not data or not isinstance(data[0], list):
+            return None
+        segments = data[0]
+        translated_parts = []
+        for seg in segments:
+            if isinstance(seg, list) and seg and isinstance(seg[0], str):
+                translated_parts.append(seg[0])
+        result = "".join(translated_parts).strip()
+        return result if result else None
+    except Exception as e:
+        # 무료 endpoint는 가끔 429/503 — 조용히 실패하고 원문 사용
+        return None
+
+
+# ====================================================================
 # 법안 상태 조회 — Congress.gov API (1차) / GovTrack (2차 폴백)
 # ====================================================================
 # Congress.gov "latestAction"에서 우리가 "주요 이벤트"로 간주할 패턴
@@ -326,10 +370,21 @@ def parse_rss_items(xml_bytes: bytes) -> list:
     return items
 
 
-def fetch_rss_legislation_news(state: dict) -> list:
-    """RSS에서 법안 관련 신규 뉴스 추출. 이미 알린 guid는 제외."""
+def fetch_rss_legislation_news(state: dict) -> tuple[list, list]:
+    """RSS에서 법안 관련 뉴스 추출 + 한국어 자동 번역.
+
+    Returns:
+        (all_matched, new_for_alert)
+          - all_matched: 이번 실행 매칭된 모든 뉴스 (대시보드용, 번역 포함)
+          - new_for_alert: 이전에 알리지 않은 신규만 (텔레그램용)
+
+    번역 캐시: state['translations'][guid] = {title_ko, summary_ko}
+      동일 기사 재번역 방지 (Google Translate 무료 endpoint rate limit 회피).
+    """
     alerted_guids = set(state.get("alerted_news_guids", []))
-    new_news = []
+    translation_cache = state.get("translations", {})
+    all_matched = []
+    new_for_alert = []
 
     for feed in CRYPTO_LEG_FEEDS:
         print(f"  RSS: {feed['name']}...")
@@ -340,24 +395,51 @@ def fetch_rss_legislation_news(state: dict) -> list:
             continue
 
         items = parse_rss_items(raw)
-        matched = 0
+        feed_matched = 0
+        feed_new = 0
         for it in items:
             haystack = f"{it['title']} {it['summary']}"
             kw = matches_legislation(haystack)
             if not kw:
                 continue
-            if it["guid"] in alerted_guids:
-                continue
+
             it["matched_keyword"] = kw
             it["source"] = feed["name"]
-            new_news.append(it)
-            alerted_guids.add(it["guid"])
-            matched += 1
-        print(f"    {len(items)}건 중 법안 관련 신규 {matched}건")
 
-    # state 갱신 (alerted_guids 트림 — 최대 500개)
+            guid = it["guid"]
+            # 번역 (캐시 우선)
+            if guid in translation_cache:
+                it["title_ko"] = translation_cache[guid].get("title_ko")
+                it["summary_ko"] = translation_cache[guid].get("summary_ko")
+            else:
+                title_ko = translate_to_korean(it["title"])
+                summary_ko = translate_to_korean(it["summary"]) if it.get("summary") else None
+                it["title_ko"] = title_ko
+                it["summary_ko"] = summary_ko
+                translation_cache[guid] = {
+                    "title_ko": title_ko,
+                    "summary_ko": summary_ko,
+                }
+
+            all_matched.append(it)
+            feed_matched += 1
+
+            if guid not in alerted_guids:
+                new_for_alert.append(it)
+                alerted_guids.add(guid)
+                feed_new += 1
+
+        print(f"    {len(items)}건 중 매칭 {feed_matched}건 (신규 {feed_new}건)")
+
+    # state 갱신
     state["alerted_news_guids"] = list(alerted_guids)[-500:]
-    return new_news
+    # 번역 캐시 트림 (최근 500개만)
+    if len(translation_cache) > 500:
+        recent_keys = list(translation_cache.keys())[-500:]
+        translation_cache = {k: translation_cache[k] for k in recent_keys}
+    state["translations"] = translation_cache
+
+    return all_matched, new_for_alert
 
 
 # ====================================================================
@@ -390,10 +472,14 @@ def format_bill_change_alert(bill: dict, prev: dict | None, curr: dict) -> str:
 
 
 def format_news_digest(news: list) -> str:
-    """RSS 법안 뉴스 다이제스트."""
+    """RSS 법안 뉴스 다이제스트 — 한국어 우선 표시."""
     lines = ["📰 암호화폐 입법 뉴스 (법안 관련 키워드 매칭)", "=" * 30, ""]
     for n in news[:8]:  # 한 메시지에 최대 8건
-        lines.append(f"🔸 [{n['source']}] {n['title']}")
+        title_display = n.get("title_ko") or n.get("title", "")
+        lines.append(f"🔸 [{n['source']}] {title_display}")
+        # 한국어 번역이 있으면 원문도 작게 표시
+        if n.get("title_ko"):
+            lines.append(f"    🇺🇸 {n['title']}")
         if n.get("matched_keyword"):
             lines.append(f"   키워드: {n['matched_keyword']}")
         if n.get("link"):
@@ -469,11 +555,11 @@ def main():
             "is_alive": curr.get("is_alive"),
         })
 
-    # 2) RSS 뉴스 추적
-    print("\n[암호화폐 입법 뉴스 RSS — 키워드 필터]")
-    news = fetch_rss_legislation_news(state)
-    if news:
-        alerts_to_send.append(format_news_digest(news))
+    # 2) RSS 뉴스 추적 + 한국어 번역
+    print("\n[암호화폐 입법 뉴스 RSS — 키워드 필터 + 한국어 번역]")
+    all_news, new_news = fetch_rss_legislation_news(state)
+    if new_news:
+        alerts_to_send.append(format_news_digest(new_news))
 
     # 3) 알림 발송
     print(f"\n[알림 발송] {len(alerts_to_send)}건")
@@ -492,11 +578,12 @@ def main():
         "tracked_bills_count": len(bill_results),
         "alerts_sent_this_run": len(alerts_to_send),
         "bills": bill_results,
-        "recent_news": news[:20],  # 최근 20건 대시보드용
+        "recent_news": all_news[:20],  # 매칭된 모든 뉴스 (번역 포함) 대시보드용
         "status_legend": {code: label for code, (_, label) in MAJOR_STATUS_CODES.items()},
         "data_sources": [
             "GovTrack API (www.govtrack.us/developers/api)",
             "CoinDesk RSS", "The Block RSS", "Decrypt RSS",
+            "Google Translate (자동 한국어 번역)",
         ],
         "frequency": "4시간 (GH Actions cron)",
         "warning": "🚨 정보 모니터링 도구. 투자 결정에 단독 사용 금지.",
@@ -508,7 +595,7 @@ def main():
     print(f"\n  결과 저장: {OUTPUT_FILE}")
 
     print("\n" + "=" * 70)
-    print(f"  완료: 법안 {len(bill_results)}개 · 뉴스 신규 {len(news)}건 · 알림 {len(alerts_to_send)}건")
+    print(f"  완료: 법안 {len(bill_results)}개 · 매칭 {len(all_news)}건 (신규 {len(new_news)}건) · 알림 {len(alerts_to_send)}건")
     print("=" * 70)
 
 
