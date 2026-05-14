@@ -2899,8 +2899,9 @@ body::before {
 
         <div class="glass-card anim-item" style="border:2px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.04);padding:12px;margin-bottom:14px;">
           <div style="font-size:0.85rem;color:var(--red,#f87171);font-weight:600;">&#128680; 시뮬레이션/분석용 - 자동 매매 절대 금지</div>
-          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
-            가치점수 = 밸류에이션(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%) · 시가총액 1000억 미만 / ROE 음수 / 부채비율 300% 초과 자동 제외
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;line-height:1.6;">
+            가치점수 = 밸류에이션(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%) · 시총 1000억 미만 / ROE 음수 / 부채비율 300% 초과 자동 제외<br/>
+            <b style="color:var(--purple,#a78bfa);">📈 기대 IRR</b>: Gordon 모델(IRR ≈ 배당수익률 + 영구성장률) — 무배당주는 Earnings Yield(1/PER). 영구성장률 ±8% 캡, 무위험금리 한국 국고채 10년 ~3.5% 가정.
           </div>
         </div>
 
@@ -2935,6 +2936,22 @@ body::before {
             <div style="white-space:nowrap;"><span style="color:var(--text-muted);">매출성장</span> <b style="color:${m.revenue_growth_pct && m.revenue_growth_pct > 5 ? 'var(--green)' : 'var(--text)'};">${m.revenue_growth_pct != null ? m.revenue_growth_pct + '%' : 'N/A'}</b></div>
             <div style="white-space:nowrap;"><span style="color:var(--text-muted);">배당</span> <b style="color:var(--text);">${m.dividend_yield_pct != null ? m.dividend_yield_pct + '%' : 'N/A'}</b></div>
           </div>
+          ${(() => {
+            const irr = stock.irr || {};
+            if (irr.primary_irr_pct == null) return '';
+            const p = irr.primary_irr_pct;
+            const sp = irr.risk_premium_pct;
+            const irrColor = p >= 10 ? 'var(--green,#4ade80)' : p >= 7 ? 'var(--cyan,#22d3ee)' : p >= 4 ? 'var(--amber,#fbbf24)' : 'var(--red,#f87171)';
+            const methodLabel = irr.irr_method === 'gordon' ? 'Gordon(배당+성장)' : irr.irr_method === 'earnings_yield' ? 'Earnings Yield(1/PER)' : '기타';
+            return `<div style="background:rgba(167,139,250,0.06);border-left:2px solid var(--purple,#a78bfa);padding:6px 10px;margin-bottom:8px;border-radius:3px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:0.75rem;">
+                <span style="color:var(--text-muted);">📈 기대 IRR <span style="font-size:0.6rem;">(${methodLabel})</span></span>
+                <span><b style="color:${irrColor};font-size:0.9rem;">${p}%</b>
+                  ${sp != null ? `<span style="color:var(--text-muted);font-size:0.65rem;margin-left:4px;">(무위험 +${sp}%pt)</span>` : ''}
+                </span>
+              </div>
+            </div>`;
+          })()}
           <div style="display:flex;gap:4px;font-size:0.65rem;flex-wrap:wrap;">
             <span style="background:rgba(74,222,128,0.1);color:var(--green);padding:2px 6px;border-radius:3px;">밸류 ${sc.valuation_score}</span>
             <span style="background:rgba(6,182,212,0.1);color:var(--cyan);padding:2px 6px;border-radius:3px;">수익 ${sc.quality_score}</span>
@@ -2981,6 +2998,19 @@ body::before {
               <div style="white-space:nowrap;"><span style="color:var(--text-muted);">매출성장</span> <b style="color:${m.revenue_growth_pct && m.revenue_growth_pct > 5 ? 'var(--green)' : m.revenue_growth_pct < 0 ? 'var(--red)' : 'var(--text)'};">${m.revenue_growth_pct != null ? m.revenue_growth_pct + '%' : 'N/A'}</b></div>
               <div style="white-space:nowrap;"><span style="color:var(--text-muted);">배당</span> <b style="color:var(--text);">${m.dividend_yield_pct != null ? m.dividend_yield_pct + '%' : 'N/A'}</b></div>
             </div>
+            ${(() => {
+              const irr = stock.irr || {};
+              if (irr.primary_irr_pct == null) return '';
+              const p = irr.primary_irr_pct;
+              const sp = irr.risk_premium_pct;
+              const irrColor = p >= 10 ? 'var(--green,#4ade80)' : p >= 7 ? 'var(--cyan,#22d3ee)' : p >= 4 ? 'var(--amber,#fbbf24)' : 'var(--red,#f87171)';
+              const methodLabel = irr.irr_method === 'gordon' ? 'Gordon' : irr.irr_method === 'earnings_yield' ? 'EY(1/PER)' : '—';
+              return `<div style="background:rgba(167,139,250,0.06);border-left:2px solid var(--purple,#a78bfa);padding:6px 10px;margin-bottom:8px;border-radius:3px;font-size:0.72rem;">
+                <span style="color:var(--text-muted);">📈 IRR(${methodLabel})</span>
+                <b style="color:${irrColor};margin-left:6px;">${p}%</b>
+                ${sp != null ? `<span style="color:var(--text-muted);font-size:0.6rem;margin-left:4px;">스프레드 +${sp}%pt</span>` : ''}
+              </div>`;
+            })()}
             ${stock.filter_passed === false ? `<div style="font-size:0.7rem;color:var(--amber,#fbbf24);margin-bottom:6px;">&#9888;&#65039; 필터: ${h(stock.filter_reason || '')}</div>` : ''}
             <div style="display:flex;gap:4px;font-size:0.65rem;flex-wrap:wrap;">
               <span style="background:rgba(74,222,128,0.1);color:var(--green);padding:2px 6px;border-radius:3px;">밸류 ${sc.valuation_score}</span>

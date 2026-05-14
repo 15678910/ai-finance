@@ -261,6 +261,133 @@ def fetch_yfinance_data(ticker: str) -> dict:
 # ====================================================================
 # 가치 점수 계산
 # ====================================================================
+# ====================================================================
+# yfinance 데이터 형식 헬퍼
+# ====================================================================
+def normalize_dividend_yield(raw):
+    """yfinance dividendYield → 소수 변환 (0~1).
+
+    배경: yfinance 최근 버전(0.2.40+)은 dividendYield를 % 포맷으로 반환
+      예: 0.52 = 0.52%, 5.0 = 5.0%
+    이전 버전은 decimal 포맷 (0.005 = 0.5%, 0.05 = 5%)
+    구분 규칙:
+      - raw > 0.3: 비현실적 decimal(30%+ 배당) → % 포맷으로 간주, /100
+      - raw <= 0.3: 둘 다 가능. 안전하게 % 포맷 가정 (/100)
+        (decimal 가정 시 0.05를 5%로 해석 — 너무 큰 값으로 평가 위험)
+    """
+    if raw is None:
+        return None
+    return raw / 100.0
+
+
+def cap_growth_rate(raw, lo=-0.30, hi=0.50):
+    """성장률 캡: 비정상 값 필터.
+
+    이유: yfinance의 earningsGrowth는 전년 동기 대비 — 손익 적자/흑자 전환 시
+      비정상적으로 큰 값(예: 4.96 = +496%) 또는 음수 폭발 발생.
+    """
+    if raw is None:
+        return None
+    if raw > hi or raw < lo:
+        return None  # 신뢰 불가
+    return raw
+
+
+# ====================================================================
+# IRR (Internal Rate of Return) 추정
+# ====================================================================
+# 한국 국고채 10년 수익률 기준 (변동 시 갱신 가능). 무위험금리 프록시.
+RISK_FREE_RATE_KR = 0.035
+
+def calculate_irr_metrics(yf_data: dict) -> dict:
+    """주식 IRR (기대 연수익률) 추정.
+
+    3가지 방법으로 계산 후 가장 적합한 값을 primary로 선택:
+      1. Gordon Growth IRR: IRR = 배당수익률 + 영구성장률 (배당주 적합)
+      2. Earnings Yield: IRR ≈ 1/PER (무배당/저배당 종목 프록시)
+      3. 종합 추정: 배당주는 Gordon, 무배당은 Earnings Yield
+
+    영구성장률(g) 추정:
+      - revenue_growth / earnings_growth 평균
+      - 8% 상단 캡 (GDP 성장률 한도), -5% 하단 플로어 (회복 가능)
+      - 데이터 부족 시 ROE × (1 - 배당성향) 의 지속가능성장률 모형
+      - 모두 없으면 디폴트 3%
+
+    한국 시장 특수성:
+      - 코리아 디스카운트 ~30~40% → 위험 프리미엄 상향 권장 (+1~2%p)
+      - 배당성향 평균 25% (미국 40%+ 대비 낮음)
+      - 본 함수는 Raw IRR 반환, 디스카운트 보정은 호출부에서 처리
+    """
+    # yfinance dividendYield는 최근 버전에서 % 포맷 (0.52 = 0.52%)
+    div_yield = normalize_dividend_yield(yf_data.get("dividend_yield"))
+
+    trailing_pe = yf_data.get("trailing_pe")
+    forward_pe = yf_data.get("forward_pe")
+    pe = trailing_pe or forward_pe
+
+    # 성장률 캡 (저기저 효과로 인한 비정상 값 필터)
+    revenue_growth = cap_growth_rate(yf_data.get("revenue_growth"))
+    earnings_growth = cap_growth_rate(yf_data.get("earnings_growth"))
+    roe = yf_data.get("roe")
+
+    # ─── 영구성장률(g) 추정 ───────────────────────────
+    growth_candidates = []
+    if revenue_growth is not None:
+        growth_candidates.append(revenue_growth)
+    if earnings_growth is not None:
+        growth_candidates.append(earnings_growth)
+
+    if growth_candidates:
+        avg_growth = sum(growth_candidates) / len(growth_candidates)
+        # 한국 명목 GDP 성장률 ~4-5% 수준 → 영구 8% 상단 캡
+        # (단기 호황 cyclical 효과를 영구로 가정 금지)
+        g = max(min(avg_growth, 0.08), -0.05)
+        g_source = "revenue/earnings growth (capped 8%)"
+    elif roe is not None and div_yield is not None and pe and pe > 0:
+        # 지속가능성장률 모델: g = ROE × (1 - 배당성향)
+        payout_ratio = min(max(div_yield * pe, 0), 1.0)
+        g = max(min(roe * (1 - payout_ratio), 0.08), 0.01)
+        g_source = "sustainable growth (ROE × retention)"
+    else:
+        g = 0.03
+        g_source = "default 3%"
+
+    # ─── Gordon Growth IRR ──────────────────────────
+    gordon_irr = None
+    if div_yield and div_yield > 0.001:  # 0.1% 이상 배당 시
+        gordon_irr = div_yield + g
+
+    # ─── Earnings Yield (PER 역수) ───────────────────
+    earnings_yield = None
+    if pe and pe > 0:
+        earnings_yield = 1 / pe
+
+    # ─── 종합 (primary IRR 선택) ─────────────────────
+    if gordon_irr is not None:
+        primary_irr = gordon_irr
+        method = "gordon"
+    elif earnings_yield is not None:
+        primary_irr = earnings_yield
+        method = "earnings_yield"
+    else:
+        primary_irr = None
+        method = None
+
+    # 무위험금리 대비 스프레드
+    spread = (primary_irr - RISK_FREE_RATE_KR) if primary_irr is not None else None
+
+    return {
+        "gordon_irr_pct": round(gordon_irr * 100, 2) if gordon_irr is not None else None,
+        "earnings_yield_pct": round(earnings_yield * 100, 2) if earnings_yield is not None else None,
+        "implied_growth_pct": round(g * 100, 2),
+        "growth_source": g_source,
+        "primary_irr_pct": round(primary_irr * 100, 2) if primary_irr is not None else None,
+        "irr_method": method,
+        "risk_premium_pct": round(spread * 100, 2) if spread is not None else None,
+        "risk_free_rate_pct": round(RISK_FREE_RATE_KR * 100, 2),
+    }
+
+
 def score_per(per: float) -> float:
     """PER 점수 (낮을수록 높은 점수)."""
     if per is None or per <= 0:
@@ -351,18 +478,21 @@ def score_growth(growth: float) -> float:
         return 100
 
 
-def score_dividend(div_yield: float) -> float:
-    """배당수익률 점수 (높을수록 높은 점수). div_yield는 소수."""
-    if div_yield is None or div_yield < 0:
+def score_dividend(div_yield_pct: float) -> float:
+    """배당수익률 점수 (높을수록 높은 점수).
+
+    입력: 배당수익률 (% 단위, yfinance 0.2.40+ 포맷)
+      예: 0.52 = 0.52%, 5.0 = 5.0%
+    """
+    if div_yield_pct is None or div_yield_pct < 0:
         return 30
-    div_pct = div_yield * 100 if div_yield < 1 else div_yield
-    if div_pct < 1:
+    if div_yield_pct < 1:
         return 20
-    elif div_pct < 2:
+    elif div_yield_pct < 2:
         return 50
-    elif div_pct < 4:
+    elif div_yield_pct < 4:
         return 80
-    elif div_pct < 6:
+    elif div_yield_pct < 6:
         return 95
     else:
         return 100
@@ -449,6 +579,9 @@ def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
     # 함정 필터
     passed, reason = value_trap_filter(yf_data)
 
+    # IRR (기대 연수익률) 추정
+    irr = calculate_irr_metrics(yf_data)
+
     # 결과 조립
     result = {
         "ticker": ticker.replace(".KS", "").replace(".KQ", ""),
@@ -465,9 +598,10 @@ def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
             "roe_pct": round(yf_data["roe"] * 100, 2) if yf_data.get("roe") else None,
             "operating_margin_pct": round(yf_data["operating_margin"] * 100, 2) if yf_data.get("operating_margin") else None,
             "debt_to_equity": round(yf_data["debt_to_equity"], 0) if yf_data.get("debt_to_equity") else None,
-            "dividend_yield_pct": round(yf_data["dividend_yield"] * 100, 2) if yf_data.get("dividend_yield") and yf_data["dividend_yield"] < 1 else (yf_data.get("dividend_yield") or None),
+            "dividend_yield_pct": round(yf_data["dividend_yield"], 2) if yf_data.get("dividend_yield") is not None else None,
             "revenue_growth_pct": round(yf_data["revenue_growth"] * 100, 2) if yf_data.get("revenue_growth") else None,
         },
+        "irr": irr,
         "scores": score,
         "filter_passed": passed,
         "filter_reason": reason,
