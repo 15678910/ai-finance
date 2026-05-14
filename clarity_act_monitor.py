@@ -72,25 +72,25 @@ TRACKED_BILLS = [
     # 추가 가능: Lummis-Gillibrand 재발의 시 등록
 ]
 
-# GovTrack 상태 코드 매핑 — "주요 이벤트" 여부
+# 상태 코드 매핑 — "주요 이벤트" 여부 (emoji, label_kr 순)
 # https://www.govtrack.us/developers/api → BillStatus
 MAJOR_STATUS_CODES = {
-    "reported": ("위원회 표결 통과", "🟡"),
-    "pass_over_house": ("하원 본회의 통과", "🟢"),
-    "pass_over_senate": ("상원 본회의 통과", "🟢"),
-    "passed_bill": ("양원 모두 통과", "🟢"),
-    "pass_back_house": ("하원 재의결", "🟢"),
-    "pass_back_senate": ("상원 재의결", "🟢"),
-    "conference_passed_house": ("협의위원회안 하원 통과", "🟢"),
-    "conference_passed_senate": ("협의위원회안 상원 통과", "🟢"),
-    "enacted_signed": ("대통령 서명 → 법률 제정", "✅"),
-    "enacted_veto_override": ("거부권 무효화 (양원 2/3)", "✅"),
-    "prov_kill_veto": ("대통령 거부권 행사", "🔴"),
-    "vetoed_pocket": ("Pocket Veto (회기 종료 후 묵살)", "🔴"),
-    "vetoed_override_fail_house": ("거부권 무효화 실패 (하원)", "🔴"),
-    "vetoed_override_fail_senate": ("거부권 무효화 실패 (상원)", "🔴"),
-    "fail_originating_house": ("하원 부결", "🔴"),
-    "fail_originating_senate": ("상원 부결", "🔴"),
+    "reported": ("🟡", "위원회 표결 통과"),
+    "pass_over_house": ("🟢", "하원 본회의 통과"),
+    "pass_over_senate": ("🟢", "상원 본회의 통과"),
+    "passed_bill": ("🟢", "양원 모두 통과"),
+    "pass_back_house": ("🟢", "하원 재의결"),
+    "pass_back_senate": ("🟢", "상원 재의결"),
+    "conference_passed_house": ("🟢", "협의위원회안 하원 통과"),
+    "conference_passed_senate": ("🟢", "협의위원회안 상원 통과"),
+    "enacted_signed": ("✅", "대통령 서명 → 법률 제정"),
+    "enacted_veto_override": ("✅", "거부권 무효화 (양원 2/3)"),
+    "prov_kill_veto": ("🔴", "대통령 거부권 행사"),
+    "vetoed_pocket": ("🔴", "Pocket Veto (회기 종료 후 묵살)"),
+    "vetoed_override_fail_house": ("🔴", "거부권 무효화 실패 (하원)"),
+    "vetoed_override_fail_senate": ("🔴", "거부권 무효화 실패 (상원)"),
+    "fail_originating_house": ("🔴", "하원 부결"),
+    "fail_originating_senate": ("🔴", "상원 부결"),
 }
 
 # ====================================================================
@@ -156,13 +156,16 @@ CONGRESS_ACTION_PATTERNS = [
 
 
 def classify_action(text: str) -> tuple[str | None, str]:
-    """Congress.gov latestAction 텍스트 → (status_code, label_kr) 매핑."""
+    """Congress.gov latestAction 텍스트 → (status_code, label_kr) 매핑.
+
+    re.IGNORECASE 사용 — 패턴 대소문자와 무관하게 매칭.
+    """
     if not text:
         return None, ""
-    low = text.lower()
     for pattern, code in CONGRESS_ACTION_PATTERNS:
-        if re.search(pattern, low):
-            label_kr = MAJOR_STATUS_CODES.get(code, ("", ""))[0]
+        if re.search(pattern, text, re.IGNORECASE):
+            # MAJOR_STATUS_CODES 값: (emoji, label_kr) — 한국어 라벨은 인덱스 [1]
+            label_kr = MAJOR_STATUS_CODES.get(code, ("", ""))[1]
             return code, label_kr
     return None, ""
 
@@ -188,7 +191,7 @@ def fetch_bill_congress_gov(bill: dict, api_key: str) -> dict | None:
     action_text = latest.get("text", "")
     action_date = latest.get("actionDate", "")
 
-    code, label_kr = classify_action(action_text)
+    code, _ = classify_action(action_text)  # label_kr은 호출부에서 재조회
     sponsors = b.get("sponsors", []) or []
     sponsor_name = sponsors[0].get("fullName") if sponsors else None
 
