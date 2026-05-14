@@ -1,0 +1,75 @@
+name: CLARITY Act Monitor (4h)
+
+on:
+  schedule:
+    # 4시간 주기 (KST 02:00, 06:00, 10:00, 14:00, 18:00, 22:00)
+    # UTC: 17:00 (어제), 21:00 (어제), 01:00, 05:00, 09:00, 13:00
+    - cron: '0 17,21,1,5,9,13 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install defusedxml
+
+      - name: Run CLARITY Act monitor
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python clarity_act_monitor.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add docs/clarity_act.json docs/clarity_act_state.json 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Update CLARITY Act monitor [automated]"
+
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, rebasing..."
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+
+          echo "Failed to push after 5 attempts"
+          exit 1

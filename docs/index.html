@@ -2201,6 +2201,90 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── CLARITY ACT 및 암호화폐 입법 모니터 ─────────────
+    const clarity = data.clarity_act;
+    if (clarity && (Array.isArray(clarity.bills) || Array.isArray(clarity.recent_news))) {
+      html += `<section class="section-wrap">
+        <div class="section-label" style="color:var(--orange,#fb923c);">&#127963;&#65039; 미국 암호화폐 입법 추적 <span style="font-size:0.65rem;color:var(--text-muted);">(CLARITY Act · GENIUS Act · FIT21 + RSS)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(251,146,60,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">
+            <b style="color:var(--text);">알림 기준:</b> 위원회 표결 · 본회의 표결 · 대통령 서명/거부 (주요 이벤트만)<br/>
+            <b style="color:var(--text);">데이터 소스:</b> ${h((clarity.data_sources || []).join(' · '))}<br/>
+            <b style="color:var(--text);">빈도:</b> ${h(clarity.frequency || '4시간 (GH Actions)')}
+          </div>
+        </div>`;
+
+      // 법안 카드
+      const bills = clarity.bills || [];
+      if (bills.length > 0) {
+        html += `<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">
+          <b style="color:var(--text);">📜 추적 중인 법안</b>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:14px;">`;
+        bills.forEach(b => {
+          const borderColor = b.is_major_event
+            ? (b.status_code && b.status_code.startsWith('enacted') ? 'var(--green,#4ade80)' : 'var(--orange,#fb923c)')
+            : 'var(--text-muted)';
+          html += `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${borderColor};">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+              <div style="font-size:0.95rem;font-weight:700;color:var(--text-bright);">${h(b.short_name || '')}</div>
+              <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">${h(b.bill_type || '').replace('_', ' ')} ${b.number || ''}</div>
+            </div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:8px;">${h(b.full_name || '')}</div>
+            <div style="font-size:0.78rem;margin-bottom:6px;">
+              ${h(b.status_emoji || '📋')} <b style="color:var(--text);">${h(b.status_label_kr || b.status_label || '—')}</b>
+            </div>
+            <div style="font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);">
+              ${b.status_date ? '발생일: ' + h(b.status_date) : ''}
+              ${b.sponsor ? '<br/>발의: ' + h(b.sponsor) : ''}
+              ${b.congress ? '<br/>의회: ' + b.congress + '대' : ''}
+            </div>
+            ${b.link ? `<div style="margin-top:8px;"><a href="${h(b.link)}" target="_blank" rel="noopener" style="color:var(--cyan,#22d3ee);font-size:0.7rem;text-decoration:none;">🔗 공식 페이지 →</a></div>` : ''}
+          </div>`;
+        });
+        html += `</div>`;
+      } else {
+        html += `<div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(251,146,60,0.04);">
+          <div style="font-size:0.72rem;color:var(--text-muted);">
+            ⚠️ 법안 직접 추적 불가 — <b>CONGRESS_API_KEY</b> 시크릿이 미설정 상태입니다.<br/>
+            무료 키 발급: <a href="https://api.congress.gov/sign-up/" target="_blank" rel="noopener" style="color:var(--cyan,#22d3ee);">api.congress.gov/sign-up</a><br/>
+            (RSS 뉴스 알림은 계속 작동)
+          </div>
+        </div>`;
+      }
+
+      // 최근 뉴스
+      const news = clarity.recent_news || [];
+      if (news.length > 0) {
+        html += `<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">
+          <b style="color:var(--text);">📰 최근 입법 뉴스 (CoinDesk · The Block · Decrypt — 키워드 매칭)</b>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;">`;
+        news.slice(0, 10).forEach(n => {
+          html += `<div class="glass-card anim-item" style="padding:9px 12px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
+              <div style="flex:1;">
+                <a href="${h(n.link || '#')}" target="_blank" rel="noopener" style="color:var(--text-bright);font-size:0.82rem;font-weight:600;text-decoration:none;line-height:1.4;">${h(n.title || '')}</a>
+                ${n.summary ? `<div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;line-height:1.5;">${h(n.summary.substring(0, 200))}${n.summary.length > 200 ? '…' : ''}</div>` : ''}
+              </div>
+              <div style="flex-shrink:0;text-align:right;">
+                <div style="font-size:0.65rem;color:var(--orange,#fb923c);font-weight:600;">${h(n.source || '')}</div>
+                ${n.matched_keyword ? `<div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${h(n.matched_keyword)}</div>` : ''}
+              </div>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      html += `<div style="margin-top:12px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(clarity.warning || '정보 모니터링. 자동 매매 금지.')}<br/>
+        생성: ${h(clarity.generated_at || '')} · 이번 실행 알림 ${clarity.alerts_sent_this_run || 0}건
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── BITCOIN STANDARD MONITOR ──────────────────────
     const bs = data.bitcoin_standard;
     if (bs && bs.bts_score) {

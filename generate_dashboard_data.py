@@ -1301,6 +1301,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 반도체 민감도 v2 데이터 로드 실패: {e}")
 
+    # 10.13d) CLARITY Act 및 암호화폐 입법 모니터
+    clarity_path = os.path.join(os.path.dirname(output_path), "clarity_act.json")
+    if os.path.exists(clarity_path):
+        try:
+            with open(clarity_path, encoding="utf-8") as f:
+                output_data["clarity_act"] = json.load(f)
+            print("[INFO] CLARITY Act 모니터 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] CLARITY Act 데이터 로드 실패: {e}")
+
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf
