@@ -3128,6 +3128,120 @@ body::before {
       </section>`;
     }
 
+    // ─── IRR 분석 (전체 종목 매트릭스 + 섹터별) ──────────
+    const ira = data.irr_analysis;
+    if (ira && Array.isArray(ira.results) && ira.results.length > 0) {
+      const ass = ira.assumptions || {};
+      const tt = ira.trigger_thresholds || {};
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:var(--purple,#a78bfa);">&#128202; IRR 분석 — 기대 연수익률 + 안전마진 <span style="font-size:0.65rem;color:var(--text-muted);">(전 종목 위험조정 매트릭스)</span></div>
+
+        <div class="glass-card anim-item" style="padding:12px 14px;margin-bottom:14px;background:rgba(167,139,250,0.05);">
+          <div style="font-size:0.74rem;color:var(--text-muted);line-height:1.7;">
+            <b style="color:var(--text);">방법:</b> Gordon IRR · Earnings Yield · ROIC-Retention 종합 (중앙값)<br/>
+            <b style="color:var(--text);">필요수익률:</b> 무위험금리 ${ass.risk_free_kr_pct || 3.5}% + β × 시장프리미엄 ${ass.equity_premium_pct || 6.0}% + 코리아 디스카운트 ${ass.korea_discount_pct || 1.5}%pt + 부채/섹터 위험 가산<br/>
+            <b style="color:var(--text);">안전마진(MoS):</b> IRR - 필요수익률.
+            <span style="color:var(--green,#4ade80);">≥ +5%pt 강력매수</span> ·
+            <span style="color:var(--cyan,#22d3ee);">+2~5%pt 매수검토</span> ·
+            <span style="color:var(--amber,#fbbf24);">0~2%pt 시장평균</span> ·
+            <span style="color:var(--red,#f87171);">&lt; 0 고평가</span><br/>
+            <b style="color:var(--text);">알림 조건:</b> IRR ≥ ${tt.strong_buy_irr_pct || 12}% + MoS ≥ ${tt.strong_buy_mos_pct || 5}%pt + ROE ≥ ${tt.strong_buy_roe_pct || 8}% (강력매수 후보)
+          </div>
+        </div>`;
+
+      // 섹터별 평균 IRR
+      const ss = ira.sector_summary || [];
+      if (ss.length > 0) {
+        html += `<div style="font-size:0.74rem;color:var(--text-muted);margin-bottom:6px;">
+          <b style="color:var(--text);">🏢 섹터별 평균 IRR (Top 8)</b>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px;">`;
+        ss.slice(0, 8).forEach(s => {
+          const meanColor = s.mean_irr_pct >= 10 ? 'var(--green,#4ade80)' : s.mean_irr_pct >= 7 ? 'var(--cyan,#22d3ee)' : 'var(--amber,#fbbf24)';
+          html += `<div class="glass-card anim-item" style="padding:8px 12px;border-left:2px solid ${meanColor};">
+            <div style="font-size:0.85rem;font-weight:600;color:var(--text-bright);">${h(s.sector)}</div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">n=${s.count}</div>
+            <div style="font-size:0.95rem;font-weight:700;color:${meanColor};margin-top:2px;">평균 ${s.mean_irr_pct}%</div>
+            <div style="font-size:0.6rem;color:var(--text-muted);">범위 ${s.min_irr_pct}~${s.max_irr_pct}%</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // 안전마진 Top 종목 매트릭스
+      html += `<div style="font-size:0.74rem;color:var(--text-muted);margin-bottom:6px;">
+        <b style="color:var(--text);">📊 종목별 IRR 매트릭스 (안전마진 내림차순 Top 25)</b>
+      </div>
+      <div style="overflow-x:auto;margin-bottom:8px;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.72rem;font-family:var(--font-mono);min-width:760px;">
+        <thead>
+          <tr style="background:rgba(167,139,250,0.08);border-bottom:1px solid rgba(167,139,250,0.2);">
+            <th style="padding:7px 8px;text-align:left;color:var(--text-muted);font-weight:600;">종목</th>
+            <th style="padding:7px 8px;text-align:left;color:var(--text-muted);font-weight:600;">섹터</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--text-muted);font-weight:600;">Gordon</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--text-muted);font-weight:600;">EY</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--text-muted);font-weight:600;">ROIC</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--text-muted);font-weight:600;">Primary</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--text-muted);font-weight:600;">필요수익률</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--text-muted);font-weight:600;">안전마진</th>
+            <th style="padding:7px 8px;text-align:left;color:var(--text-muted);font-weight:600;">등급</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      const ratingClassColor = {
+        green: 'var(--green,#4ade80)', cyan: 'var(--cyan,#22d3ee)',
+        amber: 'var(--amber,#fbbf24)', red: 'var(--red,#f87171)', gray: 'var(--text-muted)'
+      };
+
+      ira.results.slice(0, 25).forEach(r => {
+        const irr = r.irr || {};
+        const rr = r.required_return || {};
+        const ratingColor = ratingClassColor[r.rating_color] || 'var(--text-muted)';
+        const mos = r.margin_of_safety_pct;
+        const mosColor = mos == null ? 'var(--text-muted)' : mos >= 5 ? 'var(--green,#4ade80)' : mos >= 2 ? 'var(--cyan,#22d3ee)' : mos >= 0 ? 'var(--amber,#fbbf24)' : 'var(--red,#f87171)';
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+          <td style="padding:6px 8px;color:var(--text-bright);font-weight:600;">${h(r.name)} <span style="color:var(--text-muted);font-size:0.65rem;">${r.ticker}</span></td>
+          <td style="padding:6px 8px;color:var(--text-muted);font-size:0.68rem;">${h(r.sector || '')}</td>
+          <td style="padding:6px 6px;text-align:right;color:var(--text);">${irr.gordon_pct != null ? irr.gordon_pct : '—'}</td>
+          <td style="padding:6px 6px;text-align:right;color:var(--text);">${irr.earnings_yield_pct != null ? irr.earnings_yield_pct : '—'}</td>
+          <td style="padding:6px 6px;text-align:right;color:var(--text);">${irr.roic_retention_pct != null ? irr.roic_retention_pct : '—'}</td>
+          <td style="padding:6px 6px;text-align:right;color:var(--purple,#a78bfa);font-weight:700;">${irr.primary_irr_pct != null ? irr.primary_irr_pct + '%' : '—'}</td>
+          <td style="padding:6px 6px;text-align:right;color:var(--text-muted);">${rr.required_return_pct != null ? rr.required_return_pct + '%' : '—'}</td>
+          <td style="padding:6px 6px;text-align:right;color:${mosColor};font-weight:700;">${mos != null ? (mos >= 0 ? '+' : '') + mos + 'pt' : '—'}</td>
+          <td style="padding:6px 8px;color:${ratingColor};font-size:0.65rem;font-weight:600;">${h(r.rating || '—')}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      // 강력매수 후보가 있으면 별도 강조
+      const strongBuys = ira.results.filter(r => r.is_strong_buy);
+      if (strongBuys.length > 0) {
+        html += `<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:6px;padding:12px;margin-top:12px;">
+          <div style="font-size:0.85rem;color:var(--green,#4ade80);font-weight:600;margin-bottom:8px;">
+            🎯 강력매수 후보 (${strongBuys.length}건) — IRR ≥ ${tt.strong_buy_irr_pct || 12}% & MoS ≥ ${tt.strong_buy_mos_pct || 5}%pt & ROE ≥ ${tt.strong_buy_roe_pct || 8}%
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">`;
+        strongBuys.forEach(r => {
+          const snap = r.snapshot || {};
+          html += `<div style="background:rgba(74,222,128,0.05);padding:8px 10px;border-radius:4px;font-size:0.72rem;">
+            <div style="color:var(--text-bright);font-weight:600;">${h(r.name)} (${r.ticker})</div>
+            <div style="color:var(--text-muted);font-size:0.65rem;margin-top:2px;">${h(r.sector)} · ${r.market}</div>
+            <div style="margin-top:4px;color:var(--green,#4ade80);">IRR ${r.irr?.primary_irr_pct}% / MoS +${r.margin_of_safety_pct}pt</div>
+            <div style="color:var(--text-muted);font-size:0.65rem;">PER ${snap.per || '—'} · ROE ${snap.roe_pct || '—'}% · 배당 ${snap.dividend_yield_pct || '—'}%</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      html += `<div style="margin-top:12px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(ira.warning || '통계 추정. 실거래 단독 사용 금지.')}<br/>
+        생성: ${h(ira.generated_at || '')} · ${h(ira.analysis_period || '')} · 대상 ${ira.results.length}개 종목
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── FORWARD TEST EVALUATION ───────────────────────
     const ft = data.forward_test;
     if (ft && ft.cumulative_stats && Object.keys(ft.cumulative_stats).length > 0) {
