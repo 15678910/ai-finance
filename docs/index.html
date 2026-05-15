@@ -2344,6 +2344,113 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── 💰 한국 시장 투자자 매매 동향 (외국인·기관) ──────────
+    const inv = data.investor_flow;
+    if (inv && Array.isArray(inv.results) && inv.results.length > 0) {
+      const top = inv.top_signals || {};
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#22c55e;">💰 한국 시장 투자자 매매 동향 <span style="font-size:0.65rem;color:var(--text-muted);">(외국인·기관 일별 매매 + 시그널)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(34,197,94,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
+            <b style="color:var(--text);">기준일:</b> ${h(inv.trading_date || '—')} (장 마감 기준)<br/>
+            <b style="color:var(--text);">분석 대상:</b> ${inv.analyzed_count || 0}/${inv.universe_size || 0}개 종목 · 강력 시그널 ${inv.strong_signals_count || 0}건<br/>
+            <b style="color:var(--text);">시그널 강도:</b>
+            <span style="color:#f87171;">🚀 외인+기관 합의 매수/매도</span> ·
+            <span style="color:#fbbf24;">🔥/🩸 외인 5일+ 연속</span> ·
+            <span style="color:#22d3ee;">⚔️ 외인-기관 충돌</span> ·
+            <span style="color:#a78bfa;">📊 보유율 변동</span>
+          </div>
+        </div>
+
+        <!-- 시그널별 Top 종목 그리드 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:14px;">`;
+
+      const renderSignalCard = (title, emoji, color, items) => {
+        if (!items || items.length === 0) return '';
+        let inner = '';
+        items.slice(0, 6).forEach(r => {
+          const f5d = (r.foreign_5d_net_shares || 0);
+          const i5d = (r.institutional_5d_net_shares || 0);
+          const hold = r.foreign_holding_pct_now;
+          const holdChg = r.foreign_holding_pct_5d_change;
+          inner += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,0.06);font-size:0.72rem;">
+            <div style="flex:1;min-width:0;">
+              <div style="color:#ffffff;font-weight:600;">${h(r.name)} <span style="color:var(--text-muted);font-size:0.65rem;font-family:var(--font-mono);">${r.ticker}</span></div>
+              <div style="color:var(--text-muted);font-size:0.6rem;">${h(r.sector || '')}</div>
+            </div>
+            <div style="text-align:right;font-family:var(--font-mono);font-size:0.65rem;">
+              <div style="color:${f5d >= 0 ? '#4ade80' : '#f87171'};">외인 ${f5d >= 0 ? '+' : ''}${(f5d/1000).toFixed(0)}K</div>
+              <div style="color:${i5d >= 0 ? '#4ade80' : '#f87171'};">기관 ${i5d >= 0 ? '+' : ''}${(i5d/1000).toFixed(0)}K</div>
+              <div style="color:var(--text-muted);">보유 ${hold != null ? hold.toFixed(1) : '—'}% ${holdChg != null ? '(' + (holdChg >= 0 ? '+' : '') + holdChg.toFixed(2) + 'p)' : ''}</div>
+            </div>
+          </div>`;
+        });
+        return `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${color};">
+          <div style="font-size:0.85rem;font-weight:700;color:${color};margin-bottom:8px;">${emoji} ${h(title)} <span style="color:var(--text-muted);font-size:0.65rem;font-weight:400;">${items.length}건</span></div>
+          ${inner}
+        </div>`;
+      };
+
+      html += renderSignalCard("외인+기관 합의 매수 (강력)", "🚀", "#4ade80", top.consensus_buy);
+      html += renderSignalCard("외인+기관 합의 매도 (강력)", "📉", "#f87171", top.consensus_sell);
+      html += renderSignalCard("외인 5일+ 연속 매수", "🔥", "#fbbf24", top.foreign_buy_streak);
+      html += renderSignalCard("외인 5일+ 연속 매도", "🩸", "#dc2626", top.foreign_sell_streak);
+      html += renderSignalCard("외인 매수 vs 기관 매도 (의견 충돌)", "⚔️", "#22d3ee", top.disagreement);
+      html += renderSignalCard("외인 보유율 증가 Top", "📈", "#a78bfa", top.foreign_holding_increase_top);
+      html += renderSignalCard("외인 보유율 감소 Top", "📉", "#fb923c", top.foreign_holding_decrease_top);
+
+      html += `</div>`;
+
+      // 전체 매트릭스 (강도 내림차순 Top 15)
+      html += `<div style="font-size:0.74rem;color:var(--text-muted);margin-bottom:6px;">
+        <b style="color:var(--text);">📊 전체 매트릭스 (시그널 강도 내림차순 Top 15)</b>
+      </div>
+      <div style="overflow-x:auto;margin-bottom:8px;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.7rem;font-family:var(--font-mono);min-width:780px;">
+        <thead>
+          <tr style="background:rgba(34,197,94,0.08);border-bottom:1px solid rgba(34,197,94,0.2);">
+            <th style="padding:6px 8px;text-align:left;color:var(--text-muted);font-weight:600;">종목</th>
+            <th style="padding:6px 8px;text-align:left;color:var(--text-muted);font-weight:600;">섹터</th>
+            <th style="padding:6px 6px;text-align:right;color:var(--text-muted);font-weight:600;">외인 5일</th>
+            <th style="padding:6px 6px;text-align:right;color:var(--text-muted);font-weight:600;">기관 5일</th>
+            <th style="padding:6px 6px;text-align:right;color:var(--text-muted);font-weight:600;">외인 연속</th>
+            <th style="padding:6px 6px;text-align:right;color:var(--text-muted);font-weight:600;">보유율</th>
+            <th style="padding:6px 6px;text-align:right;color:var(--text-muted);font-weight:600;">±5일</th>
+            <th style="padding:6px 8px;text-align:left;color:var(--text-muted);font-weight:600;">시그널</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      inv.results.slice(0, 15).forEach(r => {
+        const f5d = r.foreign_5d_net_shares || 0;
+        const i5d = r.institutional_5d_net_shares || 0;
+        const streak = r.foreign_streak_days || 0;
+        const sDir = r.foreign_streak_direction || "none";
+        const sDirEmoji = sDir === "buy" ? "🔥" : (sDir === "sell" ? "🩸" : "—");
+        const holdChg = r.foreign_holding_pct_5d_change;
+        const primarySignal = r.signals && r.signals.length > 0 ? r.signals[0] : null;
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+          <td style="padding:5px 8px;color:#ffffff;font-weight:600;">${h(r.name)} <span style="color:var(--text-muted);font-size:0.6rem;">${r.ticker}</span></td>
+          <td style="padding:5px 8px;color:var(--text-muted);font-size:0.65rem;">${h(r.sector || '')}</td>
+          <td style="padding:5px 6px;text-align:right;color:${f5d >= 0 ? '#4ade80' : '#f87171'};font-weight:600;">${f5d >= 0 ? '+' : ''}${(f5d/1000).toFixed(0)}K</td>
+          <td style="padding:5px 6px;text-align:right;color:${i5d >= 0 ? '#4ade80' : '#f87171'};">${i5d >= 0 ? '+' : ''}${(i5d/1000).toFixed(0)}K</td>
+          <td style="padding:5px 6px;text-align:right;color:var(--text);">${sDirEmoji} ${streak}일</td>
+          <td style="padding:5px 6px;text-align:right;color:var(--text);">${r.foreign_holding_pct_now != null ? r.foreign_holding_pct_now.toFixed(2) + '%' : '—'}</td>
+          <td style="padding:5px 6px;text-align:right;color:${holdChg >= 0 ? '#4ade80' : '#f87171'};">${holdChg != null ? (holdChg >= 0 ? '+' : '') + holdChg.toFixed(2) + 'p' : '—'}</td>
+          <td style="padding:5px 8px;color:var(--text);font-size:0.65rem;">${primarySignal ? primarySignal.emoji + ' ' + h(primarySignal.label) : '—'}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      html += `<div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(inv.warning || '일별 누적 데이터.')}<br/>
+        데이터 소스: ${h(inv.data_source || '네이버 금융')} · 생성: ${h(inv.generated_at || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── 🔬 반도체 챌린저 모니터 (신흥 위협 분석) ──────────
     const chal = data.semi_challengers;
     if (chal && Array.isArray(chal.challengers) && chal.challengers.length > 0) {

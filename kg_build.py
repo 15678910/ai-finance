@@ -387,6 +387,37 @@ def build_from_semi_challengers(kg: KnowledgeGraph):
     print(f"  · semi_challengers {challenger_count}개 챌린저 + 영향 엣지 {edge_count}개 통합")
 
 
+def build_from_investor_flow(kg: KnowledgeGraph):
+    """외국인·기관 매매 동향 → 종목 노드에 시그널 + 보유율 추가."""
+    data = _load_json("investor_flow.json")
+    if not data:
+        print("  [건너뜀] investor_flow.json 없음")
+        return
+    count = 0
+    for r in data.get("results", []):
+        sid = KnowledgeGraph.stock_id(r.get("ticker", ""))
+        if not sid:
+            continue
+        kg.add_node(sid, "Stock", r.get("name", ""), {
+            "investor_flow": {
+                "trading_date": r.get("latest_date"),
+                "foreign_5d_net_shares": r.get("foreign_5d_net_shares"),
+                "institutional_5d_net_shares": r.get("institutional_5d_net_shares"),
+                "foreign_streak_days": r.get("foreign_streak_days"),
+                "foreign_streak_direction": r.get("foreign_streak_direction"),
+                "institutional_streak_days": r.get("institutional_streak_days"),
+                "institutional_streak_direction": r.get("institutional_streak_direction"),
+                "foreign_holding_pct_now": r.get("foreign_holding_pct_now"),
+                "foreign_holding_pct_5d_change": r.get("foreign_holding_pct_5d_change"),
+                "primary_signal": (r["signals"][0]["label"] if r.get("signals") else None),
+                "max_strength": r.get("max_strength"),
+                "rating": r.get("rating"),
+            }
+        })
+        count += 1
+    print(f"  · investor_flow {count}개 종목 외인·기관 매매 시그널 통합")
+
+
 def build_from_bitcoin_standard(kg: KnowledgeGraph):
     """비트코인 본위제 모니터 → BTC 매크로 이벤트 노드 (참고용)."""
     data = _load_json("bitcoin_standard.json")
@@ -424,6 +455,7 @@ def main():
     build_from_dcf(kg)
     build_from_clarity_act(kg)
     build_from_semi_challengers(kg)
+    build_from_investor_flow(kg)
     build_from_bitcoin_standard(kg)
 
     # 통계
