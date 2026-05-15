@@ -1,0 +1,69 @@
+name: Investor Flow Intraday (Hourly)
+
+on:
+  schedule:
+    # 평일 KST 09:30, 10:30, 11:30, 12:30, 13:30, 14:30, 15:30
+    # UTC: 00:30, 01:30, 02:30, 03:30, 04:30, 05:30, 06:30
+    - cron: '30 0,1,2,3,4,5,6 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Run intraday monitor
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python investor_flow_intraday.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add docs/investor_flow_intraday.json docs/investor_flow_intraday_state.json 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Update intraday investor flow [automated]"
+
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, rebasing..."
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+
+          echo "Failed to push after 5 attempts"
+          exit 1

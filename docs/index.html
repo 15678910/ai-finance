@@ -2451,6 +2451,97 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── ⚡ 장중 매매 모멘텀 (Phase B — 시간별) ──────────
+    const intra = data.investor_flow_intraday;
+    if (intra && Array.isArray(intra.results) && intra.results.length > 0) {
+      const itop = intra.top_signals || {};
+      const tl = intra.market_timeline || [];
+      const firstSnap = intra.is_first_snapshot;
+
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#facc15;">⚡ 장중 매매 모멘텀 <span style="font-size:0.65rem;color:var(--text-muted);">(시간별 스냅샷 · 매수/매도 가속 + 전환 감지)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(250,204,21,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
+            <b style="color:var(--text);">현재 스냅샷:</b> ${h(intra.current_snapshot_time || '—')} · <b>이전:</b> ${h(intra.previous_snapshot_time || '없음')}<br/>
+            <b style="color:var(--text);">분석:</b> ${intra.analyzed_count || 0}개 종목 · 강력 시그널 ${intra.strong_signals_count || 0}건 · 스냅샷 ${intra.snapshot_count || 0}개 보관<br/>
+            <b style="color:var(--text);">실행:</b> 평일 KST 09:30~15:30 매시간 자동 (장중 ring buffer 최대 8개)<br/>
+            ${firstSnap ? '<b style="color:#fbbf24;">⚠️ 첫 스냅샷이므로 모멘텀 비교 데이터 없음. 다음 회차부터 시그널 표시.</b>' : ''}
+          </div>
+        </div>`;
+
+      // 시장 전체 시간별 누적 (간단 표)
+      if (tl.length >= 2) {
+        html += `<div style="font-size:0.74rem;color:var(--text-muted);margin-bottom:6px;">
+          <b style="color:var(--text);">📈 시장 전체 시간별 누적 (46개 종목 합산)</b>
+        </div>
+        <div style="overflow-x:auto;margin-bottom:14px;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;font-family:var(--font-mono);min-width:480px;">
+          <thead>
+            <tr style="background:rgba(250,204,21,0.08);border-bottom:1px solid rgba(250,204,21,0.2);">
+              <th style="padding:6px 10px;text-align:left;color:var(--text-muted);font-weight:600;">시각</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--text-muted);font-weight:600;">외인 누적</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--text-muted);font-weight:600;">기관 누적</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--text-muted);font-weight:600;">외인 Δ (시간당)</th>
+            </tr>
+          </thead>
+          <tbody>`;
+        for (let i = tl.length - 1; i >= 0; i--) {
+          const t = tl[i];
+          const prev = i > 0 ? tl[i - 1] : null;
+          const tf = t.total_foreign_net_shares || 0;
+          const ti = t.total_institutional_net_shares || 0;
+          const delta = prev ? tf - (prev.total_foreign_net_shares || 0) : null;
+          html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:5px 10px;color:var(--text);">${h(t.time || '')}</td>
+            <td style="padding:5px 10px;text-align:right;color:${tf >= 0 ? '#4ade80' : '#f87171'};font-weight:600;">${tf >= 0 ? '+' : ''}${(tf / 1000).toFixed(0)}K</td>
+            <td style="padding:5px 10px;text-align:right;color:${ti >= 0 ? '#4ade80' : '#f87171'};">${ti >= 0 ? '+' : ''}${(ti / 1000).toFixed(0)}K</td>
+            <td style="padding:5px 10px;text-align:right;color:${delta == null ? 'var(--text-muted)' : (delta >= 0 ? '#4ade80' : '#f87171')};">${delta == null ? '—' : (delta >= 0 ? '+' : '') + (delta / 1000).toFixed(0) + 'K'}</td>
+          </tr>`;
+        }
+        html += `</tbody></table></div>`;
+      }
+
+      // 시그널 카드 그리드
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:14px;">`;
+
+      const renderIntraCard = (title, emoji, color, items) => {
+        if (!items || items.length === 0) return '';
+        let inner = '';
+        items.slice(0, 6).forEach(r => {
+          const df = r.delta_foreign_1h;
+          const di = r.delta_institutional_1h;
+          inner += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,0.06);font-size:0.72rem;">
+            <div style="flex:1;min-width:0;">
+              <div style="color:#ffffff;font-weight:600;">${h(r.name)} <span style="color:var(--text-muted);font-size:0.65rem;font-family:var(--font-mono);">${r.ticker}</span></div>
+              <div style="color:var(--text-muted);font-size:0.6rem;">${h(r.sector || '')} · ${r.today_close ? r.today_close.toLocaleString() + '원' : ''} ${r.today_change_pct != null ? '(' + (r.today_change_pct >= 0 ? '+' : '') + r.today_change_pct.toFixed(2) + '%)' : ''}</div>
+            </div>
+            <div style="text-align:right;font-family:var(--font-mono);font-size:0.65rem;">
+              <div style="color:${df != null && df >= 0 ? '#4ade80' : '#f87171'};">외인 Δ ${df != null ? (df >= 0 ? '+' : '') + (df / 1000).toFixed(0) + 'K' : '—'}</div>
+              <div style="color:${di != null && di >= 0 ? '#4ade80' : '#f87171'};">기관 Δ ${di != null ? (di >= 0 ? '+' : '') + (di / 1000).toFixed(0) + 'K' : '—'}</div>
+            </div>
+          </div>`;
+        });
+        return `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${color};">
+          <div style="font-size:0.85rem;font-weight:700;color:${color};margin-bottom:8px;">${emoji} ${h(title)} <span style="color:var(--text-muted);font-size:0.65rem;font-weight:400;">${items.length}건</span></div>
+          ${inner}
+        </div>`;
+      };
+
+      html += renderIntraCard("외인 매수 가속 (1h)", "🚀", "#4ade80", itop.foreign_buy_accel);
+      html += renderIntraCard("외인 매도 가속 (1h)", "🩸", "#f87171", itop.foreign_sell_accel);
+      html += renderIntraCard("외인 매매 방향 전환", "🔄", "#facc15", itop.foreign_flips);
+      html += renderIntraCard("기관 매수 가속 (1h)", "🔥", "#22d3ee", itop.institutional_buy_accel);
+
+      html += `</div>`;
+
+      html += `<div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(intra.warning || '장중 데이터.')}<br/>
+        ${h(intra.methodology || '')} · 생성: ${h(intra.generated_at || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── 🔬 반도체 챌린저 모니터 (신흥 위협 분석) ──────────
     const chal = data.semi_challengers;
     if (chal && Array.isArray(chal.challengers) && chal.challengers.length > 0) {

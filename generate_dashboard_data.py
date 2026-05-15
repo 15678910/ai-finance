@@ -1351,6 +1351,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 투자자 매매 동향 데이터 로드 실패: {e}")
 
+    # 10.13i) 장중 투자자 매매 모멘텀 (Phase B — 시간별 스냅샷)
+    intra_path = os.path.join(os.path.dirname(output_path), "investor_flow_intraday.json")
+    if os.path.exists(intra_path):
+        try:
+            with open(intra_path, encoding="utf-8") as f:
+                output_data["investor_flow_intraday"] = json.load(f)
+            print("[INFO] 장중 투자자 매매 모멘텀 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 장중 투자자 매매 데이터 로드 실패: {e}")
+
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf
