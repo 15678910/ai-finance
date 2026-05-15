@@ -7,6 +7,7 @@
 <title>AI 금융 분석 대시보드</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0e17'/%3E%3Cpolyline points='4,24 10,14 16,18 22,8 28,12' fill='none' stroke='%2306b6d4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='12' r='2' fill='%2310b981'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 
 <style>
 /* ─── Reset & Base ─────────────────────────────────────── */
@@ -2114,6 +2115,57 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── 🕸️ 통합 지식 그래프 (팔란티어 스타일 객체 중심 탐색) ──────────
+    const kg = data.knowledge_graph;
+    if (kg && Array.isArray(kg.nodes) && kg.nodes.length > 0) {
+      const stats = kg.stats || {};
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#22d3ee;">&#128376;&#65039; 통합 지식 그래프 <span style="font-size:0.65rem;color:var(--text-muted);">(객체 중심 분석 · ${stats.node_count || 0} 노드 · ${stats.edge_count || 0} 엣지)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(34,211,238,0.04);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">
+            <b style="color:var(--text);">사용법:</b> 노드 클릭 → 우측 패널에서 해당 객체의 모든 신호 통합 확인. 드래그로 그래프 이동, 휠로 확대/축소. 상단 필터로 엔티티 타입 토글, 검색으로 즉시 이동.<br/>
+            <b style="color:var(--text);">통합 대상:</b> 저평가 스크리너 · IRR 분석 · 반도체 민감도(v1/v2) · DCF 평가 · CLARITY Act · Bitcoin Standard
+          </div>
+        </div>
+
+        <!-- 필터 & 검색 컨트롤 -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center;">
+          <input type="text" id="kgSearch" placeholder="🔍 종목/섹터/법안 검색..." style="flex:1;min-width:240px;padding:6px 12px;background:rgba(15,23,42,0.6);border:1px solid rgba(34,211,238,0.3);color:var(--text);border-radius:6px;font-size:0.8rem;font-family:var(--font-mono);"/>
+          <div id="kgFilters" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+          <button id="kgReset" style="padding:6px 12px;background:rgba(34,211,238,0.15);border:1px solid rgba(34,211,238,0.4);color:#22d3ee;border-radius:6px;font-size:0.75rem;cursor:pointer;">↻ 리셋</button>
+        </div>
+
+        <!-- 메인 컨테이너: 그래프 + 상세 패널 -->
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:12px;min-height:600px;" id="kgContainer">
+          <div id="kgNetwork" class="glass-card" style="height:600px;background:#0a0e17;border-radius:8px;overflow:hidden;position:relative;">
+            <div id="kgEmptyMsg" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-muted);font-size:0.85rem;">그래프 로딩 중...</div>
+          </div>
+          <div id="kgDetail" class="glass-card" style="height:600px;overflow-y:auto;padding:12px;background:rgba(10,14,23,0.6);border-radius:8px;font-size:0.78rem;">
+            <div style="color:var(--text-muted);text-align:center;margin-top:50px;line-height:1.6;">
+              👆 노드를 클릭하면<br/>해당 객체의 모든 분석 신호가<br/>여기에 표시됩니다.
+            </div>
+          </div>
+        </div>
+
+        <!-- 범례 -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:0.7rem;color:var(--text-muted);">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22d3ee;margin-right:4px;"></span>📈 종목</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#a78bfa;margin-right:4px;"></span>🏢 섹터</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>📊 지수</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fb923c;margin-right:4px;"></span>🏛️ 법안</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4ade80;margin-right:4px;"></span>💱 통화</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f87171;margin-right:4px;"></span>🌐 거시이벤트</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#9ca3af;margin-right:4px;"></span>📰 뉴스</span>
+        </div>
+
+        <div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+          🚨 ${h(kg.warning || '정보 통합 시각화. 투자 결정 단독 사용 금지.')}<br/>
+          생성: ${h(kg.generated_at || '')}
+        </div>
+      </section>`;
+    }
+
     // ─── 반도체 민감도 v2 (다변량 회귀) ──────────────────
     const sensV2 = data.semi_sensitivity_v2;
     if (sensV2 && Array.isArray(sensV2.results) && sensV2.results.length > 0) {
@@ -3401,6 +3453,9 @@ body::before {
     // ─── Render Charts ─────────────────────────────────
     setTimeout(() => renderCharts(data), 100);
 
+    // ─── 🕸️ Render Knowledge Graph (Palantir 스타일) ────
+    setTimeout(() => renderKnowledgeGraph(data), 200);
+
     // ─── 현재 시각 실시간 갱신 (1초마다)
     if (window.__nowClockInterval) clearInterval(window.__nowClockInterval);
     window.__nowClockInterval = setInterval(() => {
@@ -3571,6 +3626,359 @@ body::before {
         });
       }
     }
+  }
+
+  // ─── 🕸️ Knowledge Graph (Palantir 스타일) ───────────────
+  let __kgNetwork = null;
+  let __kgNodesAll = [];
+  let __kgEdgesAll = [];
+  let __kgActiveTypes = new Set();
+
+  function renderKnowledgeGraph(data) {
+    const kg = data.knowledge_graph;
+    const container = document.getElementById('kgNetwork');
+    if (!kg || !Array.isArray(kg.nodes) || kg.nodes.length === 0 || !container) {
+      return;
+    }
+    if (typeof vis === 'undefined') {
+      const emptyEl = document.getElementById('kgEmptyMsg');
+      if (emptyEl) emptyEl.textContent = 'vis.js 라이브러리 로드 실패 (네트워크 차단 가능성)';
+      return;
+    }
+
+    __kgNodesAll = kg.nodes.slice();
+    __kgEdgesAll = kg.edges.slice();
+    __kgActiveTypes = new Set(__kgNodesAll.map(n => n.type));
+
+    // 필터 칩 렌더
+    const filterBox = document.getElementById('kgFilters');
+    if (filterBox) {
+      const typeCount = {};
+      __kgNodesAll.forEach(n => { typeCount[n.type] = (typeCount[n.type] || 0) + 1; });
+      filterBox.innerHTML = Object.entries(typeCount).map(([t, c]) => {
+        const color = (__kgNodesAll.find(n => n.type === t) || {}).color || '#888';
+        return `<button class="kg-filter-btn" data-type="${t}" style="padding:4px 10px;background:${color}22;border:1px solid ${color}66;color:${color};border-radius:14px;font-size:0.7rem;cursor:pointer;">${t} (${c})</button>`;
+      }).join('');
+      filterBox.querySelectorAll('.kg-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.dataset.type;
+          if (__kgActiveTypes.has(t)) {
+            __kgActiveTypes.delete(t);
+            btn.style.opacity = '0.3';
+          } else {
+            __kgActiveTypes.add(t);
+            btn.style.opacity = '1';
+          }
+          renderKgNetwork();
+        });
+      });
+    }
+
+    // 검색
+    const searchEl = document.getElementById('kgSearch');
+    if (searchEl) {
+      searchEl.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        if (!q || !__kgNetwork) return;
+        const match = __kgNodesAll.find(n =>
+          n.label.toLowerCase().includes(q) ||
+          n.id.toLowerCase().includes(q)
+        );
+        if (match) {
+          __kgNetwork.focus(match.id, { scale: 1.5, animation: { duration: 600, easingFunction: 'easeInOutQuad' } });
+          __kgNetwork.selectNodes([match.id]);
+          renderKgDetail(match);
+        }
+      });
+    }
+
+    // 리셋
+    const resetBtn = document.getElementById('kgReset');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (__kgNetwork) __kgNetwork.fit({ animation: true });
+        if (searchEl) searchEl.value = '';
+        document.getElementById('kgDetail').innerHTML = '<div style="color:var(--text-muted);text-align:center;margin-top:50px;line-height:1.6;">👆 노드를 클릭하면<br/>해당 객체의 모든 분석 신호가<br/>여기에 표시됩니다.</div>';
+      });
+    }
+
+    renderKgNetwork();
+  }
+
+  function renderKgNetwork() {
+    const container = document.getElementById('kgNetwork');
+    if (!container) return;
+
+    const filteredNodes = __kgNodesAll.filter(n => __kgActiveTypes.has(n.type));
+    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredEdges = __kgEdgesAll.filter(e => filteredNodeIds.has(e.from) && filteredNodeIds.has(e.to));
+
+    const visNodes = filteredNodes.map(n => ({
+      id: n.id,
+      label: `${n.emoji || ''} ${n.label}`,
+      color: { background: n.color, border: '#0a0e17', highlight: { background: '#ffffff', border: n.color } },
+      font: { color: '#e2e8f0', size: 11, face: 'monospace' },
+      shape: 'dot',
+      size: n.type === 'Stock' ? 8 : (n.type === 'Sector' ? 14 : (n.type === 'Index' ? 12 : 10)),
+      borderWidth: 1.5,
+      _data: n,
+    }));
+
+    const relColor = {
+      IN_SECTOR: '#a78bfa',
+      CORRELATES_WITH: '#22d3ee',
+      SENSITIVE_TO: '#4ade80',
+      AFFECTED_BY: '#fb923c',
+      MENTIONS: '#9ca3af',
+      COMPETES_WITH: '#f87171',
+      SUPPLIES: '#fbbf24',
+    };
+    const visEdges = filteredEdges.map(e => ({
+      from: e.from,
+      to: e.to,
+      width: Math.max(0.5, Math.min(e.weight || 1, 4)),
+      color: { color: (relColor[e.type] || '#666') + 'aa', highlight: relColor[e.type] || '#fff' },
+      smooth: { type: 'continuous' },
+      title: `${e.type}${e.data && e.data.beta ? ' β=' + e.data.beta.toFixed(2) : ''}`,
+    }));
+
+    const opts = {
+      physics: {
+        enabled: true,
+        solver: 'forceAtlas2Based',
+        forceAtlas2Based: { gravitationalConstant: -50, springLength: 100, springConstant: 0.08 },
+        stabilization: { iterations: 200 },
+      },
+      interaction: { hover: true, tooltipDelay: 200, navigationButtons: false, zoomView: true, dragView: true },
+      nodes: { borderWidthSelected: 3 },
+    };
+
+    if (__kgNetwork) {
+      __kgNetwork.setData({ nodes: visNodes, edges: visEdges });
+    } else {
+      __kgNetwork = new vis.Network(container,
+        { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) },
+        opts);
+      __kgNetwork.on('click', (params) => {
+        if (params.nodes && params.nodes.length > 0) {
+          const id = params.nodes[0];
+          const node = __kgNodesAll.find(n => n.id === id);
+          if (node) renderKgDetail(node);
+        }
+      });
+      __kgNetwork.on('stabilizationIterationsDone', () => {
+        const emptyEl = document.getElementById('kgEmptyMsg');
+        if (emptyEl) emptyEl.style.display = 'none';
+      });
+    }
+  }
+
+  function renderKgDetail(node) {
+    const panel = document.getElementById('kgDetail');
+    if (!panel) return;
+    const d = node.data || {};
+    const sections = [];
+
+    // 헤더
+    sections.push(`<div style="border-bottom:1px solid rgba(34,211,238,0.2);padding-bottom:8px;margin-bottom:10px;">
+      <div style="font-size:0.7rem;color:${node.color};font-weight:600;">${node.emoji || ''} ${node.type}</div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-top:2px;">${escapeHtml(node.label)}</div>
+      <div style="font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);">${escapeHtml(node.id)}</div>
+    </div>`);
+
+    // Stock: 모든 모듈에서 통합된 신호
+    if (node.type === 'Stock') {
+      if (d.market_cap_billion) {
+        sections.push(kvBlock('💰 시장', [
+          ['시총', d.market_cap_billion ? Math.round(d.market_cap_billion / 10000) + '조' : null],
+          ['현재가', d.current_price ? d.current_price.toLocaleString() + '원' : null],
+          ['시장', d.market],
+          ['섹터', d.sector],
+        ]));
+      }
+      if (d.metrics) {
+        sections.push(kvBlock('📊 메트릭 (yfinance)', [
+          ['PER', d.metrics.per],
+          ['PBR', d.metrics.pbr],
+          ['ROE %', d.metrics.roe_pct],
+          ['부채비율', d.metrics.debt_to_equity],
+          ['배당률 %', d.metrics.dividend_yield_pct],
+          ['매출성장 %', d.metrics.revenue_growth_pct],
+        ]));
+      }
+      if (d.irr_full || d.irr_basic) {
+        const irr = d.irr_full || d.irr_basic || {};
+        sections.push(kvBlock('📈 IRR 분석', [
+          ['Gordon %', irr.gordon_pct || irr.gordon_irr_pct],
+          ['Earnings Yield %', irr.earnings_yield_pct],
+          ['ROIC-Retention %', irr.roic_retention_pct],
+          ['Primary IRR %', irr.primary_irr_pct],
+          ['Implied Growth %', irr.implied_growth_pct],
+        ]));
+      }
+      if (d.required_return) {
+        sections.push(kvBlock('⚖️ 필요수익률 (CAPM)', [
+          ['총 요구수익률 %', d.required_return.required_return_pct],
+          ['CAPM 베이스 %', d.required_return.base_capm_pct],
+          ['코리아 디스카운트 %', d.required_return.korea_discount_pct],
+          ['β 사용', d.required_return.beta_used],
+        ]));
+      }
+      if (d.margin_of_safety_pct !== undefined && d.margin_of_safety_pct !== null) {
+        const mos = d.margin_of_safety_pct;
+        const mosColor = mos >= 5 ? '#4ade80' : (mos >= 2 ? '#22d3ee' : (mos >= 0 ? '#fbbf24' : '#f87171'));
+        sections.push(`<div style="background:rgba(167,139,250,0.05);border-left:2px solid ${mosColor};padding:8px 12px;margin-bottom:10px;border-radius:3px;">
+          <div style="font-size:0.7rem;color:var(--text-muted);">🎯 안전마진</div>
+          <div style="font-size:1.15rem;font-weight:700;color:${mosColor};margin-top:2px;">${mos >= 0 ? '+' : ''}${mos}%pt</div>
+          <div style="font-size:0.7rem;color:${mosColor};margin-top:2px;">${escapeHtml(d.rating || '')}</div>
+        </div>`);
+      }
+      if (d.semi_v2 && d.semi_v2.betas) {
+        const b = d.semi_v2.betas;
+        sections.push(kvBlock('🔬 반도체 민감도 v2 (다변량)', [
+          ['adj R²', d.semi_v2.adj_r_squared],
+          ['β NQ (t-1)', b.nq],
+          ['β SOX (t-1)', b.sox],
+          ['β KOSPI', b.kospi],
+          ['β USDKRW', b.usdkrw],
+          ['β UST10Y', b.ust10y],
+        ]));
+      }
+      if (d.dcf) {
+        sections.push(kvBlock('💎 DCF 평가', [
+          ['적정가', d.dcf.fair_price ? d.dcf.fair_price.toLocaleString() + '원' : null],
+          ['업사이드 %', d.dcf.upside_pct],
+          ['WACC %', d.dcf.wacc_pct],
+          ['성장률 %', d.dcf.growth_rate_pct],
+          ['시그널', d.dcf.signal],
+        ]));
+      }
+      if (d.value_score !== undefined && d.value_score !== null) {
+        sections.push(`<div style="background:rgba(74,222,128,0.05);padding:8px 12px;margin-bottom:10px;border-radius:3px;">
+          <div style="font-size:0.7rem;color:var(--text-muted);">⭐ 가치 점수</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#4ade80;">${d.value_score}점</div>
+        </div>`);
+      }
+    }
+    // Sector: 평균 IRR + 멤버 종목
+    else if (node.type === 'Sector') {
+      sections.push(kvBlock('🏢 섹터 통계', [
+        ['종목 수', d.count],
+        ['평균 IRR %', d.mean_irr_pct],
+        ['중앙값 IRR %', d.median_irr_pct],
+      ]));
+      // 이 섹터에 속한 종목 리스트
+      const members = __kgEdgesAll
+        .filter(e => e.to === node.id && e.type === 'IN_SECTOR')
+        .map(e => __kgNodesAll.find(n => n.id === e.from))
+        .filter(Boolean);
+      if (members.length > 0) {
+        sections.push(`<div style="margin-bottom:10px;">
+          <div style="font-size:0.75rem;color:var(--text);font-weight:600;margin-bottom:4px;">📈 소속 종목 (${members.length})</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${members.map(m => `<span style="background:rgba(34,211,238,0.1);color:#22d3ee;padding:3px 8px;border-radius:10px;font-size:0.7rem;font-family:var(--font-mono);cursor:pointer;" onclick="document.getElementById('kgSearch').value='${escapeHtml(m.label)}';document.getElementById('kgSearch').dispatchEvent(new Event('input'));">${escapeHtml(m.label)}</span>`).join('')}
+          </div>
+        </div>`);
+      }
+    }
+    // Index: 상관 종목들
+    else if (node.type === 'Index') {
+      sections.push(kvBlock('📊 지수 정보', [
+        ['Ticker', d.ticker],
+        ['Key', d.key],
+      ]));
+      const correlated = __kgEdgesAll
+        .filter(e => e.to === node.id && e.type === 'CORRELATES_WITH')
+        .map(e => ({ node: __kgNodesAll.find(n => n.id === e.from), edge: e }))
+        .filter(x => x.node)
+        .sort((a, b) => (b.edge.weight || 0) - (a.edge.weight || 0))
+        .slice(0, 20);
+      if (correlated.length > 0) {
+        sections.push(`<div style="margin-bottom:10px;">
+          <div style="font-size:0.75rem;color:var(--text);font-weight:600;margin-bottom:4px;">↔️ 상관 종목 (β 내림차순)</div>
+          ${correlated.map(c => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;border-bottom:1px dashed rgba(255,255,255,0.05);">
+            <span style="color:var(--text);">${escapeHtml(c.node.label)}</span>
+            <span style="color:#22d3ee;font-family:var(--font-mono);">β=${(c.edge.weight || 0).toFixed(2)}</span>
+          </div>`).join('')}
+        </div>`);
+      }
+    }
+    // Bill: 상태 + 관련 뉴스
+    else if (node.type === 'Bill') {
+      sections.push(kvBlock('🏛️ 법안 정보', [
+        ['단축명', d.short_name],
+        ['전체명', d.full_name],
+        ['의회', d.congress + '대'],
+        ['법안번호', `${d.bill_type} ${d.number}`],
+        ['현 상태', d.status_label_kr],
+        ['발생일', d.status_date],
+        ['발의자', d.sponsor],
+      ]));
+      if (d.link) {
+        sections.push(`<a href="${escapeHtml(d.link)}" target="_blank" rel="noopener" style="color:#22d3ee;text-decoration:none;font-size:0.75rem;">🔗 공식 페이지 →</a>`);
+      }
+    }
+    // Currency
+    else if (node.type === 'Currency') {
+      sections.push(kvBlock('💱 통화', [['Ticker', d.ticker], ['Key', d.key]]));
+      const sensitive = __kgEdgesAll
+        .filter(e => e.to === node.id && e.type === 'SENSITIVE_TO')
+        .map(e => ({ node: __kgNodesAll.find(n => n.id === e.from), edge: e }))
+        .filter(x => x.node);
+      if (sensitive.length > 0) {
+        sections.push(`<div style="margin-bottom:10px;">
+          <div style="font-size:0.75rem;color:var(--text);font-weight:600;margin-bottom:4px;">💧 환율 민감 종목</div>
+          ${sensitive.map(c => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;border-bottom:1px dashed rgba(255,255,255,0.05);">
+            <span>${escapeHtml(c.node.label)}</span>
+            <span style="color:#4ade80;font-family:var(--font-mono);">β=${(c.edge.data?.beta_usdkrw || c.edge.weight || 0).toFixed(2)}</span>
+          </div>`).join('')}
+        </div>`);
+      }
+    }
+    // NewsItem
+    else if (node.type === 'NewsItem') {
+      sections.push(`<div style="line-height:1.5;font-size:0.8rem;color:var(--text);margin-bottom:6px;">${escapeHtml(d.title_ko || d.title || '')}</div>`);
+      if (d.title_ko && d.title) {
+        sections.push(`<div style="font-style:italic;color:var(--text-muted);font-size:0.7rem;margin-bottom:8px;">🇺🇸 ${escapeHtml(d.title)}</div>`);
+      }
+      if (d.summary_ko || d.summary) {
+        sections.push(`<div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">${escapeHtml((d.summary_ko || d.summary).substring(0, 300))}</div>`);
+      }
+      if (d.source) sections.push(`<div style="font-size:0.65rem;color:#fb923c;">출처: ${escapeHtml(d.source)}</div>`);
+      if (d.link) sections.push(`<a href="${escapeHtml(d.link)}" target="_blank" rel="noopener" style="color:#22d3ee;font-size:0.7rem;">🔗 원문 →</a>`);
+    }
+    // 일반 객체
+    else {
+      sections.push(`<pre style="font-size:0.65rem;color:var(--text-muted);white-space:pre-wrap;">${escapeHtml(JSON.stringify(d, null, 2))}</pre>`);
+    }
+
+    // 연결된 노드 요약
+    const incoming = __kgEdgesAll.filter(e => e.to === node.id);
+    const outgoing = __kgEdgesAll.filter(e => e.from === node.id);
+    if (incoming.length + outgoing.length > 0) {
+      sections.push(`<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(34,211,238,0.15);font-size:0.65rem;color:var(--text-muted);">
+        🔗 연결: 들어오는 ${incoming.length} · 나가는 ${outgoing.length}
+      </div>`);
+    }
+
+    panel.innerHTML = sections.join('');
+  }
+
+  function kvBlock(title, pairs) {
+    const valid = pairs.filter(([k, v]) => v !== null && v !== undefined && v !== '');
+    if (valid.length === 0) return '';
+    return `<div style="margin-bottom:10px;">
+      <div style="font-size:0.7rem;color:var(--text);font-weight:600;margin-bottom:4px;">${escapeHtml(title)}</div>
+      ${valid.map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.7rem;">
+        <span style="color:var(--text-muted);">${escapeHtml(k)}</span>
+        <span style="color:var(--text);font-family:var(--font-mono);">${escapeHtml(String(v))}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c]));
   }
 
   // ─── Interactions ────────────────────────────────────

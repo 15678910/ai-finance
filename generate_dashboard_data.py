@@ -1321,6 +1321,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] IRR 분석 데이터 로드 실패: {e}")
 
+    # 10.13f) 통합 지식 그래프 (팔란티어 스타일 객체 중심 탐색)
+    kg_path = os.path.join(os.path.dirname(output_path), "knowledge_graph.json")
+    if os.path.exists(kg_path):
+        try:
+            with open(kg_path, encoding="utf-8") as f:
+                output_data["knowledge_graph"] = json.load(f)
+            print("[INFO] 지식 그래프 데이터 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 지식 그래프 데이터 로드 실패: {e}")
+
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf
