@@ -316,6 +316,77 @@ def build_from_clarity_act(kg: KnowledgeGraph):
     print(f"  · CLARITY Act 법안 {bill_count}건 + 뉴스 {news_count}건 통합")
 
 
+def build_from_semi_challengers(kg: KnowledgeGraph):
+    """반도체 챌린저 → Stock(챌린저) 노드 + AFFECTED_BY/COMPETES_WITH 엣지."""
+    data = _load_json("semi_challengers.json")
+    if not data:
+        print("  [건너뜀] semi_challengers.json 없음")
+        return
+
+    challenger_count = 0
+    edge_count = 0
+    for c in data.get("challengers", []):
+        # 챌린저 노드 (상장이면 ticker, 비상장이면 id 사용)
+        if c.get("ticker"):
+            cid = KnowledgeGraph.stock_id(c["ticker"])
+        else:
+            cid = f"challenger:{c['id']}"
+            kg.add_node(cid, "Stock", c["name"], {
+                "name": c["name"],
+                "category": c.get("category"),
+                "is_challenger": True,
+                "tech_label": c.get("tech_label"),
+                "status": c.get("status"),
+                "funding_total_usd_m": c.get("funding_total_usd_m"),
+                "valuation_usd_b": c.get("valuation_usd_b"),
+                "tags": c.get("tags", []),
+            })
+        # 상장 챌린저는 기존 노드와 병합
+        if c.get("ticker"):
+            kg.add_node(cid, "Stock", c["name"], {
+                "is_challenger": True,
+                "category": c.get("category"),
+                "tech_label": c.get("tech_label"),
+                "status": c.get("status"),
+                "tags": c.get("tags", []),
+            })
+
+        # 각 incumbent 대상으로 영향 엣지 추가
+        for imp in (c.get("impacts") or []):
+            inc_id_raw = imp.get("incumbent_id", "")
+            sentiment = imp.get("sentiment")
+            mag = imp.get("magnitude", "small")
+
+            # incumbent_id → URI 매핑 (한국 종목은 6자리 코드, 미국은 ticker)
+            if inc_id_raw and inc_id_raw.isdigit() and len(inc_id_raw) == 6:
+                inc_uri = KnowledgeGraph.stock_id(inc_id_raw)
+            else:
+                inc_uri = KnowledgeGraph.stock_id(inc_id_raw)
+
+            if inc_uri not in kg.nodes:
+                # 종목이 KG에 없을 수 있음 (NVIDIA, TSMC 등 미국 사업자) — 신규 추가
+                kg.add_node(inc_uri, "Stock", imp.get("incumbent_name") or inc_id_raw, {
+                    "ticker": inc_id_raw,
+                    "name": imp.get("incumbent_name"),
+                    "role": imp.get("incumbent_role"),
+                    "is_incumbent": True,
+                })
+
+            # 부정적 영향 = COMPETES_WITH (위협), 긍정 = SUPPLIES 또는 partner 의미
+            weight = 0.3 + (0.3 if mag == "moderate" else 0.6 if mag == "large" else 0)
+            edge_type = "COMPETES_WITH" if sentiment == "negative" else (
+                "SUPPLIES" if sentiment == "positive" else "AFFECTED_BY"
+            )
+            kg.add_edge(cid, inc_uri, edge_type, weight=weight, data={
+                "sentiment": sentiment,
+                "magnitude": mag,
+                "reasoning": imp.get("reasoning"),
+            })
+            edge_count += 1
+        challenger_count += 1
+    print(f"  · semi_challengers {challenger_count}개 챌린저 + 영향 엣지 {edge_count}개 통합")
+
+
 def build_from_bitcoin_standard(kg: KnowledgeGraph):
     """비트코인 본위제 모니터 → BTC 매크로 이벤트 노드 (참고용)."""
     data = _load_json("bitcoin_standard.json")
@@ -352,6 +423,7 @@ def main():
     build_from_semi_sensitivity_v2(kg)
     build_from_dcf(kg)
     build_from_clarity_act(kg)
+    build_from_semi_challengers(kg)
     build_from_bitcoin_standard(kg)
 
     # 통계

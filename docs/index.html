@@ -2344,6 +2344,111 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── 🔬 반도체 챌린저 모니터 (신흥 위협 분석) ──────────
+    const chal = data.semi_challengers;
+    if (chal && Array.isArray(chal.challengers) && chal.challengers.length > 0) {
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#06b6d4;">🔬 반도체 챌린저 모니터 <span style="font-size:0.65rem;color:var(--text-muted);">(신흥 위협 → 기존사 영향 분석 · ${chal.challengers_count}개 챌린저)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(6,182,212,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
+            <b style="color:var(--text);">목적:</b> Cerebras, Groq, Tenstorrent 등 신흥 반도체 기업이 NVIDIA·삼성전자·SK하이닉스·한미반도체에 미치는 영향 실시간 추적<br/>
+            <b style="color:var(--text);">분석 방식:</b> Phase 1 휴리스틱 — 사람이 사전 정의한 thesis + RSS 키워드 매칭 + 자동 한국어 번역<br/>
+            <b style="color:var(--text);">영향 표기:</b>
+            <span style="color:#4ade80;">긍정(+)</span> · <span style="color:#fbbf24;">중립(0)</span> · <span style="color:#f87171;">부정(-)</span> ·
+            <span style="color:#dc2626;">강한 부정(--)</span> ·
+            크기: small(작음) · moderate(중간) · large(큼)
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;">`;
+
+      const sentColor = {
+        "positive": "#4ade80",
+        "neutral": "#fbbf24",
+        "negative": "#f87171",
+      };
+      const sentSymbol = {
+        "positive": "+",
+        "neutral": "0",
+        "negative": "-",
+      };
+      const magBoost = (m) => m === "large" ? 2 : (m === "moderate" ? 1 : 0);
+
+      chal.challengers.forEach(c => {
+        const market = c.market || {};
+        const news = c.recent_news || [];
+        const tickerBadge = c.ticker ? `<span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-family:var(--font-mono);">${h(c.ticker)}</span>` : `<span style="background:rgba(167,139,250,0.15);color:#a78bfa;padding:2px 6px;border-radius:3px;font-size:0.65rem;font-family:var(--font-mono);">비상장</span>`;
+        const cardColor = c.id === "amd_mi300" ? "#4ade80" : "#06b6d4"; // 기존 챌린저(AMD)는 녹색
+
+        html += `<div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${cardColor};">
+          <!-- 헤더: 회사명 + 티커 + 카테고리 -->
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;gap:8px;">
+            <div style="font-size:1.05rem;font-weight:700;color:var(--text-bright);">${h(c.name)}</div>
+            ${tickerBadge}
+          </div>
+          <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:8px;">
+            ${h(c.category)} · ${h(c.tech_label || '')}${c.founded ? ' · ' + c.founded + '년 창업' : ''}
+          </div>
+
+          <!-- 기술 설명 + 핵심 장점 -->
+          <div style="font-size:0.72rem;color:var(--text);line-height:1.55;margin-bottom:8px;background:rgba(0,0,0,0.15);padding:7px 9px;border-radius:4px;">
+            ${h(c.tech_description || '')}
+            ${c.key_advantage ? `<br/><b style="color:#22d3ee;">💎 핵심 장점:</b> ${h(c.key_advantage)}` : ''}
+          </div>
+
+          <!-- 시장/펀딩 메타 -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.65rem;color:var(--text-muted);margin-bottom:10px;font-family:var(--font-mono);">
+            ${market.current_price ? `<span>💵 ${market.current_price} ${h(market.currency || 'USD')}</span>` : ''}
+            ${c.funding_total_usd_m ? `<span>💰 펀딩 $${c.funding_total_usd_m}M</span>` : ''}
+            ${c.valuation_usd_b ? `<span>📊 가치 $${c.valuation_usd_b}B</span>` : ''}
+            ${c.production_at ? `<span>🏭 ${h(c.production_at)}</span>` : ''}
+          </div>
+
+          <!-- 영향 분석 매트릭스 -->
+          <div style="font-size:0.7rem;color:var(--text);font-weight:600;margin-bottom:4px;">📊 기존사 영향 분석</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:3px;margin-bottom:10px;">`;
+
+        (c.impacts || []).forEach(imp => {
+          const color = sentColor[imp.sentiment] || "var(--text-muted)";
+          const symbol = sentSymbol[imp.sentiment] || "?";
+          const mag = imp.magnitude || "small";
+          const symbolDisplay = imp.sentiment === "negative" && mag === "large" ? "--" : (imp.sentiment === "positive" && mag === "large" ? "++" : symbol);
+          html += `<div style="display:flex;gap:8px;font-size:0.7rem;padding:4px 6px;background:rgba(255,255,255,0.02);border-radius:3px;">
+            <span style="color:${color};font-weight:700;font-family:var(--font-mono);min-width:36px;text-align:center;">${symbolDisplay}</span>
+            <span style="color:var(--text-bright);font-weight:600;min-width:90px;">${h(imp.incumbent_name)}</span>
+            <span style="color:var(--text-muted);flex:1;font-size:0.65rem;line-height:1.4;">${h(imp.reasoning || '')}</span>
+          </div>`;
+        });
+
+        html += `</div>
+
+          <!-- 최근 뉴스 -->
+          ${news.length > 0 ? `
+            <div style="font-size:0.7rem;color:var(--text);font-weight:600;margin-bottom:4px;">📰 최근 뉴스 (${c.news_count})</div>
+            ${news.slice(0, 3).map(n => `<div style="font-size:0.68rem;margin-bottom:6px;padding:5px 8px;background:rgba(0,0,0,0.2);border-radius:3px;border-left:2px solid ${cardColor};">
+              <a href="${h(n.link || '#')}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;line-height:1.4;display:block;font-weight:500;">${h((n.title_ko || n.title || '').substring(0, 110))}${(n.title_ko || n.title || '').length > 110 ? '…' : ''}</a>
+              ${n.title_ko && n.title ? `<div style="color:var(--text-muted);font-style:italic;font-size:0.6rem;margin-top:2px;opacity:0.7;">🇺🇸 ${h(n.title.substring(0, 100))}${n.title.length > 100 ? '…' : ''}</div>` : ''}
+              <div style="color:#fb923c;font-size:0.58rem;margin-top:2px;">${h(n.source || '')}</div>
+            </div>`).join('')}
+          ` : `<div style="font-size:0.65rem;color:var(--text-muted);font-style:italic;">최근 매칭 뉴스 없음</div>`}
+
+          <!-- 태그 -->
+          ${(c.tags || []).length > 0 ? `<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+            ${c.tags.map(t => `<span style="font-size:0.6rem;color:var(--text-muted);background:rgba(6,182,212,0.1);padding:2px 6px;border-radius:8px;">${h(t)}</span>`).join('')}
+          </div>` : ''}
+        </div>`;
+      });
+
+      html += `</div>`;
+
+      html += `<div style="margin-top:12px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(chal.warning || '휴리스틱 분석. 실거래 단독 사용 금지.')}<br/>
+        생성: ${h(chal.generated_at || '')} · 뉴스 매칭 ${chal.total_news_matched || 0}건 (신규 ${chal.new_alerts_this_run || 0}건) · 데이터: ${h((chal.data_sources || []).slice(0,4).join(' · '))} 외
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── BITCOIN STANDARD MONITOR ──────────────────────
     const bs = data.bitcoin_standard;
     if (bs && bs.bts_score) {

@@ -1,18 +1,21 @@
 {
-  "generated_at": "2026-05-15 10:05:59 KST",
+  "generated_at": "2026-05-15 14:55:13 KST",
   "methodology": "ai-finance 모듈 JSON 통합 → 노드(엔티티) + 엣지(관계) 그래프. vis.js network 형식 호환. 클릭 가능한 객체 중심 탐색.",
   "entity_types": [
     "NewsItem",
-    "MacroEvent",
-    "Currency",
     "Sector",
+    "MacroEvent",
+    "Stock",
     "Index",
-    "Stock"
+    "Currency"
   ],
   "relation_types": [
     "SENSITIVE_TO",
-    "IN_SECTOR",
-    "CORRELATES_WITH"
+    "COMPETES_WITH",
+    "AFFECTED_BY",
+    "CORRELATES_WITH",
+    "SUPPLIES",
+    "IN_SECTOR"
   ],
   "nodes": [
     {
@@ -412,10 +415,10 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.5682,
-            "alpha": 0.008227,
-            "r_squared": 0.1435,
-            "correlation": 0.3788,
+            "beta": 1.5648,
+            "alpha": 0.008297,
+            "r_squared": 0.1437,
+            "correlation": 0.379,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -423,20 +426,20 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.568,
-              "up_3pct": 4.705,
-              "down_1pct": -1.568,
-              "down_3pct": -4.705
+              "up_1pct": 1.565,
+              "up_3pct": 4.694,
+              "down_1pct": -1.565,
+              "down_3pct": -4.694
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.8305,
-            "alpha": 0.008521,
-            "r_squared": 0.112,
-            "correlation": 0.3347,
+            "beta": 1.8222,
+            "alpha": 0.008589,
+            "r_squared": 0.1115,
+            "correlation": 0.334,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -444,20 +447,20 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.831,
-              "up_3pct": 5.492,
-              "down_1pct": -1.831,
-              "down_3pct": -5.492
+              "up_1pct": 1.822,
+              "up_3pct": 5.467,
+              "down_1pct": -1.822,
+              "down_3pct": -5.467
             }
           },
           "sox": {
             "benchmark_name": "PHLX 반도체 지수",
             "benchmark_ticker": "^SOX",
             "primary": true,
-            "beta": 0.8306,
-            "alpha": 0.007732,
-            "r_squared": 0.1667,
-            "correlation": 0.4082,
+            "beta": 0.8252,
+            "alpha": 0.007542,
+            "r_squared": 0.1651,
+            "correlation": 0.4063,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 보통",
@@ -465,20 +468,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.831,
-              "up_3pct": 2.492,
-              "down_1pct": -0.831,
-              "down_3pct": -2.492
+              "up_1pct": 0.825,
+              "up_3pct": 2.476,
+              "down_1pct": -0.825,
+              "down_3pct": -2.476
             }
           },
           "spx": {
             "benchmark_name": "S&P 500",
             "benchmark_ticker": "^GSPC",
             "primary": false,
-            "beta": 1.9479,
-            "alpha": 0.008726,
-            "r_squared": 0.1276,
-            "correlation": 0.3572,
+            "beta": 1.9392,
+            "alpha": 0.008621,
+            "r_squared": 0.1265,
+            "correlation": 0.3557,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -486,20 +489,20 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.948,
-              "up_3pct": 5.844,
-              "down_1pct": -1.948,
-              "down_3pct": -5.844
+              "up_1pct": 1.939,
+              "up_3pct": 5.818,
+              "down_1pct": -1.939,
+              "down_3pct": -5.818
             }
           },
           "ixic": {
             "benchmark_name": "Nasdaq",
             "benchmark_ticker": "^IXIC",
             "primary": false,
-            "beta": 1.5543,
-            "alpha": 0.008538,
-            "r_squared": 0.1474,
-            "correlation": 0.384,
+            "beta": 1.5435,
+            "alpha": 0.008363,
+            "r_squared": 0.146,
+            "correlation": 0.3821,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -507,31 +510,31 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.554,
-              "up_3pct": 4.663,
-              "down_1pct": -1.554,
-              "down_3pct": -4.663
+              "up_1pct": 1.544,
+              "up_3pct": 4.631,
+              "down_1pct": -1.544,
+              "down_3pct": -4.631
             }
           }
         },
         "semi_v2": {
-          "alpha": 0.002519,
+          "alpha": 0.002524,
           "betas": {
-            "nq": 0.359,
-            "sox": -0.0147,
-            "ust10y": 0.0166,
-            "usdkrw": 0.3159,
-            "kospi": 1.5494
+            "nq": 0.3762,
+            "sox": -0.0309,
+            "ust10y": 0.0217,
+            "usdkrw": 0.3749,
+            "kospi": 1.5651
           },
           "t_stats": {
-            "nq": 1.34,
-            "sox": -0.11,
-            "ust10y": 0.45,
-            "usdkrw": 1.13,
-            "kospi": 20.28
+            "nq": 1.4,
+            "sox": -0.23,
+            "ust10y": 0.58,
+            "usdkrw": 1.35,
+            "kospi": 20.65
           },
-          "r_squared": 0.7158,
-          "adj_r_squared": 0.7095,
+          "r_squared": 0.7172,
+          "adj_r_squared": 0.711,
           "n_samples": 233,
           "n_predictors": 5
         },
@@ -627,10 +630,10 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.1463,
-            "alpha": 0.005837,
-            "r_squared": 0.1266,
-            "correlation": 0.3558,
+            "beta": 1.1576,
+            "alpha": 0.005983,
+            "r_squared": 0.1289,
+            "correlation": 0.3591,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -638,20 +641,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.146,
-              "up_3pct": 3.439,
-              "down_1pct": -1.146,
-              "down_3pct": -3.439
+              "up_1pct": 1.158,
+              "up_3pct": 3.473,
+              "down_1pct": -1.158,
+              "down_3pct": -3.473
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.4285,
-            "alpha": 0.005966,
-            "r_squared": 0.1127,
-            "correlation": 0.3357,
+            "beta": 1.4379,
+            "alpha": 0.006112,
+            "r_squared": 0.1139,
+            "correlation": 0.3375,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -659,20 +662,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.429,
-              "up_3pct": 4.286,
-              "down_1pct": -1.429,
-              "down_3pct": -4.286
+              "up_1pct": 1.438,
+              "up_3pct": 4.314,
+              "down_1pct": -1.438,
+              "down_3pct": -4.314
             }
           },
           "sox": {
             "benchmark_name": "PHLX 반도체 지수",
             "benchmark_ticker": "^SOX",
             "primary": true,
-            "beta": 0.6499,
-            "alpha": 0.005195,
-            "r_squared": 0.1676,
-            "correlation": 0.4093,
+            "beta": 0.6533,
+            "alpha": 0.005313,
+            "r_squared": 0.1694,
+            "correlation": 0.4116,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 보통",
@@ -680,20 +683,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.65,
-              "up_3pct": 1.95,
-              "down_1pct": -0.65,
-              "down_3pct": -1.95
+              "up_1pct": 0.653,
+              "up_3pct": 1.96,
+              "down_1pct": -0.653,
+              "down_3pct": -1.96
             }
           },
           "spx": {
             "benchmark_name": "S&P 500",
             "benchmark_ticker": "^GSPC",
             "primary": false,
-            "beta": 1.5258,
-            "alpha": 0.00597,
-            "r_squared": 0.1286,
-            "correlation": 0.3586,
+            "beta": 1.54,
+            "alpha": 0.006163,
+            "r_squared": 0.1306,
+            "correlation": 0.3614,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -701,20 +704,20 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.526,
-              "up_3pct": 4.577,
-              "down_1pct": -1.526,
-              "down_3pct": -4.577
+              "up_1pct": 1.54,
+              "up_3pct": 4.62,
+              "down_1pct": -1.54,
+              "down_3pct": -4.62
             }
           },
           "ixic": {
             "benchmark_name": "Nasdaq",
             "benchmark_ticker": "^IXIC",
             "primary": false,
-            "beta": 1.1415,
-            "alpha": 0.005924,
-            "r_squared": 0.1306,
-            "correlation": 0.3614,
+            "beta": 1.1493,
+            "alpha": 0.006063,
+            "r_squared": 0.1325,
+            "correlation": 0.364,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 민감",
@@ -722,30 +725,30 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.141,
-              "up_3pct": 3.425,
-              "down_1pct": -1.141,
-              "down_3pct": -3.425
+              "up_1pct": 1.149,
+              "up_3pct": 3.448,
+              "down_1pct": -1.149,
+              "down_3pct": -3.448
             }
           }
         },
         "semi_v2": {
-          "alpha": 0.001189,
+          "alpha": 0.001221,
           "betas": {
-            "nq": -0.0588,
-            "sox": 0.053,
-            "ust10y": -0.0315,
-            "usdkrw": 0.0223,
-            "kospi": 1.2767
+            "nq": -0.0653,
+            "sox": 0.0586,
+            "ust10y": -0.0348,
+            "usdkrw": -0.0099,
+            "kospi": 1.2693
           },
           "t_stats": {
-            "nq": -0.31,
-            "sox": 0.56,
-            "ust10y": -1.21,
-            "usdkrw": 0.11,
-            "kospi": 23.9
+            "nq": -0.35,
+            "sox": 0.63,
+            "ust10y": -1.34,
+            "usdkrw": -0.05,
+            "kospi": 24.01
           },
-          "r_squared": 0.774,
+          "r_squared": 0.7739,
           "adj_r_squared": 0.769,
           "n_samples": 233,
           "n_predictors": 5
@@ -1149,10 +1152,10 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.1088,
-            "alpha": 0.00629,
-            "r_squared": 0.0501,
-            "correlation": 0.2239,
+            "beta": 1.1162,
+            "alpha": 0.006447,
+            "r_squared": 0.051,
+            "correlation": 0.2259,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -1160,20 +1163,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.109,
-              "up_3pct": 3.326,
-              "down_1pct": -1.109,
-              "down_3pct": -3.326
+              "up_1pct": 1.116,
+              "up_3pct": 3.349,
+              "down_1pct": -1.116,
+              "down_3pct": -3.349
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.2682,
-            "alpha": 0.006522,
-            "r_squared": 0.0376,
-            "correlation": 0.1939,
+            "beta": 1.2705,
+            "alpha": 0.006683,
+            "r_squared": 0.0378,
+            "correlation": 0.1945,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -1181,20 +1184,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.268,
-              "up_3pct": 3.805,
-              "down_1pct": -1.268,
-              "down_3pct": -3.805
+              "up_1pct": 1.27,
+              "up_3pct": 3.811,
+              "down_1pct": -1.27,
+              "down_3pct": -3.811
             }
           },
           "sox": {
             "benchmark_name": "PHLX 반도체 지수",
             "benchmark_ticker": "^SOX",
             "primary": true,
-            "beta": 0.6492,
-            "alpha": 0.005705,
-            "r_squared": 0.0708,
-            "correlation": 0.2661,
+            "beta": 0.6597,
+            "alpha": 0.005176,
+            "r_squared": 0.0749,
+            "correlation": 0.2737,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 보통",
@@ -1202,20 +1205,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.649,
-              "up_3pct": 1.948,
-              "down_1pct": -0.649,
-              "down_3pct": -1.948
+              "up_1pct": 0.66,
+              "up_3pct": 1.979,
+              "down_1pct": -0.66,
+              "down_3pct": -1.979
             }
           },
           "spx": {
             "benchmark_name": "S&P 500",
             "benchmark_ticker": "^GSPC",
             "primary": false,
-            "beta": 1.3783,
-            "alpha": 0.006619,
-            "r_squared": 0.0444,
-            "correlation": 0.2108,
+            "beta": 1.3575,
+            "alpha": 0.006224,
+            "r_squared": 0.044,
+            "correlation": 0.2098,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 민감",
@@ -1223,20 +1226,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.378,
-              "up_3pct": 4.135,
-              "down_1pct": -1.378,
-              "down_3pct": -4.135
+              "up_1pct": 1.357,
+              "up_3pct": 4.072,
+              "down_1pct": -1.357,
+              "down_3pct": -4.072
             }
           },
           "ixic": {
             "benchmark_name": "Nasdaq",
             "benchmark_ticker": "^IXIC",
             "primary": false,
-            "beta": 1.0347,
-            "alpha": 0.006572,
-            "r_squared": 0.0455,
-            "correlation": 0.2132,
+            "beta": 1.05,
+            "alpha": 0.006085,
+            "r_squared": 0.0479,
+            "correlation": 0.2189,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 민감",
@@ -1244,31 +1247,31 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.035,
-              "up_3pct": 3.104,
-              "down_1pct": -1.035,
-              "down_3pct": -3.104
+              "up_1pct": 1.05,
+              "up_3pct": 3.15,
+              "down_1pct": -1.05,
+              "down_3pct": -3.15
             }
           }
         },
         "semi_v2": {
-          "alpha": 0.001861,
+          "alpha": 0.001383,
           "betas": {
-            "nq": -0.2566,
-            "sox": 0.0933,
-            "ust10y": 0.0099,
-            "usdkrw": -0.6239,
-            "kospi": 1.2616
+            "nq": -0.2576,
+            "sox": 0.1007,
+            "ust10y": 0.0292,
+            "usdkrw": -0.485,
+            "kospi": 1.2825
           },
           "t_stats": {
-            "nq": -0.53,
-            "sox": 0.38,
-            "ust10y": 0.15,
-            "usdkrw": -1.23,
-            "kospi": 9.05
+            "nq": -0.54,
+            "sox": 0.42,
+            "ust10y": 0.44,
+            "usdkrw": -0.97,
+            "kospi": 9.43
           },
-          "r_squared": 0.3453,
-          "adj_r_squared": 0.3309,
+          "r_squared": 0.3541,
+          "adj_r_squared": 0.3399,
           "n_samples": 233,
           "n_predictors": 5
         },
@@ -1364,10 +1367,10 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.07,
-            "alpha": 0.004555,
-            "r_squared": 0.0776,
-            "correlation": 0.2786,
+            "beta": 1.0701,
+            "alpha": 0.004626,
+            "r_squared": 0.078,
+            "correlation": 0.2792,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -1385,10 +1388,10 @@
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.4331,
-            "alpha": 0.004581,
-            "r_squared": 0.0798,
-            "correlation": 0.2825,
+            "beta": 1.4293,
+            "alpha": 0.004648,
+            "r_squared": 0.0796,
+            "correlation": 0.2822,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -1396,20 +1399,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.433,
-              "up_3pct": 4.299,
-              "down_1pct": -1.433,
-              "down_3pct": -4.299
+              "up_1pct": 1.429,
+              "up_3pct": 4.288,
+              "down_1pct": -1.429,
+              "down_3pct": -4.288
             }
           },
           "sox": {
             "benchmark_name": "PHLX 반도체 지수",
             "benchmark_ticker": "^SOX",
             "primary": true,
-            "beta": 0.579,
-            "alpha": 0.004183,
-            "r_squared": 0.0938,
-            "correlation": 0.3063,
+            "beta": 0.5728,
+            "alpha": 0.004267,
+            "r_squared": 0.0925,
+            "correlation": 0.3042,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 보통",
@@ -1417,20 +1420,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.579,
-              "up_3pct": 1.737,
-              "down_1pct": -0.579,
-              "down_3pct": -1.737
+              "up_1pct": 0.573,
+              "up_3pct": 1.718,
+              "down_1pct": -0.573,
+              "down_3pct": -1.718
             }
           },
           "spx": {
             "benchmark_name": "S&P 500",
             "benchmark_ticker": "^GSPC",
             "primary": false,
-            "beta": 1.5561,
-            "alpha": 0.004686,
-            "r_squared": 0.0943,
-            "correlation": 0.3072,
+            "beta": 1.5615,
+            "alpha": 0.004809,
+            "r_squared": 0.0954,
+            "correlation": 0.3089,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -1438,20 +1441,20 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.556,
-              "up_3pct": 4.668,
-              "down_1pct": -1.556,
-              "down_3pct": -4.668
+              "up_1pct": 1.562,
+              "up_3pct": 4.684,
+              "down_1pct": -1.562,
+              "down_3pct": -4.684
             }
           },
           "ixic": {
             "benchmark_name": "Nasdaq",
             "benchmark_ticker": "^IXIC",
             "primary": false,
-            "beta": 1.1237,
-            "alpha": 0.004692,
-            "r_squared": 0.0893,
-            "correlation": 0.2988,
+            "beta": 1.1135,
+            "alpha": 0.004779,
+            "r_squared": 0.0884,
+            "correlation": 0.2972,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 민감",
@@ -1459,31 +1462,31 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.124,
-              "up_3pct": 3.371,
-              "down_1pct": -1.124,
-              "down_3pct": -3.371
+              "up_1pct": 1.113,
+              "up_3pct": 3.34,
+              "down_1pct": -1.113,
+              "down_3pct": -3.34
             }
           }
         },
         "semi_v2": {
-          "alpha": 0.001718,
+          "alpha": 0.001904,
           "betas": {
-            "nq": 0.1376,
-            "sox": 0.0821,
-            "ust10y": -0.0545,
-            "usdkrw": -0.2491,
-            "kospi": 0.8377
+            "nq": 0.1418,
+            "sox": 0.0757,
+            "ust10y": -0.0608,
+            "usdkrw": -0.2896,
+            "kospi": 0.8331
           },
           "t_stats": {
-            "nq": 0.35,
-            "sox": 0.41,
-            "ust10y": -1.0,
-            "usdkrw": -0.61,
-            "kospi": 7.45
+            "nq": 0.36,
+            "sox": 0.38,
+            "ust10y": -1.11,
+            "usdkrw": -0.71,
+            "kospi": 7.51
           },
-          "r_squared": 0.2937,
-          "adj_r_squared": 0.2781,
+          "r_squared": 0.2952,
+          "adj_r_squared": 0.2797,
           "n_samples": 233,
           "n_predictors": 5
         },
@@ -3354,10 +3357,10 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 0.8431,
-            "alpha": 0.005999,
-            "r_squared": 0.0433,
-            "correlation": 0.2082,
+            "beta": 0.8353,
+            "alpha": 0.005969,
+            "r_squared": 0.0426,
+            "correlation": 0.2065,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 보통",
@@ -3365,20 +3368,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.843,
-              "up_3pct": 2.529,
-              "down_1pct": -0.843,
-              "down_3pct": -2.529
+              "up_1pct": 0.835,
+              "up_3pct": 2.506,
+              "down_1pct": -0.835,
+              "down_3pct": -2.506
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 0.889,
-            "alpha": 0.006247,
-            "r_squared": 0.0276,
-            "correlation": 0.1662,
+            "beta": 0.8797,
+            "alpha": 0.006215,
+            "r_squared": 0.0271,
+            "correlation": 0.1645,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 보통",
@@ -3386,20 +3389,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.889,
-              "up_3pct": 2.667,
-              "down_1pct": -0.889,
-              "down_3pct": -2.667
+              "up_1pct": 0.88,
+              "up_3pct": 2.639,
+              "down_1pct": -0.88,
+              "down_3pct": -2.639
             }
           },
           "sox": {
             "benchmark_name": "PHLX 반도체 지수",
             "benchmark_ticker": "^SOX",
             "primary": true,
-            "beta": 0.426,
-            "alpha": 0.005755,
-            "r_squared": 0.0456,
-            "correlation": 0.2134,
+            "beta": 0.4193,
+            "alpha": 0.005636,
+            "r_squared": 0.0442,
+            "correlation": 0.2104,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 둔감",
@@ -3407,20 +3410,20 @@
               "color": "green"
             },
             "impact": {
-              "up_1pct": 0.426,
-              "up_3pct": 1.278,
-              "down_1pct": -0.426,
-              "down_3pct": -1.278
+              "up_1pct": 0.419,
+              "up_3pct": 1.258,
+              "down_1pct": -0.419,
+              "down_3pct": -1.258
             }
           },
           "spx": {
             "benchmark_name": "S&P 500",
             "benchmark_ticker": "^GSPC",
             "primary": false,
-            "beta": 1.0149,
-            "alpha": 0.00625,
-            "r_squared": 0.036,
-            "correlation": 0.1897,
+            "beta": 1.0067,
+            "alpha": 0.006164,
+            "r_squared": 0.0354,
+            "correlation": 0.1882,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 민감",
@@ -3428,20 +3431,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.015,
-              "up_3pct": 3.045,
-              "down_1pct": -1.015,
-              "down_3pct": -3.045
+              "up_1pct": 1.007,
+              "up_3pct": 3.02,
+              "down_1pct": -1.007,
+              "down_3pct": -3.02
             }
           },
           "ixic": {
             "benchmark_name": "Nasdaq",
             "benchmark_ticker": "^IXIC",
             "primary": false,
-            "beta": 0.8182,
-            "alpha": 0.006141,
-            "r_squared": 0.0425,
-            "correlation": 0.206,
+            "beta": 0.8054,
+            "alpha": 0.006024,
+            "r_squared": 0.0413,
+            "correlation": 0.2031,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 보통",
@@ -3449,31 +3452,31 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.818,
-              "up_3pct": 2.455,
-              "down_1pct": -0.818,
-              "down_3pct": -2.455
+              "up_1pct": 0.805,
+              "up_3pct": 2.416,
+              "down_1pct": -0.805,
+              "down_3pct": -2.416
             }
           }
         },
         "semi_v2": {
-          "alpha": 0.001842,
+          "alpha": 0.002074,
           "betas": {
-            "nq": 0.2501,
-            "sox": -0.1235,
-            "ust10y": 0.0421,
-            "usdkrw": 0.2631,
-            "kospi": 1.0589
+            "nq": 0.3043,
+            "sox": -0.1772,
+            "ust10y": 0.0494,
+            "usdkrw": 0.3844,
+            "kospi": 1.0983
           },
           "t_stats": {
-            "nq": 0.62,
-            "sox": -0.61,
-            "ust10y": 0.76,
-            "usdkrw": 0.63,
-            "kospi": 9.25
+            "nq": 0.75,
+            "sox": -0.87,
+            "ust10y": 0.87,
+            "usdkrw": 0.91,
+            "kospi": 9.58
           },
-          "r_squared": 0.322,
-          "adj_r_squared": 0.3071,
+          "r_squared": 0.3272,
+          "adj_r_squared": 0.3124,
           "n_samples": 233,
           "n_predictors": 5
         }
@@ -3736,10 +3739,10 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 0.9452,
-            "alpha": 0.000516,
-            "r_squared": 0.0849,
-            "correlation": 0.2914,
+            "beta": 0.9561,
+            "alpha": 0.000687,
+            "r_squared": 0.0871,
+            "correlation": 0.2951,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 보통",
@@ -3747,20 +3750,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.945,
-              "up_3pct": 2.836,
-              "down_1pct": -0.945,
-              "down_3pct": -2.836
+              "up_1pct": 0.956,
+              "up_3pct": 2.868,
+              "down_1pct": -0.956,
+              "down_3pct": -2.868
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.3425,
-            "alpha": 0.000466,
-            "r_squared": 0.0982,
-            "correlation": 0.3134,
+            "beta": 1.3487,
+            "alpha": 0.000637,
+            "r_squared": 0.0992,
+            "correlation": 0.315,
             "n_samples": 236,
             "interpretation": {
               "level": "동조 민감",
@@ -3768,20 +3771,20 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.343,
-              "up_3pct": 4.027,
-              "down_1pct": -1.343,
-              "down_3pct": -4.027
+              "up_1pct": 1.349,
+              "up_3pct": 4.046,
+              "down_1pct": -1.349,
+              "down_3pct": -4.046
             }
           },
           "sox": {
             "benchmark_name": "PHLX 반도체 지수",
             "benchmark_ticker": "^SOX",
             "primary": true,
-            "beta": 0.5643,
-            "alpha": 1.4e-05,
-            "r_squared": 0.1251,
-            "correlation": 0.3536,
+            "beta": 0.5626,
+            "alpha": 0.000294,
+            "r_squared": 0.126,
+            "correlation": 0.355,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 보통",
@@ -3789,20 +3792,20 @@
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.564,
-              "up_3pct": 1.693,
-              "down_1pct": -0.564,
-              "down_3pct": -1.693
+              "up_1pct": 0.563,
+              "up_3pct": 1.688,
+              "down_1pct": -0.563,
+              "down_3pct": -1.688
             }
           },
           "spx": {
             "benchmark_name": "S&P 500",
             "benchmark_ticker": "^GSPC",
             "primary": false,
-            "beta": 1.5042,
-            "alpha": 0.000517,
-            "r_squared": 0.1237,
-            "correlation": 0.3517,
+            "beta": 1.5242,
+            "alpha": 0.000836,
+            "r_squared": 0.1284,
+            "correlation": 0.3583,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 매우 민감",
@@ -3810,20 +3813,20 @@
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.504,
-              "up_3pct": 4.513,
-              "down_1pct": -1.504,
-              "down_3pct": -4.513
+              "up_1pct": 1.524,
+              "up_3pct": 4.573,
+              "down_1pct": -1.524,
+              "down_3pct": -4.573
             }
           },
           "ixic": {
             "benchmark_name": "Nasdaq",
             "benchmark_ticker": "^IXIC",
             "primary": false,
-            "beta": 1.0587,
-            "alpha": 0.000559,
-            "r_squared": 0.1112,
-            "correlation": 0.3335,
+            "beta": 1.0583,
+            "alpha": 0.000846,
+            "r_squared": 0.1127,
+            "correlation": 0.3356,
             "n_samples": 234,
             "interpretation": {
               "level": "동조 민감",
@@ -3831,31 +3834,31 @@
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.059,
-              "up_3pct": 3.176,
-              "down_1pct": -1.059,
-              "down_3pct": -3.176
+              "up_1pct": 1.058,
+              "up_3pct": 3.175,
+              "down_1pct": -1.058,
+              "down_3pct": -3.175
             }
           }
         },
         "semi_v2": {
-          "alpha": -0.001921,
+          "alpha": -0.001741,
           "betas": {
-            "nq": -0.0966,
-            "sox": 0.2858,
-            "ust10y": -0.0491,
-            "usdkrw": 0.0926,
-            "kospi": 0.6425
+            "nq": -0.1084,
+            "sox": 0.2944,
+            "ust10y": -0.0602,
+            "usdkrw": -0.0024,
+            "kospi": 0.6235
           },
           "t_stats": {
-            "nq": -0.29,
-            "sox": 1.69,
-            "ust10y": -1.05,
-            "usdkrw": 0.26,
-            "kospi": 6.69
+            "nq": -0.32,
+            "sox": 1.76,
+            "ust10y": -1.29,
+            "usdkrw": -0.01,
+            "kospi": 6.6
           },
-          "r_squared": 0.2755,
-          "adj_r_squared": 0.2595,
+          "r_squared": 0.2768,
+          "adj_r_squared": 0.2609,
           "n_samples": 233,
           "n_predictors": 5
         },
@@ -4303,7 +4306,7 @@
       }
     },
     {
-      "id": "news:344011126605",
+      "id": "news:813562549923",
       "label": "비트코인이 82,000달러에 도달하고, Clarity Act가 진행됨에 따라 Coinbas",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4318,7 +4321,7 @@
       }
     },
     {
-      "id": "news:105963223578",
+      "id": "news:394752413887",
       "label": "Clarity Act는 의회에서 최종 테스트를 진행 중인 미국 상원 위원회를 승인합니다.",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4333,7 +4336,7 @@
       }
     },
     {
-      "id": "news:23379657433",
+      "id": "news:537218831718",
       "label": "미국 상원의원들은 암호화폐 명확성법(Crypto Clarity Act)에 대해 초당적 지지",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4348,7 +4351,7 @@
       }
     },
     {
-      "id": "news:113994738666",
+      "id": "news:771438522770",
       "label": "라이브: 상원 은행 위원회, Clarity Act를 전체 상원 의원으로 승격",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4363,7 +4366,7 @@
       }
     },
     {
-      "id": "news:980666440076",
+      "id": "news:342145099053",
       "label": "Clarity Act 마크업으로 인해 비트코인이 흔들리지 않게 되었습니다.",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4378,7 +4381,7 @@
       }
     },
     {
-      "id": "news:171247511796",
+      "id": "news:970061650221",
       "label": "'결정적인 전환점': 암호화폐 업계는 다음 투표를 앞두고 윤리적 문제가 남아 있는 가운데 ",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4393,7 +4396,7 @@
       }
     },
     {
-      "id": "news:483134582400",
+      "id": "news:142705161898",
       "label": "상원 은행위원회, 획기적인 암호화폐 시장 구조 법안을 추진하고 일부 민주당 지지 획득",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4408,7 +4411,7 @@
       }
     },
     {
-      "id": "news:747491353306",
+      "id": "news:310408517583",
       "label": "'고양이 가죽을 벗기는 백만 가지 방법': 스테이블코인 후원자들이 Clarity Act에서",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4423,7 +4426,7 @@
       }
     },
     {
-      "id": "news:430885116762",
+      "id": "news:938747476721",
       "label": "GSR 법률 책임자는 스테이블 코인 수익률과 윤리 문제를 이유로 Clarity Act 통과",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4438,7 +4441,7 @@
       }
     },
     {
-      "id": "news:640824939097",
+      "id": "news:939163859660",
       "label": "암호화폐 법안이 주요 상원 위원회 투표를 통과함에 따라 민주당은 명확성 법안에 대해 분열했",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4450,6 +4453,315 @@
         "source": "Decrypt",
         "link": "https://decrypt.co/367871/democrats-split-clarity-act-crypto-bill-passes-senate-committee-vote",
         "matched_keyword": "CLARITY Act"
+      }
+    },
+    {
+      "id": "stock:CBRS",
+      "label": "Cerebras Systems",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "is_challenger": true,
+        "category": "AI Accelerator",
+        "tech_label": "Wafer-scale Engine (WSE-3)",
+        "status": "Public (2024 IPO)",
+        "tags": [
+          "AI",
+          "training",
+          "wafer-scale",
+          "비-HBM"
+        ]
+      }
+    },
+    {
+      "id": "stock:NVDA",
+      "label": "NVIDIA",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "NVDA",
+        "name": "NVIDIA",
+        "role": "AI GPU 절대강자",
+        "is_incumbent": true
+      }
+    },
+    {
+      "id": "stock:AMD",
+      "label": "AMD",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "AMD",
+        "name": "AMD",
+        "role": "기존 #2 챌린저 (MI300X)",
+        "is_incumbent": true,
+        "is_challenger": true,
+        "category": "AI GPU (현직 #2)",
+        "tech_label": "Instinct MI300X / MI325X",
+        "status": "Public ($AMD)",
+        "tags": [
+          "AI",
+          "GPU",
+          "HBM 수혜",
+          "현직"
+        ]
+      }
+    },
+    {
+      "id": "stock:TSM",
+      "label": "TSMC",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "TSM",
+        "name": "TSMC",
+        "role": "파운드리 절대강자",
+        "is_incumbent": true
+      }
+    },
+    {
+      "id": "challenger:groq",
+      "label": "Groq",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Groq",
+        "category": "AI Inference Accelerator",
+        "is_challenger": true,
+        "tech_label": "LPU (Language Processing Unit)",
+        "status": "Private (BlackRock 2024 라운드)",
+        "funding_total_usd_m": 1640,
+        "valuation_usd_b": 6.9,
+        "tags": [
+          "AI",
+          "inference",
+          "ASIC",
+          "비-HBM"
+        ]
+      }
+    },
+    {
+      "id": "stock:INTC",
+      "label": "Intel",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "INTC",
+        "name": "Intel",
+        "role": "기존 #3 (Gaudi)",
+        "is_incumbent": true
+      }
+    },
+    {
+      "id": "challenger:sambanova",
+      "label": "SambaNova Systems",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "SambaNova Systems",
+        "category": "AI Dataflow Architecture",
+        "is_challenger": true,
+        "tech_label": "RDU (Reconfigurable Dataflow Unit)",
+        "status": "Private",
+        "funding_total_usd_m": 1100,
+        "valuation_usd_b": 5.1,
+        "tags": [
+          "AI",
+          "training",
+          "enterprise",
+          "HBM 사용"
+        ]
+      }
+    },
+    {
+      "id": "challenger:tenstorrent",
+      "label": "Tenstorrent",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Tenstorrent",
+        "category": "AI + RISC-V",
+        "is_challenger": true,
+        "tech_label": "Black hole + Wormhole",
+        "status": "Private (2024 Samsung·Hyundai 투자)",
+        "funding_total_usd_m": 850,
+        "valuation_usd_b": 2.6,
+        "tags": [
+          "AI",
+          "RISC-V",
+          "오픈SW",
+          "Korean tie"
+        ]
+      }
+    },
+    {
+      "id": "stock:ARM",
+      "label": "ARM",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "ARM",
+        "name": "ARM",
+        "role": null,
+        "is_incumbent": true
+      }
+    },
+    {
+      "id": "challenger:lightmatter",
+      "label": "Lightmatter",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Lightmatter",
+        "category": "Photonic Computing",
+        "is_challenger": true,
+        "tech_label": "Envise + Passage (광학 칩)",
+        "status": "Private",
+        "funding_total_usd_m": 270,
+        "valuation_usd_b": 1.2,
+        "tags": [
+          "AI",
+          "photonic",
+          "장기위협"
+        ]
+      }
+    },
+    {
+      "id": "challenger:etched",
+      "label": "Etched.ai",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Etched.ai",
+        "category": "Transformer-Specific ASIC",
+        "is_challenger": true,
+        "tech_label": "Sohu",
+        "status": "Private",
+        "funding_total_usd_m": 120,
+        "valuation_usd_b": 0.5,
+        "tags": [
+          "AI",
+          "inference",
+          "ASIC",
+          "Transformer전용"
+        ]
+      }
+    },
+    {
+      "id": "challenger:rain_ai",
+      "label": "Rain AI",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Rain AI",
+        "category": "Neuromorphic",
+        "is_challenger": true,
+        "tech_label": "RNNs + Memristor",
+        "status": "Private (Pre-revenue)",
+        "funding_total_usd_m": 50,
+        "valuation_usd_b": 0.15,
+        "tags": [
+          "AI",
+          "neuromorphic",
+          "장기"
+        ]
+      }
+    },
+    {
+      "id": "challenger:d_matrix",
+      "label": "d-Matrix",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "d-Matrix",
+        "category": "LLM Inference",
+        "is_challenger": true,
+        "tech_label": "Corsair (3D-stacked DIMC)",
+        "status": "Private (Microsoft 투자)",
+        "funding_total_usd_m": 160,
+        "valuation_usd_b": 1.0,
+        "tags": [
+          "AI",
+          "inference",
+          "DIMC",
+          "Microsoft"
+        ]
+      }
+    },
+    {
+      "id": "challenger:matx",
+      "label": "MatX",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "MatX",
+        "category": "LLM-Specific ASIC",
+        "is_challenger": true,
+        "tech_label": "LLM-optimized accelerator",
+        "status": "Private (Stealth)",
+        "funding_total_usd_m": 25,
+        "valuation_usd_b": 0.3,
+        "tags": [
+          "AI",
+          "ASIC",
+          "stealth"
+        ]
+      }
+    },
+    {
+      "id": "challenger:graphcore",
+      "label": "Graphcore",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Graphcore",
+        "category": "AI Accelerator (IPU)",
+        "is_challenger": true,
+        "tech_label": "Bow IPU + Mk3 (개발 중)",
+        "status": "Acquired by Softbank (2024)",
+        "funding_total_usd_m": 700,
+        "valuation_usd_b": 0.5,
+        "tags": [
+          "AI",
+          "IPU",
+          "Softbank"
+        ]
+      }
+    },
+    {
+      "id": "challenger:mythic",
+      "label": "Mythic AI",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "name": "Mythic AI",
+        "category": "Edge AI (Analog)",
+        "is_challenger": true,
+        "tech_label": "M1076 (아날로그 행렬곱)",
+        "status": "Private (2024 재투자)",
+        "funding_total_usd_m": 165,
+        "valuation_usd_b": 0.4,
+        "tags": [
+          "edge AI",
+          "analog",
+          "low power"
+        ]
       }
     },
     {
@@ -4898,10 +5210,10 @@
       "from": "stock:005930",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.1463,
+      "weight": 1.1576,
       "data": {
-        "beta": 1.1463,
-        "r_squared": 0.1266,
+        "beta": 1.1576,
+        "r_squared": 0.1289,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4909,10 +5221,10 @@
       "from": "stock:005930",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.4285,
+      "weight": 1.4379,
       "data": {
-        "beta": 1.4285,
-        "r_squared": 0.1127,
+        "beta": 1.4379,
+        "r_squared": 0.1139,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4920,10 +5232,10 @@
       "from": "stock:005930",
       "to": "index:^SOX",
       "type": "CORRELATES_WITH",
-      "weight": 0.6499,
+      "weight": 0.6533,
       "data": {
-        "beta": 0.6499,
-        "r_squared": 0.1676,
+        "beta": 0.6533,
+        "r_squared": 0.1694,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4931,32 +5243,32 @@
       "from": "stock:005930",
       "to": "index:^GSPC",
       "type": "CORRELATES_WITH",
-      "weight": 1.5258,
+      "weight": 1.54,
       "data": {
-        "beta": 1.5258,
-        "r_squared": 0.1286,
-        "method": "단변량 OLS (v1, T-1 lag)"
-      }
-    },
-    {
-      "from": "stock:005930",
-      "to": "index:^IXIC",
-      "type": "CORRELATES_WITH",
-      "weight": 1.1415,
-      "data": {
-        "beta": 1.1415,
+        "beta": 1.54,
         "r_squared": 0.1306,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
     {
+      "from": "stock:005930",
+      "to": "index:^IXIC",
+      "type": "CORRELATES_WITH",
+      "weight": 1.1493,
+      "data": {
+        "beta": 1.1493,
+        "r_squared": 0.1325,
+        "method": "단변량 OLS (v1, T-1 lag)"
+      }
+    },
+    {
       "from": "stock:000660",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.5682,
+      "weight": 1.5648,
       "data": {
-        "beta": 1.5682,
-        "r_squared": 0.1435,
+        "beta": 1.5648,
+        "r_squared": 0.1437,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4964,10 +5276,10 @@
       "from": "stock:000660",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.8305,
+      "weight": 1.8222,
       "data": {
-        "beta": 1.8305,
-        "r_squared": 0.112,
+        "beta": 1.8222,
+        "r_squared": 0.1115,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4975,10 +5287,10 @@
       "from": "stock:000660",
       "to": "index:^SOX",
       "type": "CORRELATES_WITH",
-      "weight": 0.8306,
+      "weight": 0.8252,
       "data": {
-        "beta": 0.8306,
-        "r_squared": 0.1667,
+        "beta": 0.8252,
+        "r_squared": 0.1651,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4986,10 +5298,10 @@
       "from": "stock:000660",
       "to": "index:^GSPC",
       "type": "CORRELATES_WITH",
-      "weight": 1.9479,
+      "weight": 1.9392,
       "data": {
-        "beta": 1.9479,
-        "r_squared": 0.1276,
+        "beta": 1.9392,
+        "r_squared": 0.1265,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -4997,10 +5309,10 @@
       "from": "stock:000660",
       "to": "index:^IXIC",
       "type": "CORRELATES_WITH",
-      "weight": 1.5543,
+      "weight": 1.5435,
       "data": {
-        "beta": 1.5543,
-        "r_squared": 0.1474,
+        "beta": 1.5435,
+        "r_squared": 0.146,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5008,10 +5320,10 @@
       "from": "stock:042700",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.1088,
+      "weight": 1.1162,
       "data": {
-        "beta": 1.1088,
-        "r_squared": 0.0501,
+        "beta": 1.1162,
+        "r_squared": 0.051,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5019,10 +5331,10 @@
       "from": "stock:042700",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.2682,
+      "weight": 1.2705,
       "data": {
-        "beta": 1.2682,
-        "r_squared": 0.0376,
+        "beta": 1.2705,
+        "r_squared": 0.0378,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5030,10 +5342,10 @@
       "from": "stock:042700",
       "to": "index:^SOX",
       "type": "CORRELATES_WITH",
-      "weight": 0.6492,
+      "weight": 0.6597,
       "data": {
-        "beta": 0.6492,
-        "r_squared": 0.0708,
+        "beta": 0.6597,
+        "r_squared": 0.0749,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5041,10 +5353,10 @@
       "from": "stock:042700",
       "to": "index:^GSPC",
       "type": "CORRELATES_WITH",
-      "weight": 1.3783,
+      "weight": 1.3575,
       "data": {
-        "beta": 1.3783,
-        "r_squared": 0.0444,
+        "beta": 1.3575,
+        "r_squared": 0.044,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5052,10 +5364,10 @@
       "from": "stock:042700",
       "to": "index:^IXIC",
       "type": "CORRELATES_WITH",
-      "weight": 1.0347,
+      "weight": 1.05,
       "data": {
-        "beta": 1.0347,
-        "r_squared": 0.0455,
+        "beta": 1.05,
+        "r_squared": 0.0479,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5063,10 +5375,10 @@
       "from": "stock:000990",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 0.8431,
+      "weight": 0.8353,
       "data": {
-        "beta": 0.8431,
-        "r_squared": 0.0433,
+        "beta": 0.8353,
+        "r_squared": 0.0426,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5074,10 +5386,10 @@
       "from": "stock:000990",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 0.889,
+      "weight": 0.8797,
       "data": {
-        "beta": 0.889,
-        "r_squared": 0.0276,
+        "beta": 0.8797,
+        "r_squared": 0.0271,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5085,10 +5397,10 @@
       "from": "stock:000990",
       "to": "index:^GSPC",
       "type": "CORRELATES_WITH",
-      "weight": 1.0149,
+      "weight": 1.0067,
       "data": {
-        "beta": 1.0149,
-        "r_squared": 0.036,
+        "beta": 1.0067,
+        "r_squared": 0.0354,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5096,10 +5408,10 @@
       "from": "stock:000990",
       "to": "index:^IXIC",
       "type": "CORRELATES_WITH",
-      "weight": 0.8182,
+      "weight": 0.8054,
       "data": {
-        "beta": 0.8182,
-        "r_squared": 0.0425,
+        "beta": 0.8054,
+        "r_squared": 0.0413,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5107,10 +5419,10 @@
       "from": "stock:373220",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 0.9452,
+      "weight": 0.9561,
       "data": {
-        "beta": 0.9452,
-        "r_squared": 0.0849,
+        "beta": 0.9561,
+        "r_squared": 0.0871,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5118,10 +5430,10 @@
       "from": "stock:373220",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.3425,
+      "weight": 1.3487,
       "data": {
-        "beta": 1.3425,
-        "r_squared": 0.0982,
+        "beta": 1.3487,
+        "r_squared": 0.0992,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5129,10 +5441,10 @@
       "from": "stock:373220",
       "to": "index:^SOX",
       "type": "CORRELATES_WITH",
-      "weight": 0.5643,
+      "weight": 0.5626,
       "data": {
-        "beta": 0.5643,
-        "r_squared": 0.1251,
+        "beta": 0.5626,
+        "r_squared": 0.126,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5140,10 +5452,10 @@
       "from": "stock:373220",
       "to": "index:^GSPC",
       "type": "CORRELATES_WITH",
-      "weight": 1.5042,
+      "weight": 1.5242,
       "data": {
-        "beta": 1.5042,
-        "r_squared": 0.1237,
+        "beta": 1.5242,
+        "r_squared": 0.1284,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5151,10 +5463,10 @@
       "from": "stock:373220",
       "to": "index:^IXIC",
       "type": "CORRELATES_WITH",
-      "weight": 1.0587,
+      "weight": 1.0583,
       "data": {
-        "beta": 1.0587,
-        "r_squared": 0.1112,
+        "beta": 1.0583,
+        "r_squared": 0.1127,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5162,10 +5474,10 @@
       "from": "stock:006400",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.07,
+      "weight": 1.0701,
       "data": {
-        "beta": 1.07,
-        "r_squared": 0.0776,
+        "beta": 1.0701,
+        "r_squared": 0.078,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5173,10 +5485,10 @@
       "from": "stock:006400",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.4331,
+      "weight": 1.4293,
       "data": {
-        "beta": 1.4331,
-        "r_squared": 0.0798,
+        "beta": 1.4293,
+        "r_squared": 0.0796,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5184,10 +5496,10 @@
       "from": "stock:006400",
       "to": "index:^SOX",
       "type": "CORRELATES_WITH",
-      "weight": 0.579,
+      "weight": 0.5728,
       "data": {
-        "beta": 0.579,
-        "r_squared": 0.0938,
+        "beta": 0.5728,
+        "r_squared": 0.0925,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5195,10 +5507,10 @@
       "from": "stock:006400",
       "to": "index:^GSPC",
       "type": "CORRELATES_WITH",
-      "weight": 1.5561,
+      "weight": 1.5615,
       "data": {
-        "beta": 1.5561,
-        "r_squared": 0.0943,
+        "beta": 1.5615,
+        "r_squared": 0.0954,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5206,10 +5518,10 @@
       "from": "stock:006400",
       "to": "index:^IXIC",
       "type": "CORRELATES_WITH",
-      "weight": 1.1237,
+      "weight": 1.1135,
       "data": {
-        "beta": 1.1237,
-        "r_squared": 0.0893,
+        "beta": 1.1135,
+        "r_squared": 0.0884,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5217,9 +5529,9 @@
       "from": "stock:005930",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 1.2767,
+      "weight": 1.2693,
       "data": {
-        "beta_kospi": 1.2767,
+        "beta_kospi": 1.2693,
         "method": "다변량 OLS v2"
       }
     },
@@ -5227,9 +5539,9 @@
       "from": "stock:000660",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 1.5494,
+      "weight": 1.5651,
       "data": {
-        "beta_kospi": 1.5494,
+        "beta_kospi": 1.5651,
         "method": "다변량 OLS v2"
       }
     },
@@ -5237,9 +5549,9 @@
       "from": "stock:000660",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.3159,
+      "weight": 0.3749,
       "data": {
-        "beta_usdkrw": 0.3159,
+        "beta_usdkrw": 0.3749,
         "method": "다변량 OLS v2"
       }
     },
@@ -5247,9 +5559,9 @@
       "from": "stock:042700",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 1.2616,
+      "weight": 1.2825,
       "data": {
-        "beta_kospi": 1.2616,
+        "beta_kospi": 1.2825,
         "method": "다변량 OLS v2"
       }
     },
@@ -5257,9 +5569,9 @@
       "from": "stock:042700",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.6239,
+      "weight": 0.485,
       "data": {
-        "beta_usdkrw": -0.6239,
+        "beta_usdkrw": -0.485,
         "method": "다변량 OLS v2"
       }
     },
@@ -5267,9 +5579,9 @@
       "from": "stock:000990",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 1.0589,
+      "weight": 1.0983,
       "data": {
-        "beta_kospi": 1.0589,
+        "beta_kospi": 1.0983,
         "method": "다변량 OLS v2"
       }
     },
@@ -5277,9 +5589,9 @@
       "from": "stock:000990",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.2631,
+      "weight": 0.3844,
       "data": {
-        "beta_usdkrw": 0.2631,
+        "beta_usdkrw": 0.3844,
         "method": "다변량 OLS v2"
       }
     },
@@ -5287,9 +5599,9 @@
       "from": "stock:373220",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 0.6425,
+      "weight": 0.6235,
       "data": {
-        "beta_kospi": 0.6425,
+        "beta_kospi": 0.6235,
         "method": "다변량 OLS v2"
       }
     },
@@ -5297,9 +5609,9 @@
       "from": "stock:006400",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 0.8377,
+      "weight": 0.8331,
       "data": {
-        "beta_kospi": 0.8377,
+        "beta_kospi": 0.8331,
         "method": "다변량 OLS v2"
       }
     },
@@ -5307,18 +5619,513 @@
       "from": "stock:006400",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.2491,
+      "weight": 0.2896,
       "data": {
-        "beta_usdkrw": -0.2491,
+        "beta_usdkrw": -0.2896,
         "method": "다변량 OLS v2"
+      }
+    },
+    {
+      "from": "stock:CBRS",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "대규모 LLM 훈련 시장 H100 직접 경쟁자. CUDA 생태계 lock-in으로 단기 침투 제한적이나 G42·Mayo 같은 대형 계약으로 점진적 잠식."
+      }
+    },
+    {
+      "from": "stock:CBRS",
+      "to": "stock:AMD",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "AMD도 동일 시장 노리는 #2 챌린저 — Cerebras에 일부 잠식 가능."
+      }
+    },
+    {
+      "from": "stock:CBRS",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "Cerebras도 TSMC에서 위탁 생산 → 점유율 확대 시 수주 증가."
+      }
+    },
+    {
+      "from": "stock:CBRS",
+      "to": "stock:005930",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "WSE-3는 온-웨이퍼 SRAM 사용 → 단기 HBM 영향 제한. 장기적으로 비-HBM 아키텍처 확산 시 부정적."
+      }
+    },
+    {
+      "from": "stock:CBRS",
+      "to": "stock:000660",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "HBM 매출 비중 50%+ → Cerebras 등 비-HBM 아키텍처 점유율 확대 시 직접 위협."
+      }
+    },
+    {
+      "from": "stock:CBRS",
+      "to": "stock:042700",
+      "type": "COMPETES_WITH",
+      "weight": 0.8999999999999999,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "large",
+        "reasoning": "HBM TC 본더 매출 핵심 → 비-HBM 칩 확산은 가장 큰 타격 종목."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.8999999999999999,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "large",
+        "reasoning": "추론(inference) 시장이 훈련보다 큰 매출 (NVIDIA 매출의 50%+) → Groq 점유율 확대 시 직접 위협."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:AMD",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "AMD MI300X도 추론 시장 노림. Groq에 일부 점유율 빼앗길 수 있음."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:INTC",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "Intel Gaudi의 추론 시장 진입 어렵게 됨."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:TSM",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "Groq는 Samsung 파운드리 이전 → TSMC에는 약한 부정."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:005930",
+      "type": "SUPPLIES",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "moderate",
+        "reasoning": "Groq 차세대 칩 Samsung Foundry 4nm 위탁 → 파운드리 수주 증가."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:000660",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "Groq LPU는 SRAM 온칩 → HBM 미사용. 추론 시장에서 HBM 비중 감소 위협."
+      }
+    },
+    {
+      "from": "challenger:groq",
+      "to": "stock:042700",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "추론 시장 비-HBM 비중 증가 → 한미 HBM 본더 수주 위축 우려."
+      }
+    },
+    {
+      "from": "challenger:sambanova",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "엔터프라이즈 LLM 시장 직접 경쟁. NVIDIA DGX 시스템 대안."
+      }
+    },
+    {
+      "from": "challenger:sambanova",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "TSMC 생산 → 점유율 확대 시 수주 증가."
+      }
+    },
+    {
+      "from": "challenger:sambanova",
+      "to": "stock:000660",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "SambaNova는 HBM3 사용 → HBM 수요 유지."
+      }
+    },
+    {
+      "from": "challenger:sambanova",
+      "to": "stock:042700",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "HBM 본더 수요 유지."
+      }
+    },
+    {
+      "from": "challenger:tenstorrent",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "Jim Keller 명성 + 오픈 SW 스택으로 CUDA 의존도 줄이려는 고객 유치."
+      }
+    },
+    {
+      "from": "challenger:tenstorrent",
+      "to": "stock:ARM",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "RISC-V 진영의 대표주자 — ARM 라이센스 모델에 위협."
+      }
+    },
+    {
+      "from": "challenger:tenstorrent",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "TSMC 위탁 → 점유율 확대 시 수주 증가."
+      }
+    },
+    {
+      "from": "challenger:tenstorrent",
+      "to": "stock:005930",
+      "type": "SUPPLIES",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "moderate",
+        "reasoning": "Samsung Foundry에서 일부 생산 + Samsung 전략 투자자 → 한국 수혜."
+      }
+    },
+    {
+      "from": "challenger:tenstorrent",
+      "to": "stock:000660",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "HBM 사용 일부 — 영향 제한적."
+      }
+    },
+    {
+      "from": "challenger:lightmatter",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "장기 위협. 5-10년 후 광학 컴퓨팅 상용화 시 GPU 시장 재편 가능. 단기 영향 제한."
+      }
+    },
+    {
+      "from": "challenger:lightmatter",
+      "to": "stock:005930",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "전통 메모리 패러다임 변화 위협 (장기). 광학 컴퓨팅은 메모리 의존도 낮음."
+      }
+    },
+    {
+      "from": "challenger:lightmatter",
+      "to": "stock:000660",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "장기 HBM 수요 위협."
+      }
+    },
+    {
+      "from": "challenger:lightmatter",
+      "to": "stock:042700",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "단기 영향 없음."
+      }
+    },
+    {
+      "from": "challenger:etched",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "Transformer 추론 시장의 잠재적 disruptor — Sohu 양산 성공 시 큰 위협."
+      }
+    },
+    {
+      "from": "challenger:etched",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "TSMC 위탁."
+      }
+    },
+    {
+      "from": "challenger:etched",
+      "to": "stock:005930",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "HBM 사용 → 메모리 수요 유지."
+      }
+    },
+    {
+      "from": "challenger:etched",
+      "to": "stock:000660",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "HBM 사용."
+      }
+    },
+    {
+      "from": "challenger:rain_ai",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "장기 (5-10년) 엣지 AI 시장 위협."
+      }
+    },
+    {
+      "from": "challenger:rain_ai",
+      "to": "stock:INTC",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "Intel Loihi 뉴로모픽도 경쟁."
+      }
+    },
+    {
+      "from": "challenger:d_matrix",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "추론 시장 직접 경쟁. Microsoft Azure 도입 검토 = 큰 잠재 매출."
+      }
+    },
+    {
+      "from": "challenger:d_matrix",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "TSMC 생산."
+      }
+    },
+    {
+      "from": "challenger:d_matrix",
+      "to": "stock:000660",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "HBM 인터페이스 유지 → 영향 제한."
+      }
+    },
+    {
+      "from": "challenger:d_matrix",
+      "to": "stock:042700",
+      "type": "AFFECTED_BY",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "neutral",
+        "magnitude": "small",
+        "reasoning": "HBM 본더 일부 수요 유지."
+      }
+    },
+    {
+      "from": "challenger:matx",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "초기 단계 — 영향 제한적. 단 출신 배경 + Hottest 자금조달 라운드로 주목."
+      }
+    },
+    {
+      "from": "challenger:matx",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "small",
+        "reasoning": "TSMC 위탁 추정."
+      }
+    },
+    {
+      "from": "challenger:graphcore",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "한때 NVIDIA 대안으로 주목 받았으나 점유율 미미. Softbank 인수 후 재도약 가능성 있으나 단기 영향 적음."
+      }
+    },
+    {
+      "from": "stock:AMD",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "moderate",
+        "reasoning": "데이터센터 GPU 시장 유일한 의미 있는 #2. MI300X 매출 빠른 성장 ($5B+ 2024)."
+      }
+    },
+    {
+      "from": "stock:AMD",
+      "to": "stock:TSM",
+      "type": "SUPPLIES",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "moderate",
+        "reasoning": "AMD 점유율 확대 = TSMC 수주 증가."
+      }
+    },
+    {
+      "from": "stock:AMD",
+      "to": "stock:005930",
+      "type": "SUPPLIES",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "moderate",
+        "reasoning": "MI300X HBM3 사용 → Samsung HBM 수요 증가."
+      }
+    },
+    {
+      "from": "stock:AMD",
+      "to": "stock:000660",
+      "type": "SUPPLIES",
+      "weight": 0.8999999999999999,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "large",
+        "reasoning": "MI325X 12-Hi HBM3E 채택 → SK하이닉스 핵심 수혜자."
+      }
+    },
+    {
+      "from": "stock:AMD",
+      "to": "stock:042700",
+      "type": "SUPPLIES",
+      "weight": 0.6,
+      "data": {
+        "sentiment": "positive",
+        "magnitude": "moderate",
+        "reasoning": "HBM 본더 수요 증가."
+      }
+    },
+    {
+      "from": "challenger:mythic",
+      "to": "stock:NVDA",
+      "type": "COMPETES_WITH",
+      "weight": 0.3,
+      "data": {
+        "sentiment": "negative",
+        "magnitude": "small",
+        "reasoning": "NVIDIA Jetson 엣지 시장 잠재 위협. 데이터센터 영향 없음."
       }
     }
   ],
   "stats": {
-    "node_count": 112,
-    "edge_count": 100,
+    "node_count": 128,
+    "edge_count": 145,
     "node_types": {
-      "Stock": 61,
+      "Stock": 77,
       "Sector": 32,
       "Index": 6,
       "Bill": 0,
@@ -5330,10 +6137,10 @@
       "IN_SECTOR": 61,
       "CORRELATES_WITH": 35,
       "SENSITIVE_TO": 4,
-      "AFFECTED_BY": 0,
+      "AFFECTED_BY": 8,
       "MENTIONS": 0,
-      "COMPETES_WITH": 0,
-      "SUPPLIES": 0
+      "COMPETES_WITH": 23,
+      "SUPPLIES": 14
     }
   },
   "warning": "🚨 정보 통합 시각화. 투자 결정 단독 사용 금지."
