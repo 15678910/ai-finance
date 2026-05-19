@@ -111,6 +111,13 @@ body::before {
 .anim-item:nth-child(6) { animation-delay: 0.3s; }
 
 /* ─── Credit Spread Guide (2-pane reader) ────────────── */
+.cs-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(167, 139, 250, 0.15), 0 0 0 1px rgba(167, 139, 250, 0.3);
+}
+.cs-card-clickable:active {
+  transform: translateY(0);
+}
 .cs-guide-tab:hover {
   background: rgba(167, 139, 250, 0.08) !important;
   color: #c4b5fd !important;
@@ -3111,7 +3118,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           </div><!-- /cs-guide-layout -->
         </div><!-- /cs-guide -->
 
+        <!-- 카드 클릭 시 해석 표시 컨테이너 (기본 숨김) -->
+        <div id="csCardDetail" style="display:none;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.3);border-radius:8px;padding:16px 20px;margin-bottom:14px;animation:csGuideFadeIn 0.25s ease;"></div>
+
         <!-- 시리즈별 매트릭스 -->
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">💡 <b style="color:var(--text);">팁:</b> 아래 카드를 클릭하면 해당 지표의 해석법이 바로 위에 표시됩니다.</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">`;
 
       cs.results.forEach(r => {
@@ -3132,9 +3143,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         const hasSignal = r.signals && r.signals.length > 0;
         const cardBorder = hasSignal ? (r.max_strength >= 4 ? '#f87171' : '#fbbf24') : 'var(--text-muted)';
 
-        html += `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${cardBorder};">
+        html += `<div class="glass-card anim-item cs-card-clickable" data-cs-series-id="${h(r.id)}" style="padding:12px 14px;border-left:3px solid ${cardBorder};cursor:pointer;transition:transform 0.15s ease,box-shadow 0.15s ease;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-            <div style="font-size:0.85rem;font-weight:700;color:#ffffff;">${categoryEmoji} ${h(r.name)}</div>
+            <div style="font-size:0.85rem;font-weight:700;color:#ffffff;">${categoryEmoji} ${h(r.name)} <span style="font-size:0.55rem;color:#a78bfa;font-weight:400;opacity:0.7;">📚 클릭→해석</span></div>
             <a href="${h(r.fred_url || '#')}" target="_blank" rel="noopener" style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);text-decoration:none;">${h(r.id)} ↗</a>
           </div>
           <div style="font-size:1.3rem;font-weight:700;color:${pctColor};font-family:var(--font-mono);">
@@ -4284,7 +4295,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     setTimeout(() => buildSidebarNav(), 300);
 
     // ─── 📚 Credit Spread Guide 2-pane Reader 탭 전환 ──
-    setTimeout(() => attachCsGuideTabs(), 350);
+    setTimeout(() => { attachCsGuideTabs(); attachCsCardClicks(); }, 350);
 
     // ─── 현재 시각 실시간 갱신 (1초마다)
     if (window.__nowClockInterval) clearInterval(window.__nowClockInterval);
@@ -4809,6 +4820,61 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function escapeHtml(str) {
     if (str == null) return '';
     return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c]));
+  }
+
+  // ─── 📚 카드 클릭 → 해당 해석 바로 위에 표시 ──────
+  function attachCsCardClicks() {
+    // 시리즈 ID → 가이드 패널 매핑
+    const CARD_TO_PANEL = {
+      'BAMLH0A0HYM2': '2a',   // 하이일드 OAS
+      'BAMLC0A1CAAA': '2b',   // AAA OAS
+      'BAMLC0A4CBBB': '2c',   // BBB OAS
+      'BAMLC0A0CM':   '2c',   // 투자등급 (BBB와 가장 가까움)
+      'DGS10':        '2e',   // 10Y 국채
+      'DGS2':         '2e',   // 2Y 국채 (10Y와 동일 패널)
+      'T10Y2Y':       '2f',   // 10Y-2Y 스프레드
+    };
+
+    const cards = document.querySelectorAll('.cs-card-clickable');
+    const detailContainer = document.getElementById('csCardDetail');
+    if (!detailContainer || cards.length === 0) return;
+
+    cards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        // FRED 링크 클릭 시는 무시 (링크가 동작하도록)
+        if (e.target.tagName === 'A' || e.target.closest('a')) return;
+
+        const seriesId = card.dataset.csSeriesId;
+        const panelId = CARD_TO_PANEL[seriesId];
+        if (!panelId) return;
+
+        const sourcePanel = document.querySelector(`.cs-guide-panel[data-cs-panel="${panelId}"]`);
+        if (!sourcePanel) return;
+
+        // 컨테이너에 헤더(닫기 버튼) + 패널 내용 복사
+        detailContainer.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(167,139,250,0.2);">
+            <div style="font-size:0.75rem;color:#a78bfa;font-weight:600;">📚 해석법 — ${card.querySelector('div div').textContent.split('📚')[0].trim()}</div>
+            <button id="csCardDetailClose" aria-label="닫기" style="background:rgba(167,139,250,0.15);border:none;color:#a78bfa;font-size:1.2rem;cursor:pointer;width:28px;height:28px;border-radius:50%;line-height:1;padding:0;">×</button>
+          </div>
+          <div>${sourcePanel.innerHTML}</div>
+        `;
+        detailContainer.style.display = 'block';
+
+        // 닫기 버튼 핸들러
+        const closeBtn = document.getElementById('csCardDetailClose');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            detailContainer.style.display = 'none';
+            detailContainer.innerHTML = '';
+          });
+        }
+
+        // 해석 패널로 스크롤
+        detailContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
   }
 
   // ─── 📚 Credit Spread Guide 2-pane Reader 탭 전환 ─────
