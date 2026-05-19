@@ -418,6 +418,39 @@ def build_from_investor_flow(kg: KnowledgeGraph):
     print(f"  · investor_flow {count}개 종목 외인·기관 매매 시그널 통합")
 
 
+def build_from_credit_spread(kg: KnowledgeGraph):
+    """신용 스프레드 + 거시 금리 → MacroEvent 노드."""
+    data = _load_json("credit_spread.json")
+    if not data:
+        print("  [건너뜀] credit_spread.json 없음")
+        return
+    count = 0
+    for r in data.get("results", []):
+        nid = KnowledgeGraph.macro_id(r["id"])
+        kg.add_node(nid, "MacroEvent", r["name"], {
+            "fred_id": r["id"],
+            "category": r["category"],
+            "subcategory": r.get("subcategory"),
+            "latest_value": r.get("latest_value"),
+            "unit": r["unit"],
+            "change_30d": r.get("change_30d"),
+            "percentile_1y": r.get("percentile_1y"),
+            "signals_count": len(r.get("signals", [])),
+            "max_strength": r.get("max_strength"),
+            "fred_url": r.get("fred_url"),
+        })
+        count += 1
+    # 거시 체제 단일 노드 추가 (요약)
+    kg.add_node(KnowledgeGraph.macro_id("USCreditRegime"), "MacroEvent",
+                f"미국 거시 체제: {data.get('macro_regime', '?')}", {
+        "regime": data.get("macro_regime"),
+        "emoji": data.get("macro_regime_emoji"),
+        "color": data.get("macro_regime_color"),
+        "strong_signals": len(data.get("strong_signals", [])),
+    })
+    print(f"  · credit_spread {count}개 시리즈 + 거시 체제 통합")
+
+
 def build_from_bitcoin_standard(kg: KnowledgeGraph):
     """비트코인 본위제 모니터 → BTC 매크로 이벤트 노드 (참고용)."""
     data = _load_json("bitcoin_standard.json")
@@ -456,6 +489,7 @@ def main():
     build_from_clarity_act(kg)
     build_from_semi_challengers(kg)
     build_from_investor_flow(kg)
+    build_from_credit_spread(kg)
     build_from_bitcoin_standard(kg)
 
     # 통계

@@ -2647,6 +2647,95 @@ body::before {
       html += `</section>`;
     }
 
+    // ─── 💳 신용 스프레드 + 거시 금리 (FRED) ──────────────
+    const cs = data.credit_spread;
+    if (cs && Array.isArray(cs.results) && cs.results.length > 0) {
+      const regimeColor = cs.macro_regime_color === 'red' ? '#f87171' :
+                          cs.macro_regime_color === 'amber' ? '#fb923c' :
+                          cs.macro_regime_color === 'yellow' ? '#fbbf24' : '#4ade80';
+
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#ef4444;">💳 미국 신용 스프레드 + 거시 금리 <span style="font-size:0.65rem;color:var(--text-muted);">(FRED · 경기침체 선행지표)</span></div>
+
+        <!-- 거시 체제 종합 헤더 -->
+        <div class="glass-card anim-item" style="padding:14px 16px;margin-bottom:14px;background:rgba(239,68,68,0.05);border-left:4px solid ${regimeColor};">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-size:0.7rem;color:var(--text-muted);">현재 거시 체제 평가 (HY OAS + 장단기 곡선 기반)</div>
+              <div style="font-size:1.4rem;font-weight:700;color:${regimeColor};margin-top:2px;">${h(cs.macro_regime_emoji || '')} ${h(cs.macro_regime || '—')}</div>
+            </div>
+            <div style="font-size:0.7rem;color:var(--text-muted);text-align:right;line-height:1.5;">
+              <b>HY OAS:</b> 5%p+ 주의 / 7%p+ 경고 / 8%p+ 침체<br/>
+              <b>T10Y2Y:</b> 음수 = 장단기 역전 (6~18개월 후 침체 가능성)
+            </div>
+          </div>
+        </div>
+
+        <!-- 강력 시그널 (있을 때만) -->
+        ${cs.strong_signals && cs.strong_signals.length > 0 ? `<div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(251,146,60,0.06);">
+          <div style="font-size:0.78rem;color:var(--text);font-weight:600;margin-bottom:6px;">🚨 활성 시그널 (${cs.strong_signals.length}건)</div>
+          ${cs.strong_signals.slice(0, 6).map(sig => `<div style="font-size:0.72rem;color:#ffffff;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,0.06);">
+            ${sig.emoji} <b>${h(sig.series_name)}:</b> ${h(sig.label)} <span style="color:var(--text-muted);">— ${h(sig.description)}</span>
+          </div>`).join('')}
+        </div>` : ''}
+
+        <!-- 시리즈별 매트릭스 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">`;
+
+      cs.results.forEach(r => {
+        const v = r.latest_value;
+        const unit = r.unit;
+        const c1 = r.change_1d;
+        const c5 = r.change_5d;
+        const c30 = r.change_30d;
+        const pct1y = r.percentile_1y;
+        const pctColor = pct1y == null ? 'var(--text-muted)' :
+                         pct1y >= 90 ? '#f87171' :
+                         pct1y >= 70 ? '#fb923c' :
+                         pct1y >= 30 ? '#fbbf24' :
+                         pct1y >= 10 ? '#22d3ee' : '#4ade80';
+        const categoryEmoji = r.category === 'credit_spread' ? '🔴' :
+                              r.category === 'yield' ? '💰' :
+                              r.category === 'yield_curve' ? '📊' : '•';
+        const hasSignal = r.signals && r.signals.length > 0;
+        const cardBorder = hasSignal ? (r.max_strength >= 4 ? '#f87171' : '#fbbf24') : 'var(--text-muted)';
+
+        html += `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${cardBorder};">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+            <div style="font-size:0.85rem;font-weight:700;color:#ffffff;">${categoryEmoji} ${h(r.name)}</div>
+            <a href="${h(r.fred_url || '#')}" target="_blank" rel="noopener" style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);text-decoration:none;">${h(r.id)} ↗</a>
+          </div>
+          <div style="font-size:1.3rem;font-weight:700;color:${pctColor};font-family:var(--font-mono);">
+            ${v != null ? v.toFixed(2) + unit : '—'}
+            <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">(${h(r.latest_date || '')})</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:0.7rem;margin-top:8px;font-family:var(--font-mono);">
+            <div><span style="color:var(--text-muted);">1d</span> <b style="color:${c1 != null && c1 >= 0 ? '#f87171' : '#4ade80'};">${c1 != null ? (c1 >= 0 ? '+' : '') + c1.toFixed(2) : '—'}</b></div>
+            <div><span style="color:var(--text-muted);">5d</span> <b style="color:${c5 != null && c5 >= 0 ? '#f87171' : '#4ade80'};">${c5 != null ? (c5 >= 0 ? '+' : '') + c5.toFixed(2) : '—'}</b></div>
+            <div><span style="color:var(--text-muted);">30d</span> <b style="color:${c30 != null && c30 >= 0 ? '#f87171' : '#4ade80'};">${c30 != null ? (c30 >= 0 ? '+' : '') + c30.toFixed(2) : '—'}</b></div>
+            <div><span style="color:var(--text-muted);">1y %ile</span> <b style="color:${pctColor};">${pct1y != null ? pct1y.toFixed(0) + '%' : '—'}</b></div>
+          </div>
+
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;line-height:1.45;">
+            ${h(r.description || '')}
+          </div>
+
+          ${hasSignal ? `<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+            ${r.signals.slice(0, 3).map(s => `<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:3px 7px;border-radius:10px;font-size:0.62rem;">${s.emoji} ${h(s.label)}</span>`).join('')}
+          </div>` : ''}
+        </div>`;
+      });
+
+      html += `</div>`;
+
+      html += `<div style="margin-top:12px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.6;">
+        🚨 ${h(cs.warning || '거시 정보 모니터링.')}<br/>
+        데이터: ${h(cs.data_source || 'FRED')} · 생성: ${h(cs.generated_at || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
     // ─── BITCOIN STANDARD MONITOR ──────────────────────
     const bs = data.bitcoin_standard;
     if (bs && bs.bts_score) {
