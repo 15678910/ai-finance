@@ -2808,6 +2808,202 @@ body::before {
           </div>`).join('')}
         </div>` : ''}
 
+        <!-- 📚 데이터 해석법 + 실전 활용 가이드 -->
+        <details class="glass-card anim-item" style="padding:14px 18px;margin-bottom:14px;background:rgba(167,139,250,0.04);border:1px solid rgba(167,139,250,0.25);">
+          <summary style="cursor:pointer;font-size:0.95rem;font-weight:700;color:#a78bfa;outline:none;list-style:none;">
+            <span style="display:inline-block;margin-right:6px;transition:transform 0.15s ease;">▶</span>
+            📚 데이터 해석법 + 실전 활용 가이드 (클릭하여 펼치기)
+            <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;margin-left:8px;">— 초보자도 따라 할 수 있는 8단계 가이드</span>
+          </summary>
+          <div style="margin-top:16px;font-size:0.8rem;line-height:1.75;color:#e2e8f0;">
+
+            <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">📖 1. 기초: OAS (Option-Adjusted Spread)란?</h4>
+            <p style="margin:0 0 10px 0;"><b>한 줄 정의</b>: "이 채권 수익률 − 동기간 국채 수익률" = 시장이 요구하는 <b style="color:#22d3ee;">신용 위험 프리미엄</b></p>
+            <p style="margin:0 0 6px 0;padding:8px 12px;background:rgba(34,211,238,0.06);border-left:2px solid #22d3ee;border-radius:3px;">
+              예: BBB 회사채 4.5% − 10Y 국채 3.56% = <b>BBB OAS 0.94%p</b><br/>
+              → 시장이 BBB 회사채에 "94bp만큼 더 받아야 사겠다"고 말하는 것
+            </p>
+            <ul style="margin:8px 0 16px 20px;padding:0;">
+              <li><b style="color:#f87171;">OAS가 커지면</b> → 시장이 위험 회피 모드 (불안)</li>
+              <li><b style="color:#4ade80;">OAS가 작으면</b> → 시장이 위험 선호 모드 (낙관)</li>
+            </ul>
+
+            <h4 style="color:#fb923c;margin:14px 0 8px 0;font-size:0.95rem;">🎯 2. 각 시리즈별 해석법</h4>
+
+            <h5 style="color:#f87171;margin:10px 0 4px 0;font-size:0.85rem;">🔴 하이일드 OAS — 경기 침체 1순위 선행지표</h5>
+            <div style="overflow-x:auto;margin:6px 0;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;font-family:var(--font-mono);">
+              <thead><tr style="background:rgba(248,113,113,0.1);">
+                <th style="padding:5px 8px;text-align:left;color:var(--text-muted);">수준</th>
+                <th style="padding:5px 8px;text-align:left;color:var(--text-muted);">의미</th>
+                <th style="padding:5px 8px;text-align:left;color:var(--text-muted);">역사적 발생</th>
+              </tr></thead>
+              <tbody>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">&lt; 3.5%p</td><td style="padding:4px 8px;">매우 낙관 (거품 가능)</td><td style="padding:4px 8px;">2007, 2021</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">3.5~5%p</td><td style="padding:4px 8px;color:#4ade80;"><b>정상</b></td><td style="padding:4px 8px;">평상시</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">5~7%p</td><td style="padding:4px 8px;color:#fbbf24;">주의 (성장 둔화)</td><td style="padding:4px 8px;">2015~16 (中 쇼크)</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">7~10%p</td><td style="padding:4px 8px;color:#fb923c;">경고 (침체 가능성)</td><td style="padding:4px 8px;">2020.3 (COVID)</td></tr>
+                <tr><td style="padding:4px 8px;">&gt; 10%p</td><td style="padding:4px 8px;color:#f87171;"><b>침체 임박</b></td><td style="padding:4px 8px;">2008 GFC, 1990s</td></tr>
+              </tbody>
+            </table></div>
+            <p style="margin:4px 0 12px 0;padding:6px 10px;background:rgba(74,222,128,0.08);border-radius:3px;font-size:0.75rem;">
+              <b>현재 ${(cs.results.find(x => x.id === 'BAMLH0A0HYM2') || {}).latest_value || '?'}%p</b> → 매우 낙관 모드. 백분위 ${(cs.results.find(x => x.id === 'BAMLH0A0HYM2') || {}).percentile_1y || '?'}%로 1년 중 낮은 권역.
+            </p>
+
+            <h5 style="color:#fb923c;margin:10px 0 4px 0;font-size:0.85rem;">🟠 AAA OAS — 안전자산 시장 스트레스</h5>
+            <p style="margin:0 0 6px 0;">미국 최우량 회사채 (MSFT, JNJ, AAPL 등) vs 국채. 평상시 0.3~0.6%p.</p>
+            <ul style="margin:4px 0 10px 20px;">
+              <li><b style="color:#f87171;">1%p 초과</b> = 시스템 위기 (2008년 2%, 2020.3월 1.5%)</li>
+              <li><b>현재 ${(cs.results.find(x => x.id === 'BAMLC0A1CAAA') || {}).latest_value || '?'}%p</b> = 정상 하단</li>
+            </ul>
+
+            <h5 style="color:#fbbf24;margin:10px 0 4px 0;font-size:0.85rem;">🟡 BBB OAS — 투자등급 하한선의 건강도</h5>
+            <p style="margin:0 0 6px 0;">투자등급 중 가장 위험한 등급. 1단계 떨어지면 정크본드(BB).</p>
+            <ul style="margin:4px 0 10px 20px;">
+              <li>평상시: 1.5~2.5%p</li>
+              <li>위기: 5%p+</li>
+              <li><b>현재 ${(cs.results.find(x => x.id === 'BAMLC0A4CBBB') || {}).latest_value || '?'}%p</b> (백분위 ${(cs.results.find(x => x.id === 'BAMLC0A4CBBB') || {}).percentile_1y || '?'}%, 1년 최저권) ← 🔻 시그널</li>
+            </ul>
+            <p style="margin:4px 0 10px 0;padding:6px 10px;background:rgba(167,139,250,0.06);border-left:2px solid #a78bfa;border-radius:3px;font-size:0.75rem;">
+              <b>의미</b>: 투자등급 채권에 자금이 폭주 중. ETF 자금 유입, 연기금 매수 등이 활발.
+            </p>
+
+            <h5 style="color:#22d3ee;margin:10px 0 4px 0;font-size:0.85rem;">💛 BBB − AAA 스프레드 — 신용 분화 강도</h5>
+            <p style="margin:0 0 10px 0;">
+              직접 표시 안 되지만 두 값 빼면 계산 가능:<br/>
+              평상시 1.0~1.5%p · 위기 3%p+ (BBB가 폭등하는 동안 AAA는 덜 움직임)<br/>
+              → <b>현재 약 ${((cs.results.find(x => x.id === 'BAMLC0A4CBBB') || {}).latest_value && (cs.results.find(x => x.id === 'BAMLC0A1CAAA') || {}).latest_value) ? ((cs.results.find(x => x.id === 'BAMLC0A4CBBB') || {}).latest_value - (cs.results.find(x => x.id === 'BAMLC0A1CAAA') || {}).latest_value).toFixed(2) : '?'}%p</b>로 매우 좁음 = 투자등급 내부 신뢰도 균일
+            </p>
+
+            <h5 style="color:#facc15;margin:10px 0 4px 0;font-size:0.85rem;">💰 10Y / 2Y 국채 수익률 — Fed 정책 + 인플레 기대</h5>
+            <ul style="margin:4px 0 6px 20px;">
+              <li><b>10Y</b> = 장기 인플레·성장 기대</li>
+              <li><b>2Y</b> = Fed 단기 정책 금리 기대</li>
+              <li><b>현재 둘 다 백분위 ${(cs.results.find(x => x.id === 'DGS10') || {}).percentile_1y || '?'}%, 1년 최고치 🔝</b> = 매파적</li>
+            </ul>
+            <p style="margin:6px 0 10px 0;">→ 세 가지 가능 해석:</p>
+            <ol style="margin:0 0 10px 20px;">
+              <li>Fed 매파 발언 (금리 안 내림)</li>
+              <li>인플레 재발 우려 (장기 금리 상승)</li>
+              <li>재정 우려 (미국 적자 확대 → 국채 발행 증가 → 가격 하락)</li>
+            </ol>
+
+            <h5 style="color:#a78bfa;margin:10px 0 4px 0;font-size:0.85rem;">📊 10Y-2Y 스프레드 (T10Y2Y) — 침체 6~18개월 선행 시그널</h5>
+            <p style="margin:0 0 6px 0;"><b style="color:#f87171;">역사적 적중률 90% 이상의 침체 예측기</b></p>
+            <ul style="margin:4px 0 10px 20px;">
+              <li>&gt; +1%p: 정상 (성장 기대)</li>
+              <li>0 ~ +1%p: 평탄화 (성장 둔화 신호)</li>
+              <li><b style="color:#f87171;">음수 (역전)</b>: 6~18개월 후 침체 가능성 ⚠️</li>
+              <li><b>현재 +${(cs.results.find(x => x.id === 'T10Y2Y') || {}).latest_value || '?'}%p</b> = 정상이지만 평탄한 편</li>
+            </ul>
+
+            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🔍 3. 변화율 활용법 (정태값 + 동태)</h4>
+            <p style="margin:0 0 8px 0;">각 카드의 <b>1d / 5d / 30d / 1y %ile</b> 4개를 함께 봐야 합니다.</p>
+            <ul style="margin:4px 0 10px 20px;">
+              <li><b>정태적</b> (현재값 vs 임계값): "하이일드 2.8%p이면 안전" — 절대 수준 해석</li>
+              <li><b>동태적</b> (변화 방향·속도): "하이일드 30일 -0.33%p" — <b>방향이 더 중요할 때가 많음</b></li>
+              <li><b>1년 백분위수</b>: "지금이 1년 중 얼마나 극단적인가?" (90%+ 역사적 고점, 10%- 역사적 저점)</li>
+            </ul>
+            <p style="margin:8px 0 4px 0;font-weight:600;">핵심 결합 시그널:</p>
+            <div style="overflow-x:auto;margin:4px 0 10px 0;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.7rem;">
+              <thead><tr style="background:rgba(167,139,250,0.1);">
+                <th style="padding:5px 8px;text-align:left;">패턴</th>
+                <th style="padding:5px 8px;text-align:left;">의미</th>
+                <th style="padding:5px 8px;text-align:left;">행동 신호</th>
+              </tr></thead>
+              <tbody>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">절대값 낮음 + 30d 하락 + %ile 낮음</td><td style="padding:4px 8px;color:#4ade80;">위험 선호 가속</td><td style="padding:4px 8px;">위험자산 우호</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">절대값 높음 + 30d 상승 + %ile 높음</td><td style="padding:4px 8px;color:#f87171;">위험 회피 가속</td><td style="padding:4px 8px;">현금화 검토</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">절대값 낮음 + 30d <b>상승</b></td><td style="padding:4px 8px;color:#fbbf24;">추세 반전 시작</td><td style="padding:4px 8px;">관망 모드</td></tr>
+                <tr><td style="padding:4px 8px;">절대값 높음 + 30d <b>하락</b></td><td style="padding:4px 8px;color:#22d3ee;">위기 완화 시작</td><td style="padding:4px 8px;">매수 기회 모색</td></tr>
+              </tbody>
+            </table></div>
+
+            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🎓 4. 현재 시점 종합 진단</h4>
+            <p style="margin:0 0 6px 0;font-weight:600;">발견된 모순 신호:</p>
+            <div style="overflow-x:auto;margin:4px 0 10px 0;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
+              <thead><tr style="background:rgba(167,139,250,0.1);"><th style="padding:5px 8px;text-align:left;">신호</th><th style="padding:5px 8px;text-align:left;">방향</th></tr></thead>
+              <tbody>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">하이일드 ${(cs.results.find(x => x.id === 'BAMLH0A0HYM2') || {}).latest_value || '?'}%p (저점권), 30d ${(cs.results.find(x => x.id === 'BAMLH0A0HYM2') || {}).change_30d || '?'}</td><td style="padding:4px 8px;color:#4ade80;">🟢 위험 선호 강화</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">BBB ${(cs.results.find(x => x.id === 'BAMLC0A4CBBB') || {}).latest_value || '?'}%p (1년 최저), 🔻 시그널</td><td style="padding:4px 8px;color:#4ade80;">🟢 회사채 강세</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;"><b>10Y ${(cs.results.find(x => x.id === 'DGS10') || {}).latest_value || '?'}% (1y 100%), 30d +0.24%</b></td><td style="padding:4px 8px;color:#f87171;">🔴 매파 압력 강화</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;"><b>2Y ${(cs.results.find(x => x.id === 'DGS2') || {}).latest_value || '?'}% (1y 100%), 30d +0.25%</b></td><td style="padding:4px 8px;color:#f87171;">🔴 단기 긴축 강화</td></tr>
+                <tr><td style="padding:4px 8px;">T10Y2Y +${(cs.results.find(x => x.id === 'T10Y2Y') || {}).latest_value || '?'}%p</td><td style="padding:4px 8px;color:#4ade80;">🟢 곡선 정상</td></tr>
+              </tbody>
+            </table></div>
+            <p style="margin:8px 0 6px 0;padding:8px 12px;background:rgba(167,139,250,0.08);border-left:3px solid #a78bfa;border-radius:3px;">
+              <b style="color:#a78bfa;">진단: "Goldilocks 또는 긴장된 균형"</b><br/>
+              시장은 신용 위험을 안 느낀다 (스프레드 좁음). 그러나 Fed는 매파 모드 (금리 1년 최고치).
+              이 균형이 깨지는 방향이 중요한 변곡점.
+            </p>
+            <p style="margin:10px 0 4px 0;font-weight:600;">두 시나리오:</p>
+            <ul style="margin:4px 0 10px 20px;">
+              <li><b style="color:#4ade80;">시나리오 A: Soft Landing (확률 60%)</b><br/>
+                인플레 점진 하락 → Fed 금리 인하 → 양쪽 다 안정. HY/BBB 그대로 낮게 유지, 10Y 4%대로 하락. 위험자산 강세 지속.</li>
+              <li style="margin-top:6px;"><b style="color:#fb923c;">시나리오 B: Surprise Tightening (확률 30%)</b><br/>
+                인플레 재발 → Fed 추가 인상 또는 long-higher. 곡선 역전 발생 → HY 5%p+ 빠르게 확대. 6~18개월 후 침체.</li>
+              <li style="margin-top:6px;"><b style="color:#f87171;">시나리오 C: Credit Event (확률 10%)</b><br/>
+                특정 섹터 (상업용 부동산, AI 거품 등) 사고. BBB 갑자기 2%p+ 폭등. 시스템 위기로 확산.</li>
+            </ul>
+
+            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🇰🇷 5. 한국 시장 적용법</h4>
+            <div style="overflow-x:auto;margin:4px 0 10px 0;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
+              <thead><tr style="background:rgba(167,139,250,0.1);">
+                <th style="padding:5px 8px;text-align:left;">미국 신호</th>
+                <th style="padding:5px 8px;text-align:left;">한국 영향 메커니즘</th>
+                <th style="padding:5px 8px;text-align:left;">종목 영향</th>
+              </tr></thead>
+              <tbody>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">HY 스프레드 좁음</td><td style="padding:4px 8px;">외국인 위험자산 선호</td><td style="padding:4px 8px;color:#4ade80;">한국 증시 매수세 ✅</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">10Y 금리 100%ile 고점</td><td style="padding:4px 8px;">달러 강세 → 원화 약세</td><td style="padding:4px 8px;">수출주 호재 (삼성/SK하이닉스) ✅, 금융주 부담 ⚠️</td></tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:4px 8px;">곡선 역전 발생 시</td><td style="padding:4px 8px;">6~12개월 후 수출 둔화</td><td style="padding:4px 8px;color:#f87171;">시클리컬 매도 신호</td></tr>
+                <tr><td style="padding:4px 8px;">BBB 스프레드 확대</td><td style="padding:4px 8px;">한국 회사채 동조 약세</td><td style="padding:4px 8px;">차입 의존 기업 부담</td></tr>
+              </tbody>
+            </table></div>
+            <p style="margin:8px 0 4px 0;font-weight:600;">실전 룰 (개인 의견):</p>
+            <pre style="background:rgba(15,23,42,0.6);padding:10px 14px;border-radius:6px;font-size:0.7rem;font-family:var(--font-mono);overflow-x:auto;margin:4px 0 10px 0;color:#e2e8f0;line-height:1.6;">
+HY 5%p+ 돌파 →   외국인 매도 본격화 가능, 수비 모드
+HY 7%p+ 돌파 →   경기방어주 (KT&G, 한국전력) 비중 확대
+HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현재 위치)
+곡선 역전     →   12개월 내 KOSPI 큰 조정 가능성 대비</pre>
+
+            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">⚠️ 6. 흔한 함정</h4>
+            <ul style="margin:4px 0 10px 20px;">
+              <li><b>함정 1</b>: "스프레드 좁다 = 무조건 좋다" (틀림) — 너무 좁으면 과도한 위험 선호. 1~2년 후 조정 가능성 ↑</li>
+              <li style="margin-top:4px;"><b>함정 2</b>: "곡선 역전 = 즉시 매도" (틀림) — 역전 후 침체까지 평균 13개월. 그 사이 주식은 보통 더 오름.</li>
+              <li style="margin-top:4px;"><b>함정 3</b>: "단일 지표만 본다" — HY OAS 단독보다 HY + 10Y + 곡선 3개 조합이 정확도 훨씬 높음.</li>
+              <li style="margin-top:4px;"><b>함정 4</b>: "한국과 미국 1:1 적용" — 한국 금리/스프레드는 별도. 미국 신호는 참고지표.</li>
+            </ul>
+
+            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🎯 7. 실전 활용 체크리스트</h4>
+            <p style="margin:0 0 6px 0;">매일 대시보드 보실 때:</p>
+            <ul style="margin:4px 0 10px 20px;list-style:none;padding-left:0;">
+              <li>☐ <b>거시 체제 헤더</b> 색상 변화 (🟢→🟡→🟠→🚨)</li>
+              <li>☐ <b>HY OAS</b> 5%p 돌파 여부</li>
+              <li>☐ <b>T10Y2Y</b> 음수 진입 여부</li>
+              <li>☐ <b>30일 변화</b> 방향성 (스프레드 확대/축소)</li>
+              <li>☐ <b>백분위 극단</b> (95%+ 또는 5%-) 출현</li>
+              <li>☐ <b>활성 시그널 박스</b> 비어있는지 (현재는 없음 = 평온)</li>
+            </ul>
+
+            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">📚 8. 추가 학습 자료</h4>
+            <ul style="margin:4px 0 10px 20px;">
+              <li><b>Inverting the Yield Curve</b> — Campbell Harvey, Duke 교수 (1986 논문)</li>
+              <li><b>The Information in Long-Maturity Forward Rates</b> — Eugene Fama (1987)</li>
+              <li>매일 매크로 뉴스레터: ZeroHedge / The Daily Shot</li>
+            </ul>
+
+            <div style="margin-top:18px;padding:10px 14px;background:rgba(239,68,68,0.06);border-radius:6px;font-size:0.75rem;color:var(--text-muted);">
+              🚨 본 가이드는 교육·정보 제공 목적입니다. 실제 투자 결정은 본인의 책임이며,
+              여러 지표·뉴스·재무제표를 종합해서 판단하시기 바랍니다.
+            </div>
+
+          </div>
+        </details>
+
         <!-- 시리즈별 매트릭스 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">`;
 
