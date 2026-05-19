@@ -9,6 +9,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script src="https://unpkg.com/versor@0.2.0/build/versor.min.js"></script>
 
 <style>
 /* ─── Reset & Base ─────────────────────────────────────── */
@@ -55,7 +57,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle grid texture */
+/* Subtle grid texture (cosmic dim) */
 body::before {
   content: '';
   position: fixed; inset: 0;
@@ -65,6 +67,94 @@ body::before {
   background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
+}
+
+/* ─── 🌌 우주 별 배경 (Cosmic Stars) ──────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 50% 50%, rgba(34,211,238,0.3), transparent),
+    radial-gradient(2px 2px at 80% 10%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 90% 60%, rgba(167,139,250,0.4), transparent),
+    radial-gradient(1px 1px at 33% 80%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(2px 2px at 15% 60%, rgba(0,255,136,0.3), transparent),
+    radial-gradient(1px 1px at 75% 25%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 10% 90%, rgba(34,211,238,0.3), transparent),
+    radial-gradient(1px 1px at 95% 85%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 25% 45%, rgba(167,139,250,0.3), transparent),
+    radial-gradient(2px 2px at 55% 35%, rgba(255,255,255,0.4), transparent);
+  background-size: 800px 800px;
+  background-repeat: repeat;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.7;
+  animation: starDrift 180s linear infinite;
+}
+@keyframes starDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 800px 800px; }
+}
+
+/* 🌌 깊은 우주 그라데이션 (배경) */
+body {
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(34,211,238,0.04), transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(167,139,250,0.04), transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(0,255,136,0.03), transparent 50%),
+    var(--bg) !important;
+}
+
+/* CRT 미세 스캔라인 (subtle) */
+.shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.005) 2px,
+    rgba(255,255,255,0.005) 3px
+  );
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
+}
+
+/* 글로벌 글로우 — 카드 시그널 강조 */
+.sw-card[data-sao-id]:hover {
+  box-shadow: 0 0 12px rgba(34,211,238,0.18);
+}
+.sw-card.active {
+  box-shadow: 0 0 20px rgba(34,211,238,0.3);
+}
+
+/* Sovereign Watch 녹색 터미널 액센트 (LIVE/HOME/펄스) */
+#liveDot {
+  animation: terminalPulse 2s ease-in-out infinite;
+}
+@keyframes terminalPulse {
+  0%, 100% { box-shadow: 0 0 4px #00ff88; opacity: 1; }
+  50%      { box-shadow: 0 0 12px #00ff88, 0 0 20px #00ff88; opacity: 0.85; }
+}
+
+/* 인스펙터 패널 글로우 (열렸을 때) */
+.inspector-panel.is-open {
+  box-shadow: -8px 0 40px rgba(0,0,0,0.5), -2px 0 24px rgba(34,211,238,0.1);
+}
+
+/* 사이드바 글래스 강조 (우주 베이스) */
+.sidebar {
+  background: linear-gradient(180deg,
+    rgba(8,12,20,0.95) 0%,
+    rgba(8,12,20,0.92) 50%,
+    rgba(8,12,20,0.95) 100%) !important;
+  box-shadow: 2px 0 24px rgba(0,0,0,0.4), 1px 0 0 rgba(34,211,238,0.05);
 }
 
 /* ─── Animations ──────────────────────────────────────── */
@@ -1804,11 +1894,17 @@ body::before {
 
 <!-- Claude Docs 스타일 사이드바 -->
 <aside id="sidebar" class="sidebar">
-  <div class="sidebar-header">
-    <div class="sidebar-brand">
-      <span style="color:#22d3ee;">AI</span> Finance
+  <div class="sidebar-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+    <div>
+      <div class="sidebar-brand">
+        <span style="color:#22d3ee;">AI</span> Finance
+      </div>
+      <div class="sidebar-subtitle">실시간 모니터링</div>
     </div>
-    <div class="sidebar-subtitle">실시간 모니터링</div>
+    <button id="sidebarHome" title="홈 (H 또는 클릭)" aria-label="홈으로 돌아가기" style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;padding:6px 10px;border-radius:6px;font-size:0.7rem;font-weight:600;cursor:pointer;font-family:var(--font-mono);letter-spacing:0.05em;transition:all 0.12s ease;display:flex;align-items:center;gap:4px;">
+      <span style="font-size:0.85rem;">🏠</span>
+      <span>HOME</span>
+    </button>
   </div>
   <nav class="sidebar-nav" id="sidebarNav">
     <div style="color:var(--text-muted);font-size:0.65rem;padding:8px 16px;font-style:italic;">데이터 로딩 후 자동 생성됩니다…</div>
@@ -1857,7 +1953,10 @@ body::before {
       <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">Object Inspector</div>
       <div id="inspectorTitle" style="font-size:0.95rem;font-weight:700;color:#e2e8f0;margin-top:2px;">—</div>
     </div>
-    <button id="inspectorClose" class="inspector-close" aria-label="닫기">×</button>
+    <div style="display:flex;gap:6px;">
+      <button id="inspectorHome" class="inspector-close" aria-label="홈으로" title="홈으로 (인스펙터 닫기 + 맨 위로)" style="background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:#00ff88;width:auto;padding:0 10px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;">🏠 HOME</button>
+      <button id="inspectorClose" class="inspector-close" aria-label="닫기" title="닫기 (ESC)">×</button>
+    </div>
   </div>
   <div id="inspectorBody" class="inspector-body">
     <!-- 동적 콘텐츠 -->
@@ -2579,15 +2678,36 @@ body::before {
 
       <!-- 뷰 전환 탭 -->
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        <button class="tcm-tab is-active" data-tcm-view="treemap" style="padding:8px 14px;background:rgba(34,211,238,0.18);color:#22d3ee;border:1px solid rgba(34,211,238,0.4);border-radius:6px;font-size:0.78rem;cursor:pointer;font-weight:600;">📊 섹터 트리맵</button>
+        <button class="tcm-tab is-active" data-tcm-view="globe" style="padding:8px 14px;background:rgba(0,255,136,0.18);color:#00ff88;border:1px solid rgba(0,255,136,0.4);border-radius:6px;font-size:0.78rem;cursor:pointer;font-weight:600;">🌍 글로벌 자산 지도</button>
+        <button class="tcm-tab" data-tcm-view="treemap" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:0.78rem;cursor:pointer;">📊 섹터 트리맵</button>
         <button class="tcm-tab" data-tcm-view="heatmap" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:0.78rem;cursor:pointer;">📈 시계열 히트맵</button>
         <button class="tcm-tab" data-tcm-view="kg" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:0.78rem;cursor:pointer;">🕸️ 지식 그래프 (아래 섹션)</button>
       </div>
 
-      <!-- 시각화 캔버스 -->
-      <div id="tcm-canvas" class="glass-card" style="height:520px;background:#0a0e17;border-radius:8px;overflow:hidden;position:relative;padding:14px;">
-        <svg id="tcm-treemap" style="width:100%;height:100%;display:block;"></svg>
+      <!-- 시각화 캔버스 (Sovereign Watch 스타일: 별이 빛나는 우주 배경) -->
+      <div id="tcm-canvas" class="glass-card" style="height:560px;background:radial-gradient(ellipse at center, #001020 0%, #000005 100%);border-radius:8px;overflow:hidden;position:relative;padding:0;">
+        <svg id="tcm-globe" style="width:100%;height:100%;display:block;cursor:grab;"></svg>
+        <svg id="tcm-treemap" style="width:100%;height:100%;display:none;"></svg>
         <svg id="tcm-heatmap" style="width:100%;height:100%;display:none;"></svg>
+
+        <!-- 글로벌 지도 컨트롤 패널 (좌측 상단) -->
+        <div id="tcm-globe-controls" style="position:absolute;top:14px;left:14px;background:rgba(0,16,32,0.7);border:1px solid rgba(0,255,136,0.25);border-radius:6px;padding:10px 12px;font-family:var(--font-mono);font-size:0.65rem;color:#00ff88;line-height:1.6;backdrop-filter:blur(6px);min-width:160px;">
+          <div style="color:#00ff88;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-bottom:1px solid rgba(0,255,136,0.2);padding-bottom:4px;margin-bottom:6px;">⊕ GLOBE CONTROLS</div>
+          <div style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+            <span style="width:6px;height:6px;background:#00ff88;border-radius:50%;display:inline-block;box-shadow:0 0 6px #00ff88;"></span>
+            <span>AUTO-ROTATE</span>
+            <span id="tcm-globe-toggle" style="margin-left:auto;cursor:pointer;color:#00ff88;text-decoration:underline;">ON</span>
+          </div>
+          <div style="color:var(--text-muted);margin-top:4px;">DRAG: rotate</div>
+          <div style="color:var(--text-muted);">CLICK: locate asset</div>
+        </div>
+
+        <!-- 글로벌 지도 통계 패널 (우측 상단) -->
+        <div id="tcm-globe-stats" style="position:absolute;top:14px;right:14px;background:rgba(0,16,32,0.7);border:1px solid rgba(34,211,238,0.25);border-radius:6px;padding:10px 12px;font-family:var(--font-mono);font-size:0.65rem;color:#22d3ee;line-height:1.6;backdrop-filter:blur(6px);min-width:180px;">
+          <div style="color:#22d3ee;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-bottom:1px solid rgba(34,211,238,0.2);padding-bottom:4px;margin-bottom:6px;">⊞ ASSET TELEMETRY</div>
+          <div id="tcm-globe-stat-rows" style="color:var(--text-muted);">로딩중...</div>
+        </div>
+
         <div id="tcm-loading" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-muted);font-size:0.85rem;">로딩 중...</div>
       </div>
 
@@ -5307,9 +5427,16 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           const isActive = t.dataset.tcmView === view;
           t.classList.toggle('is-active', isActive);
           if (isActive) {
-            t.style.background = 'rgba(34,211,238,0.18)';
-            t.style.color = '#22d3ee';
-            t.style.borderColor = 'rgba(34,211,238,0.4)';
+            // Globe = 녹색 액센트, 다른 뷰 = 시안
+            if (view === 'globe') {
+              t.style.background = 'rgba(0,255,136,0.18)';
+              t.style.color = '#00ff88';
+              t.style.borderColor = 'rgba(0,255,136,0.4)';
+            } else {
+              t.style.background = 'rgba(34,211,238,0.18)';
+              t.style.color = '#22d3ee';
+              t.style.borderColor = 'rgba(34,211,238,0.4)';
+            }
             t.style.fontWeight = '600';
           } else {
             t.style.background = 'transparent';
@@ -5318,21 +5445,338 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             t.style.fontWeight = '400';
           }
         });
+        const gb = document.getElementById('tcm-globe');
         const tm = document.getElementById('tcm-treemap');
         const hm = document.getElementById('tcm-heatmap');
-        if (view === 'treemap') { tm.style.display = 'block'; hm.style.display = 'none'; }
-        else if (view === 'heatmap') { tm.style.display = 'none'; hm.style.display = 'block'; }
-        else if (view === 'kg') {
-          // 지식 그래프 섹션으로 점프
+        const gc = document.getElementById('tcm-globe-controls');
+        const gs = document.getElementById('tcm-globe-stats');
+        if (view === 'globe') {
+          gb.style.display = 'block'; tm.style.display = 'none'; hm.style.display = 'none';
+          if (gc) gc.style.display = 'block';
+          if (gs) gs.style.display = 'block';
+        } else if (view === 'treemap') {
+          gb.style.display = 'none'; tm.style.display = 'block'; hm.style.display = 'none';
+          if (gc) gc.style.display = 'none';
+          if (gs) gs.style.display = 'none';
+        } else if (view === 'heatmap') {
+          gb.style.display = 'none'; tm.style.display = 'none'; hm.style.display = 'block';
+          if (gc) gc.style.display = 'none';
+          if (gs) gs.style.display = 'none';
+        } else if (view === 'kg') {
           const kgEl = document.querySelector('[id^="sec-통합-지식-그래프"]') || document.querySelector('[id*="지식"]');
           if (kgEl) kgEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
     });
 
-    // ─── 트리맵 렌더링 ─────────
+    // ─── 모든 뷰 렌더링 ─────────
+    renderTcmGlobe(data);
     renderTcmTreemap(data);
     renderTcmHeatmap(data);
+  }
+
+  // ─── 🌍 3D 지구본 렌더링 (D3.js Orthographic Globe) ──
+  let __globeRotation = [-127, -36, 0]; // 한국 중심 (longitude, latitude, roll)
+  let __globeAutoRotate = true;
+  let __globeTimer = null;
+
+  function renderTcmGlobe(data) {
+    const svg = d3.select('#tcm-globe');
+    if (!svg.node()) return;
+    svg.selectAll('*').remove();
+
+    const w = svg.node().clientWidth || 800;
+    const h = svg.node().clientHeight || 560;
+    svg.attr('viewBox', `0 0 ${w} ${h}`);
+
+    const radius = Math.min(w, h) / 2.4;
+    const projection = d3.geoOrthographic()
+      .scale(radius)
+      .translate([w / 2, h / 2])
+      .rotate(__globeRotation)
+      .clipAngle(90);
+
+    const path = d3.geoPath(projection);
+
+    // 배경 우주 효과 (별)
+    const defs = svg.append('defs');
+    // 글로우 필터
+    const filter = defs.append('filter').attr('id', 'globe-glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+    filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
+    const fMerge = filter.append('feMerge');
+    fMerge.append('feMergeNode').attr('in', 'coloredBlur');
+    fMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    // 그라데이션 (대기권 효과)
+    const grad = defs.append('radialGradient').attr('id', 'atmosphere').attr('cx', '50%').attr('cy', '50%').attr('r', '50%');
+    grad.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(34,211,238,0.05)');
+    grad.append('stop').attr('offset', '70%').attr('stop-color', 'rgba(34,211,238,0.15)');
+    grad.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(34,211,238,0)');
+
+    // 별 배경 (랜덤 200개)
+    const starsG = svg.append('g').attr('class', 'globe-stars');
+    for (let i = 0; i < 200; i++) {
+      const sx = Math.random() * w;
+      const sy = Math.random() * h;
+      const sr = Math.random() * 1.2 + 0.2;
+      const opacity = Math.random() * 0.7 + 0.2;
+      starsG.append('circle')
+        .attr('cx', sx).attr('cy', sy).attr('r', sr)
+        .attr('fill', '#ffffff').attr('opacity', opacity);
+    }
+
+    // 대기권 글로우
+    svg.append('circle')
+      .attr('cx', w / 2).attr('cy', h / 2)
+      .attr('r', radius + 8)
+      .attr('fill', 'url(#atmosphere)')
+      .attr('class', 'globe-atmosphere');
+
+    // 지구 바다 (sphere)
+    const earthG = svg.append('g').attr('class', 'globe-earth');
+    earthG.append('circle')
+      .attr('cx', w / 2).attr('cy', h / 2)
+      .attr('r', radius)
+      .attr('fill', 'rgba(0,16,32,0.95)')
+      .attr('stroke', 'rgba(0,255,136,0.3)')
+      .attr('stroke-width', 1);
+
+    // 위도/경도 그라티큘 (Sovereign Watch 스타일)
+    const graticule = d3.geoGraticule().step([20, 20]);
+    earthG.append('path')
+      .datum(graticule())
+      .attr('d', path)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(0,255,136,0.12)')
+      .attr('stroke-width', 0.5);
+
+    // 대륙 (TopoJSON 로드)
+    const landG = svg.append('g').attr('class', 'globe-land');
+
+    // 자산 마커 (한국, 미국, 일본, 영국, 중국, 인도 등 주요 시장)
+    const ASSET_MARKERS = [
+      { id: 'kr',  name: '🇰🇷 한국 (KOSPI)',     lon: 126.978, lat: 37.566, color: '#22c55e', pulse: 'KR_EQUITY', size: 8 },
+      { id: 'us',  name: '🇺🇸 미국 (NYSE/NASDAQ)', lon: -74.006, lat: 40.713, color: '#ef4444', pulse: 'MACRO',     size: 10 },
+      { id: 'jp',  name: '🇯🇵 일본 (Nikkei)',     lon: 139.692, lat: 35.690, color: '#fb923c', pulse: 'CRYPTO',    size: 7 },
+      { id: 'gb',  name: '🇬🇧 영국 (FTSE)',       lon: -0.128,  lat: 51.507, color: '#a78bfa', pulse: 'MACRO',     size: 6 },
+      { id: 'cn',  name: '🇨🇳 중국 (SSE)',        lon: 121.473, lat: 31.230, color: '#fbbf24', pulse: 'SEMI',      size: 7 },
+      { id: 'hk',  name: '🇭🇰 홍콩 (HSI)',        lon: 114.169, lat: 22.319, color: '#06b6d4', pulse: 'CRYPTO',    size: 6 },
+      { id: 'de',  name: '🇩🇪 독일 (DAX)',        lon: 13.405,  lat: 52.520, color: '#a78bfa', pulse: 'MACRO',     size: 6 },
+      { id: 'tw',  name: '🇹🇼 대만 (TSMC)',       lon: 121.565, lat: 25.033, color: '#06b6d4', pulse: 'SEMI',      size: 6 },
+      { id: 'in',  name: '🇮🇳 인도 (SENSEX)',     lon: 72.877,  lat: 19.076, color: '#fbbf24', pulse: 'NEWS',      size: 5 },
+    ];
+
+    // 연결선 (한국 ↔ 다른 시장 — 글로벌 자본 흐름)
+    const FLOW_LINKS = [
+      { from: 'kr', to: 'us', weight: 1.0 },
+      { from: 'kr', to: 'jp', weight: 0.8 },
+      { from: 'kr', to: 'cn', weight: 0.9 },
+      { from: 'kr', to: 'tw', weight: 0.85 },
+      { from: 'kr', to: 'hk', weight: 0.7 },
+      { from: 'us', to: 'gb', weight: 0.7 },
+      { from: 'us', to: 'de', weight: 0.6 },
+      { from: 'us', to: 'jp', weight: 0.7 },
+      { from: 'cn', to: 'hk', weight: 0.9 },
+      { from: 'tw', to: 'us', weight: 0.8 },
+    ];
+
+    // 마커 그룹
+    const linksG = svg.append('g').attr('class', 'globe-links');
+    const markersG = svg.append('g').attr('class', 'globe-markers');
+
+    function isVisible(lon, lat) {
+      const r = projection.rotate();
+      const dist = d3.geoDistance([lon, lat], [-r[0], -r[1]]);
+      return dist < Math.PI / 2;
+    }
+
+    function updateGlobe() {
+      projection.rotate(__globeRotation);
+
+      // 대륙 path
+      landG.selectAll('path').attr('d', path);
+      earthG.selectAll('path').attr('d', path);
+
+      // 마커
+      markersG.selectAll('g.asset-marker')
+        .attr('transform', d => {
+          const p = projection([d.lon, d.lat]);
+          return p ? `translate(${p[0]},${p[1]})` : 'translate(-9999,-9999)';
+        })
+        .style('opacity', d => isVisible(d.lon, d.lat) ? 1 : 0.15);
+
+      // 연결선 (great circle arc)
+      linksG.selectAll('path.flow-arc')
+        .attr('d', d => {
+          const from = ASSET_MARKERS.find(m => m.id === d.from);
+          const to = ASSET_MARKERS.find(m => m.id === d.to);
+          if (!from || !to) return '';
+          const arc = { type: 'LineString', coordinates: [[from.lon, from.lat], [to.lon, to.lat]] };
+          return path(arc);
+        })
+        .style('opacity', d => {
+          const from = ASSET_MARKERS.find(m => m.id === d.from);
+          const to = ASSET_MARKERS.find(m => m.id === d.to);
+          if (!from || !to) return 0.15;
+          const visFrom = isVisible(from.lon, from.lat);
+          const visTo = isVisible(to.lon, to.lat);
+          return (visFrom && visTo) ? 0.7 : (visFrom || visTo) ? 0.35 : 0.1;
+        });
+    }
+
+    // TopoJSON 대륙 데이터 로드
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+      .then(r => r.json())
+      .then(world => {
+        const countries = topojson.feature(world, world.objects.countries);
+        landG.selectAll('path')
+          .data(countries.features)
+          .enter()
+          .append('path')
+          .attr('d', path)
+          .attr('fill', 'rgba(0,255,136,0.06)')
+          .attr('stroke', 'rgba(0,255,136,0.25)')
+          .attr('stroke-width', 0.5);
+
+        const loading = document.getElementById('tcm-loading');
+        if (loading) loading.style.display = 'none';
+        updateGlobe();
+      })
+      .catch(err => {
+        console.warn('지구본 로드 실패', err);
+        const loading = document.getElementById('tcm-loading');
+        if (loading) loading.textContent = '대륙 데이터 로드 실패 — 기본 마커만 표시';
+      });
+
+    // 연결선 그리기 (great circle)
+    linksG.selectAll('path.flow-arc')
+      .data(FLOW_LINKS)
+      .enter()
+      .append('path')
+      .attr('class', 'flow-arc')
+      .attr('fill', 'none')
+      .attr('stroke', d => '#22d3ee')
+      .attr('stroke-width', d => d.weight * 1.5)
+      .attr('stroke-opacity', 0.7)
+      .attr('stroke-dasharray', '4 2')
+      .attr('filter', 'url(#globe-glow)');
+
+    // 마커 (펄스 애니메이션)
+    const markers = markersG.selectAll('g.asset-marker')
+      .data(ASSET_MARKERS)
+      .enter()
+      .append('g')
+      .attr('class', 'asset-marker')
+      .style('cursor', 'pointer');
+
+    // 외곽 펄스
+    markers.append('circle')
+      .attr('r', d => d.size + 4)
+      .attr('fill', 'none')
+      .attr('stroke', d => d.color)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.6);
+    // 펄스 애니메이션
+    markers.select('circle')
+      .each(function(d) {
+        d3.select(this).append('animate')
+          .attr('attributeName', 'r')
+          .attr('values', `${d.size + 4};${d.size + 12};${d.size + 4}`)
+          .attr('dur', '3s')
+          .attr('repeatCount', 'indefinite');
+        d3.select(this).append('animate')
+          .attr('attributeName', 'stroke-opacity')
+          .attr('values', '0.8;0;0.8')
+          .attr('dur', '3s')
+          .attr('repeatCount', 'indefinite');
+      });
+
+    // 코어 마커
+    markers.append('circle')
+      .attr('r', d => d.size)
+      .attr('fill', d => d.color)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.5)
+      .attr('filter', 'url(#globe-glow)');
+
+    markers.append('text')
+      .attr('x', d => d.size + 6)
+      .attr('y', 4)
+      .attr('fill', d => d.color)
+      .attr('font-size', '0.7rem')
+      .attr('font-weight', 600)
+      .attr('font-family', 'var(--font-mono)')
+      .text(d => d.name);
+
+    markers.append('title').text(d => `${d.name}\n좌표: ${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°`);
+
+    // 마커 클릭 → 인스펙터 (해당 시장 종목 안내)
+    markers.on('click', function(event, d) {
+      // 한국 시장이면 SAO 시그널에서 한국 종목 첫 항목 열기
+      const sao = (window.__dashboardData || {}).sao_signals || {};
+      const signals = sao.signals || [];
+      const match = signals.find(s => {
+        if (d.id === 'kr') return s.pulse === 'KR_EQUITY';
+        if (d.id === 'us' || d.id === 'de' || d.id === 'gb') return s.pulse === 'MACRO';
+        return s.pulse === d.pulse;
+      });
+      if (match) openInspector(match.id);
+    });
+
+    // ─── 드래그 회전 ─────────
+    let v0, q0;
+    svg.call(d3.drag()
+      .on('start', function(event) {
+        __globeAutoRotate = false;
+        const toggleEl = document.getElementById('tcm-globe-toggle');
+        if (toggleEl) toggleEl.textContent = 'OFF';
+        v0 = versor.cartesian(projection.invert([event.x, event.y]));
+        q0 = versor(projection.rotate());
+      })
+      .on('drag', function(event) {
+        const v1 = versor.cartesian(projection.rotate(q0).invert([event.x, event.y]));
+        const q1 = versor.multiply(q0, versor.delta(v0, v1));
+        __globeRotation = versor.rotation(q1);
+        updateGlobe();
+      })
+    );
+
+    // ─── 자동 회전 ─────────
+    if (__globeTimer) clearInterval(__globeTimer);
+    __globeTimer = setInterval(() => {
+      if (__globeAutoRotate) {
+        __globeRotation[0] += 0.2;
+        updateGlobe();
+      }
+    }, 50);
+
+    // 자동 회전 토글
+    const toggleEl = document.getElementById('tcm-globe-toggle');
+    if (toggleEl) {
+      toggleEl.addEventListener('click', () => {
+        __globeAutoRotate = !__globeAutoRotate;
+        toggleEl.textContent = __globeAutoRotate ? 'ON' : 'OFF';
+      });
+    }
+
+    // 통계 패널 갱신
+    const sao = (data || {}).sao_signals || {};
+    const sRows = document.getElementById('tcm-globe-stat-rows');
+    if (sRows) {
+      const ready = sao.ready_to_act || 0;
+      const total = sao.total || 0;
+      const pulses = sao.pulse_counts || {};
+      sRows.innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>READY TO ACT</span><span style="color:#ef4444;font-weight:700;">${ready}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>TOTAL SIGNALS</span><span style="color:#22d3ee;font-weight:700;">${total}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>KR EQUITY</span><span style="color:#22c55e;">${pulses.KR_EQUITY || 0}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>MACRO</span><span style="color:#ef4444;">${pulses.MACRO || 0}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>SEMI</span><span style="color:#06b6d4;">${pulses.SEMI || 0}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>LEGISLATIVE</span><span style="color:#fb923c;">${pulses.LEGISLATIVE || 0}</span></div>
+      `;
+    }
+
+    updateGlobe();
   }
 
   function renderTcmTreemap(data) {
@@ -5739,6 +6183,28 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     document.querySelectorAll('.sw-card.active').forEach(c => c.classList.remove('active'));
   }
 
+  // 🏠 HOME — 완전 초기 상태로 복귀
+  function goHome() {
+    // 1. 인스펙터 닫기
+    closeInspector();
+    // 2. Cmd+K 닫기
+    closeCmdk();
+    // 3. 페이지 맨 위로 부드럽게 스크롤
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // 4. 사이드바 nav 영역도 맨 위로 (시그널 첫 카드 보이게)
+    const navEl = document.getElementById('sidebarNav');
+    if (navEl) navEl.scrollTo({ top: 0, behavior: 'smooth' });
+    // 5. 모바일에서는 사이드바 열기
+    if (window.innerWidth <= 900) {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      if (sidebar) sidebar.classList.add('is-open');
+      if (overlay) overlay.style.display = 'block';
+    }
+    // 6. HOME 시각 피드백 (LIVE 인디케이터에 표시)
+    flashLiveIndicator('#00ff88', 'HOME');
+  }
+
   // ─── ⌘+K 명령 팔레트 (Sovereign Watch / Linear 스타일) ──
   let __cmdkResults = [];
   let __cmdkActive = 0;
@@ -5893,9 +6359,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   // ─── 키보드 단축키 + 초기화 ─────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.getElementById('inspectorClose');
+    const homeBtn = document.getElementById('inspectorHome');
     const insOverlay = document.getElementById('inspectorOverlay');
     if (closeBtn) closeBtn.addEventListener('click', closeInspector);
     if (insOverlay) insOverlay.addEventListener('click', closeInspector);
+
+    // 🏠 HOME 버튼: 인스펙터 닫기 + 맨 위로 스크롤 + 사이드바 첫 카드로 복귀
+    if (homeBtn) {
+      homeBtn.addEventListener('click', goHome);
+    }
 
     // Cmd+K 입력 핸들러
     const cmdkInput = document.getElementById('cmdkInput');
@@ -5940,7 +6412,29 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         closeCmdk();
         closeInspector();
       }
+      // H 키: 홈으로 (input/textarea 외)
+      if (e.key.toLowerCase() === 'h' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea' && !e.target.isContentEditable) {
+          e.preventDefault();
+          goHome();
+        }
+      }
     });
+
+    // 🏠 사이드바 HOME 버튼
+    const sidebarHomeBtn = document.getElementById('sidebarHome');
+    if (sidebarHomeBtn) {
+      sidebarHomeBtn.addEventListener('click', goHome);
+      sidebarHomeBtn.addEventListener('mouseenter', () => {
+        sidebarHomeBtn.style.background = 'rgba(0,255,136,0.22)';
+        sidebarHomeBtn.style.boxShadow = '0 0 12px rgba(0,255,136,0.3)';
+      });
+      sidebarHomeBtn.addEventListener('mouseleave', () => {
+        sidebarHomeBtn.style.background = 'rgba(0,255,136,0.1)';
+        sidebarHomeBtn.style.boxShadow = 'none';
+      });
+    }
 
     // 사이드바 푸터의 Cmd+K 버튼
     const cmdkTrigger = document.getElementById('cmdkTrigger');
