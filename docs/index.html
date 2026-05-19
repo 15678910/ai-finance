@@ -173,12 +173,12 @@ body::before {
   }
 }
 
-/* ─── Sidebar (Claude Docs 스타일) ─────────────────────── */
+/* ─── Sidebar (Sovereign Watch + Claude Docs 하이브리드) ─ */
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 240px;
+  width: 300px;
   height: 100vh;
   background: rgba(8, 12, 20, 0.95);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -260,13 +260,227 @@ body::before {
   flex-shrink: 0;
 }
 
+/* ─── Sovereign Watch 스타일 사이드바 카드 ─────────────── */
+.sw-section-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #06b6d4;
+  font-weight: 700;
+  padding: 14px 18px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+  margin-bottom: 4px;
+}
+.sw-section-title .sw-badge {
+  background: rgba(220, 38, 38, 0.18);
+  color: #ef4444;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+.sw-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 6px 10px;
+}
+.sw-filter-chip {
+  font-size: 0.6rem;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  user-select: none;
+  transition: all 0.12s ease;
+}
+.sw-filter-chip:hover {
+  background: rgba(34, 211, 238, 0.08);
+  color: #22d3ee;
+}
+.sw-filter-chip.active {
+  background: rgba(34, 211, 238, 0.18);
+  color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.4);
+  font-weight: 600;
+}
+.sw-card {
+  display: block;
+  margin: 3px 8px;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  position: relative;
+}
+.sw-card:hover {
+  background: rgba(34, 211, 238, 0.06);
+  border-left-color: #22d3ee;
+  transform: translateX(2px);
+}
+.sw-card.active {
+  background: rgba(34, 211, 238, 0.1);
+  border-left-color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.3);
+}
+.sw-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+.sw-card-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.sw-card-priority {
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 1px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.sw-card-meta {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  line-height: 1.4;
+}
+.sw-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 0.58rem;
+}
+.sw-card-source {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.sw-card-action {
+  color: var(--text-muted);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.sw-card:hover .sw-card-action {
+  opacity: 1;
+}
+.sw-card-action.always-show {
+  opacity: 0.7;
+}
+
+/* ─── Object Inspector (우측 슬라이드 패널) ───────────── */
+.inspector-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100vh;
+  background: rgba(8, 12, 20, 0.97);
+  border-left: 1px solid rgba(34, 211, 238, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
+}
+.inspector-panel.is-open {
+  transform: translateX(0);
+}
+.inspector-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  background: rgba(34, 211, 238, 0.05);
+}
+.inspector-close {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+.inspector-close:hover {
+  background: rgba(220, 38, 38, 0.2);
+  color: #ef4444;
+}
+.inspector-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  font-size: 0.8rem;
+}
+.inspector-section {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.inspector-section:last-child {
+  border-bottom: none;
+}
+.inspector-section-title {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.inspector-kv {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 0.75rem;
+}
+.inspector-kv-key { color: var(--text-muted); }
+.inspector-kv-value { color: #e2e8f0; font-family: var(--font-mono); }
+
+@media (max-width: 900px) {
+  .inspector-panel {
+    width: 100%;
+  }
+  .sidebar {
+    width: 280px !important;
+  }
+}
+
 /* ─── Layout ───────────────────────────────────────────── */
 .shell {
   position: relative;
   z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
-  margin-left: 240px;  /* 사이드바 만큼 오프셋 */
+  margin-left: 300px;  /* 사이드바 만큼 오프셋 */
   padding: 0 20px 48px;
 }
 
@@ -1606,6 +1820,21 @@ body::before {
 <!-- 모바일 사이드바 오버레이 -->
 <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;"></div>
 
+<!-- 우측 인스펙터 패널 (Sovereign Watch 스타일) -->
+<aside id="inspectorPanel" class="inspector-panel" aria-hidden="true">
+  <div class="inspector-header">
+    <div>
+      <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">Object Inspector</div>
+      <div id="inspectorTitle" style="font-size:0.95rem;font-weight:700;color:#e2e8f0;margin-top:2px;">—</div>
+    </div>
+    <button id="inspectorClose" class="inspector-close" aria-label="닫기">×</button>
+  </div>
+  <div id="inspectorBody" class="inspector-body">
+    <!-- 동적 콘텐츠 -->
+  </div>
+</aside>
+<div id="inspectorOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1050;"></div>
+
 <div class="shell" id="app">
   <div class="state-screen" id="loading">
     <div class="spinner"></div>
@@ -1763,121 +1992,6 @@ body::before {
     </header>`;
 
     // ─── AI INSIGHTS ───────────────────────────────────
-    // ─── ⚡ PULSE STATUS BAR + EVENT FEED (Multi-Asset Fusion Center) ───
-    const sao = data.sao_signals;
-    if (sao && Array.isArray(sao.signals)) {
-      const pulseM = sao.pulse_metadata || {};
-      const prioM = sao.priority_metadata || {};
-      const pulseC = sao.pulse_counts || {};
-      const prioC = sao.priority_counts || {};
-
-      // ─── Pulse Status Bar (헤더) ────────────────────────────
-      html += `<section class="section-wrap" style="margin-bottom:14px;">
-        <div class="section-label" style="color:#06b6d4;">⚡ Multi-Asset Fusion Center <span style="font-size:0.65rem;color:var(--text-muted);">(Sovereign Watch 영감 — 6 Financial Pulse)</span></div>
-
-        <!-- Pulse Status Bar -->
-        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
-          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
-
-      Object.entries(pulseM).forEach(([pkey, pmeta]) => {
-        const count = pulseC[pkey] || 0;
-        const isActive = count > 0;
-        const dotColor = isActive ? '#4ade80' : '#475569';
-        html += `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(15,23,42,0.6);border-radius:14px;border:1px solid ${isActive ? pmeta.color + '55' : 'rgba(255,255,255,0.06)'};">
-          <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};box-shadow:0 0 6px ${dotColor};display:inline-block;"></span>
-          <span style="font-size:0.7rem;color:${pmeta.color};font-weight:600;">${pmeta.emoji} ${h(pkey)}</span>
-          ${isActive ? `<span style="font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);">${count}</span>` : ''}
-        </div>`;
-      });
-
-      html += `</div>
-          <div style="display:inline-flex;align-items:center;gap:14px;">
-            <div style="font-size:0.72rem;color:var(--text-muted);">
-              📡 <b style="color:#4ade80;">LIVE</b> · 마지막 갱신 ${h((sao.generated_at || '').replace('T', ' ').substring(0, 16))}
-            </div>
-            <div style="background:rgba(220,38,38,0.15);color:#ef4444;padding:4px 10px;border-radius:10px;font-size:0.72rem;font-weight:700;border:1px solid rgba(220,38,38,0.3);">
-              READY TO ACT: ${sao.ready_to_act || 0}
-            </div>
-          </div>
-        </div>`;
-
-      // ─── Event Feed (통합 알림 큐) ──────────────────────────
-      if (sao.signals.length > 0) {
-        html += `<div class="glass-card anim-item" style="padding:0;overflow:hidden;">
-          <div style="padding:12px 16px;background:rgba(34,211,238,0.05);border-bottom:1px solid rgba(34,211,238,0.15);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div style="font-size:0.85rem;color:#ffffff;font-weight:700;">📋 Event Feed <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">(우선순위 큐 — ${sao.total || 0}건)</span></div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:0.65rem;font-family:var(--font-mono);">`;
-
-        Object.entries(prioM).forEach(([pkey, pmeta]) => {
-          const count = prioC[pkey] || 0;
-          if (count > 0) {
-            html += `<span style="padding:2px 7px;border-radius:8px;background:${pmeta.color}22;color:${pmeta.color};font-weight:600;border:1px solid ${pmeta.color}44;">${pmeta.emoji} ${pkey}: ${count}</span>`;
-          }
-        });
-
-        html += `</div>
-          </div>
-          <div style="max-height:520px;overflow-y:auto;">`;
-
-        // 시그널 행 렌더링 (Sovereign Watch 스타일)
-        sao.signals.slice(0, 30).forEach(s => {
-          const prio = prioM[s.priority] || {};
-          const pulse = pulseM[s.pulse] || {};
-          const firstSig = (s.signals && s.signals[0]) || {};
-
-          html += `<div class="sao-row" style="display:grid;grid-template-columns:60px 1fr 100px 70px;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;cursor:default;transition:background 0.12s ease;">
-
-            <!-- Priority -->
-            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-              <span style="font-size:1rem;">${prio.emoji || '•'}</span>
-              <span style="font-size:0.6rem;color:${prio.color || 'var(--text-muted)'};font-weight:700;font-family:var(--font-mono);">${s.priority}</span>
-            </div>
-
-            <!-- Content -->
-            <div style="min-width:0;">
-              <div style="display:flex;gap:6px;align-items:baseline;margin-bottom:2px;">
-                <span style="font-size:0.85rem;color:#ffffff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h(firstSig.emoji || s.icon || '')} ${h(firstSig.label || s.name)}</span>
-              </div>
-              <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.4;">
-                ${h(firstSig.description || s.description || '')}
-                ${s.signals && s.signals.length > 1 ? `<span style="margin-left:6px;background:rgba(167,139,250,0.15);color:#a78bfa;padding:1px 6px;border-radius:8px;font-size:0.6rem;">+${s.signals.length - 1} more</span>` : ''}
-              </div>
-              <div style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:3px;">
-                ${h(s.name)} ${s.market ? '· ' + h(s.market) : ''} ${s.sector ? '· ' + h(s.sector) : ''}
-              </div>
-            </div>
-
-            <!-- Pulse + Source -->
-            <div style="font-size:0.65rem;text-align:left;">
-              <div style="color:${pulse.color || 'var(--text-muted)'};font-weight:600;">${pulse.emoji || ''} ${h(s.pulse)}</div>
-              <div style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.58rem;margin-top:2px;">${h((s.source || []).slice(0, 2).join(', '))}</div>
-            </div>
-
-            <!-- Action Affordance -->
-            <div style="text-align:right;">
-              <span style="display:inline-block;padding:4px 10px;background:${prio.color || '#475569'}22;color:${prio.color || 'var(--text-muted)'};border-radius:10px;font-size:0.65rem;font-weight:600;border:1px solid ${prio.color || '#475569'}44;">
-                → ${prio.action || 'View'}
-              </span>
-            </div>
-
-          </div>`;
-        });
-
-        if (sao.signals.length > 30) {
-          html += `<div style="padding:10px 16px;text-align:center;color:var(--text-muted);font-size:0.7rem;background:rgba(15,23,42,0.4);">... 외 ${sao.signals.length - 30}건 더 (상위 30건만 표시)</div>`;
-        }
-
-        html += `</div>
-        </div>`;
-      }
-
-      html += `<div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
-        🚨 ${h(sao.warning || '통합 시그널 큐. 자동 매매 금지.')}<br/>
-        Multi-Asset Fusion: ${Object.keys(pulseM).length}개 Pulse · ${sao.total || 0}개 시그널 통합
-      </div>`;
-      html += `</section>`;
-    }
-
     const ins = data.insights;
     if (ins && (ins.market_assessment || (ins.top_insights && ins.top_insights.length) || (ins.best_opportunities && ins.best_opportunities.length))) {
       html += `<section class="section-wrap"><div class="section-label">AI 인사이트</div><div class="insights-grid">`;
@@ -4462,6 +4576,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     app.innerHTML = html;
 
+    // 글로벌 데이터 저장 (사이드바·인스펙터 재사용)
+    window.__dashboardData = data;
+
     // ─── Render Charts ─────────────────────────────────
     setTimeout(() => renderCharts(data), 100);
 
@@ -5102,6 +5219,225 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .trim() + '-' + Math.random().toString(36).substr(2, 5);
   }
 
+  // ─── 글로벌 데이터 + 필터 상태 (Sovereign Watch 스타일) ─
+  let __saoFilterPriority = new Set(['P1', 'P2', 'P3', 'P4']);
+  let __saoFilterPulse = new Set(['MACRO', 'KR_EQUITY', 'CRYPTO', 'LEGISLATIVE', 'SEMI', 'NEWS']);
+  let __saoActiveCardId = null;
+
+  // ─── 우측 인스펙터 패널 열기/닫기 ─────────────────
+  function openInspector(saoId) {
+    const data = window.__dashboardData || {};
+    const sao = (data.sao_signals || {}).signals || [];
+    const obj = sao.find(s => s.id === saoId);
+    if (!obj) return;
+
+    const pulseM = (data.sao_signals || {}).pulse_metadata || {};
+    const prioM = (data.sao_signals || {}).priority_metadata || {};
+    const prio = prioM[obj.priority] || {};
+    const pulse = pulseM[obj.pulse] || {};
+
+    const titleEl = document.getElementById('inspectorTitle');
+    const bodyEl = document.getElementById('inspectorBody');
+    const panel = document.getElementById('inspectorPanel');
+    const overlay = document.getElementById('inspectorOverlay');
+
+    if (!titleEl || !bodyEl || !panel) return;
+    titleEl.innerHTML = `${escapeHtml(obj.icon || pulse.emoji || '')} ${escapeHtml(obj.name)}`;
+
+    let html = '';
+
+    // ─── 우선순위 + 분류 ───
+    html += `<div class="inspector-section">
+      <div class="inspector-section-title">🎯 분류</div>
+      <div class="inspector-kv">
+        <span class="inspector-kv-key">Priority</span>
+        <span class="inspector-kv-value" style="color:${prio.color};font-weight:700;">${prio.emoji} ${obj.priority} — ${escapeHtml(prio.label || '')}</span>
+      </div>
+      <div class="inspector-kv">
+        <span class="inspector-kv-key">Pulse</span>
+        <span class="inspector-kv-value" style="color:${pulse.color};">${pulse.emoji} ${escapeHtml(obj.pulse)} (${escapeHtml(pulse.label || '')})</span>
+      </div>
+      ${obj.market ? `<div class="inspector-kv"><span class="inspector-kv-key">Market</span><span class="inspector-kv-value">${escapeHtml(obj.market)}</span></div>` : ''}
+      ${obj.sector ? `<div class="inspector-kv"><span class="inspector-kv-key">Sector</span><span class="inspector-kv-value">${escapeHtml(obj.sector)}</span></div>` : ''}
+      ${obj.type ? `<div class="inspector-kv"><span class="inspector-kv-key">Type</span><span class="inspector-kv-value">${escapeHtml(obj.type)}</span></div>` : ''}
+    </div>`;
+
+    // ─── 데이터 출처 ───
+    html += `<div class="inspector-section">
+      <div class="inspector-section-title">📡 데이터 출처</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">`;
+    (obj.source || []).forEach(src => {
+      html += `<span style="font-size:0.65rem;background:rgba(34,211,238,0.08);color:#22d3ee;padding:2px 7px;border-radius:8px;border:1px solid rgba(34,211,238,0.2);font-family:var(--font-mono);">${escapeHtml(src)}</span>`;
+    });
+    html += `</div>`;
+    if (obj.last_updated) {
+      html += `<div class="inspector-kv" style="margin-top:6px;"><span class="inspector-kv-key">마지막 갱신</span><span class="inspector-kv-value" style="font-size:0.65rem;">${escapeHtml((obj.last_updated || '').substring(0, 19).replace('T', ' '))}</span></div>`;
+    }
+    html += `</div>`;
+
+    // ─── Snapshot (현재값 + 메트릭) ───
+    if (obj.value !== undefined && obj.value !== null) {
+      html += `<div class="inspector-section">
+        <div class="inspector-section-title">📊 Snapshot</div>
+        <div style="font-size:1.4rem;font-weight:700;color:${prio.color || '#22d3ee'};font-family:var(--font-mono);">
+          ${obj.value}${escapeHtml(obj.unit || '')}
+        </div>
+      </div>`;
+    }
+
+    if (obj.metrics && Object.keys(obj.metrics).length > 0) {
+      html += `<div class="inspector-section">
+        <div class="inspector-section-title">📈 메트릭</div>`;
+      Object.entries(obj.metrics).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === '') return;
+        if (typeof v === 'object') return; // dict/list 스킵
+        html += `<div class="inspector-kv"><span class="inspector-kv-key">${escapeHtml(k)}</span><span class="inspector-kv-value">${escapeHtml(String(v))}</span></div>`;
+      });
+      html += `</div>`;
+    }
+
+    // ─── 활성 시그널 ───
+    if (obj.signals && obj.signals.length > 0) {
+      html += `<div class="inspector-section">
+        <div class="inspector-section-title">🚨 활성 시그널 (${obj.signals.length})</div>`;
+      obj.signals.forEach(s => {
+        const color = s.strength >= 5 ? '#dc2626' : s.strength >= 4 ? '#f97316' : s.strength >= 3 ? '#fbbf24' : '#94a3b8';
+        html += `<div style="padding:8px 10px;background:${color}0a;border-left:2px solid ${color};border-radius:3px;margin-bottom:6px;">
+          <div style="font-size:0.78rem;color:#e2e8f0;font-weight:600;">${escapeHtml(s.emoji || '')} ${escapeHtml(s.label || '')}</div>
+          ${s.description ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;line-height:1.4;">${escapeHtml(s.description)}</div>` : ''}
+          <div style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:3px;">strength: ${s.strength || 0}/5</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    // ─── 액션 버튼 ───
+    html += `<div class="inspector-section">
+      <div class="inspector-section-title">⚡ 액션</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="inspector-action-btn" data-action="locate" style="padding:8px 14px;background:rgba(34,211,238,0.15);color:#22d3ee;border:1px solid rgba(34,211,238,0.4);border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;">🎯 위치 찾기</button>
+        ${obj.link ? `<a href="${escapeHtml(obj.link)}" target="_blank" rel="noopener" style="padding:8px 14px;background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.4);border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;">🔗 원본</a>` : ''}
+      </div>
+    </div>`;
+
+    bodyEl.innerHTML = html;
+
+    // 액션 버튼: 위치 찾기 (대시보드 섹션으로 점프)
+    const locateBtn = bodyEl.querySelector('[data-action="locate"]');
+    if (locateBtn) {
+      locateBtn.addEventListener('click', () => {
+        // 종목 카드를 KG에서 검색해서 포커싱하거나, 관련 섹션으로 이동
+        // 간단히: 사이드바 SECTIONS에서 관련 섹션 찾아 점프
+        let targetSection = null;
+        if (obj.pulse === 'MACRO') targetSection = '미국 신용 스프레드';
+        else if (obj.pulse === 'KR_EQUITY') targetSection = '한국 시장 투자자 매매';
+        else if (obj.pulse === 'LEGISLATIVE') targetSection = '미국 암호화폐 입법';
+        else if (obj.pulse === 'SEMI') targetSection = '반도체 챌린저';
+        else if (obj.pulse === 'CRYPTO') targetSection = '비트코인 본위제';
+
+        if (targetSection) {
+          const links = document.querySelectorAll('.sidebar-link');
+          links.forEach(link => {
+            if (link.textContent.includes(targetSection)) {
+              link.click();
+              return;
+            }
+          });
+        }
+      });
+    }
+
+    // 패널 슬라이드 인
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
+    if (overlay) overlay.style.display = 'block';
+  }
+
+  function closeInspector() {
+    const panel = document.getElementById('inspectorPanel');
+    const overlay = document.getElementById('inspectorOverlay');
+    if (panel) {
+      panel.classList.remove('is-open');
+      panel.setAttribute('aria-hidden', 'true');
+    }
+    if (overlay) overlay.style.display = 'none';
+    // 카드 활성 해제
+    __saoActiveCardId = null;
+    document.querySelectorAll('.sw-card.active').forEach(c => c.classList.remove('active'));
+  }
+
+  // 인스펙터 닫기 핸들러 (페이지 로드 후 1회만)
+  document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('inspectorClose');
+    const overlay = document.getElementById('inspectorOverlay');
+    if (closeBtn) closeBtn.addEventListener('click', closeInspector);
+    if (overlay) overlay.addEventListener('click', closeInspector);
+    // ESC 키
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeInspector();
+    });
+  });
+
+  function buildSidebarSignals(data) {
+    const navEl = document.getElementById('sidebarNav');
+    if (!navEl || !data || !data.sao_signals) return '';
+    const sao = data.sao_signals;
+    const pulseM = sao.pulse_metadata || {};
+    const prioM = sao.priority_metadata || {};
+    const signals = sao.signals || [];
+
+    // 필터링
+    const filtered = signals.filter(s =>
+      __saoFilterPriority.has(s.priority) && __saoFilterPulse.has(s.pulse));
+
+    let html = `<div class="sw-section-title">
+      <span>📡 SIGNALS <span style="color:var(--text-muted);font-weight:400;">${filtered.length}/${signals.length}</span></span>
+      <span class="sw-badge">READY ${sao.ready_to_act || 0}</span>
+    </div>`;
+
+    // Priority 필터 칩
+    html += `<div class="sw-filter-row" data-filter-group="priority">`;
+    Object.entries(prioM).forEach(([p, meta]) => {
+      const active = __saoFilterPriority.has(p);
+      html += `<span class="sw-filter-chip ${active ? 'active' : ''}" data-filter-key="${p}" style="${active ? 'color:' + meta.color + ';border-color:' + meta.color + '66;' : ''}">${meta.emoji} ${p}</span>`;
+    });
+    html += `</div>`;
+
+    // Pulse 필터 칩
+    html += `<div class="sw-filter-row" data-filter-group="pulse">`;
+    Object.entries(pulseM).forEach(([p, meta]) => {
+      const active = __saoFilterPulse.has(p);
+      html += `<span class="sw-filter-chip ${active ? 'active' : ''}" data-filter-key="${p}" style="${active ? 'color:' + meta.color + ';border-color:' + meta.color + '66;' : ''}" title="${meta.label}">${meta.emoji}</span>`;
+    });
+    html += `</div>`;
+
+    // 시그널 카드 (Sovereign Watch 스타일)
+    if (filtered.length === 0) {
+      html += `<div style="padding:14px 18px;color:var(--text-muted);font-size:0.7rem;font-style:italic;">필터 조건에 맞는 시그널 없음</div>`;
+    } else {
+      filtered.forEach(s => {
+        const prio = prioM[s.priority] || {};
+        const pulse = pulseM[s.pulse] || {};
+        const firstSig = (s.signals && s.signals[0]) || {};
+        const isActive = __saoActiveCardId === s.id;
+
+        html += `<div class="sw-card ${isActive ? 'active' : ''}" data-sao-id="${escapeHtml(s.id)}" style="${isActive ? '' : 'border-left-color:' + (prio.color || 'rgba(255,255,255,0.1)') + ';'}">
+          <div class="sw-card-header">
+            <div class="sw-card-name">${escapeHtml(firstSig.emoji || s.icon || '')} ${escapeHtml(s.name)}</div>
+            <div class="sw-card-priority" style="background:${prio.color}22;color:${prio.color};">${s.priority}</div>
+          </div>
+          <div class="sw-card-meta">${escapeHtml(firstSig.label || s.description || '')}</div>
+          <div class="sw-card-bottom">
+            <span class="sw-card-source" style="color:${pulse.color || 'var(--text-muted)'};">${pulse.emoji || ''} ${escapeHtml(s.pulse)}</span>
+            <span class="sw-card-action ${s.priority === 'P1' || s.priority === 'P2' ? 'always-show' : ''}" style="color:${prio.color || 'var(--text-muted)'};">→ ${prio.action || 'View'}</span>
+          </div>
+        </div>`;
+      });
+    }
+
+    return html;
+  }
+
   function buildSidebarNav() {
     const navEl = document.getElementById('sidebarNav');
     if (!navEl) return;
@@ -5157,8 +5493,19 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       }
     });
 
-    // HTML 빌드
+    // HTML 빌드: SIGNALS 카드 (상단) + 섹션 네비게이션 (하단)
     let html = '';
+
+    // 1. SAO 시그널 카드 섹션 (Sovereign Watch 스타일)
+    if (window.__dashboardData) {
+      html += buildSidebarSignals(window.__dashboardData);
+      html += `<div style="height:14px;border-bottom:1px solid rgba(255,255,255,0.06);margin:8px 0;"></div>`;
+    }
+
+    // 2. 기존 섹션 네비게이션 (Claude Docs 스타일)
+    html += `<div class="sw-section-title" style="color:#a78bfa;border-bottom-color:rgba(167,139,250,0.15);">
+      <span>🗂️ SECTIONS</span>
+    </div>`;
     Object.entries(groups).forEach(([groupName, groupItems]) => {
       if (groupItems.length === 0) return;
       html += `<div class="sidebar-group-label">${groupName}</div>`;
@@ -5167,6 +5514,35 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       });
     });
     navEl.innerHTML = html;
+
+    // SIGNALS 카드 클릭 → 인스펙터 패널 열기
+    navEl.querySelectorAll('.sw-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const saoId = card.dataset.saoId;
+        __saoActiveCardId = saoId;
+        // 카드 활성 표시
+        navEl.querySelectorAll('.sw-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        // 인스펙터 열기
+        openInspector(saoId);
+      });
+    });
+
+    // Priority/Pulse 필터 칩 클릭
+    navEl.querySelectorAll('.sw-filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const group = chip.parentElement.dataset.filterGroup;
+        const key = chip.dataset.filterKey;
+        const set = group === 'priority' ? __saoFilterPriority : __saoFilterPulse;
+        if (set.has(key)) {
+          set.delete(key);
+        } else {
+          set.add(key);
+        }
+        // 사이드바 재빌드 (필터 반영)
+        buildSidebarNav();
+      });
+    });
 
     // 클릭 이벤트: 부드러운 스크롤
     navEl.querySelectorAll('.sidebar-link').forEach(link => {
