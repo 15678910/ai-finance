@@ -110,6 +110,24 @@ body::before {
 .anim-item:nth-child(5) { animation-delay: 0.25s; }
 .anim-item:nth-child(6) { animation-delay: 0.3s; }
 
+/* ─── Multi-Asset Fusion Center (Sovereign Watch 영감) ─ */
+.sao-row {
+  transition: background 0.12s ease;
+}
+.sao-row:hover {
+  background: rgba(34, 211, 238, 0.05) !important;
+}
+.sao-row:last-child {
+  border-bottom: none !important;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+.glass-card span[style*="box-shadow:0 0 6px"] {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
 /* ─── Credit Spread Guide (2-pane reader) ────────────── */
 .cs-card-clickable:hover {
   transform: translateY(-2px);
@@ -1745,6 +1763,121 @@ body::before {
     </header>`;
 
     // ─── AI INSIGHTS ───────────────────────────────────
+    // ─── ⚡ PULSE STATUS BAR + EVENT FEED (Multi-Asset Fusion Center) ───
+    const sao = data.sao_signals;
+    if (sao && Array.isArray(sao.signals)) {
+      const pulseM = sao.pulse_metadata || {};
+      const prioM = sao.priority_metadata || {};
+      const pulseC = sao.pulse_counts || {};
+      const prioC = sao.priority_counts || {};
+
+      // ─── Pulse Status Bar (헤더) ────────────────────────────
+      html += `<section class="section-wrap" style="margin-bottom:14px;">
+        <div class="section-label" style="color:#06b6d4;">⚡ Multi-Asset Fusion Center <span style="font-size:0.65rem;color:var(--text-muted);">(Sovereign Watch 영감 — 6 Financial Pulse)</span></div>
+
+        <!-- Pulse Status Bar -->
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
+
+      Object.entries(pulseM).forEach(([pkey, pmeta]) => {
+        const count = pulseC[pkey] || 0;
+        const isActive = count > 0;
+        const dotColor = isActive ? '#4ade80' : '#475569';
+        html += `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(15,23,42,0.6);border-radius:14px;border:1px solid ${isActive ? pmeta.color + '55' : 'rgba(255,255,255,0.06)'};">
+          <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};box-shadow:0 0 6px ${dotColor};display:inline-block;"></span>
+          <span style="font-size:0.7rem;color:${pmeta.color};font-weight:600;">${pmeta.emoji} ${h(pkey)}</span>
+          ${isActive ? `<span style="font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);">${count}</span>` : ''}
+        </div>`;
+      });
+
+      html += `</div>
+          <div style="display:inline-flex;align-items:center;gap:14px;">
+            <div style="font-size:0.72rem;color:var(--text-muted);">
+              📡 <b style="color:#4ade80;">LIVE</b> · 마지막 갱신 ${h((sao.generated_at || '').replace('T', ' ').substring(0, 16))}
+            </div>
+            <div style="background:rgba(220,38,38,0.15);color:#ef4444;padding:4px 10px;border-radius:10px;font-size:0.72rem;font-weight:700;border:1px solid rgba(220,38,38,0.3);">
+              READY TO ACT: ${sao.ready_to_act || 0}
+            </div>
+          </div>
+        </div>`;
+
+      // ─── Event Feed (통합 알림 큐) ──────────────────────────
+      if (sao.signals.length > 0) {
+        html += `<div class="glass-card anim-item" style="padding:0;overflow:hidden;">
+          <div style="padding:12px 16px;background:rgba(34,211,238,0.05);border-bottom:1px solid rgba(34,211,238,0.15);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:0.85rem;color:#ffffff;font-weight:700;">📋 Event Feed <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">(우선순위 큐 — ${sao.total || 0}건)</span></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:0.65rem;font-family:var(--font-mono);">`;
+
+        Object.entries(prioM).forEach(([pkey, pmeta]) => {
+          const count = prioC[pkey] || 0;
+          if (count > 0) {
+            html += `<span style="padding:2px 7px;border-radius:8px;background:${pmeta.color}22;color:${pmeta.color};font-weight:600;border:1px solid ${pmeta.color}44;">${pmeta.emoji} ${pkey}: ${count}</span>`;
+          }
+        });
+
+        html += `</div>
+          </div>
+          <div style="max-height:520px;overflow-y:auto;">`;
+
+        // 시그널 행 렌더링 (Sovereign Watch 스타일)
+        sao.signals.slice(0, 30).forEach(s => {
+          const prio = prioM[s.priority] || {};
+          const pulse = pulseM[s.pulse] || {};
+          const firstSig = (s.signals && s.signals[0]) || {};
+
+          html += `<div class="sao-row" style="display:grid;grid-template-columns:60px 1fr 100px 70px;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;cursor:default;transition:background 0.12s ease;">
+
+            <!-- Priority -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <span style="font-size:1rem;">${prio.emoji || '•'}</span>
+              <span style="font-size:0.6rem;color:${prio.color || 'var(--text-muted)'};font-weight:700;font-family:var(--font-mono);">${s.priority}</span>
+            </div>
+
+            <!-- Content -->
+            <div style="min-width:0;">
+              <div style="display:flex;gap:6px;align-items:baseline;margin-bottom:2px;">
+                <span style="font-size:0.85rem;color:#ffffff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h(firstSig.emoji || s.icon || '')} ${h(firstSig.label || s.name)}</span>
+              </div>
+              <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.4;">
+                ${h(firstSig.description || s.description || '')}
+                ${s.signals && s.signals.length > 1 ? `<span style="margin-left:6px;background:rgba(167,139,250,0.15);color:#a78bfa;padding:1px 6px;border-radius:8px;font-size:0.6rem;">+${s.signals.length - 1} more</span>` : ''}
+              </div>
+              <div style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:3px;">
+                ${h(s.name)} ${s.market ? '· ' + h(s.market) : ''} ${s.sector ? '· ' + h(s.sector) : ''}
+              </div>
+            </div>
+
+            <!-- Pulse + Source -->
+            <div style="font-size:0.65rem;text-align:left;">
+              <div style="color:${pulse.color || 'var(--text-muted)'};font-weight:600;">${pulse.emoji || ''} ${h(s.pulse)}</div>
+              <div style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.58rem;margin-top:2px;">${h((s.source || []).slice(0, 2).join(', '))}</div>
+            </div>
+
+            <!-- Action Affordance -->
+            <div style="text-align:right;">
+              <span style="display:inline-block;padding:4px 10px;background:${prio.color || '#475569'}22;color:${prio.color || 'var(--text-muted)'};border-radius:10px;font-size:0.65rem;font-weight:600;border:1px solid ${prio.color || '#475569'}44;">
+                → ${prio.action || 'View'}
+              </span>
+            </div>
+
+          </div>`;
+        });
+
+        if (sao.signals.length > 30) {
+          html += `<div style="padding:10px 16px;text-align:center;color:var(--text-muted);font-size:0.7rem;background:rgba(15,23,42,0.4);">... 외 ${sao.signals.length - 30}건 더 (상위 30건만 표시)</div>`;
+        }
+
+        html += `</div>
+        </div>`;
+      }
+
+      html += `<div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
+        🚨 ${h(sao.warning || '통합 시그널 큐. 자동 매매 금지.')}<br/>
+        Multi-Asset Fusion: ${Object.keys(pulseM).length}개 Pulse · ${sao.total || 0}개 시그널 통합
+      </div>`;
+      html += `</section>`;
+    }
+
     const ins = data.insights;
     if (ins && (ins.market_assessment || (ins.top_insights && ins.top_insights.length) || (ins.best_opportunities && ins.best_opportunities.length))) {
       html += `<section class="section-wrap"><div class="section-label">AI 인사이트</div><div class="insights-grid">`;
