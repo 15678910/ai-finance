@@ -8,6 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0e17'/%3E%3Cpolyline points='4,24 10,14 16,18 22,8 28,12' fill='none' stroke='%2306b6d4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='12' r='2' fill='%2310b981'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
 
 <style>
 /* ─── Reset & Base ─────────────────────────────────────── */
@@ -1812,13 +1813,42 @@ body::before {
   <nav class="sidebar-nav" id="sidebarNav">
     <div style="color:var(--text-muted);font-size:0.65rem;padding:8px 16px;font-style:italic;">데이터 로딩 후 자동 생성됩니다…</div>
   </nav>
-  <div class="sidebar-footer">
-    <a href="https://github.com/15678910/ai-finance" target="_blank" rel="noopener" style="color:var(--text-muted);font-size:0.65rem;text-decoration:none;font-family:var(--font-mono);">⚙ github.com/15678910</a>
+  <div class="sidebar-footer" style="display:flex;flex-direction:column;gap:6px;">
+    <button id="cmdkTrigger" style="display:flex;align-items:center;justify-content:space-between;background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);color:#22d3ee;padding:7px 12px;border-radius:6px;cursor:pointer;font-size:0.72rem;font-family:inherit;font-weight:600;transition:all 0.12s ease;">
+      <span>🔍 빠른 검색</span>
+      <span style="font-family:var(--font-mono);font-size:0.6rem;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:3px;color:var(--text-muted);">⌘K</span>
+    </button>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <a href="https://github.com/15678910/ai-finance" target="_blank" rel="noopener" style="color:var(--text-muted);font-size:0.62rem;text-decoration:none;font-family:var(--font-mono);">⚙ github</a>
+      <span id="liveStatus" style="display:inline-flex;align-items:center;gap:4px;font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);">
+        <span id="liveDot" style="width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 4px #4ade80;display:inline-block;"></span>
+        <span id="liveText">LIVE</span>
+      </span>
+    </div>
   </div>
 </aside>
 
 <!-- 모바일 사이드바 오버레이 -->
 <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;"></div>
+
+<!-- ⌘+K 명령 팔레트 (Sovereign Watch / Linear 스타일) -->
+<div id="cmdkOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1200;align-items:flex-start;justify-content:center;padding-top:14vh;">
+  <div id="cmdkModal" style="width:90%;max-width:580px;background:rgba(15,23,42,0.98);border:1px solid rgba(34,211,238,0.3);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.8);overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;">
+      <span style="font-size:1rem;">🔍</span>
+      <input id="cmdkInput" type="text" placeholder="검색: 종목명 · 섹터 · 시그널 · 지표..." style="flex:1;background:transparent;border:none;color:#e2e8f0;font-size:0.95rem;outline:none;font-family:inherit;"/>
+      <span style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);padding:3px 7px;background:rgba(255,255,255,0.05);border-radius:4px;">ESC</span>
+    </div>
+    <div id="cmdkResults" style="max-height:50vh;overflow-y:auto;">
+      <div style="padding:14px 18px;color:var(--text-muted);font-size:0.75rem;">타입하여 검색...</div>
+    </div>
+    <div style="padding:8px 18px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:14px;font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);">
+      <span><kbd style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">↑↓</kbd> 이동</span>
+      <span><kbd style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">⏎</kbd> 선택</span>
+      <span><kbd style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">ESC</kbd> 닫기</span>
+    </div>
+  </div>
+</div>
 
 <!-- 우측 인스펙터 패널 (Sovereign Watch 스타일) -->
 <aside id="inspectorPanel" class="inspector-panel" aria-hidden="true">
@@ -2535,6 +2565,36 @@ body::before {
       </div>`;
       html += `</section>`;
     }
+
+    // ─── 🗺️ Tactical Capital Map (4가지 시각화 뷰 토글) ──────────
+    html += `<section class="section-wrap" style="margin-top:32px;" id="tactical-map">
+      <div class="section-label" style="color:#22d3ee;">🗺️ Tactical Capital Map <span style="font-size:0.65rem;color:var(--text-muted);">(4가지 뷰 — 사이드바 시그널 클릭과 연동)</span></div>
+
+      <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(34,211,238,0.04);">
+        <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">
+          <b style="color:var(--text);">사용법:</b> 아래 뷰 탭을 클릭하여 시각화 전환.
+          좌측 사이드바의 SIGNALS 카드 클릭 → 우측 인스펙터에서 객체의 모든 정보 확인.
+        </div>
+      </div>
+
+      <!-- 뷰 전환 탭 -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="tcm-tab is-active" data-tcm-view="treemap" style="padding:8px 14px;background:rgba(34,211,238,0.18);color:#22d3ee;border:1px solid rgba(34,211,238,0.4);border-radius:6px;font-size:0.78rem;cursor:pointer;font-weight:600;">📊 섹터 트리맵</button>
+        <button class="tcm-tab" data-tcm-view="heatmap" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:0.78rem;cursor:pointer;">📈 시계열 히트맵</button>
+        <button class="tcm-tab" data-tcm-view="kg" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:0.78rem;cursor:pointer;">🕸️ 지식 그래프 (아래 섹션)</button>
+      </div>
+
+      <!-- 시각화 캔버스 -->
+      <div id="tcm-canvas" class="glass-card" style="height:520px;background:#0a0e17;border-radius:8px;overflow:hidden;position:relative;padding:14px;">
+        <svg id="tcm-treemap" style="width:100%;height:100%;display:block;"></svg>
+        <svg id="tcm-heatmap" style="width:100%;height:100%;display:none;"></svg>
+        <div id="tcm-loading" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-muted);font-size:0.85rem;">로딩 중...</div>
+      </div>
+
+      <div style="margin-top:8px;font-size:0.62rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
+        🚨 시각화 정보 모니터링. 자동 매매 금지.
+      </div>
+    </section>`;
 
     // ─── 🕸️ 통합 지식 그래프 (팔란티어 스타일 객체 중심 탐색) ──────────
     const kg = data.knowledge_graph;
@@ -4591,6 +4651,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── 📚 Credit Spread Guide 2-pane Reader 탭 전환 ──
     setTimeout(() => { attachCsGuideTabs(); attachCsCardClicks(); }, 350);
 
+    // ─── 🗺️ Tactical Capital Map (D3.js 트리맵 + 히트맵) ──
+    setTimeout(() => renderTacticalMap(data), 400);
+
     // ─── 현재 시각 실시간 갱신 (1초마다)
     if (window.__nowClockInterval) clearInterval(window.__nowClockInterval);
     window.__nowClockInterval = setInterval(() => {
@@ -5224,6 +5287,316 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   let __saoFilterPulse = new Set(['MACRO', 'KR_EQUITY', 'CRYPTO', 'LEGISLATIVE', 'SEMI', 'NEWS']);
   let __saoActiveCardId = null;
 
+  // ─── 🗺️ Tactical Capital Map (D3.js 시각화) ─────────
+  function renderTacticalMap(data) {
+    const canvas = document.getElementById('tcm-canvas');
+    const loading = document.getElementById('tcm-loading');
+    if (!canvas) return;
+    if (typeof d3 === 'undefined') {
+      if (loading) loading.textContent = 'D3.js 로드 실패';
+      return;
+    }
+    if (loading) loading.style.display = 'none';
+
+    // ─── 탭 전환 ─────────
+    const tabs = document.querySelectorAll('.tcm-tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const view = tab.dataset.tcmView;
+        tabs.forEach(t => {
+          const isActive = t.dataset.tcmView === view;
+          t.classList.toggle('is-active', isActive);
+          if (isActive) {
+            t.style.background = 'rgba(34,211,238,0.18)';
+            t.style.color = '#22d3ee';
+            t.style.borderColor = 'rgba(34,211,238,0.4)';
+            t.style.fontWeight = '600';
+          } else {
+            t.style.background = 'transparent';
+            t.style.color = 'var(--text-muted)';
+            t.style.borderColor = 'rgba(255,255,255,0.1)';
+            t.style.fontWeight = '400';
+          }
+        });
+        const tm = document.getElementById('tcm-treemap');
+        const hm = document.getElementById('tcm-heatmap');
+        if (view === 'treemap') { tm.style.display = 'block'; hm.style.display = 'none'; }
+        else if (view === 'heatmap') { tm.style.display = 'none'; hm.style.display = 'block'; }
+        else if (view === 'kg') {
+          // 지식 그래프 섹션으로 점프
+          const kgEl = document.querySelector('[id^="sec-통합-지식-그래프"]') || document.querySelector('[id*="지식"]');
+          if (kgEl) kgEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // ─── 트리맵 렌더링 ─────────
+    renderTcmTreemap(data);
+    renderTcmHeatmap(data);
+  }
+
+  function renderTcmTreemap(data) {
+    const svg = d3.select('#tcm-treemap');
+    if (!svg.node()) return;
+    svg.selectAll('*').remove();
+
+    // 데이터: sectors 또는 KG의 종목·섹터 조합
+    const sectors = data.sectors || [];
+    if (sectors.length === 0) {
+      svg.append('text').attr('x', '50%').attr('y', '50%')
+        .attr('text-anchor', 'middle').attr('fill', '#94a3b8')
+        .attr('font-size', '0.85rem').text('섹터 데이터 없음');
+      return;
+    }
+
+    // 트리맵용 계층 구조
+    const root = { name: 'root', children: sectors.map(sec => ({
+      name: sec.name || sec.sector || 'Unknown',
+      children: (sec.stocks || []).map(s => ({
+        name: s.name,
+        ticker: s.ticker,
+        value: (s.market_cap || 1) * 1e8,  // 시총
+        change_pct: s.change_pct || 0,
+        per: s.per,
+        roe: s.roe_pct,
+        price: s.price,
+      })),
+    })).filter(s => s.children.length > 0)};
+
+    const width = svg.node().clientWidth || 800;
+    const height = svg.node().clientHeight || 480;
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+    const treemap = d3.treemap()
+      .size([width, height])
+      .paddingInner(1)
+      .paddingOuter(2)
+      .paddingTop(18)
+      .round(true);
+
+    const hier = d3.hierarchy(root)
+      .sum(d => d.value || 0)
+      .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+    treemap(hier);
+
+    // 색상: change_pct (-5% red ~ +5% green)
+    const colorScale = d3.scaleLinear()
+      .domain([-5, -1, 0, 1, 5])
+      .range(['#dc2626', '#f87171', '#475569', '#4ade80', '#16a34a'])
+      .clamp(true);
+
+    // 섹터 레이블
+    const sectorNodes = svg.selectAll('g.sector')
+      .data(hier.children || [])
+      .enter()
+      .append('g')
+      .attr('class', 'sector');
+
+    sectorNodes.append('rect')
+      .attr('x', d => d.x0)
+      .attr('y', d => d.y0)
+      .attr('width', d => d.x1 - d.x0)
+      .attr('height', d => d.y1 - d.y0)
+      .attr('fill', 'rgba(167,139,250,0.05)')
+      .attr('stroke', 'rgba(167,139,250,0.25)')
+      .attr('stroke-width', 1);
+
+    sectorNodes.append('text')
+      .attr('x', d => d.x0 + 6)
+      .attr('y', d => d.y0 + 13)
+      .attr('fill', '#a78bfa')
+      .attr('font-size', '0.7rem')
+      .attr('font-weight', 600)
+      .text(d => d.data.name);
+
+    // 종목 셀
+    const stockNodes = svg.selectAll('g.stock')
+      .data(hier.leaves())
+      .enter()
+      .append('g')
+      .attr('class', 'stock')
+      .style('cursor', 'pointer');
+
+    stockNodes.append('rect')
+      .attr('x', d => d.x0)
+      .attr('y', d => d.y0)
+      .attr('width', d => Math.max(0, d.x1 - d.x0 - 1))
+      .attr('height', d => Math.max(0, d.y1 - d.y0 - 1))
+      .attr('fill', d => colorScale(d.data.change_pct || 0))
+      .attr('opacity', 0.85)
+      .attr('stroke', 'rgba(0,0,0,0.3)')
+      .attr('stroke-width', 0.5);
+
+    stockNodes.append('title')
+      .text(d => `${d.data.name} (${d.data.ticker || ''})\n시총: ${Math.round((d.value || 0)/1e12)}조원\n등락: ${(d.data.change_pct || 0).toFixed(2)}%\nPER: ${d.data.per || '—'}\nROE: ${d.data.roe || '—'}%`);
+
+    // 종목명 (충분히 큰 셀에만)
+    stockNodes.filter(d => (d.x1 - d.x0) > 60 && (d.y1 - d.y0) > 30)
+      .append('text')
+      .attr('x', d => (d.x0 + d.x1) / 2)
+      .attr('y', d => (d.y0 + d.y1) / 2 - 4)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#ffffff')
+      .attr('font-size', d => Math.min(13, Math.max(9, (d.x1 - d.x0) / 8)) + 'px')
+      .attr('font-weight', 600)
+      .text(d => d.data.name);
+
+    stockNodes.filter(d => (d.x1 - d.x0) > 70 && (d.y1 - d.y0) > 45)
+      .append('text')
+      .attr('x', d => (d.x0 + d.x1) / 2)
+      .attr('y', d => (d.y0 + d.y1) / 2 + 12)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'rgba(255,255,255,0.9)')
+      .attr('font-size', '0.7rem')
+      .attr('font-family', 'var(--font-mono)')
+      .text(d => (d.data.change_pct >= 0 ? '+' : '') + (d.data.change_pct || 0).toFixed(1) + '%');
+
+    // 클릭: 인스펙터 열기 (해당 종목 SAO 검색)
+    stockNodes.on('click', function(event, d) {
+      const ticker = d.data.ticker;
+      if (!ticker) return;
+      const saoId = 'stock:' + String(ticker).replace(/\.KS|\.KQ/g, '');
+      openInspector(saoId);
+    });
+  }
+
+  function renderTcmHeatmap(data) {
+    const svg = d3.select('#tcm-heatmap');
+    if (!svg.node()) return;
+    svg.selectAll('*').remove();
+
+    // 데이터: credit_spread.results의 recent_30d 사용
+    const cs = data.credit_spread || {};
+    const series = (cs.results || []).filter(r => r.recent_30d && r.recent_30d.length > 0);
+    if (series.length === 0) {
+      svg.append('text').attr('x', '50%').attr('y', '50%')
+        .attr('text-anchor', 'middle').attr('fill', '#94a3b8')
+        .attr('font-size', '0.85rem').text('히트맵 데이터 없음');
+      return;
+    }
+
+    const width = svg.node().clientWidth || 800;
+    const height = svg.node().clientHeight || 480;
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+    const margin = { top: 30, right: 20, bottom: 60, left: 130 };
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // 모든 날짜 수집 (마지막 30일)
+    const allDates = new Set();
+    series.forEach(s => s.recent_30d.forEach(d => allDates.add(d.date)));
+    const dates = Array.from(allDates).sort().slice(-30);
+
+    const x = d3.scaleBand().domain(dates).range([0, innerW]).padding(0.05);
+    const y = d3.scaleBand().domain(series.map(s => s.name)).range([0, innerH]).padding(0.08);
+
+    // 각 시리즈별로 정규화된 변화율 계산 (z-score)
+    const allValues = [];
+    series.forEach(s => {
+      const vals = s.recent_30d.map(d => d.value);
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const std = Math.sqrt(vals.map(v => (v - mean) ** 2).reduce((a, b) => a + b, 0) / vals.length) || 1;
+      s._dataMap = {};
+      s.recent_30d.forEach(d => {
+        const z = (d.value - mean) / std;
+        s._dataMap[d.date] = { value: d.value, z: z };
+        allValues.push(z);
+      });
+    });
+
+    const colorScale = d3.scaleLinear()
+      .domain([-2, -0.5, 0, 0.5, 2])
+      .range(['#22d3ee', '#06b6d4', '#475569', '#f97316', '#dc2626'])
+      .clamp(true);
+
+    // 행 (자산)
+    series.forEach(s => {
+      dates.forEach(date => {
+        const datum = s._dataMap[date];
+        if (!datum) return;
+        g.append('rect')
+          .attr('x', x(date))
+          .attr('y', y(s.name))
+          .attr('width', x.bandwidth())
+          .attr('height', y.bandwidth())
+          .attr('fill', colorScale(datum.z))
+          .attr('opacity', 0.85)
+          .append('title')
+          .text(`${s.name}\n${date}\n${datum.value.toFixed(2)}${s.unit}\nz=${datum.z.toFixed(2)}`);
+      });
+    });
+
+    // Y축 (자산명)
+    g.append('g')
+      .selectAll('text')
+      .data(series)
+      .enter()
+      .append('text')
+      .attr('x', -8)
+      .attr('y', s => y(s.name) + y.bandwidth() / 2)
+      .attr('text-anchor', 'end')
+      .attr('dy', '0.35em')
+      .attr('fill', '#e2e8f0')
+      .attr('font-size', '0.7rem')
+      .text(s => s.name);
+
+    // X축 (날짜) — 5개 표시
+    const tickStep = Math.max(1, Math.floor(dates.length / 6));
+    dates.forEach((d, i) => {
+      if (i % tickStep === 0 || i === dates.length - 1) {
+        g.append('text')
+          .attr('x', x(d) + x.bandwidth() / 2)
+          .attr('y', innerH + 16)
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'var(--text-muted)')
+          .attr('font-size', '0.6rem')
+          .attr('font-family', 'var(--font-mono)')
+          .text(d.substring(5));
+      }
+    });
+
+    // 제목
+    svg.append('text')
+      .attr('x', margin.left)
+      .attr('y', 20)
+      .attr('fill', '#22d3ee')
+      .attr('font-size', '0.78rem')
+      .attr('font-weight', 600)
+      .text('📈 신용 스프레드 + 거시 금리 시계열 히트맵 (z-score 정규화, 최근 30일)');
+
+    // 범례
+    const legend = svg.append('g').attr('transform', `translate(${width - margin.right - 220},${height - 20})`);
+    const legendScale = d3.scaleLinear().domain([-2, 2]).range([0, 180]);
+    const legendData = [-2, -1, 0, 1, 2];
+    legendData.forEach((v, i) => {
+      legend.append('rect')
+        .attr('x', legendScale(v) - 18)
+        .attr('y', -8)
+        .attr('width', 36)
+        .attr('height', 8)
+        .attr('fill', colorScale(v));
+      legend.append('text')
+        .attr('x', legendScale(v))
+        .attr('y', 12)
+        .attr('text-anchor', 'middle')
+        .attr('fill', 'var(--text-muted)')
+        .attr('font-size', '0.55rem')
+        .attr('font-family', 'var(--font-mono)')
+        .text(v >= 0 ? '+' + v : v);
+    });
+    legend.append('text')
+      .attr('x', -8)
+      .attr('y', -2)
+      .attr('text-anchor', 'end')
+      .attr('fill', 'var(--text-muted)')
+      .attr('font-size', '0.55rem')
+      .text('z-score');
+  }
+
   // ─── 우측 인스펙터 패널 열기/닫기 ─────────────────
   function openInspector(saoId) {
     const data = window.__dashboardData || {};
@@ -5366,17 +5739,279 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     document.querySelectorAll('.sw-card.active').forEach(c => c.classList.remove('active'));
   }
 
-  // 인스펙터 닫기 핸들러 (페이지 로드 후 1회만)
+  // ─── ⌘+K 명령 팔레트 (Sovereign Watch / Linear 스타일) ──
+  let __cmdkResults = [];
+  let __cmdkActive = 0;
+
+  function openCmdk() {
+    const ov = document.getElementById('cmdkOverlay');
+    const input = document.getElementById('cmdkInput');
+    if (!ov || !input) return;
+    ov.style.display = 'flex';
+    input.value = '';
+    input.focus();
+    renderCmdkResults('');
+  }
+
+  function closeCmdk() {
+    const ov = document.getElementById('cmdkOverlay');
+    if (ov) ov.style.display = 'none';
+  }
+
+  function buildCmdkIndex() {
+    // 인덱싱: SAO 시그널 + 섹션 + 종목
+    const data = window.__dashboardData || {};
+    const items = [];
+    // 1. SAO 시그널
+    ((data.sao_signals || {}).signals || []).forEach(s => {
+      items.push({
+        type: 'signal',
+        id: s.id,
+        title: s.name,
+        subtitle: (s.signals && s.signals[0] && s.signals[0].label) || s.description || '',
+        meta: `${s.priority} · ${s.pulse}`,
+        emoji: s.icon || '📡',
+        priority: s.priority,
+        action: () => openInspector(s.id),
+      });
+    });
+    // 2. 섹션
+    document.querySelectorAll('.section-wrap').forEach(sec => {
+      const label = sec.querySelector('.section-label');
+      if (!label) return;
+      const text = label.textContent.replace(/\s+/g, ' ').trim().substring(0, 50);
+      items.push({
+        type: 'section',
+        id: sec.id,
+        title: text,
+        subtitle: '대시보드 섹션',
+        meta: 'SECTION',
+        emoji: '🗂️',
+        action: () => {
+          sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+      });
+    });
+    // 3. 종목 (KG에서)
+    const kg = data.knowledge_graph || {};
+    (kg.nodes || []).filter(n => n.type === 'Stock').forEach(n => {
+      items.push({
+        type: 'stock',
+        id: n.id,
+        title: n.label,
+        subtitle: (n.data && n.data.sector) || 'Stock',
+        meta: 'KG',
+        emoji: '📈',
+        action: () => {
+          // SAO 시그널에 있으면 인스펙터, 없으면 KG 섹션
+          const has = ((data.sao_signals || {}).signals || []).find(s => s.id === n.id);
+          if (has) openInspector(n.id);
+          else {
+            const kgEl = document.querySelector('[id*="지식"]');
+            if (kgEl) kgEl.scrollIntoView({ behavior: 'smooth' });
+          }
+        },
+      });
+    });
+    return items;
+  }
+
+  function renderCmdkResults(query) {
+    const resultsEl = document.getElementById('cmdkResults');
+    if (!resultsEl) return;
+    const idx = buildCmdkIndex();
+    const q = (query || '').toLowerCase().trim();
+
+    let filtered = idx;
+    if (q) {
+      filtered = idx.filter(item =>
+        (item.title || '').toLowerCase().includes(q) ||
+        (item.subtitle || '').toLowerCase().includes(q) ||
+        (item.meta || '').toLowerCase().includes(q)
+      );
+    }
+
+    // 우선순위 정렬 (signal P1/P2 우선, 그다음 section, 그다음 stock)
+    filtered.sort((a, b) => {
+      const order = { signal: 0, section: 1, stock: 2 };
+      const pri = { P1: 0, P2: 1, P3: 2, P4: 3 };
+      if (a.type !== b.type) return order[a.type] - order[b.type];
+      if (a.priority && b.priority) return pri[a.priority] - pri[b.priority];
+      return 0;
+    });
+
+    // 30개로 제한
+    __cmdkResults = filtered.slice(0, 30);
+    __cmdkActive = 0;
+
+    if (__cmdkResults.length === 0) {
+      resultsEl.innerHTML = `<div style="padding:20px;color:var(--text-muted);font-size:0.75rem;text-align:center;">결과 없음</div>`;
+      return;
+    }
+
+    let html = '';
+    __cmdkResults.forEach((item, i) => {
+      const active = i === 0;
+      html += `<div class="cmdk-row" data-cmdk-idx="${i}" style="display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;border-left:2px solid ${active ? '#22d3ee' : 'transparent'};background:${active ? 'rgba(34,211,238,0.06)' : 'transparent'};transition:all 0.1s ease;">
+        <span style="font-size:1rem;width:24px;text-align:center;">${escapeHtml(item.emoji)}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.82rem;color:#e2e8f0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.title)}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.subtitle)}</div>
+        </div>
+        <span style="font-size:0.58rem;color:var(--text-muted);font-family:var(--font-mono);padding:2px 6px;background:rgba(255,255,255,0.04);border-radius:4px;">${escapeHtml(item.meta)}</span>
+      </div>`;
+    });
+    resultsEl.innerHTML = html;
+
+    // 클릭 핸들러
+    resultsEl.querySelectorAll('.cmdk-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const i = parseInt(row.dataset.cmdkIdx);
+        if (__cmdkResults[i] && __cmdkResults[i].action) {
+          __cmdkResults[i].action();
+          closeCmdk();
+        }
+      });
+      row.addEventListener('mouseenter', () => {
+        __cmdkActive = parseInt(row.dataset.cmdkIdx);
+        updateCmdkActive();
+      });
+    });
+  }
+
+  function updateCmdkActive() {
+    document.querySelectorAll('.cmdk-row').forEach((row, i) => {
+      const active = i === __cmdkActive;
+      row.style.borderLeftColor = active ? '#22d3ee' : 'transparent';
+      row.style.background = active ? 'rgba(34,211,238,0.06)' : 'transparent';
+    });
+    // 활성 행이 보이게 스크롤
+    const activeRow = document.querySelector(`.cmdk-row[data-cmdk-idx="${__cmdkActive}"]`);
+    if (activeRow) activeRow.scrollIntoView({ block: 'nearest' });
+  }
+
+  // ─── 키보드 단축키 + 초기화 ─────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.getElementById('inspectorClose');
-    const overlay = document.getElementById('inspectorOverlay');
+    const insOverlay = document.getElementById('inspectorOverlay');
     if (closeBtn) closeBtn.addEventListener('click', closeInspector);
-    if (overlay) overlay.addEventListener('click', closeInspector);
-    // ESC 키
+    if (insOverlay) insOverlay.addEventListener('click', closeInspector);
+
+    // Cmd+K 입력 핸들러
+    const cmdkInput = document.getElementById('cmdkInput');
+    const cmdkOverlay = document.getElementById('cmdkOverlay');
+    if (cmdkInput) {
+      cmdkInput.addEventListener('input', e => renderCmdkResults(e.target.value));
+      cmdkInput.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          __cmdkActive = Math.min(__cmdkActive + 1, __cmdkResults.length - 1);
+          updateCmdkActive();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          __cmdkActive = Math.max(__cmdkActive - 1, 0);
+          updateCmdkActive();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const item = __cmdkResults[__cmdkActive];
+          if (item && item.action) {
+            item.action();
+            closeCmdk();
+          }
+        }
+      });
+    }
+    if (cmdkOverlay) {
+      cmdkOverlay.addEventListener('click', e => {
+        if (e.target === cmdkOverlay) closeCmdk();
+      });
+    }
+
+    // 전역 키 단축키
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeInspector();
+      // Cmd+K / Ctrl+K
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCmdk();
+        return;
+      }
+      // ESC: 모든 모달 닫기
+      if (e.key === 'Escape') {
+        closeCmdk();
+        closeInspector();
+      }
     });
+
+    // 사이드바 푸터의 Cmd+K 버튼
+    const cmdkTrigger = document.getElementById('cmdkTrigger');
+    if (cmdkTrigger) {
+      cmdkTrigger.addEventListener('click', openCmdk);
+      cmdkTrigger.addEventListener('mouseenter', () => {
+        cmdkTrigger.style.background = 'rgba(34,211,238,0.18)';
+      });
+      cmdkTrigger.addEventListener('mouseleave', () => {
+        cmdkTrigger.style.background = 'rgba(34,211,238,0.08)';
+      });
+    }
+
+    // ─── Phase δ: 라이브 폴링 (data.json 5분마다) ──
+    startLivePolling();
   });
+
+  // ─── 📡 라이브 폴링 — Phase δ ──────────────────────
+  let __lastGeneratedAt = null;
+  let __pollInterval = null;
+
+  function startLivePolling() {
+    // 첫 갱신 시각 캡처
+    if (window.__dashboardData) {
+      __lastGeneratedAt = window.__dashboardData.generated_at;
+    }
+    // 5분마다 폴링
+    if (__pollInterval) clearInterval(__pollInterval);
+    __pollInterval = setInterval(checkLiveUpdate, 5 * 60 * 1000);
+  }
+
+  function checkLiveUpdate() {
+    const liveDot = document.getElementById('liveDot');
+    const liveText = document.getElementById('liveText');
+    if (liveDot) liveDot.style.background = '#facc15';
+    if (liveText) liveText.textContent = 'SYNCING';
+
+    fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(newData => {
+        const newGen = newData.generated_at;
+        if (newGen && newGen !== __lastGeneratedAt) {
+          // 데이터 변경 감지 → 사이드바 재빌드
+          window.__dashboardData = newData;
+          __lastGeneratedAt = newGen;
+          buildSidebarNav();
+          flashLiveIndicator('#22d3ee', '신규 데이터');
+        } else {
+          flashLiveIndicator('#4ade80', 'LIVE');
+        }
+      })
+      .catch(() => {
+        flashLiveIndicator('#f87171', 'OFFLINE');
+      });
+  }
+
+  function flashLiveIndicator(color, text) {
+    const liveDot = document.getElementById('liveDot');
+    const liveText = document.getElementById('liveText');
+    if (liveDot) {
+      liveDot.style.background = color;
+      liveDot.style.boxShadow = `0 0 4px ${color}`;
+    }
+    if (liveText) liveText.textContent = text;
+    // 3초 후 LIVE로 복귀
+    setTimeout(() => {
+      if (liveDot) liveDot.style.background = '#4ade80';
+      if (liveDot) liveDot.style.boxShadow = '0 0 4px #4ade80';
+      if (liveText) liveText.textContent = 'LIVE';
+    }, 3000);
+  }
 
   function buildSidebarSignals(data) {
     const navEl = document.getElementById('sidebarNav');
