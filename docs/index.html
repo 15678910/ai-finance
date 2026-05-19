@@ -110,6 +110,44 @@ body::before {
 .anim-item:nth-child(5) { animation-delay: 0.25s; }
 .anim-item:nth-child(6) { animation-delay: 0.3s; }
 
+/* ─── Credit Spread Guide (2-pane reader) ────────────── */
+.cs-guide-tab:hover {
+  background: rgba(167, 139, 250, 0.08) !important;
+  color: #c4b5fd !important;
+}
+.cs-guide-tab.is-active {
+  background: rgba(167, 139, 250, 0.18) !important;
+  color: #a78bfa !important;
+  border-left-color: #a78bfa !important;
+  font-weight: 600 !important;
+}
+.cs-guide-panel {
+  display: none;
+}
+.cs-guide-panel.is-active {
+  display: block;
+  animation: csGuideFadeIn 0.2s ease;
+}
+@keyframes csGuideFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 760px) {
+  .cs-guide-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .cs-guide-nav {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    position: static !important;
+    padding: 6px !important;
+  }
+  .cs-guide-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
 /* ─── Sidebar (Claude Docs 스타일) ─────────────────────── */
 .sidebar {
   position: fixed;
@@ -2808,16 +2846,29 @@ body::before {
           </div>`).join('')}
         </div>` : ''}
 
-        <!-- 📚 데이터 해석법 + 실전 활용 가이드 -->
-        <details class="glass-card anim-item" style="padding:14px 18px;margin-bottom:14px;background:rgba(167,139,250,0.04);border:1px solid rgba(167,139,250,0.25);">
-          <summary style="cursor:pointer;font-size:0.95rem;font-weight:700;color:#a78bfa;outline:none;list-style:none;">
-            <span style="display:inline-block;margin-right:6px;transition:transform 0.15s ease;">▶</span>
-            📚 데이터 해석법 + 실전 활용 가이드 (클릭하여 펼치기)
-            <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;margin-left:8px;">— 초보자도 따라 할 수 있는 8단계 가이드</span>
-          </summary>
-          <div style="margin-top:16px;font-size:0.8rem;line-height:1.75;color:#e2e8f0;">
+        <!-- 📚 데이터 해석법 + 실전 활용 가이드 (2-pane 리더) -->
+        <div class="cs-guide glass-card anim-item" style="padding:14px 18px;margin-bottom:14px;background:rgba(167,139,250,0.04);border:1px solid rgba(167,139,250,0.25);">
+          <div style="font-size:0.95rem;font-weight:700;color:#a78bfa;margin-bottom:12px;">
+            📚 데이터 해석법 + 실전 활용 가이드
+            <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;margin-left:8px;">— 초보자도 따라 할 수 있는 8단계 가이드. 왼쪽 메뉴를 클릭하세요.</span>
+          </div>
+          <div class="cs-guide-layout" style="display:grid;grid-template-columns:220px 1fr;gap:14px;align-items:start;">
+            <nav class="cs-guide-nav" style="display:flex;flex-direction:column;gap:3px;background:rgba(15,23,42,0.5);border-radius:6px;padding:8px;position:sticky;top:12px;">
+              <button class="cs-guide-tab is-active" data-cs-tab="1" style="text-align:left;padding:8px 12px;background:rgba(167,139,250,0.18);color:#a78bfa;border:none;border-left:2px solid #a78bfa;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;font-weight:600;">📖 1. OAS 기초</button>
+              <button class="cs-guide-tab" data-cs-tab="2" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">🎯 2. 시리즈별 해석</button>
+              <button class="cs-guide-tab" data-cs-tab="3" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">🔍 3. 변화율 활용</button>
+              <button class="cs-guide-tab" data-cs-tab="4" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">🎓 4. 종합 진단</button>
+              <button class="cs-guide-tab" data-cs-tab="5" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">🇰🇷 5. 한국 시장 적용</button>
+              <button class="cs-guide-tab" data-cs-tab="6" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">⚠️ 6. 흔한 함정</button>
+              <button class="cs-guide-tab" data-cs-tab="7" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">🎯 7. 체크리스트</button>
+              <button class="cs-guide-tab" data-cs-tab="8" style="text-align:left;padding:8px 12px;background:transparent;color:var(--text-muted);border:none;border-left:2px solid transparent;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">📚 8. 학습 자료</button>
+            </nav>
 
-            <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">📖 1. 기초: OAS (Option-Adjusted Spread)란?</h4>
+            <div class="cs-guide-content" style="font-size:0.82rem;line-height:1.75;color:#e2e8f0;min-height:400px;padding:4px 6px;">
+
+              <!-- Panel 1: OAS 기초 -->
+              <div class="cs-guide-panel is-active" data-cs-panel="1">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">📖 1. 기초: OAS (Option-Adjusted Spread)란?</h4>
             <p style="margin:0 0 10px 0;"><b>한 줄 정의</b>: "이 채권 수익률 − 동기간 국채 수익률" = 시장이 요구하는 <b style="color:#22d3ee;">신용 위험 프리미엄</b></p>
             <p style="margin:0 0 6px 0;padding:8px 12px;background:rgba(34,211,238,0.06);border-left:2px solid #22d3ee;border-radius:3px;">
               예: BBB 회사채 4.5% − 10Y 국채 3.56% = <b>BBB OAS 0.94%p</b><br/>
@@ -2828,7 +2879,10 @@ body::before {
               <li><b style="color:#4ade80;">OAS가 작으면</b> → 시장이 위험 선호 모드 (낙관)</li>
             </ul>
 
-            <h4 style="color:#fb923c;margin:14px 0 8px 0;font-size:0.95rem;">🎯 2. 각 시리즈별 해석법</h4>
+              </div>
+              <!-- Panel 2: 시리즈별 해석법 -->
+              <div class="cs-guide-panel" data-cs-panel="2" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">🎯 2. 각 시리즈별 해석법</h4>
 
             <h5 style="color:#f87171;margin:10px 0 4px 0;font-size:0.85rem;">🔴 하이일드 OAS — 경기 침체 1순위 선행지표</h5>
             <div style="overflow-x:auto;margin:6px 0;">
@@ -2897,7 +2951,10 @@ body::before {
               <li><b>현재 +${(cs.results.find(x => x.id === 'T10Y2Y') || {}).latest_value || '?'}%p</b> = 정상이지만 평탄한 편</li>
             </ul>
 
-            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🔍 3. 변화율 활용법 (정태값 + 동태)</h4>
+              </div>
+              <!-- Panel 3: 변화율 활용법 -->
+              <div class="cs-guide-panel" data-cs-panel="3" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">🔍 3. 변화율 활용법 (정태값 + 동태)</h4>
             <p style="margin:0 0 8px 0;">각 카드의 <b>1d / 5d / 30d / 1y %ile</b> 4개를 함께 봐야 합니다.</p>
             <ul style="margin:4px 0 10px 20px;">
               <li><b>정태적</b> (현재값 vs 임계값): "하이일드 2.8%p이면 안전" — 절대 수준 해석</li>
@@ -2920,7 +2977,10 @@ body::before {
               </tbody>
             </table></div>
 
-            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🎓 4. 현재 시점 종합 진단</h4>
+              </div>
+              <!-- Panel 4: 종합 진단 -->
+              <div class="cs-guide-panel" data-cs-panel="4" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">🎓 4. 현재 시점 종합 진단</h4>
             <p style="margin:0 0 6px 0;font-weight:600;">발견된 모순 신호:</p>
             <div style="overflow-x:auto;margin:4px 0 10px 0;">
             <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
@@ -2948,7 +3008,10 @@ body::before {
                 특정 섹터 (상업용 부동산, AI 거품 등) 사고. BBB 갑자기 2%p+ 폭등. 시스템 위기로 확산.</li>
             </ul>
 
-            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🇰🇷 5. 한국 시장 적용법</h4>
+              </div>
+              <!-- Panel 5: 한국 시장 적용법 -->
+              <div class="cs-guide-panel" data-cs-panel="5" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">🇰🇷 5. 한국 시장 적용법</h4>
             <div style="overflow-x:auto;margin:4px 0 10px 0;">
             <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
               <thead><tr style="background:rgba(167,139,250,0.1);">
@@ -2970,7 +3033,10 @@ HY 7%p+ 돌파 →   경기방어주 (KT&G, 한국전력) 비중 확대
 HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현재 위치)
 곡선 역전     →   12개월 내 KOSPI 큰 조정 가능성 대비</pre>
 
-            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">⚠️ 6. 흔한 함정</h4>
+              </div>
+              <!-- Panel 6: 흔한 함정 -->
+              <div class="cs-guide-panel" data-cs-panel="6" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">⚠️ 6. 흔한 함정</h4>
             <ul style="margin:4px 0 10px 20px;">
               <li><b>함정 1</b>: "스프레드 좁다 = 무조건 좋다" (틀림) — 너무 좁으면 과도한 위험 선호. 1~2년 후 조정 가능성 ↑</li>
               <li style="margin-top:4px;"><b>함정 2</b>: "곡선 역전 = 즉시 매도" (틀림) — 역전 후 침체까지 평균 13개월. 그 사이 주식은 보통 더 오름.</li>
@@ -2978,7 +3044,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
               <li style="margin-top:4px;"><b>함정 4</b>: "한국과 미국 1:1 적용" — 한국 금리/스프레드는 별도. 미국 신호는 참고지표.</li>
             </ul>
 
-            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">🎯 7. 실전 활용 체크리스트</h4>
+              </div>
+              <!-- Panel 7: 실전 활용 체크리스트 -->
+              <div class="cs-guide-panel" data-cs-panel="7" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">🎯 7. 실전 활용 체크리스트</h4>
             <p style="margin:0 0 6px 0;">매일 대시보드 보실 때:</p>
             <ul style="margin:4px 0 10px 20px;list-style:none;padding-left:0;">
               <li>☐ <b>거시 체제 헤더</b> 색상 변화 (🟢→🟡→🟠→🚨)</li>
@@ -2989,20 +3058,27 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
               <li>☐ <b>활성 시그널 박스</b> 비어있는지 (현재는 없음 = 평온)</li>
             </ul>
 
-            <h4 style="color:#fb923c;margin:18px 0 8px 0;font-size:0.95rem;">📚 8. 추가 학습 자료</h4>
+              </div>
+              <!-- Panel 8: 추가 학습 자료 -->
+              <div class="cs-guide-panel" data-cs-panel="8" style="display:none;">
+                <h4 style="color:#fb923c;margin:0 0 8px 0;font-size:0.95rem;">📚 8. 추가 학습 자료</h4>
             <ul style="margin:4px 0 10px 20px;">
               <li><b>Inverting the Yield Curve</b> — Campbell Harvey, Duke 교수 (1986 논문)</li>
               <li><b>The Information in Long-Maturity Forward Rates</b> — Eugene Fama (1987)</li>
               <li>매일 매크로 뉴스레터: ZeroHedge / The Daily Shot</li>
             </ul>
 
-            <div style="margin-top:18px;padding:10px 14px;background:rgba(239,68,68,0.06);border-radius:6px;font-size:0.75rem;color:var(--text-muted);">
-              🚨 본 가이드는 교육·정보 제공 목적입니다. 실제 투자 결정은 본인의 책임이며,
-              여러 지표·뉴스·재무제표를 종합해서 판단하시기 바랍니다.
-            </div>
+              </div><!-- /panel 8 -->
 
-          </div>
-        </details>
+              <!-- 공통 푸터 (모든 패널 아래 표시) -->
+              <div style="margin-top:18px;padding:10px 14px;background:rgba(239,68,68,0.06);border-radius:6px;font-size:0.75rem;color:var(--text-muted);">
+                🚨 본 가이드는 교육·정보 제공 목적입니다. 실제 투자 결정은 본인의 책임이며,
+                여러 지표·뉴스·재무제표를 종합해서 판단하시기 바랍니다.
+              </div>
+
+            </div><!-- /cs-guide-content -->
+          </div><!-- /cs-guide-layout -->
+        </div><!-- /cs-guide -->
 
         <!-- 시리즈별 매트릭스 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">`;
@@ -4176,6 +4252,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── 📚 Build Sidebar Navigation (Claude Docs 스타일) ──
     setTimeout(() => buildSidebarNav(), 300);
 
+    // ─── 📚 Credit Spread Guide 2-pane Reader 탭 전환 ──
+    setTimeout(() => attachCsGuideTabs(), 350);
+
     // ─── 현재 시각 실시간 갱신 (1초마다)
     if (window.__nowClockInterval) clearInterval(window.__nowClockInterval);
     window.__nowClockInterval = setInterval(() => {
@@ -4699,6 +4778,42 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function escapeHtml(str) {
     if (str == null) return '';
     return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c]));
+  }
+
+  // ─── 📚 Credit Spread Guide 2-pane Reader 탭 전환 ─────
+  function attachCsGuideTabs() {
+    const tabs = document.querySelectorAll('.cs-guide-tab');
+    const panels = document.querySelectorAll('.cs-guide-panel');
+    if (tabs.length === 0 || panels.length === 0) return;
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.csTab;
+        // 탭 활성 상태 전환
+        tabs.forEach(t => {
+          const isActive = t.dataset.csTab === target;
+          t.classList.toggle('is-active', isActive);
+          // 인라인 스타일 동기화 (CSS specificity 보정)
+          if (isActive) {
+            t.style.background = 'rgba(167,139,250,0.18)';
+            t.style.color = '#a78bfa';
+            t.style.borderLeftColor = '#a78bfa';
+            t.style.fontWeight = '600';
+          } else {
+            t.style.background = 'transparent';
+            t.style.color = 'var(--text-muted)';
+            t.style.borderLeftColor = 'transparent';
+            t.style.fontWeight = '400';
+          }
+        });
+        // 패널 표시 전환
+        panels.forEach(p => {
+          const isActive = p.dataset.csPanel === target;
+          p.classList.toggle('is-active', isActive);
+          p.style.display = isActive ? 'block' : 'none';
+        });
+      });
+    });
   }
 
   // ─── 📚 Sidebar Navigation (Claude Docs 스타일) ─────────
