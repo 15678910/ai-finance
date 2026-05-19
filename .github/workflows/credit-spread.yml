@@ -31,6 +31,11 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas numpy openpyxl
+
       - name: Run credit spread monitor
         env:
           TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
@@ -40,13 +45,19 @@ jobs:
         run: |
           python credit_spread_monitor.py
 
+      - name: Regenerate dashboard data.json
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python generate_dashboard_data.py || true
+
       - name: Commit results
         if: always()
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/credit_spread.json docs/credit_spread_state.json 2>/dev/null || true
+          git add docs/credit_spread.json docs/credit_spread_state.json docs/data.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes"
