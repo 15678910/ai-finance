@@ -120,20 +120,69 @@ SERIES = [
 
 
 # ====================================================================
-# FRED CSV 다운로드
+# FRED 데이터 다운로드 (다중 폴백)
 # ====================================================================
 def fetch_fred_series(series_id: str, since: str = "2020-01-01") -> list:
-    """FRED CSV → [{date, value}] (역사적 데이터)."""
-    url = f"{FRED_BASE}?id={series_id}&cosd={since}"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(req, timeout=TIMEOUT_SEC) as resp:  # nosec — 공개 데이터
-            content = resp.read().decode("utf-8")
-    except Exception as e:
-        print(f"    [실패] {series_id}: {e}")
+    """FRED 데이터 → [{date, value}].
+
+    3단계 폴백:
+      1. FRED CSV (fredgraph.csv)
+      2. FRED CSV (data 도메인)
+      3. FRED API (FRED_API_KEY 시크릿 설정 시 — 가장 안정)
+    """
+    urls_to_try = [
+        f"{FRED_BASE}?id={series_id}&cosd={since}",
+        f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}&cosd={since}",
+    ]
+
+    # FRED API key가 있으면 공식 API 우선 시도 (가장 안정)
+    api_key = os.environ.get("FRED_API_KEY")
+    if api_key:
+        urls_to_try.insert(0,
+            f"https://api.stlouisfed.org/fred/series/observations"
+            f"?series_id={series_id}&observation_start={since}&api_key={api_key}&file_type=json"
+        )
+
+    content = None
+    last_error = None
+    is_json = False
+    for url in urls_to_try:
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "*/*",
+            })
+            with urllib.request.urlopen(req, timeout=TIMEOUT_SEC) as resp:  # nosec — 공개 데이터
+                content = resp.read().decode("utf-8")
+            is_json = url.endswith("file_type=json") or url.endswith("&file_type=json")
+            print(f"    [성공] {series_id}: {len(content)}바이트 ({'JSON API' if is_json else 'CSV'})")
+            break
+        except Exception as e:
+            last_error = e
+            continue
+
+    if content is None:
+        print(f"    [전체 실패] {series_id}: {last_error}")
         return []
 
     rows = []
+    # JSON API 응답 파싱
+    if is_json:
+        try:
+            data = json.loads(content)
+            for obs in data.get("observations", []):
+                if obs.get("value") in (".", "", None):
+                    continue
+                try:
+                    rows.append({"date": obs["date"], "value": float(obs["value"])})
+                except (ValueError, TypeError):
+                    continue
+            return rows
+        except json.JSONDecodeError as e:
+            print(f"    [JSON 파싱 실패] {series_id}: {e}")
+            return []
+
+    # CSV 파싱
     reader = csv.reader(io.StringIO(content))
     next(reader, None)  # header skip
     for line in reader:
