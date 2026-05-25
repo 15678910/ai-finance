@@ -3052,6 +3052,95 @@ body {
       html += `</section>`;
     }
 
+    // ─── 📅 종목별 일별 투자자 매매 + 이벤트 분석 ──────────
+    const sid = data.stock_investor_details;
+    if (sid && Array.isArray(sid.stocks) && sid.stocks.length > 0) {
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#8b5cf6;">📅 종목별 일별 매매 + 이벤트 분석 <span style="font-size:0.65rem;color:var(--text-muted);">(60거래일 일별 데이터 + 이벤트 영향 정량화)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(139,92,246,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
+            <b style="color:var(--text);">사용법:</b> 종목 선택 → 60거래일 일별 매매 + 자동 감지 이벤트 확인.
+            사전 정의 이벤트(스타벅스 5.23 등)의 영향이 자동 분석되어 우측에 표시됩니다.<br/>
+            <b style="color:var(--text);">개인 매매 = 추정값</b> (총 외인+기관 부호 반전, 정확도 80~90%).
+          </div>
+        </div>
+
+        <!-- 종목 선택 + 검색 -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <label style="font-size:0.78rem;color:var(--text-muted);">종목 선택:</label>
+          <select id="sidStockSelect" style="background:rgba(15,23,42,0.6);border:1px solid rgba(139,92,246,0.3);color:#e2e8f0;padding:8px 12px;border-radius:6px;font-size:0.82rem;font-family:inherit;cursor:pointer;flex:1;min-width:240px;max-width:360px;">
+            ${sid.stocks.map(s => `<option value="${escapeHtml(s.ticker)}">${escapeHtml(s.name)} (${escapeHtml(s.ticker)}) — ${escapeHtml(s.category)}</option>`).join('')}
+          </select>
+          <span style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">${sid.stocks.length}개 종목 · 종목당 ${sid.days_per_stock}일</span>
+        </div>
+
+        <!-- 사전 정의 이벤트 종합 분석 -->
+        ${(sid.event_reports || []).map(report => `
+          <div class="glass-card anim-item" style="padding:12px 14px;margin-bottom:14px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.2);">
+            <div style="font-size:0.9rem;color:#f87171;font-weight:700;margin-bottom:4px;">🎯 이벤트 분석: ${escapeHtml(report.label)}</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(report.description)} · 이벤트일: <b style="color:var(--text);">${escapeHtml(report.date)}</b></div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <!-- 영향 종목 -->
+              <div>
+                <div style="font-size:0.72rem;color:#f87171;font-weight:600;margin-bottom:6px;">🎯 영향 종목 (${(report.affected || []).length})</div>
+                ${(report.affected || []).map(a => `
+                  <div style="background:rgba(239,68,68,0.06);border-left:2px solid #f87171;padding:8px 10px;margin-bottom:6px;border-radius:3px;font-size:0.72rem;">
+                    <div style="color:#ffffff;font-weight:600;">${escapeHtml(a.name)} <span style="color:var(--text-muted);font-size:0.62rem;font-weight:400;">(${escapeHtml(a.ticker)}) · ${escapeHtml(a.context)}</span></div>
+                    ${a.status === 'future_or_no_data_yet' ? `
+                      <div style="color:#fbbf24;font-size:0.65rem;margin-top:2px;">⚠️ ${escapeHtml(a.message || '데이터 미수집')}</div>
+                      <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:0.65rem;">
+                        <span>사전 5일 평균 등락: <b style="color:${(a.before_5d.avg_change_pct || 0) >= 0 ? '#4ade80' : '#f87171'};">${(a.before_5d.avg_change_pct || 0).toFixed(2)}%</b></span>
+                        <span>외인 누적: <b style="color:${(a.before_5d.total_foreign_net || 0) >= 0 ? '#4ade80' : '#f87171'};">${(a.before_5d.total_foreign_net || 0) >= 0 ? '+' : ''}${(a.before_5d.total_foreign_net || 0).toLocaleString()}</b></span>
+                        <span>기관 누적: <b style="color:${(a.before_5d.total_institutional_net || 0) >= 0 ? '#4ade80' : '#f87171'};">${(a.before_5d.total_institutional_net || 0) >= 0 ? '+' : ''}${(a.before_5d.total_institutional_net || 0).toLocaleString()}</b></span>
+                        <span>외인 보유율: <b style="color:var(--text);">${(a.before_5d.avg_foreign_holding_pct || 0).toFixed(2)}%</b></span>
+                      </div>
+                    ` : `
+                      <div style="margin-top:4px;font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);">
+                        당일: ${(a.event_day_change_pct || 0).toFixed(2)}% · 외인 ${a.event_day_foreign >= 0 ? '+' : ''}${(a.event_day_foreign || 0).toLocaleString()}
+                      </div>
+                    `}
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- 비교 종목 -->
+              <div>
+                <div style="font-size:0.72rem;color:#22d3ee;font-weight:600;margin-bottom:6px;">🔄 비교 종목 (${(report.comparison || []).length})</div>
+                ${(report.comparison || []).map(c => `
+                  <div style="background:rgba(34,211,238,0.06);border-left:2px solid #22d3ee;padding:8px 10px;margin-bottom:6px;border-radius:3px;font-size:0.72rem;">
+                    <div style="color:#ffffff;font-weight:600;">${escapeHtml(c.name)} <span style="color:var(--text-muted);font-size:0.62rem;font-weight:400;">(${escapeHtml(c.ticker)})</span></div>
+                    ${c.status === 'future_or_no_data_yet' ? `
+                      <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:0.65rem;">
+                        <span>5일 평균 등락: <b style="color:${(c.before_5d.avg_change_pct || 0) >= 0 ? '#4ade80' : '#f87171'};">${(c.before_5d.avg_change_pct || 0).toFixed(2)}%</b></span>
+                        <span>외인 누적: <b style="color:${(c.before_5d.total_foreign_net || 0) >= 0 ? '#4ade80' : '#f87171'};">${(c.before_5d.total_foreign_net || 0) >= 0 ? '+' : ''}${(c.before_5d.total_foreign_net || 0).toLocaleString()}</b></span>
+                      </div>
+                    ` : `
+                      <div style="margin-top:4px;font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);">
+                        당일: ${(c.event_day_change_pct || 0).toFixed(2)}% · 외인 ${c.event_day_foreign >= 0 ? '+' : ''}${(c.event_day_foreign || 0).toLocaleString()}
+                      </div>
+                    `}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+
+        <!-- 일별 테이블 (선택된 종목) -->
+        <div id="sidTableContainer" class="glass-card anim-item" style="padding:12px 14px;overflow-x:auto;">
+          <div id="sidTableTitle" style="font-size:0.82rem;color:#ffffff;font-weight:600;margin-bottom:8px;">📅 60거래일 일별 데이터 (로딩 중...)</div>
+          <div id="sidTableHost"></div>
+        </div>
+
+        <div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
+          🚨 ${escapeHtml(sid.warning || '시뮬레이션 전용.')}<br/>
+          데이터 소스: ${escapeHtml(sid.data_source || 'Naver 금융')} · 생성: ${escapeHtml(sid.generated_at || '')}
+        </div>
+      </section>`;
+    }
+
     // ─── ⚡ 장중 매매 모멘텀 (Phase B — 시간별) ──────────
     const intra = data.investor_flow_intraday;
     if (intra && Array.isArray(intra.results) && intra.results.length > 0) {
@@ -4774,6 +4863,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── 🗺️ Tactical Capital Map (D3.js 트리맵 + 히트맵) ──
     setTimeout(() => renderTacticalMap(data), 400);
 
+    // ─── 📅 종목별 일별 매매 + 이벤트 분석 테이블 ──
+    setTimeout(() => renderStockInvestorDetail(data), 450);
+
     // ─── 현재 시각 실시간 갱신 (1초마다)
     if (window.__nowClockInterval) clearInterval(window.__nowClockInterval);
     window.__nowClockInterval = setInterval(() => {
@@ -6039,6 +6131,111 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .attr('fill', 'var(--text-muted)')
       .attr('font-size', '0.55rem')
       .text('z-score');
+  }
+
+  // ─── 📅 종목별 일별 매매 + 이벤트 분석 렌더링 ──────────
+  function renderStockInvestorDetail(data) {
+    const sid = data.stock_investor_details;
+    if (!sid || !Array.isArray(sid.stocks) || sid.stocks.length === 0) return;
+
+    const select = document.getElementById('sidStockSelect');
+    const host = document.getElementById('sidTableHost');
+    const title = document.getElementById('sidTableTitle');
+    if (!select || !host || !title) return;
+
+    function renderTable(ticker) {
+      const stock = sid.stocks.find(s => s.ticker === ticker);
+      if (!stock) {
+        host.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem;padding:20px;text-align:center;">선택한 종목 데이터를 찾을 수 없습니다.</div>';
+        return;
+      }
+
+      // 자동 감지 이벤트 날짜 집합
+      const eventDates = new Set((stock.auto_events || []).map(e => e.date));
+
+      title.innerHTML = `📅 ${escapeHtml(stock.name)} <span style="color:var(--text-muted);font-size:0.7rem;font-weight:400;">(${escapeHtml(stock.ticker)}) · ${escapeHtml(stock.category)} · ${(stock.rows || []).length}거래일</span>`;
+
+      const rows = (stock.rows || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      if (rows.length === 0) {
+        host.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem;padding:20px;text-align:center;">일별 데이터가 없습니다.</div>';
+        return;
+      }
+
+      const fmtNum = (n) => {
+        if (n === null || n === undefined || isNaN(n)) return '-';
+        return Number(n).toLocaleString();
+      };
+      const fmtNet = (n) => {
+        if (n === null || n === undefined || isNaN(n)) return '-';
+        const sign = n >= 0 ? '+' : '';
+        const color = n >= 0 ? '#4ade80' : '#f87171';
+        return `<span style="color:${color};">${sign}${Number(n).toLocaleString()}</span>`;
+      };
+      const fmtPctVal = (n) => {
+        if (n === null || n === undefined || isNaN(n)) return '-';
+        const color = n >= 0 ? '#4ade80' : '#f87171';
+        const sign = n >= 0 ? '+' : '';
+        return `<span style="color:${color};">${sign}${Number(n).toFixed(2)}%</span>`;
+      };
+
+      // 자동 이벤트 정보 박스 (있으면)
+      let eventBox = '';
+      if ((stock.auto_events || []).length > 0) {
+        const evs = stock.auto_events.slice(0, 6);
+        eventBox = `<div style="margin-bottom:10px;padding:8px 10px;background:rgba(251,191,36,0.06);border-left:2px solid #fbbf24;border-radius:3px;font-size:0.7rem;">
+          <div style="color:#fbbf24;font-weight:600;margin-bottom:4px;">🚨 자동 감지 이벤트 ${stock.auto_events.length}건 (거래량 +200% / 등락 ±3% / 외인 ±300K)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${evs.map(e => `<span style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);padding:2px 6px;border-radius:3px;color:var(--text);font-family:var(--font-mono);font-size:0.65rem;">${escapeHtml(e.date)} <span style="color:var(--text-muted);">${escapeHtml((e.flags || []).join('+'))}</span></span>`).join('')}
+            ${stock.auto_events.length > 6 ? `<span style="color:var(--text-muted);font-size:0.65rem;">+${stock.auto_events.length - 6}개 더</span>` : ''}
+          </div>
+        </div>`;
+      }
+
+      const tableRows = rows.map(r => {
+        const isEvent = eventDates.has(r.date);
+        const bg = isEvent ? 'background:rgba(239,68,68,0.07);' : '';
+        const dateMark = isEvent ? `<span style="color:#f87171;font-weight:700;">●</span> ` : '';
+        return `<tr style="${bg}">
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;color:var(--text);">${dateMark}${escapeHtml(r.date || '')}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;color:var(--text);">${fmtNum(r.close)}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtPctVal(r.change_pct)}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;color:var(--text-muted);">${fmtNum(r.volume)}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtNet(r.foreign_net_shares)}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtNet(r.institutional_net_shares)}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtNet(r.individual_net_shares_est)}</td>
+          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;color:var(--text-muted);">${r.foreign_holding_pct !== null && r.foreign_holding_pct !== undefined ? Number(r.foreign_holding_pct).toFixed(2) + '%' : '-'}</td>
+        </tr>`;
+      }).join('');
+
+      host.innerHTML = `${eventBox}
+        <div style="max-height:520px;overflow-y:auto;border:1px solid rgba(139,92,246,0.15);border-radius:4px;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.7rem;">
+            <thead style="position:sticky;top:0;background:rgba(15,23,42,0.95);backdrop-filter:blur(6px);z-index:1;">
+              <tr style="border-bottom:1px solid rgba(139,92,246,0.3);">
+                <th style="padding:7px 8px;text-align:left;color:#a78bfa;font-size:0.68rem;font-weight:600;">날짜</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">종가</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">등락률</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">거래량</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">외인 순매수</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">기관 순매수</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">개인(추정)</th>
+                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">외인 보유율</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    // 변경 이벤트 바인딩
+    select.addEventListener('change', (e) => renderTable(e.target.value));
+
+    // 초기 렌더: 첫 종목 (이마트 우선 — 5.23 이벤트 핵심 종목)
+    const defaultTicker = sid.stocks.find(s => s.ticker === '139480') ? '139480' : sid.stocks[0].ticker;
+    select.value = defaultTicker;
+    renderTable(defaultTicker);
   }
 
   // ─── 우측 인스펙터 패널 열기/닫기 ─────────────────

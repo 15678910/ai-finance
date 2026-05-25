@@ -1381,6 +1381,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] SAO 통합 시그널 로드 실패: {e}")
 
+    # 10.13l) 종목별 일별 투자자 매매 + 이벤트 분석
+    sid_path = os.path.join(os.path.dirname(output_path), "stock_investor_details.json")
+    if os.path.exists(sid_path):
+        try:
+            with open(sid_path, encoding="utf-8") as f:
+                output_data["stock_investor_details"] = json.load(f)
+            print("[INFO] 종목별 일별 투자자 매매 + 이벤트 분석 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 종목별 일별 매매 데이터 로드 실패: {e}")
+
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf
