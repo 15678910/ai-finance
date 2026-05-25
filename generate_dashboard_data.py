@@ -1391,6 +1391,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 종목별 일별 매매 데이터 로드 실패: {e}")
 
+    # 10.13m) 시장 전체 투자자별 8-class 매매동향 (금융투자/투신/연기금 등)
+    mib_path = os.path.join(os.path.dirname(output_path), "market_investor_breakdown.json")
+    if os.path.exists(mib_path):
+        try:
+            with open(mib_path, encoding="utf-8") as f:
+                output_data["market_investor_breakdown"] = json.load(f)
+            print("[INFO] 시장 투자자별 8-class 매매동향 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 시장 투자자별 8-class 데이터 로드 실패: {e}")
+
     # 10.14) 섹터 종목 가격/PER/ROE를 info로 최신화 (history()보다 정확)
     try:
         import yfinance as yf

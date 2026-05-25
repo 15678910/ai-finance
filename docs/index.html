@@ -3075,52 +3075,52 @@ body {
           <span style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">${sid.stocks.length}개 종목 · 종목당 ${sid.days_per_stock}일</span>
         </div>
 
-        <!-- 사전 정의 이벤트 종합 분석 -->
-        ${(sid.event_reports || []).map(report => `
+        <!-- 사전 정의 이벤트 종합 분석 (막대 그래프 비교) -->
+        ${(sid.event_reports || []).map((report, ridx) => `
           <div class="glass-card anim-item" style="padding:12px 14px;margin-bottom:14px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.2);">
             <div style="font-size:0.9rem;color:#f87171;font-weight:700;margin-bottom:4px;">🎯 이벤트 분석: ${escapeHtml(report.label)}</div>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(report.description)} · 이벤트일: <b style="color:var(--text);">${escapeHtml(report.date)}</b></div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(report.description)} · 이벤트일: <b style="color:var(--text);">${escapeHtml(report.date)}</b></div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <!-- 영향 종목 -->
+            <!-- 범례 + 영향/비교 표식 -->
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;font-size:0.7rem;">
+              <span><span style="display:inline-block;width:10px;height:10px;background:#f87171;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>영향 종목 (${(report.affected || []).length})</span>
+              <span><span style="display:inline-block;width:10px;height:10px;background:#22d3ee;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>비교 종목 (${(report.comparison || []).length})</span>
+              <span style="color:var(--text-muted);font-size:0.65rem;">📊 막대 길이 = 사전 5거래일 누적값</span>
+            </div>
+
+            <!-- 3개 막대 차트: 등락률 / 외인 / 기관 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+              <div style="background:rgba(15,23,42,0.4);border-radius:4px;padding:8px;">
+                <div style="font-size:0.7rem;color:#a78bfa;font-weight:600;margin-bottom:6px;text-align:center;">📈 사전 5일 평균 등락률 (%)</div>
+                <canvas id="evChartChg-${ridx}" height="160"></canvas>
+              </div>
+              <div style="background:rgba(15,23,42,0.4);border-radius:4px;padding:8px;">
+                <div style="font-size:0.7rem;color:#a78bfa;font-weight:600;margin-bottom:6px;text-align:center;">🌐 외인 누적 순매수 (주)</div>
+                <canvas id="evChartFor-${ridx}" height="160"></canvas>
+              </div>
+              <div style="background:rgba(15,23,42,0.4);border-radius:4px;padding:8px;">
+                <div style="font-size:0.7rem;color:#a78bfa;font-weight:600;margin-bottom:6px;text-align:center;">🏛️ 기관 누적 순매수 (주)</div>
+                <canvas id="evChartInst-${ridx}" height="160"></canvas>
+              </div>
+            </div>
+
+            <!-- 미니 텍스트 카드 (컨텍스트 보존) -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               <div>
-                <div style="font-size:0.72rem;color:#f87171;font-weight:600;margin-bottom:6px;">🎯 영향 종목 (${(report.affected || []).length})</div>
+                <div style="font-size:0.7rem;color:#f87171;font-weight:600;margin-bottom:4px;">🎯 영향 종목</div>
                 ${(report.affected || []).map(a => `
-                  <div style="background:rgba(239,68,68,0.06);border-left:2px solid #f87171;padding:8px 10px;margin-bottom:6px;border-radius:3px;font-size:0.72rem;">
-                    <div style="color:#ffffff;font-weight:600;">${escapeHtml(a.name)} <span style="color:var(--text-muted);font-size:0.62rem;font-weight:400;">(${escapeHtml(a.ticker)}) · ${escapeHtml(a.context)}</span></div>
-                    ${a.status === 'future_or_no_data_yet' ? `
-                      <div style="color:#fbbf24;font-size:0.65rem;margin-top:2px;">⚠️ ${escapeHtml(a.message || '데이터 미수집')}</div>
-                      <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:0.65rem;">
-                        <span>사전 5일 평균 등락: <b style="color:${(a.before_5d.avg_change_pct || 0) >= 0 ? '#4ade80' : '#f87171'};">${(a.before_5d.avg_change_pct || 0).toFixed(2)}%</b></span>
-                        <span>외인 누적: <b style="color:${(a.before_5d.total_foreign_net || 0) >= 0 ? '#4ade80' : '#f87171'};">${(a.before_5d.total_foreign_net || 0) >= 0 ? '+' : ''}${(a.before_5d.total_foreign_net || 0).toLocaleString()}</b></span>
-                        <span>기관 누적: <b style="color:${(a.before_5d.total_institutional_net || 0) >= 0 ? '#4ade80' : '#f87171'};">${(a.before_5d.total_institutional_net || 0) >= 0 ? '+' : ''}${(a.before_5d.total_institutional_net || 0).toLocaleString()}</b></span>
-                        <span>외인 보유율: <b style="color:var(--text);">${(a.before_5d.avg_foreign_holding_pct || 0).toFixed(2)}%</b></span>
-                      </div>
-                    ` : `
-                      <div style="margin-top:4px;font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);">
-                        당일: ${(a.event_day_change_pct || 0).toFixed(2)}% · 외인 ${a.event_day_foreign >= 0 ? '+' : ''}${(a.event_day_foreign || 0).toLocaleString()}
-                      </div>
-                    `}
+                  <div style="background:rgba(239,68,68,0.05);border-left:2px solid #f87171;padding:5px 8px;margin-bottom:4px;border-radius:3px;font-size:0.66rem;">
+                    <b style="color:#fff;">${escapeHtml(a.name)}</b>
+                    <span style="color:var(--text-muted);font-size:0.6rem;">(${escapeHtml(a.ticker)}) · ${escapeHtml(a.context || '')}</span>
                   </div>
                 `).join('')}
               </div>
-
-              <!-- 비교 종목 -->
               <div>
-                <div style="font-size:0.72rem;color:#22d3ee;font-weight:600;margin-bottom:6px;">🔄 비교 종목 (${(report.comparison || []).length})</div>
+                <div style="font-size:0.7rem;color:#22d3ee;font-weight:600;margin-bottom:4px;">🔄 비교 종목</div>
                 ${(report.comparison || []).map(c => `
-                  <div style="background:rgba(34,211,238,0.06);border-left:2px solid #22d3ee;padding:8px 10px;margin-bottom:6px;border-radius:3px;font-size:0.72rem;">
-                    <div style="color:#ffffff;font-weight:600;">${escapeHtml(c.name)} <span style="color:var(--text-muted);font-size:0.62rem;font-weight:400;">(${escapeHtml(c.ticker)})</span></div>
-                    ${c.status === 'future_or_no_data_yet' ? `
-                      <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:0.65rem;">
-                        <span>5일 평균 등락: <b style="color:${(c.before_5d.avg_change_pct || 0) >= 0 ? '#4ade80' : '#f87171'};">${(c.before_5d.avg_change_pct || 0).toFixed(2)}%</b></span>
-                        <span>외인 누적: <b style="color:${(c.before_5d.total_foreign_net || 0) >= 0 ? '#4ade80' : '#f87171'};">${(c.before_5d.total_foreign_net || 0) >= 0 ? '+' : ''}${(c.before_5d.total_foreign_net || 0).toLocaleString()}</b></span>
-                      </div>
-                    ` : `
-                      <div style="margin-top:4px;font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);">
-                        당일: ${(c.event_day_change_pct || 0).toFixed(2)}% · 외인 ${c.event_day_foreign >= 0 ? '+' : ''}${(c.event_day_foreign || 0).toLocaleString()}
-                      </div>
-                    `}
+                  <div style="background:rgba(34,211,238,0.05);border-left:2px solid #22d3ee;padding:5px 8px;margin-bottom:4px;border-radius:3px;font-size:0.66rem;">
+                    <b style="color:#fff;">${escapeHtml(c.name)}</b>
+                    <span style="color:var(--text-muted);font-size:0.6rem;">(${escapeHtml(c.ticker)})${c.context ? ' · ' + escapeHtml(c.context) : ''}</span>
                   </div>
                 `).join('')}
               </div>
@@ -3137,6 +3137,51 @@ body {
         <div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
           🚨 ${escapeHtml(sid.warning || '시뮬레이션 전용.')}<br/>
           데이터 소스: ${escapeHtml(sid.data_source || 'Naver 금융')} · 생성: ${escapeHtml(sid.generated_at || '')}
+        </div>
+      </section>`;
+    }
+
+    // ─── 🏛️ 시장 투자자별 8-class 매매동향 (금융투자/투신/연기금 등) ──
+    const mib = data.market_investor_breakdown;
+    if (mib && mib.markets && (mib.markets.kospi || mib.markets.kosdaq)) {
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:#10b981;">🏛️ 시장 투자자별 8-class 매매동향 <span style="font-size:0.65rem;color:var(--text-muted);">(개인·외국인·기관 + 금융투자/보험/투신/은행/기타금융/연기금/사모/기타법인)</span></div>
+
+        <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(16,185,129,0.05);">
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
+            <b style="color:var(--text);">사용법:</b> 시장 토글 → 일별 8-class 자금 흐름 확인. 막대 그래프는 5거래일 누적.
+            <b style="color:var(--text);">단위: 백만원</b> (양수=순매수, 음수=순매도).<br/>
+            <b style="color:var(--text);">한계:</b> 시장 전체 통계만 가능. 개별 종목별 8-class 세분화는 KRX 인증 필요(차후 확장).
+          </div>
+        </div>
+
+        <!-- 시장 토글 -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button class="mib-tab is-active" data-mib-market="kospi" style="padding:6px 16px;background:rgba(16,185,129,0.18);border:1px solid rgba(16,185,129,0.4);color:#10b981;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:inherit;">KOSPI</button>
+          <button class="mib-tab" data-mib-market="kosdaq" style="padding:6px 16px;background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.2);color:var(--text-muted);border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:inherit;">KOSDAQ</button>
+          <span style="margin-left:auto;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);align-self:center;">최근일: <b id="mibLatestDate" style="color:var(--text);"></b></span>
+        </div>
+
+        <!-- 5일 누적 막대 차트 + 일별 추이 라인 차트 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="glass-card" style="padding:10px 12px;">
+            <div style="font-size:0.78rem;color:#10b981;font-weight:600;margin-bottom:6px;">📊 5거래일 누적 순매수 (백만원)</div>
+            <canvas id="mibSummaryChart" height="220"></canvas>
+          </div>
+          <div class="glass-card" style="padding:10px 12px;">
+            <div style="font-size:0.78rem;color:#10b981;font-weight:600;margin-bottom:6px;">📈 기관 세부 일별 추이 (백만원)</div>
+            <canvas id="mibTrendChart" height="220"></canvas>
+          </div>
+        </div>
+
+        <!-- 일별 8-class 테이블 -->
+        <div class="glass-card anim-item" style="padding:12px 14px;overflow-x:auto;">
+          <div style="font-size:0.78rem;color:#fff;font-weight:600;margin-bottom:8px;">📅 일별 8-class 매매동향 (백만원)</div>
+          <div id="mibTableHost"></div>
+        </div>
+
+        <div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
+          🚨 ${escapeHtml(mib.warning || '시뮬레이션 전용')} · 데이터 소스: ${escapeHtml(mib.data_source || 'Naver')} · 생성: ${escapeHtml(mib.generated_at || '')}
         </div>
       </section>`;
     }
@@ -4866,6 +4911,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── 📅 종목별 일별 매매 + 이벤트 분석 테이블 ──
     setTimeout(() => renderStockInvestorDetail(data), 450);
 
+    // ─── 🏛️ 시장 투자자별 8-class 매매동향 ──
+    setTimeout(() => renderMarketInvestorBreakdown(data), 500);
+
     // ─── 현재 시각 실시간 갱신 (1초마다)
     if (window.__nowClockInterval) clearInterval(window.__nowClockInterval);
     window.__nowClockInterval = setInterval(() => {
@@ -5163,23 +5211,35 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       nodes: { borderWidthSelected: 3 },
     };
 
-    if (__kgNetwork) {
-      __kgNetwork.setData({ nodes: visNodes, edges: visEdges });
-    } else {
-      __kgNetwork = new vis.Network(container,
-        { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) },
-        opts);
-      __kgNetwork.on('click', (params) => {
-        if (params.nodes && params.nodes.length > 0) {
-          const id = params.nodes[0];
-          const node = __kgNodesAll.find(n => n.id === id);
-          if (node) renderKgDetail(node);
-        }
-      });
-      __kgNetwork.on('stabilizationIterationsDone', () => {
-        const emptyEl = document.getElementById('kgEmptyMsg');
-        if (emptyEl) emptyEl.style.display = 'none';
-      });
+    // 로딩 메시지 즉시 숨김 (네트워크 생성 직후 = 가시화 시작)
+    const hideLoading = () => {
+      const emptyEl = document.getElementById('kgEmptyMsg');
+      if (emptyEl) emptyEl.style.display = 'none';
+    };
+
+    try {
+      if (__kgNetwork) {
+        __kgNetwork.setData({ nodes: visNodes, edges: visEdges });
+        hideLoading();
+      } else {
+        __kgNetwork = new vis.Network(container,
+          { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) },
+          opts);
+        __kgNetwork.on('click', (params) => {
+          if (params.nodes && params.nodes.length > 0) {
+            const id = params.nodes[0];
+            const node = __kgNodesAll.find(n => n.id === id);
+            if (node) renderKgDetail(node);
+          }
+        });
+        __kgNetwork.on('stabilizationIterationsDone', hideLoading);
+        // Fallback: 안정화 이벤트 미발생 대비 (네트워크 생성 100ms 후 무조건 숨김)
+        setTimeout(hideLoading, 100);
+      }
+    } catch (err) {
+      console.error('[KG] render error', err);
+      const emptyEl = document.getElementById('kgEmptyMsg');
+      if (emptyEl) emptyEl.textContent = '그래프 렌더링 실패: ' + (err.message || err);
     }
   }
 
@@ -6236,6 +6296,267 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const defaultTicker = sid.stocks.find(s => s.ticker === '139480') ? '139480' : sid.stocks[0].ticker;
     select.value = defaultTicker;
     renderTable(defaultTicker);
+
+    // ─── 이벤트 비교 막대 차트 렌더링 ──
+    (sid.event_reports || []).forEach((report, ridx) => {
+      const affected = report.affected || [];
+      const comparison = report.comparison || [];
+      if (affected.length === 0 && comparison.length === 0) return;
+
+      const labels = [
+        ...affected.map(a => a.name + ' ★'),
+        ...comparison.map(c => c.name),
+      ];
+      const isAffectedArr = [
+        ...affected.map(() => true),
+        ...comparison.map(() => false),
+      ];
+
+      const dataChg = [
+        ...affected.map(a => (a.before_5d || {}).avg_change_pct || 0),
+        ...comparison.map(c => (c.before_5d || {}).avg_change_pct || 0),
+      ];
+      const dataFor = [
+        ...affected.map(a => (a.before_5d || {}).total_foreign_net || 0),
+        ...comparison.map(c => (c.before_5d || {}).total_foreign_net || 0),
+      ];
+      const dataInst = [
+        ...affected.map(a => (a.before_5d || {}).total_institutional_net || 0),
+        ...comparison.map(c => (c.before_5d || {}).total_institutional_net || 0),
+      ];
+
+      // 영향 종목은 빨강, 비교 종목은 시안. 값이 음수면 채도 다운.
+      const colorize = (vals) => vals.map((v, i) => {
+        if (isAffectedArr[i]) {
+          return v >= 0 ? 'rgba(248,113,113,0.95)' : 'rgba(248,113,113,0.6)';
+        }
+        return v >= 0 ? 'rgba(34,211,238,0.85)' : 'rgba(34,211,238,0.5)';
+      });
+
+      const baseOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.parsed.x;
+                if (typeof v === 'number') {
+                  return v.toLocaleString() + (ctx.dataset._suffix || '');
+                }
+                return v;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#94a3b8', font: { size: 9 } },
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#e2e8f0', font: { size: 10 } },
+          },
+        },
+      };
+
+      const makeChart = (canvasId, data, suffix) => {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        new Chart(el, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: colorize(data),
+              borderColor: colorize(data).map(c => c.replace(/[\d.]+\)$/, '1)')),
+              borderWidth: 1,
+              borderRadius: 3,
+              _suffix: suffix,
+            }],
+          },
+          options: baseOpts,
+        });
+      };
+
+      makeChart(`evChartChg-${ridx}`, dataChg, '%');
+      makeChart(`evChartFor-${ridx}`, dataFor, '주');
+      makeChart(`evChartInst-${ridx}`, dataInst, '주');
+    });
+  }
+
+  // ─── 🏛️ 시장 투자자별 8-class 매매동향 렌더링 ──────────
+  function renderMarketInvestorBreakdown(data) {
+    const mib = data.market_investor_breakdown;
+    if (!mib || !mib.markets) return;
+
+    const INVESTOR_LABELS = mib.investor_types || {
+      personal: '개인', foreign: '외국인', institutional_total: '기관계',
+      financial_inv: '금융투자', insurance: '보험', trust: '투신',
+      other_financial: '기타금융', bank: '은행', pension: '연기금',
+      private_fund: '사모', other_corp: '기타법인',
+    };
+
+    // 기관 세부만 표시할 키 (8-class 핵심)
+    const INST_DETAIL_KEYS = ['financial_inv', 'insurance', 'trust', 'other_financial', 'bank', 'pension', 'private_fund'];
+    const INST_COLORS = {
+      financial_inv: '#10b981',   // 금융투자 = 메인 녹색
+      insurance:     '#f59e0b',   // 보험 = 주황
+      trust:         '#22d3ee',   // 투신 = 시안
+      other_financial: '#a78bfa', // 기타금융 = 보라
+      bank:          '#94a3b8',   // 은행 = 회색
+      pension:       '#ef4444',   // 연기금 = 빨강 (중요)
+      private_fund:  '#fbbf24',   // 사모 = 노랑
+    };
+
+    let currentMarket = 'kospi';
+    let summaryChart = null;
+    let trendChart = null;
+
+    function renderForMarket(marketKey) {
+      const m = mib.markets[marketKey];
+      const tableHost = document.getElementById('mibTableHost');
+      const latestEl = document.getElementById('mibLatestDate');
+      if (!m || !Array.isArray(m.rows) || m.rows.length === 0) {
+        if (tableHost) tableHost.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center;font-size:0.75rem;">데이터 없음</div>';
+        if (latestEl) latestEl.textContent = '-';
+        return;
+      }
+      if (latestEl) latestEl.textContent = m.latest_date || '-';
+
+      // 1) 5일 누적 막대 차트 (개인/외국인/기관계 + 7개 세부)
+      const s5 = m.summary_5d || {};
+      const summaryKeys = ['personal', 'foreign', 'institutional_total', ...INST_DETAIL_KEYS, 'other_corp'];
+      const summaryLabels = summaryKeys.map(k => INVESTOR_LABELS[k] || k);
+      const summaryVals = summaryKeys.map(k => s5[k] || 0);
+      const summaryColors = summaryKeys.map(k => {
+        if (k === 'personal') return '#fbbf24';
+        if (k === 'foreign') return '#22d3ee';
+        if (k === 'institutional_total') return '#a78bfa';
+        if (k === 'other_corp') return '#94a3b8';
+        return INST_COLORS[k] || '#10b981';
+      });
+
+      const sumCtx = document.getElementById('mibSummaryChart');
+      if (sumCtx) {
+        if (summaryChart) summaryChart.destroy();
+        summaryChart = new Chart(sumCtx, {
+          type: 'bar',
+          data: {
+            labels: summaryLabels,
+            datasets: [{
+              data: summaryVals,
+              backgroundColor: summaryVals.map((v, i) =>
+                v >= 0 ? summaryColors[i] : summaryColors[i] + '80'),
+              borderColor: summaryColors,
+              borderWidth: 1,
+              borderRadius: 3,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (ctx) => ctx.parsed.x.toLocaleString() + '백만원' } },
+            },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+              y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 10 } } },
+            },
+          },
+        });
+      }
+
+      // 2) 기관 세부 일별 추이 (라인 차트, 최근 10일)
+      const rowsAsc = m.rows.slice().reverse(); // 오래된→최근
+      const dates = rowsAsc.map(r => r.date.slice(5)); // MM-DD
+      const trendDatasets = INST_DETAIL_KEYS.map(k => ({
+        label: INVESTOR_LABELS[k] || k,
+        data: rowsAsc.map(r => r[k] || 0),
+        borderColor: INST_COLORS[k],
+        backgroundColor: INST_COLORS[k] + '20',
+        borderWidth: 1.8,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        tension: 0.25,
+      }));
+
+      const trendCtx = document.getElementById('mibTrendChart');
+      if (trendCtx) {
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(trendCtx, {
+          type: 'line',
+          data: { labels: dates, datasets: trendDatasets },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 9 }, boxWidth: 10, padding: 6 } },
+              tooltip: { mode: 'index', intersect: false },
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+              y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 9 }, callback: (v) => v.toLocaleString() } },
+            },
+          },
+        });
+      }
+
+      // 3) 일별 8-class 테이블
+      const tableKeys = ['personal', 'foreign', 'institutional_total', 'financial_inv', 'insurance', 'trust', 'other_financial', 'bank', 'pension', 'private_fund', 'other_corp'];
+      const fmt = (v) => {
+        if (v === null || v === undefined || isNaN(v)) return '-';
+        const sign = v >= 0 ? '+' : '';
+        const color = v >= 0 ? '#4ade80' : '#f87171';
+        return `<span style="color:${color};">${sign}${Number(v).toLocaleString()}</span>`;
+      };
+      const headerCells = ['날짜', ...tableKeys.map(k => INVESTOR_LABELS[k] || k)].map(h =>
+        `<th style="padding:6px 8px;text-align:right;color:#10b981;font-size:0.66rem;font-weight:600;border-bottom:1px solid rgba(16,185,129,0.3);">${escapeHtml(h)}</th>`
+      );
+      headerCells[0] = `<th style="padding:6px 8px;text-align:left;color:#10b981;font-size:0.66rem;font-weight:600;border-bottom:1px solid rgba(16,185,129,0.3);">날짜</th>`;
+
+      const bodyRows = m.rows.map(r => {
+        const cells = [
+          `<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.68rem;color:var(--text);">${escapeHtml(r.date)}</td>`,
+          ...tableKeys.map(k => `<td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.68rem;text-align:right;">${fmt(r[k])}</td>`),
+        ];
+        return `<tr>${cells.join('')}</tr>`;
+      }).join('');
+
+      tableHost.innerHTML = `
+        <div style="max-height:420px;overflow:auto;border:1px solid rgba(16,185,129,0.15);border-radius:4px;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.7rem;">
+            <thead style="position:sticky;top:0;background:rgba(15,23,42,0.95);backdrop-filter:blur(6px);z-index:1;">
+              <tr>${headerCells.join('')}</tr>
+            </thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    // 시장 토글 바인딩
+    document.querySelectorAll('.mib-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const market = btn.dataset.mibMarket;
+        if (!market || market === currentMarket) return;
+        currentMarket = market;
+        document.querySelectorAll('.mib-tab').forEach(b => {
+          const isActive = b.dataset.mibMarket === market;
+          b.classList.toggle('is-active', isActive);
+          b.style.background = isActive ? 'rgba(16,185,129,0.18)' : 'rgba(15,23,42,0.4)';
+          b.style.borderColor = isActive ? 'rgba(16,185,129,0.4)' : 'rgba(148,163,184,0.2)';
+          b.style.color = isActive ? '#10b981' : 'var(--text-muted)';
+        });
+        renderForMarket(market);
+      });
+    });
+
+    // 초기 렌더
+    renderForMarket(currentMarket);
   }
 
   // ─── 우측 인스펙터 패널 열기/닫기 ─────────────────

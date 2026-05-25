@@ -1,0 +1,78 @@
+name: Market Investor Breakdown (8-class daily)
+
+on:
+  schedule:
+    # KST 17:00 평일 — 장 마감(15:30) + Naver 데이터 안정화 1.5h 후
+    # UTC 08:00 = KST 17:00
+    - cron: '0 8 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests beautifulsoup4 lxml
+
+      - name: Run market investor breakdown collector
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python market_investor_breakdown.py
+
+      - name: Regenerate dashboard data.json
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python generate_dashboard_data.py || true
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add docs/market_investor_breakdown.json docs/data.json 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Update market investor breakdown (8-class) [automated]"
+
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, rebasing..."
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+
+          echo "Failed to push after 5 attempts"
+          exit 1
