@@ -6156,6 +6156,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ? `${(rdB / 10000).toFixed(1)}조원`
           : `${rdB.toLocaleString()}억원`;
 
+        const capexB   = t.capex_billion || 0;
+        const capexPct = Math.min(100, capexB / maxRd * 100);   // 동일 스케일 기준
+        const capexLabel = capexB >= 10000
+          ? `${(capexB / 10000).toFixed(1)}조원`
+          : capexB > 0 ? `${capexB.toLocaleString()}억원` : '—';
+        const capexRdRatio = rdB > 0 && capexB > 0
+          ? (capexB / rdB).toFixed(1) : null;
+
         const tags = (t.tech_tags || []).map(tag =>
           `<span style="display:inline-block;padding:2px 8px;background:rgba(139,92,246,0.15);
             border:1px solid rgba(139,92,246,0.35);border-radius:10px;font-size:0.6rem;
@@ -6195,18 +6203,31 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             </div>
           </div>
 
-          <!-- R&D 투자 -->
+          <!-- R&D + CapEx 투자 -->
           <div style="margin-bottom:10px;">
+            <!-- R&D 바 -->
             <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:4px;">
               <span style="color:var(--text-muted);">📊 연간 R&amp;D</span>
               <span style="color:#a78bfa;font-weight:600;">${rdLabel}
                 <span style="color:var(--text-muted);font-weight:400;"> · ${t.rd_pct != null ? t.rd_pct.toFixed(1) : '—'}%</span>
               </span>
             </div>
-            <div style="background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;">
+            <div style="background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;margin-bottom:7px;">
               <div style="width:${rdPct.toFixed(1)}%;height:100%;
                 background:linear-gradient(90deg,#7c3aed,${sectorColor});border-radius:3px;"></div>
             </div>
+            <!-- CapEx 바 -->
+            <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:4px;">
+              <span style="color:var(--text-muted);">🏭 설비 투자 (CapEx)</span>
+              <span style="color:#fb923c;font-weight:600;">${capexLabel}
+                ${capexRdRatio ? `<span style="color:var(--text-muted);font-weight:400;"> · R&D의 ${capexRdRatio}배</span>` : ''}
+              </span>
+            </div>
+            <div style="background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;">
+              <div style="width:${capexPct.toFixed(1)}%;height:100%;
+                background:linear-gradient(90deg,#c2410c,#fb923c);border-radius:3px;"></div>
+            </div>
+            ${t.capex_note ? `<div style="font-size:0.58rem;color:var(--text-muted);margin-top:3px;">${escapeHtml(t.capex_note)}</div>` : ''}
           </div>
 
           <!-- 특허 -->

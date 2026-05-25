@@ -57,6 +57,23 @@ STATIC_TECH = {
     "006400": {"rd_billion": 65000,   "rd_pct": 8.30, "patent_count": 4700,  "tech_tags": ["전고체배터리", "하이니켈NCA", "46파이원통형", "실리콘음극재", "ESS"]},
 }
 
+# ── 설비 투자(CapEx) 정적 기준값 (억원, 연간 유형자산 취득 기준) ──────────────
+# 출처: 최근 사업보고서 현금흐름표 '유형자산의 취득' 항목 추정치
+STATIC_CAPEX = {
+    "139480": {"capex_billion": 3500,   "capex_note": "물류센터·점포 리뉴얼"},
+    "004170": {"capex_billion": 1800,   "capex_note": "백화점·면세점 시설"},
+    "023530": {"capex_billion": 3200,   "capex_note": "점포·물류 인프라"},
+    "008770": {"capex_billion": 700,    "capex_note": "호텔·면세 시설"},
+    "069960": {"capex_billion": 1100,   "capex_note": "점포 리뉴얼"},
+    "057050": {"capex_billion": 130,    "capex_note": "IT시스템·방송장비"},
+    "005930": {"capex_billion": 530000, "capex_note": "반도체 팹·메모리 생산라인"},   # ~53조원
+    "000660": {"capex_billion": 180000, "capex_note": "DRAM·NAND 팹 증설"},          # ~18조원
+    "042700": {"capex_billion": 1200,   "capex_note": "본딩장비 제조 설비"},
+    "035420": {"capex_billion": 6500,   "capex_note": "데이터센터·클라우드 인프라"},
+    "035720": {"capex_billion": 2500,   "capex_note": "서버·데이터센터"},
+    "006400": {"capex_billion": 38000,  "capex_note": "배터리 팩토리 증설"},           # ~3.8조원
+}
+
 # IPC 기술 분류 코드 → 한국어
 IPC_MAP = {
     "H01M": "배터리/전지", "H01L": "반도체", "G06F": "컴퓨팅",
@@ -129,6 +146,38 @@ def get_rd_expense(corp_code, year=2024):
             rev = val
 
     return rd, rev   # 단위: 백만원
+
+
+def get_capex(corp_code, year=2024):
+    """DART 현금흐름표 → 설비 투자(유형자산 취득) (단위: 백만원)
+
+    fnlttSinglAcntAll.json 로 전체 재무제표를 받아 sj_div='CF' 항목 중
+    '유형자산의 취득' 계정을 찾아 반환.  지출이므로 원본 음수 → abs() 처리.
+    """
+    data = _dart_get("fnlttSinglAcntAll.json", {
+        "corp_code":  corp_code,
+        "bsns_year":  str(year),
+        "reprt_code": "11011",   # 사업보고서
+        "fs_div":     "CFS",     # 연결재무제표
+    })
+    if data.get("status") != "000":
+        return None
+
+    CAPEX_KEYS = {"유형자산의 취득", "유형자산 취득", "설비투자", "자본적지출",
+                  "유형자산의취득", "유형자산취득"}
+
+    for item in data.get("list", []):
+        if item.get("sj_div") != "CF":
+            continue
+        nm = item.get("account_nm", "")
+        if any(k in nm for k in CAPEX_KEYS):
+            raw = (item.get("thstrm_amount") or "").replace(",", "").lstrip("-")
+            try:
+                return abs(int(raw))   # 백만원, 부호 제거
+            except Exception:
+                continue
+
+    return None
 
 
 def get_tech_disclosures(corp_code, days=180):
@@ -221,17 +270,20 @@ def main():
         name   = stk["name"]
         print(f"\n  [{ticker}] {name}")
 
-        static = STATIC_TECH.get(ticker, {})
+        static      = STATIC_TECH.get(ticker, {})
+        static_capex = STATIC_CAPEX.get(ticker, {})
         entry  = {
-            "ticker":      ticker,
-            "name":        name,
-            "sector":      stk["sector"],
-            "rd_billion":  static.get("rd_billion"),   # 억원 단위
-            "rd_pct":      static.get("rd_pct"),        # 매출 대비 %
-            "patent_count": static.get("patent_count"),
-            "tech_tags":   static.get("tech_tags", []),
-            "disclosures": [],
-            "data_quality": "static",
+            "ticker":        ticker,
+            "name":          name,
+            "sector":        stk["sector"],
+            "rd_billion":    static.get("rd_billion"),       # 억원
+            "rd_pct":        static.get("rd_pct"),           # 매출 대비 %
+            "capex_billion": static_capex.get("capex_billion"),  # 억원
+            "capex_note":    static_capex.get("capex_note", ""),
+            "patent_count":  static.get("patent_count"),
+            "tech_tags":     static.get("tech_tags", []),
+            "disclosures":   [],
+            "data_quality":  "static",
         }
 
         # DART API 수집 시도
@@ -241,12 +293,20 @@ def main():
 
             rd, rev = get_rd_expense(corp_code, year=2024)
             if rd is not None:
-                entry["rd_billion"]    = round(rd / 100)     # 백만원 → 억원
-                entry["rd_pct"]        = round(rd / rev * 100, 2) if rev else None
-                entry["data_quality"]  = "dart_api"
+                entry["rd_billion"]   = round(rd / 100)     # 백만원 → 억원
+                entry["rd_pct"]       = round(rd / rev * 100, 2) if rev else None
+                entry["data_quality"] = "dart_api"
                 print(f"    R&D: {entry['rd_billion']:,}억원 ({entry['rd_pct']}%)")
             else:
                 print(f"    R&D: DART 응답 없음 — 정적값 사용")
+
+            capex_raw = get_capex(corp_code, year=2024)
+            if capex_raw is not None:
+                entry["capex_billion"] = round(capex_raw / 100)  # 백만원 → 억원
+                entry["data_quality"]  = "dart_api"
+                print(f"    CapEx: {entry['capex_billion']:,}억원 (유형자산 취득)")
+            else:
+                print(f"    CapEx: DART 응답 없음 — 정적값 사용")
 
             disclosures = get_tech_disclosures(corp_code)
             entry["disclosures"] = disclosures
