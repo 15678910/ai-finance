@@ -3052,6 +3052,101 @@ body {
       html += `</section>`;
     }
 
+    // ─── 🛒 국내 유통 종목 매매동향 비교 (이마트·신세계·롯데쇼핑·호텔신라·현대백화점·현대홈쇼핑) ──
+    const sidRetail = data.stock_investor_details;
+    if (sidRetail && Array.isArray(sidRetail.stocks)) {
+      const retailStocks = sidRetail.stocks.filter(s => s.category === '유통');
+      if (retailStocks.length > 0) {
+        html += `<section class="section-wrap" style="margin-top:32px;">
+          <div class="section-label" style="color:#f97316;">🛒 국내 유통 종목 매매동향 비교 <span style="font-size:0.65rem;color:var(--text-muted);">(${retailStocks.length}종목 × 60거래일 · 외인·기관·개인 자금 흐름)</span></div>
+
+          <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(249,115,22,0.05);">
+            <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
+              <b style="color:var(--text);">시각 비교:</b> 국내 6대 유통주의 5/20/60거래일 누적 외인/기관/개인 매매 동향. 막대 길이 = 누적 순매수(주).
+              <b style="color:var(--text);">색상:</b> <span style="color:#22d3ee;">외인</span> · <span style="color:#a78bfa;">기관</span> · <span style="color:#fbbf24;">개인(추정)</span>.<br/>
+              <b style="color:var(--text);">하이라이트:</b> <span style="color:#f87171;">★ 이마트·신세계 = 스타벅스 5.23 사건 영향군 (신세계그룹)</span>
+            </div>
+          </div>
+
+          <!-- 종목별 미니 카드 (6개 그리드) -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(310px, 1fr));gap:12px;margin-bottom:16px;">
+            ${retailStocks.map(s => {
+              const rows = (s.rows || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+              const r5 = rows.slice(-5);
+              const r20 = rows.slice(-20);
+              const r60 = rows;
+              const sum = (arr, k) => arr.reduce((acc, r) => acc + (r[k] || 0), 0);
+              const last = rows[rows.length - 1] || {};
+              const first5 = rows[Math.max(0, rows.length - 5)] || last;
+              const first60 = rows[0] || last;
+              const chg5d = first5.close ? ((last.close - first5.close) / first5.close * 100) : 0;
+              const chg60d = first60.close ? ((last.close - first60.close) / first60.close * 100) : 0;
+              const isShinsegae = s.ticker === '139480' || s.ticker === '004170';
+              const accent = isShinsegae ? '#f87171' : '#f97316';
+              return `<div class="glass-card" style="padding:12px 14px;border-left:3px solid ${accent};background:rgba(249,115,22,0.03);">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+                  <div>
+                    <b style="color:#fff;font-size:0.88rem;">${isShinsegae ? '★ ' : ''}${escapeHtml(s.name)}</b>
+                    <span style="color:var(--text-muted);font-size:0.65rem;margin-left:4px;">(${escapeHtml(s.ticker)})</span>
+                  </div>
+                  <div style="text-align:right;font-family:var(--font-mono);">
+                    <div style="color:#fff;font-size:0.78rem;font-weight:600;">${(last.close || 0).toLocaleString()}</div>
+                    <div style="font-size:0.66rem;color:${(last.change_pct || 0) >= 0 ? '#4ade80' : '#f87171'};">${(last.change_pct || 0) >= 0 ? '+' : ''}${(last.change_pct || 0).toFixed(2)}%</div>
+                  </div>
+                </div>
+
+                <!-- 5일/20일/60일 누적 매매 그리드 -->
+                <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:4px 8px;font-size:0.66rem;font-family:var(--font-mono);align-items:center;">
+                  <div style="color:var(--text-muted);"></div>
+                  <div style="color:#22d3ee;text-align:right;font-weight:600;">외인</div>
+                  <div style="color:#a78bfa;text-align:right;font-weight:600;">기관</div>
+                  <div style="color:#fbbf24;text-align:right;font-weight:600;">개인</div>
+
+                  <div style="color:var(--text-muted);">5일</div>
+                  <div style="text-align:right;color:${sum(r5,'foreign_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r5,'foreign_net_shares')>=0?'+':''}${sum(r5,'foreign_net_shares').toLocaleString()}</div>
+                  <div style="text-align:right;color:${sum(r5,'institutional_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r5,'institutional_net_shares')>=0?'+':''}${sum(r5,'institutional_net_shares').toLocaleString()}</div>
+                  <div style="text-align:right;color:${sum(r5,'individual_net_shares_est')>=0?'#4ade80':'#f87171'};">${sum(r5,'individual_net_shares_est')>=0?'+':''}${sum(r5,'individual_net_shares_est').toLocaleString()}</div>
+
+                  <div style="color:var(--text-muted);">20일</div>
+                  <div style="text-align:right;color:${sum(r20,'foreign_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r20,'foreign_net_shares')>=0?'+':''}${sum(r20,'foreign_net_shares').toLocaleString()}</div>
+                  <div style="text-align:right;color:${sum(r20,'institutional_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r20,'institutional_net_shares')>=0?'+':''}${sum(r20,'institutional_net_shares').toLocaleString()}</div>
+                  <div style="text-align:right;color:${sum(r20,'individual_net_shares_est')>=0?'#4ade80':'#f87171'};">${sum(r20,'individual_net_shares_est')>=0?'+':''}${sum(r20,'individual_net_shares_est').toLocaleString()}</div>
+
+                  <div style="color:var(--text-muted);">60일</div>
+                  <div style="text-align:right;color:${sum(r60,'foreign_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r60,'foreign_net_shares')>=0?'+':''}${sum(r60,'foreign_net_shares').toLocaleString()}</div>
+                  <div style="text-align:right;color:${sum(r60,'institutional_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r60,'institutional_net_shares')>=0?'+':''}${sum(r60,'institutional_net_shares').toLocaleString()}</div>
+                  <div style="text-align:right;color:${sum(r60,'individual_net_shares_est')>=0?'#4ade80':'#f87171'};">${sum(r60,'individual_net_shares_est')>=0?'+':''}${sum(r60,'individual_net_shares_est').toLocaleString()}</div>
+                </div>
+
+                <!-- 가격 + 등락률 메타 -->
+                <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">
+                  <span>외인 보유: <b style="color:var(--text);">${(last.foreign_holding_pct || 0).toFixed(1)}%</b></span>
+                  <span>5일등락: <b style="color:${chg5d>=0?'#4ade80':'#f87171'};">${chg5d>=0?'+':''}${chg5d.toFixed(1)}%</b></span>
+                  <span>60일등락: <b style="color:${chg60d>=0?'#4ade80':'#f87171'};">${chg60d>=0?'+':''}${chg60d.toFixed(1)}%</b></span>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+
+          <!-- 종합 비교 막대 차트 (3개: 외인/기관/개인 5일 누적) -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div class="glass-card" style="padding:10px 12px;">
+              <div style="font-size:0.74rem;color:#22d3ee;font-weight:600;margin-bottom:6px;">🌐 외인 5일 누적 순매수 (주)</div>
+              <div style="position:relative;height:200px;"><canvas id="retailForeignChart"></canvas></div>
+            </div>
+            <div class="glass-card" style="padding:10px 12px;">
+              <div style="font-size:0.74rem;color:#a78bfa;font-weight:600;margin-bottom:6px;">🏛️ 기관 5일 누적 순매수 (주)</div>
+              <div style="position:relative;height:200px;"><canvas id="retailInstChart"></canvas></div>
+            </div>
+            <div class="glass-card" style="padding:10px 12px;">
+              <div style="font-size:0.74rem;color:#fbbf24;font-weight:600;margin-bottom:6px;">👤 개인 5일 누적 순매수 (주)</div>
+              <div style="position:relative;height:200px;"><canvas id="retailIndivChart"></canvas></div>
+            </div>
+          </div>
+        </section>`;
+      }
+    }
+
     // ─── 📅 종목별 일별 투자자 매매 + 이벤트 분석 ──────────
     const sid = data.stock_investor_details;
     if (sid && Array.isArray(sid.stocks) && sid.stocks.length > 0) {
@@ -4908,6 +5003,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── 🗺️ Tactical Capital Map (D3.js 트리맵 + 히트맵) ──
     setTimeout(() => renderTacticalMap(data), 400);
 
+    // ─── 🛒 국내 유통 종목 매매동향 비교 ──
+    setTimeout(() => renderRetailSectorCharts(data), 420);
+
     // ─── 📅 종목별 일별 매매 + 이벤트 분석 테이블 ──
     setTimeout(() => renderStockInvestorDetail(data), 450);
 
@@ -6191,6 +6289,74 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .attr('fill', 'var(--text-muted)')
       .attr('font-size', '0.55rem')
       .text('z-score');
+  }
+
+  // ─── 🛒 국내 유통 6종목 비교 막대 차트 ──────────
+  function renderRetailSectorCharts(data) {
+    const sid = data.stock_investor_details;
+    if (!sid || !Array.isArray(sid.stocks)) return;
+    const retail = sid.stocks.filter(s => s.category === '유통');
+    if (retail.length === 0) return;
+
+    const labels = retail.map(s => {
+      const star = (s.ticker === '139480' || s.ticker === '004170') ? '★ ' : '';
+      return star + s.name;
+    });
+
+    const sumLast = (stock, n, key) => {
+      const rows = (stock.rows || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).slice(-n);
+      return rows.reduce((acc, r) => acc + (r[key] || 0), 0);
+    };
+
+    const dataForeign = retail.map(s => sumLast(s, 5, 'foreign_net_shares'));
+    const dataInst = retail.map(s => sumLast(s, 5, 'institutional_net_shares'));
+    const dataIndiv = retail.map(s => sumLast(s, 5, 'individual_net_shares_est'));
+
+    // 신세계그룹(이마트/신세계)은 별색
+    const colorize = (vals, baseColor) => vals.map((v, i) => {
+      const isAffected = (retail[i].ticker === '139480' || retail[i].ticker === '004170');
+      const alpha = v >= 0 ? '95' : '50';
+      if (isAffected) return `rgba(248,113,113,0.${alpha})`;
+      return baseColor + alpha;
+    });
+
+    const baseOpts = {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => ctx.parsed.x.toLocaleString() + '주' } },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+        y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 10 } } },
+      },
+    };
+
+    const makeChart = (canvasId, vals, baseColor, solidBorder) => {
+      const el = document.getElementById(canvasId);
+      if (!el) return;
+      new Chart(el, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: vals,
+            backgroundColor: colorize(vals, baseColor),
+            borderColor: vals.map((v, i) => {
+              const isAffected = (retail[i].ticker === '139480' || retail[i].ticker === '004170');
+              return isAffected ? '#f87171' : solidBorder;
+            }),
+            borderWidth: 1,
+            borderRadius: 3,
+          }],
+        },
+        options: baseOpts,
+      });
+    };
+
+    makeChart('retailForeignChart', dataForeign, 'rgba(34,211,238,0.', '#22d3ee');
+    makeChart('retailInstChart', dataInst, 'rgba(167,139,250,0.', '#a78bfa');
+    makeChart('retailIndivChart', dataIndiv, 'rgba(251,191,36,0.', '#fbbf24');
   }
 
   // ─── 📅 종목별 일별 매매 + 이벤트 분석 렌더링 ──────────
