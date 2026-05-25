@@ -27,12 +27,6 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 # ── 대상 종목 (기존 11종목 + 삼성SDI 추가) ─────────────────────────────────
 TARGET = [
-    {"ticker": "139480", "name": "이마트",      "dart_name": "이마트",      "sector": "유통"},
-    {"ticker": "004170", "name": "신세계",      "dart_name": "신세계",      "sector": "유통"},
-    {"ticker": "023530", "name": "롯데쇼핑",    "dart_name": "롯데쇼핑",    "sector": "유통"},
-    {"ticker": "008770", "name": "호텔신라",    "dart_name": "호텔신라",    "sector": "유통"},
-    {"ticker": "069960", "name": "현대백화점",  "dart_name": "현대백화점",  "sector": "유통"},
-    {"ticker": "057050", "name": "현대홈쇼핑",  "dart_name": "현대홈쇼핑",  "sector": "유통"},
     {"ticker": "005930", "name": "삼성전자",    "dart_name": "삼성전자",    "sector": "반도체"},
     {"ticker": "000660", "name": "SK하이닉스",  "dart_name": "SK하이닉스", "sector": "반도체"},
     {"ticker": "042700", "name": "한미반도체",  "dart_name": "한미반도체",  "sector": "반도체장비"},
@@ -43,12 +37,6 @@ TARGET = [
 
 # ── DART API 키 없을 때 사용할 정적 기준값 (공개 연간보고서 기준 추정) ───────
 STATIC_TECH = {
-    "139480": {"rd_billion": 23,      "rd_pct": 0.10, "patent_count": 11,    "tech_tags": ["물류자동화", "신선식품IT", "유통플랫폼"]},
-    "004170": {"rd_billion": 15,      "rd_pct": 0.08, "patent_count": 8,     "tech_tags": ["패션테크", "면세IT", "리테일AI"]},
-    "023530": {"rd_billion": 45,      "rd_pct": 0.15, "patent_count": 19,    "tech_tags": ["리테일테크", "물류자동화", "이커머스"]},
-    "008770": {"rd_billion": 5,       "rd_pct": 0.05, "patent_count": 3,     "tech_tags": ["면세IT", "호텔AI", "서비스플랫폼"]},
-    "069960": {"rd_billion": 12,      "rd_pct": 0.07, "patent_count": 6,     "tech_tags": ["리테일AI", "VR쇼핑", "물류"]},
-    "057050": {"rd_billion": 8,       "rd_pct": 0.12, "patent_count": 4,     "tech_tags": ["이커머스", "라이브커머스", "AI추천"]},
     "005930": {"rd_billion": 280000,  "rd_pct": 8.20, "patent_count": 67000, "tech_tags": ["GAA공정", "HBM", "파운드리", "갤럭시AI", "엑시노스"]},
     "000660": {"rd_billion": 58000,   "rd_pct": 9.10, "patent_count": 21000, "tech_tags": ["HBM3E", "DRAM", "NAND", "AI메모리", "CXL"]},
     "042700": {"rd_billion": 1200,    "rd_pct": 5.30, "patent_count": 340,   "tech_tags": ["TC본더", "FC본더", "비전시스템", "반도체장비"]},
@@ -60,12 +48,6 @@ STATIC_TECH = {
 # ── 설비 투자(CapEx) 정적 기준값 (억원, 연간 유형자산 취득 기준) ──────────────
 # 출처: 최근 사업보고서 현금흐름표 '유형자산의 취득' 항목 추정치
 STATIC_CAPEX = {
-    "139480": {"capex_billion": 3500,   "capex_note": "물류센터·점포 리뉴얼"},
-    "004170": {"capex_billion": 1800,   "capex_note": "백화점·면세점 시설"},
-    "023530": {"capex_billion": 3200,   "capex_note": "점포·물류 인프라"},
-    "008770": {"capex_billion": 700,    "capex_note": "호텔·면세 시설"},
-    "069960": {"capex_billion": 1100,   "capex_note": "점포 리뉴얼"},
-    "057050": {"capex_billion": 130,    "capex_note": "IT시스템·방송장비"},
     "005930": {"capex_billion": 530000, "capex_note": "반도체 팹·메모리 생산라인"},   # ~53조원
     "000660": {"capex_billion": 180000, "capex_note": "DRAM·NAND 팹 증설"},          # ~18조원
     "042700": {"capex_billion": 1200,   "capex_note": "본딩장비 제조 설비"},
