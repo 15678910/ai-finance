@@ -3055,7 +3055,8 @@ body {
     // ─── 🛒 국내 유통 종목 매매동향 비교 (이마트·신세계·롯데쇼핑·호텔신라·현대백화점·현대홈쇼핑) ──
     const sidRetail = data.stock_investor_details;
     if (sidRetail && Array.isArray(sidRetail.stocks)) {
-      const retailStocks = sidRetail.stocks.filter(s => s.category === '유통');
+      const RETAIL_TICKERS = new Set(['139480','004170','023530','008770','069960','057050']);
+      const retailStocks = sidRetail.stocks.filter(s => RETAIL_TICKERS.has(s.ticker));
       if (retailStocks.length > 0) {
         html += `<section class="section-wrap" style="margin-top:32px;">
           <div class="section-label" style="color:#f97316;">🛒 국내 유통 종목 매매동향 비교 <span style="font-size:0.65rem;color:var(--text-muted);">(${retailStocks.length}종목 × 60거래일 · 외인·기관·개인 자금 흐름)</span></div>
@@ -6295,7 +6296,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderRetailSectorCharts(data) {
     const sid = data.stock_investor_details;
     if (!sid || !Array.isArray(sid.stocks)) return;
-    const retail = sid.stocks.filter(s => s.category === '유통');
+    const RETAIL_TICKERS_SET = new Set(['139480','004170','023530','008770','069960','057050']);
+    const retail = sid.stocks.filter(s => RETAIL_TICKERS_SET.has(s.ticker));
     if (retail.length === 0) return;
 
     const labels = retail.map(s => {
@@ -6317,7 +6319,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const isAffected = (retail[i].ticker === '139480' || retail[i].ticker === '004170');
       const alpha = v >= 0 ? '95' : '50';
       if (isAffected) return `rgba(248,113,113,0.${alpha})`;
-      return baseColor + alpha;
+      return baseColor + alpha + ')';
     });
 
     const baseOpts = {
