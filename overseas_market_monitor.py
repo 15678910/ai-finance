@@ -119,34 +119,62 @@ def get_active_market():
 # 데이터 수집
 # ====================================================================
 def fetch_market_data(ticker_info: dict) -> dict:
-    """단일 시장 데이터 수집."""
+    """단일 시장 데이터 수집.
+
+    fast_info (실시간 quote) → history() fallback 순서로 시도.
+    history(period="5d")는 선물 티커에서 당일 미완성 바와 전일 바가
+    동일 종가를 반환하는 경우가 있어 0.00% 오류 발생 → fast_info 우선 사용.
+    """
     ticker = ticker_info["ticker"]
     try:
         stock = yf.Ticker(ticker)
-        # 최근 5일 데이터로 변동 계산
-        hist = stock.history(period="5d")
-        if hist.empty or len(hist) < 2:
-            return None
 
-        current = float(hist["Close"].iloc[-1])
-        prev = float(hist["Close"].iloc[-2])
-        change_pct = (current - prev) / prev * 100 if prev > 0 else 0
+        current: float | None = None
+        prev: float | None = None
+        change_pct: float = 0.0
 
-        # 52주 데이터
-        hist_year = stock.history(period="1y")
-        high_52w = float(hist_year["High"].max()) if not hist_year.empty else None
-        low_52w = float(hist_year["Low"].min()) if not hist_year.empty else None
+        # ── 1) fast_info: 실시간 last_price + previous_close ──────────────
+        try:
+            fi = stock.fast_info
+            _cur = fi.last_price
+            _prv = fi.previous_close
+            if _cur and _prv and float(_prv) > 0 and abs(float(_cur) - float(_prv)) > 1e-6:
+                current = float(_cur)
+                prev = float(_prv)
+                change_pct = (current - prev) / prev * 100
+        except Exception:
+            pass  # fast_info 미지원 시 fallback
+
+        # ── 2) history() fallback ─────────────────────────────────────────
+        if current is None:
+            hist = stock.history(period="5d")
+            if hist.empty or len(hist) < 2:
+                return None
+            current = float(hist["Close"].iloc[-1])
+            prev    = float(hist["Close"].iloc[-2])
+            change_pct = (current - prev) / prev * 100 if prev and prev > 0 else 0.0
+
+        # ── 3) 52주 고저 ───────────────────────────────────────────────────
+        high_52w: float | None = None
+        low_52w:  float | None = None
+        try:
+            hist_year = stock.history(period="1y")
+            if not hist_year.empty:
+                high_52w = round(float(hist_year["High"].max()), 2)
+                low_52w  = round(float(hist_year["Low"].min()),  2)
+        except Exception:
+            pass
 
         return {
-            "ticker": ticker,
-            "name": ticker_info["name"],
-            "region": ticker_info.get("region", ""),
-            "current": round(current, 2),
-            "previous": round(prev, 2),
+            "ticker":    ticker,
+            "name":      ticker_info["name"],
+            "region":    ticker_info.get("region", ""),
+            "current":   round(current, 2),
+            "previous":  round(prev, 2) if prev else None,
             "change_pct": round(change_pct, 2),
-            "high_52w": round(high_52w, 2) if high_52w else None,
-            "low_52w": round(low_52w, 2) if low_52w else None,
-            "is_vix": ticker_info.get("is_vix", False),
+            "high_52w":  high_52w,
+            "low_52w":   low_52w,
+            "is_vix":    ticker_info.get("is_vix", False),
             "is_futures": ticker_info.get("is_futures", False),
         }
     except Exception as e:
