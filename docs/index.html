@@ -6141,7 +6141,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const maxRd  = Math.max(...allRd, 1);
 
     // 섹터 목록 (순서 고정)
-    const SECTORS = ['전체', '반도체', '배터리', 'IT플랫폼'];
+    const SECTORS = ['전체', '반도체', '배터리', '배터리소재', '전자/부품', '자동차/EV', 'IT/통신', '바이오', '방산/우주'];
     let activeFilter = '전체';
 
     function renderCards(filter) {
@@ -6184,7 +6184,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           : '<span style="color:#fbbf24;font-size:0.58rem;">🟡 정적</span>';
 
         const sectorColor = {
-          '반도체': '#22d3ee', '배터리': '#4ade80', 'IT플랫폼': '#f472b6', '유통': '#f97316'
+          '반도체':   '#22d3ee',
+          '배터리':   '#4ade80',
+          '배터리소재': '#34d399',
+          '전자/부품': '#818cf8',
+          '자동차/EV': '#f59e0b',
+          'IT/통신':  '#f472b6',
+          'IT플랫폼': '#f472b6',
+          '바이오':   '#a78bfa',
+          '방산/우주': '#60a5fa',
         }[t.sector] || '#a78bfa';
 
         return `<div class="glass-card anim-item" style="padding:14px 16px;
