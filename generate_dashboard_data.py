@@ -957,10 +957,20 @@ def generate_insights(macro: dict, macro_detail: dict, geopolitical: dict, portf
     }
 
     # --- Market Assessment ---
-    cycle = macro_detail.get("economic_cycle", {}).get("stage", "N/A")
-    rate_stage = macro_detail.get("rate_cycle", {}).get("stage", "N/A")
-    vix_val = macro_detail.get("vix", {}).get("current")
-    geo_score = geopolitical.get("risk_score")
+    cycle      = macro_detail.get("economic_cycle", {}).get("stage", "N/A")
+    rate_stage = macro_detail.get("rate_cycle",     {}).get("stage", "N/A")
+
+    # vix: dict {"current": 16.8} 또는 scalar 모두 허용
+    _vix_raw = macro_detail.get("vix")
+    if isinstance(_vix_raw, dict):
+        vix_val = _vix_raw.get("current")
+    elif isinstance(_vix_raw, (int, float)):
+        vix_val = float(_vix_raw)
+    else:
+        vix_val = None
+
+    # geo_score: risk_score / total_score 두 키 모두 시도
+    geo_score = geopolitical.get("risk_score") or geopolitical.get("total_score")
     geo_level = geopolitical.get("risk_level", "N/A")
 
     vix_desc = ""
@@ -984,10 +994,39 @@ def generate_insights(macro: dict, macro_detail: dict, geopolitical: dict, portf
     if geo_score is not None:
         assessment_parts.append(f"지정학 리스크 {geo_level}({geo_score:.1f}/100)")
 
+    # 1차 소스 실패 시 안정적인 보조 지표로 대체 (FFR / 국채 / 달러)
+    def _scalar(val):
+        """dict({'current': x}) 또는 scalar → float, 없으면 None"""
+        if isinstance(val, dict):
+            v = val.get("current")
+            return float(v) if v is not None else None
+        if isinstance(val, (int, float)):
+            return float(val)
+        return None
+
+    if not assessment_parts:
+        ffr = _scalar(macro_detail.get("ffr"))
+        t10 = _scalar(macro_detail.get("treasury_10y"))
+        dxy = _scalar(macro_detail.get("dollar_index"))
+        yc  = macro_detail.get("yield_curve", {}).get("spread_10y2y")
+        if ffr is not None:
+            assessment_parts.append(f"기준금리(FFR) {ffr:.2f}%")
+        if t10 is not None:
+            assessment_parts.append(f"미국 10Y 국채 {t10:.2f}%")
+        if dxy is not None:
+            assessment_parts.append(f"달러 인덱스 {dxy:.1f}")
+        if yc is not None:
+            assessment_parts.append(f"장단기 금리차 {yc:+.2f}%p")
+
     if assessment_parts:
         result["market_assessment"] = f"현재 시장: {', '.join(assessment_parts)}."
     else:
-        result["market_assessment"] = "시장 데이터 부족."
+        # 모든 소스 실패 — 섹터 수 + 안내 메시지
+        n = len(sectors) if sectors else 0
+        result["market_assessment"] = (
+            f"매크로 데이터 일시 수집 불가 (다음 갱신 시 복구). "
+            f"섹터 {n}개 모니터링 중."
+        )
 
     # --- Top Insights ---
     insights = []
