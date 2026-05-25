@@ -143,7 +143,7 @@ def parse_summary_txt(filepath: str) -> dict:
     if infl_m:
         macro["inflation"] = infl_m.group(1).strip()
         try:
-            macro["cpi"] = infl_m.group(2).strip() if infl_m.lastindex >= 2 and infl_m.group(2) else "N/A"
+            macro["cpi"] = infl_m.group(2).strip() if (infl_m.lastindex or 0) >= 2 and infl_m.group(2) else "N/A"
         except (IndexError, AttributeError):
             macro["cpi"] = "N/A"
 
@@ -529,7 +529,7 @@ def extract_macro_detail(daily_dir: str, date_str: str) -> dict:
         if header_row:
             for r in range(header_row + 1, ws4.max_row + 1):
                 asset = ws4.cell(r, 2).value
-                if not asset or asset.startswith("*"):
+                if not asset or str(asset).startswith("*"):
                     break
                 outlooks.append({
                     "asset": _to_str(asset),
@@ -1390,6 +1390,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
             print("[INFO] 종목별 일별 투자자 매매 + 이벤트 분석 병합 완료")
         except Exception as e:
             print(f"[WARN] 종목별 일별 매매 데이터 로드 실패: {e}")
+
+    # 13) 기업 기술 정보 (DART + KIPRIS)
+    tech_path = os.path.join(os.path.dirname(output_path), "stock_tech_info.json")
+    if os.path.exists(tech_path):
+        try:
+            with open(tech_path, encoding="utf-8") as f:
+                output_data["stock_tech_info"] = json.load(f)
+            print("[INFO] 기업 기술 정보 통합 완료")
+        except Exception as e:
+            print(f"[WARN] stock_tech_info.json 로드 실패: {e}")
 
     # 10.13m) 시장 전체 투자자별 8-class 매매동향 (금융투자/투신/연기금 등)
     mib_path = os.path.join(os.path.dirname(output_path), "market_investor_breakdown.json")
