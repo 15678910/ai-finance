@@ -3052,139 +3052,29 @@ body {
       html += `</section>`;
     }
 
-    // ─── 🛒 국내 유통 종목 매매동향 비교 (이마트·신세계·롯데쇼핑·호텔신라·현대백화점·현대홈쇼핑) ──
-    const sidRetail = data.stock_investor_details;
-    if (sidRetail && Array.isArray(sidRetail.stocks)) {
-      const RETAIL_TICKERS = new Set(['139480','004170','023530','008770','069960','057050']);
-      const retailStocks = sidRetail.stocks.filter(s => RETAIL_TICKERS.has(s.ticker));
-      if (retailStocks.length > 0) {
-        html += `<section class="section-wrap" style="margin-top:32px;">
-          <div class="section-label" style="color:#f97316;">🛒 국내 유통 종목 매매동향 비교 <span style="font-size:0.65rem;color:var(--text-muted);">(${retailStocks.length}종목 × 60거래일 · 외인·기관·개인 자금 흐름)</span></div>
-
-          <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(249,115,22,0.05);">
-            <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
-              <b style="color:var(--text);">시각 비교:</b> 국내 6대 유통주의 5/20/60거래일 누적 외인/기관/개인 매매 동향. 막대 길이 = 누적 순매수(주).
-              <b style="color:var(--text);">색상:</b> <span style="color:#22d3ee;">외인</span> · <span style="color:#a78bfa;">기관</span> · <span style="color:#fbbf24;">개인(추정)</span>.<br/>
-              <b style="color:var(--text);">하이라이트:</b> <span style="color:#f87171;">★ 이마트·신세계 = 스타벅스 5.23 사건 영향군 (신세계그룹)</span>
-            </div>
-          </div>
-
-          <!-- 종목별 미니 카드 (6개 그리드) -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(310px, 1fr));gap:12px;margin-bottom:16px;">
-            ${retailStocks.map(s => {
-              const rows = (s.rows || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-              const r5 = rows.slice(-5);
-              const r20 = rows.slice(-20);
-              const r60 = rows;
-              const sum = (arr, k) => arr.reduce((acc, r) => acc + (r[k] || 0), 0);
-              const last = rows[rows.length - 1] || {};
-              const first5 = rows[Math.max(0, rows.length - 5)] || last;
-              const first60 = rows[0] || last;
-              const chg5d = first5.close ? ((last.close - first5.close) / first5.close * 100) : 0;
-              const chg60d = first60.close ? ((last.close - first60.close) / first60.close * 100) : 0;
-              const isShinsegae = s.ticker === '139480' || s.ticker === '004170';
-              const accent = isShinsegae ? '#f87171' : '#f97316';
-              return `<div class="glass-card" style="padding:12px 14px;border-left:3px solid ${accent};background:rgba(249,115,22,0.03);">
-                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-                  <div>
-                    <b style="color:#fff;font-size:0.88rem;">${isShinsegae ? '★ ' : ''}${escapeHtml(s.name)}</b>
-                    <span style="color:var(--text-muted);font-size:0.65rem;margin-left:4px;">(${escapeHtml(s.ticker)})</span>
-                  </div>
-                  <div style="text-align:right;font-family:var(--font-mono);">
-                    <div style="color:#fff;font-size:0.78rem;font-weight:600;">${(last.close || 0).toLocaleString()}</div>
-                    <div style="font-size:0.66rem;color:${(last.change_pct || 0) >= 0 ? '#4ade80' : '#f87171'};">${(last.change_pct || 0) >= 0 ? '+' : ''}${(last.change_pct || 0).toFixed(2)}%</div>
-                  </div>
-                </div>
-
-                <!-- 5일/20일/60일 누적 매매 그리드 -->
-                <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:4px 8px;font-size:0.66rem;font-family:var(--font-mono);align-items:center;">
-                  <div style="color:var(--text-muted);"></div>
-                  <div style="color:#22d3ee;text-align:right;font-weight:600;">외인</div>
-                  <div style="color:#a78bfa;text-align:right;font-weight:600;">기관</div>
-                  <div style="color:#fbbf24;text-align:right;font-weight:600;">개인</div>
-
-                  <div style="color:var(--text-muted);">5일</div>
-                  <div style="text-align:right;color:${sum(r5,'foreign_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r5,'foreign_net_shares')>=0?'+':''}${sum(r5,'foreign_net_shares').toLocaleString()}</div>
-                  <div style="text-align:right;color:${sum(r5,'institutional_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r5,'institutional_net_shares')>=0?'+':''}${sum(r5,'institutional_net_shares').toLocaleString()}</div>
-                  <div style="text-align:right;color:${sum(r5,'individual_net_shares_est')>=0?'#4ade80':'#f87171'};">${sum(r5,'individual_net_shares_est')>=0?'+':''}${sum(r5,'individual_net_shares_est').toLocaleString()}</div>
-
-                  <div style="color:var(--text-muted);">20일</div>
-                  <div style="text-align:right;color:${sum(r20,'foreign_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r20,'foreign_net_shares')>=0?'+':''}${sum(r20,'foreign_net_shares').toLocaleString()}</div>
-                  <div style="text-align:right;color:${sum(r20,'institutional_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r20,'institutional_net_shares')>=0?'+':''}${sum(r20,'institutional_net_shares').toLocaleString()}</div>
-                  <div style="text-align:right;color:${sum(r20,'individual_net_shares_est')>=0?'#4ade80':'#f87171'};">${sum(r20,'individual_net_shares_est')>=0?'+':''}${sum(r20,'individual_net_shares_est').toLocaleString()}</div>
-
-                  <div style="color:var(--text-muted);">60일</div>
-                  <div style="text-align:right;color:${sum(r60,'foreign_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r60,'foreign_net_shares')>=0?'+':''}${sum(r60,'foreign_net_shares').toLocaleString()}</div>
-                  <div style="text-align:right;color:${sum(r60,'institutional_net_shares')>=0?'#4ade80':'#f87171'};">${sum(r60,'institutional_net_shares')>=0?'+':''}${sum(r60,'institutional_net_shares').toLocaleString()}</div>
-                  <div style="text-align:right;color:${sum(r60,'individual_net_shares_est')>=0?'#4ade80':'#f87171'};">${sum(r60,'individual_net_shares_est')>=0?'+':''}${sum(r60,'individual_net_shares_est').toLocaleString()}</div>
-                </div>
-
-                <!-- 가격 + 등락률 메타 -->
-                <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">
-                  <span>외인 보유: <b style="color:var(--text);">${(last.foreign_holding_pct || 0).toFixed(1)}%</b></span>
-                  <span>5일등락: <b style="color:${chg5d>=0?'#4ade80':'#f87171'};">${chg5d>=0?'+':''}${chg5d.toFixed(1)}%</b></span>
-                  <span>60일등락: <b style="color:${chg60d>=0?'#4ade80':'#f87171'};">${chg60d>=0?'+':''}${chg60d.toFixed(1)}%</b></span>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-
-          <!-- 종합 비교 막대 차트 (3개: 외인/기관/개인 5일 누적) -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-            <div class="glass-card" style="padding:10px 12px;">
-              <div style="font-size:0.74rem;color:#22d3ee;font-weight:600;margin-bottom:6px;">🌐 외인 5일 누적 순매수 (주)</div>
-              <div style="position:relative;height:200px;"><canvas id="retailForeignChart"></canvas></div>
-            </div>
-            <div class="glass-card" style="padding:10px 12px;">
-              <div style="font-size:0.74rem;color:#a78bfa;font-weight:600;margin-bottom:6px;">🏛️ 기관 5일 누적 순매수 (주)</div>
-              <div style="position:relative;height:200px;"><canvas id="retailInstChart"></canvas></div>
-            </div>
-            <div class="glass-card" style="padding:10px 12px;">
-              <div style="font-size:0.74rem;color:#fbbf24;font-weight:600;margin-bottom:6px;">👤 개인 5일 누적 순매수 (주)</div>
-              <div style="position:relative;height:200px;"><canvas id="retailIndivChart"></canvas></div>
-            </div>
-          </div>
-        </section>`;
-      }
-    }
-
-    // ─── 📅 종목별 일별 투자자 매매 + 이벤트 분석 ──────────
-    const sid = data.stock_investor_details;
-    if (sid && Array.isArray(sid.stocks) && sid.stocks.length > 0) {
+    // ─── 🔬 종목별 기술 정보 (DART R&D + KIPRIS 특허) ────────────────────
+    const techOverview = data.stock_tech_info;
+    if (techOverview && techOverview.stocks && Object.keys(techOverview.stocks).length > 0) {
+      const techCount = Object.keys(techOverview.stocks).length;
       html += `<section class="section-wrap" style="margin-top:32px;">
-        <div class="section-label" style="color:#8b5cf6;">📅 종목별 일별 매매 + 기술 프로필 <span style="font-size:0.65rem;color:var(--text-muted);">(60거래일 데이터 · DART R&amp;D · KIPRIS 특허)</span></div>
+        <div class="section-label" style="color:#a78bfa;">🔬 종목별 기술 정보 <span style="font-size:0.65rem;color:var(--text-muted);">(${techCount}종목 · DART R&amp;D · KIPRIS 특허 · 핵심기술 태그)</span></div>
 
         <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:14px;background:rgba(139,92,246,0.05);">
           <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.7;">
-            <b style="color:var(--text);">사용법:</b> 종목 선택 → 60거래일 일별 매매 + 해당 기업의 기술 프로필(R&amp;D 투자·특허·핵심 기술) 동시 확인.<br/>
-            <b style="color:var(--text);">개인 매매 = 추정값</b> (총 외인+기관 부호 반전, 정확도 80~90%).
+            <b style="color:var(--text);">데이터 소스:</b>
+            ${escapeHtml((techOverview.data_sources || {}).dart || 'DART OpenAPI')} ·
+            ${escapeHtml((techOverview.data_sources || {}).kipris || 'KIPRIS')}<br/>
+            <b style="color:var(--text);">갱신:</b> ${escapeHtml(techOverview.generated_at || '')} ·
+            <span style="color:#fbbf24;">GitHub Secrets에 DART_API_KEY 등록 시 실시간 데이터로 자동 전환됩니다.</span>
           </div>
         </div>
 
-        <!-- 종목 선택 + 검색 -->
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-          <label style="font-size:0.78rem;color:var(--text-muted);">종목 선택:</label>
-          <select id="sidStockSelect" style="background:rgba(15,23,42,0.6);border:1px solid rgba(139,92,246,0.3);color:#e2e8f0;padding:8px 12px;border-radius:6px;font-size:0.82rem;font-family:inherit;cursor:pointer;flex:1;min-width:240px;max-width:360px;">
-            ${sid.stocks.map(s => `<option value="${escapeHtml(s.ticker)}">${escapeHtml(s.name)} (${escapeHtml(s.ticker)}) — ${escapeHtml(s.category)}</option>`).join('')}
-          </select>
-          <span style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">${sid.stocks.length}개 종목 · 종목당 ${sid.days_per_stock}일</span>
-        </div>
-
-        <!-- 🔬 기업 기술 프로필 (종목 선택 연동 — renderTechProfile이 채움) -->
-        <div id="techProfileHost" style="margin-bottom:14px;"></div>
-
-        <!-- 일별 테이블 (선택된 종목) -->
-        <div id="sidTableContainer" class="glass-card anim-item" style="padding:12px 14px;overflow-x:auto;">
-          <div id="sidTableTitle" style="font-size:0.82rem;color:#ffffff;font-weight:600;margin-bottom:8px;">📅 60거래일 일별 데이터 (로딩 중...)</div>
-          <div id="sidTableHost"></div>
-        </div>
-
-        <div style="margin-top:10px;font-size:0.65rem;color:var(--text-muted);font-family:var(--font-mono);line-height:1.5;">
-          🚨 ${escapeHtml(sid.warning || '시뮬레이션 전용.')}<br/>
-          데이터 소스: ${escapeHtml(sid.data_source || 'Naver 금융')} · 생성: ${escapeHtml(sid.generated_at || '')}
-        </div>
+        <!-- 섹터 필터 + 카드 그리드 (renderTechOverview가 채움) -->
+        <div id="techFilterRow" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div id="techCardGrid"  style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;"></div>
       </section>`;
     }
+
 
     // ─── 🏛️ 시장 투자자별 8-class 매매동향 (금융투자/투신/연기금 등) ──
     const mib = data.market_investor_breakdown;
@@ -4953,14 +4843,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── 🗺️ Tactical Capital Map (D3.js 트리맵 + 히트맵) ──
     setTimeout(() => renderTacticalMap(data), 400);
 
-    // ─── 🛒 국내 유통 종목 매매동향 비교 ──
-    setTimeout(() => renderRetailSectorCharts(data), 420);
-
-    // ─── 📅 종목별 일별 매매 테이블 ──
-    setTimeout(() => renderStockInvestorDetail(data), 450);
-
-    // ─── 🔬 기업 기술 프로필 (종목 선택 연동) ──
-    setTimeout(() => renderTechProfile(data), 470);
+    // ─── 🔬 종목별 기술 정보 (DART R&D + KIPRIS 특허) ──
+    setTimeout(() => renderTechOverview(data), 420);
 
     // ─── 🏛️ 시장 투자자별 8-class 매매동향 ──
     setTimeout(() => renderMarketInvestorBreakdown(data), 500);
@@ -6244,376 +6128,133 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .text('z-score');
   }
 
-  // ─── 🛒 국내 유통 6종목 비교 막대 차트 ──────────
-  function renderRetailSectorCharts(data) {
-    const sid = data.stock_investor_details;
-    if (!sid || !Array.isArray(sid.stocks)) return;
-    const RETAIL_TICKERS_SET = new Set(['139480','004170','023530','008770','069960','057050']);
-    const retail = sid.stocks.filter(s => RETAIL_TICKERS_SET.has(s.ticker));
-    if (retail.length === 0) return;
-
-    const labels = retail.map(s => {
-      const star = (s.ticker === '139480' || s.ticker === '004170') ? '★ ' : '';
-      return star + s.name;
-    });
-
-    const sumLast = (stock, n, key) => {
-      const rows = (stock.rows || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).slice(-n);
-      return rows.reduce((acc, r) => acc + (r[key] || 0), 0);
-    };
-
-    const dataForeign = retail.map(s => sumLast(s, 5, 'foreign_net_shares'));
-    const dataInst = retail.map(s => sumLast(s, 5, 'institutional_net_shares'));
-    const dataIndiv = retail.map(s => sumLast(s, 5, 'individual_net_shares_est'));
-
-    // 신세계그룹(이마트/신세계)은 별색
-    const colorize = (vals, baseColor) => vals.map((v, i) => {
-      const isAffected = (retail[i].ticker === '139480' || retail[i].ticker === '004170');
-      const alpha = v >= 0 ? '95' : '50';
-      if (isAffected) return `rgba(248,113,113,0.${alpha})`;
-      return baseColor + alpha + ')';
-    });
-
-    const baseOpts = {
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => ctx.parsed.x.toLocaleString() + '주' } },
-      },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
-        y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 10 } } },
-      },
-    };
-
-    const makeChart = (canvasId, vals, baseColor, solidBorder) => {
-      const el = document.getElementById(canvasId);
-      if (!el) return;
-      new Chart(el, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: vals,
-            backgroundColor: colorize(vals, baseColor),
-            borderColor: vals.map((v, i) => {
-              const isAffected = (retail[i].ticker === '139480' || retail[i].ticker === '004170');
-              return isAffected ? '#f87171' : solidBorder;
-            }),
-            borderWidth: 1,
-            borderRadius: 3,
-          }],
-        },
-        options: baseOpts,
-      });
-    };
-
-    makeChart('retailForeignChart', dataForeign, 'rgba(34,211,238,0.', '#22d3ee');
-    makeChart('retailInstChart', dataInst, 'rgba(167,139,250,0.', '#a78bfa');
-    makeChart('retailIndivChart', dataIndiv, 'rgba(251,191,36,0.', '#fbbf24');
-  }
-
-  // ─── 📅 종목별 일별 매매 + 이벤트 분석 렌더링 ──────────
-  function renderStockInvestorDetail(data) {
-    const sid = data.stock_investor_details;
-    if (!sid || !Array.isArray(sid.stocks) || sid.stocks.length === 0) return;
-
-    const select = document.getElementById('sidStockSelect');
-    const host = document.getElementById('sidTableHost');
-    const title = document.getElementById('sidTableTitle');
-    if (!select || !host || !title) return;
-
-    function renderTable(ticker) {
-      const stock = sid.stocks.find(s => s.ticker === ticker);
-      if (!stock) {
-        host.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem;padding:20px;text-align:center;">선택한 종목 데이터를 찾을 수 없습니다.</div>';
-        return;
-      }
-
-      // 자동 감지 이벤트 날짜 집합
-      const eventDates = new Set((stock.auto_events || []).map(e => e.date));
-
-      title.innerHTML = `📅 ${escapeHtml(stock.name)} <span style="color:var(--text-muted);font-size:0.7rem;font-weight:400;">(${escapeHtml(stock.ticker)}) · ${escapeHtml(stock.category)} · ${(stock.rows || []).length}거래일</span>`;
-
-      const rows = (stock.rows || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      if (rows.length === 0) {
-        host.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem;padding:20px;text-align:center;">일별 데이터가 없습니다.</div>';
-        return;
-      }
-
-      const fmtNum = (n) => {
-        if (n === null || n === undefined || isNaN(n)) return '-';
-        return Number(n).toLocaleString();
-      };
-      const fmtNet = (n) => {
-        if (n === null || n === undefined || isNaN(n)) return '-';
-        const sign = n >= 0 ? '+' : '';
-        const color = n >= 0 ? '#4ade80' : '#f87171';
-        return `<span style="color:${color};">${sign}${Number(n).toLocaleString()}</span>`;
-      };
-      const fmtPctVal = (n) => {
-        if (n === null || n === undefined || isNaN(n)) return '-';
-        const color = n >= 0 ? '#4ade80' : '#f87171';
-        const sign = n >= 0 ? '+' : '';
-        return `<span style="color:${color};">${sign}${Number(n).toFixed(2)}%</span>`;
-      };
-
-      // 자동 이벤트 정보 박스 (있으면)
-      let eventBox = '';
-      if ((stock.auto_events || []).length > 0) {
-        const evs = stock.auto_events.slice(0, 6);
-        eventBox = `<div style="margin-bottom:10px;padding:8px 10px;background:rgba(251,191,36,0.06);border-left:2px solid #fbbf24;border-radius:3px;font-size:0.7rem;">
-          <div style="color:#fbbf24;font-weight:600;margin-bottom:4px;">🚨 자동 감지 이벤트 ${stock.auto_events.length}건 (거래량 +200% / 등락 ±3% / 외인 ±300K)</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            ${evs.map(e => `<span style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);padding:2px 6px;border-radius:3px;color:var(--text);font-family:var(--font-mono);font-size:0.65rem;">${escapeHtml(e.date)} <span style="color:var(--text-muted);">${escapeHtml((e.flags || []).join('+'))}</span></span>`).join('')}
-            ${stock.auto_events.length > 6 ? `<span style="color:var(--text-muted);font-size:0.65rem;">+${stock.auto_events.length - 6}개 더</span>` : ''}
-          </div>
-        </div>`;
-      }
-
-      const tableRows = rows.map(r => {
-        const isEvent = eventDates.has(r.date);
-        const bg = isEvent ? 'background:rgba(239,68,68,0.07);' : '';
-        const dateMark = isEvent ? `<span style="color:#f87171;font-weight:700;">●</span> ` : '';
-        return `<tr style="${bg}">
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;color:var(--text);">${dateMark}${escapeHtml(r.date || '')}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;color:var(--text);">${fmtNum(r.close)}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtPctVal(r.change_pct)}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;color:var(--text-muted);">${fmtNum(r.volume)}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtNet(r.foreign_net_shares)}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtNet(r.institutional_net_shares)}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;">${fmtNet(r.individual_net_shares_est)}</td>
-          <td style="padding:5px 8px;font-family:var(--font-mono);font-size:0.7rem;text-align:right;color:var(--text-muted);">${r.foreign_holding_pct !== null && r.foreign_holding_pct !== undefined ? Number(r.foreign_holding_pct).toFixed(2) + '%' : '-'}</td>
-        </tr>`;
-      }).join('');
-
-      host.innerHTML = `${eventBox}
-        <div style="max-height:520px;overflow-y:auto;border:1px solid rgba(139,92,246,0.15);border-radius:4px;">
-          <table style="width:100%;border-collapse:collapse;font-size:0.7rem;">
-            <thead style="position:sticky;top:0;background:rgba(15,23,42,0.95);backdrop-filter:blur(6px);z-index:1;">
-              <tr style="border-bottom:1px solid rgba(139,92,246,0.3);">
-                <th style="padding:7px 8px;text-align:left;color:#a78bfa;font-size:0.68rem;font-weight:600;">날짜</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">종가</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">등락률</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">거래량</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">외인 순매수</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">기관 순매수</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">개인(추정)</th>
-                <th style="padding:7px 8px;text-align:right;color:#a78bfa;font-size:0.68rem;font-weight:600;">외인 보유율</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-        </div>`;
-    }
-
-    // 변경 이벤트 바인딩
-    select.addEventListener('change', (e) => renderTable(e.target.value));
-
-    // 초기 렌더: 첫 종목 (이마트 우선 — 5.23 이벤트 핵심 종목)
-    const defaultTicker = sid.stocks.find(s => s.ticker === '139480') ? '139480' : sid.stocks[0].ticker;
-    select.value = defaultTicker;
-    renderTable(defaultTicker);
-
-    // ─── 이벤트 비교 막대 차트 렌더링 ──
-    (sid.event_reports || []).forEach((report, ridx) => {
-      const affected = report.affected || [];
-      const comparison = report.comparison || [];
-      if (affected.length === 0 && comparison.length === 0) return;
-
-      const labels = [
-        ...affected.map(a => a.name + ' ★'),
-        ...comparison.map(c => c.name),
-      ];
-      const isAffectedArr = [
-        ...affected.map(() => true),
-        ...comparison.map(() => false),
-      ];
-
-      const dataChg = [
-        ...affected.map(a => (a.before_5d || {}).avg_change_pct || 0),
-        ...comparison.map(c => (c.before_5d || {}).avg_change_pct || 0),
-      ];
-      const dataFor = [
-        ...affected.map(a => (a.before_5d || {}).total_foreign_net || 0),
-        ...comparison.map(c => (c.before_5d || {}).total_foreign_net || 0),
-      ];
-      const dataInst = [
-        ...affected.map(a => (a.before_5d || {}).total_institutional_net || 0),
-        ...comparison.map(c => (c.before_5d || {}).total_institutional_net || 0),
-      ];
-
-      // 영향 종목은 빨강, 비교 종목은 시안. 값이 음수면 채도 다운.
-      const colorize = (vals) => vals.map((v, i) => {
-        if (isAffectedArr[i]) {
-          return v >= 0 ? 'rgba(248,113,113,0.95)' : 'rgba(248,113,113,0.6)';
-        }
-        return v >= 0 ? 'rgba(34,211,238,0.85)' : 'rgba(34,211,238,0.5)';
-      });
-
-      const baseOpts = {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const v = ctx.parsed.x;
-                if (typeof v === 'number') {
-                  return v.toLocaleString() + (ctx.dataset._suffix || '');
-                }
-                return v;
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#94a3b8', font: { size: 9 } },
-          },
-          y: {
-            grid: { display: false },
-            ticks: { color: '#e2e8f0', font: { size: 10 } },
-          },
-        },
-      };
-
-      const makeChart = (canvasId, data, suffix) => {
-        const el = document.getElementById(canvasId);
-        if (!el) return;
-        new Chart(el, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [{
-              data: data,
-              backgroundColor: colorize(data),
-              borderColor: colorize(data).map(c => c.replace(/[\d.]+\)$/, '1)')),
-              borderWidth: 1,
-              borderRadius: 3,
-              _suffix: suffix,
-            }],
-          },
-          options: baseOpts,
-        });
-      };
-
-      makeChart(`evChartChg-${ridx}`, dataChg, '%');
-      makeChart(`evChartFor-${ridx}`, dataFor, '주');
-      makeChart(`evChartInst-${ridx}`, dataInst, '주');
-    });
-  }
-
-  // ─── 🏛️ 시장 투자자별 8-class 매매동향 렌더링 ──────────
-  // ─── 🔬 기업 기술 프로필 (DART R&D + KIPRIS 특허) ──────────────────────
-  function renderTechProfile(data) {
+  // ─── 🔬 종목별 기술 정보 카드 그리드 ──────────────────────────────────
+  function renderTechOverview(data) {
     const techInfo = data.stock_tech_info;
-    const select   = document.getElementById('sidStockSelect');
-    const host     = document.getElementById('techProfileHost');
-    if (!host || !select) return;
+    const filterRow = document.getElementById('techFilterRow');
+    const cardGrid  = document.getElementById('techCardGrid');
+    if (!filterRow || !cardGrid) return;
+    if (!techInfo || !techInfo.stocks || Object.keys(techInfo.stocks).length === 0) return;
 
-    // 데이터 없으면 숨김
-    if (!techInfo || !techInfo.stocks) { host.innerHTML = ''; return; }
+    const stocks = Object.values(techInfo.stocks);
+    const allRd  = stocks.map(s => s.rd_billion || 0);
+    const maxRd  = Math.max(...allRd, 1);
 
-    // R&D 최대값 (막대 스케일 기준)
-    const allRd = Object.values(techInfo.stocks).map(s => s.rd_billion || 0);
-    const maxRd = Math.max(...allRd, 1);
+    // 섹터 목록 (순서 고정)
+    const SECTORS = ['전체', '반도체', '배터리', 'IT플랫폼', '유통'];
+    let activeFilter = '전체';
 
-    function updateProfile(ticker) {
-      const t = techInfo.stocks[ticker];
-      if (!t) { host.innerHTML = ''; return; }
+    function renderCards(filter) {
+      const visible = filter === '전체'
+        ? stocks
+        : stocks.filter(s => (s.sector || '') === filter);
 
-      const rdB     = t.rd_billion || 0;
-      const rdPct   = Math.min(100, rdB / maxRd * 100);
-      const rdLabel = rdB >= 10000
-        ? `${(rdB / 10000).toFixed(1)}조원`
-        : `${rdB.toLocaleString()}억원`;
+      cardGrid.innerHTML = visible.map(t => {
+        const rdB   = t.rd_billion || 0;
+        const rdPct = Math.min(100, rdB / maxRd * 100);
+        const rdLabel = rdB >= 10000
+          ? `${(rdB / 10000).toFixed(1)}조원`
+          : `${rdB.toLocaleString()}억원`;
 
-      const tags = (t.tech_tags || []).map(tag =>
-        `<span style="display:inline-block;padding:2px 9px;background:rgba(139,92,246,0.15);
-          border:1px solid rgba(139,92,246,0.35);border-radius:12px;font-size:0.61rem;
-          color:#a78bfa;margin:2px 2px 2px 0;">${escapeHtml(tag)}</span>`
-      ).join('');
+        const tags = (t.tech_tags || []).map(tag =>
+          `<span style="display:inline-block;padding:2px 8px;background:rgba(139,92,246,0.15);
+            border:1px solid rgba(139,92,246,0.35);border-radius:10px;font-size:0.6rem;
+            color:#a78bfa;margin:2px 2px 2px 0;">${escapeHtml(tag)}</span>`
+        ).join('');
 
-      const disclosureRows = (t.disclosures || []).slice(0, 5).map(d =>
-        `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);
-            display:flex;align-items:baseline;gap:8px;font-size:0.65rem;">
-          <span style="color:var(--text-muted);font-family:var(--font-mono);flex-shrink:0;">${escapeHtml(d.date || '')}</span>
-          <span style="color:var(--text);flex:1;">${escapeHtml(d.title || '')}</span>
-          ${d.url ? `<a href="${escapeHtml(d.url)}" target="_blank" rel="noopener"
-            style="color:#22d3ee;font-size:0.6rem;flex-shrink:0;">↗ DART</a>` : ''}
-        </div>`
-      ).join('');
+        const disclosures = (t.disclosures || []).slice(0, 3).map(d =>
+          `<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);
+              display:flex;align-items:baseline;gap:6px;font-size:0.62rem;">
+            <span style="color:var(--text-muted);font-family:var(--font-mono);flex-shrink:0;">${escapeHtml(d.date || '')}</span>
+            <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(d.title || '')}</span>
+            ${d.url ? `<a href="${escapeHtml(d.url)}" target="_blank" rel="noopener" style="color:#22d3ee;font-size:0.58rem;flex-shrink:0;">↗</a>` : ''}
+          </div>`
+        ).join('');
 
-      const quality = t.data_quality === 'dart_api'
-        ? '<span style="color:#4ade80;">🟢 DART API</span>'
-        : '<span style="color:#fbbf24;">🟡 정적 기준값</span>';
+        const quality = t.data_quality === 'dart_api'
+          ? '<span style="color:#4ade80;font-size:0.58rem;">🟢 DART</span>'
+          : '<span style="color:#fbbf24;font-size:0.58rem;">🟡 정적</span>';
 
-      host.innerHTML = `
-        <div class="glass-card anim-item" style="padding:14px 16px;
-            background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.18);">
+        const sectorColor = {
+          '반도체': '#22d3ee', '배터리': '#4ade80', 'IT플랫폼': '#f472b6', '유통': '#f97316'
+        }[t.sector] || '#a78bfa';
+
+        return `<div class="glass-card anim-item" style="padding:14px 16px;
+            border-left:3px solid ${sectorColor};background:rgba(15,23,42,0.6);">
 
           <!-- 헤더 -->
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">
-            <div style="font-size:0.9rem;font-weight:700;color:#a78bfa;">
-              🔬 ${escapeHtml(t.name)} 기술 프로필
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+            <div>
+              <b style="color:#fff;font-size:0.88rem;">${escapeHtml(t.name)}</b>
+              <span style="color:var(--text-muted);font-size:0.62rem;margin-left:4px;">(${escapeHtml(t.ticker || '')})</span>
             </div>
-            <div style="font-size:0.6rem;color:var(--text-muted);">
-              ${quality} &nbsp;·&nbsp; ${escapeHtml(techInfo.generated_at || '')}
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="padding:2px 7px;background:rgba(0,0,0,0.3);border:1px solid ${sectorColor}40;
+                border-radius:10px;font-size:0.6rem;color:${sectorColor};">${escapeHtml(t.sector || '')}</span>
+              ${quality}
             </div>
           </div>
 
-          <!-- R&D 투자 바 -->
-          <div style="margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:5px;">
-              <span style="color:var(--text-muted);">📊 연간 R&amp;D 투자</span>
+          <!-- R&D 투자 -->
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:4px;">
+              <span style="color:var(--text-muted);">📊 연간 R&amp;D</span>
               <span style="color:#a78bfa;font-weight:600;">${rdLabel}
-                <span style="color:var(--text-muted);font-weight:400;">(매출 대비 ${t.rd_pct != null ? t.rd_pct.toFixed(1) : '—'}%)</span>
+                <span style="color:var(--text-muted);font-weight:400;"> · ${t.rd_pct != null ? t.rd_pct.toFixed(1) : '—'}%</span>
               </span>
             </div>
-            <div style="background:rgba(255,255,255,0.07);border-radius:4px;height:7px;overflow:hidden;">
+            <div style="background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden;">
               <div style="width:${rdPct.toFixed(1)}%;height:100%;
-                background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:4px;"></div>
+                background:linear-gradient(90deg,#7c3aed,${sectorColor});border-radius:3px;"></div>
             </div>
           </div>
 
-          <!-- 특허 · 섹터 -->
-          <div style="display:flex;gap:20px;margin-bottom:11px;font-size:0.72rem;">
-            <div>
-              <span style="color:var(--text-muted);">📋 등록 특허</span>
-              <b style="color:var(--text);margin-left:5px;">${t.patent_count != null ? Number(t.patent_count).toLocaleString() : '—'}건</b>
-            </div>
-            <div>
-              <span style="color:var(--text-muted);">🏭 섹터</span>
-              <b style="color:var(--text);margin-left:5px;">${escapeHtml(t.sector || '')}</b>
-            </div>
+          <!-- 특허 -->
+          <div style="margin-bottom:10px;font-size:0.68rem;">
+            <span style="color:var(--text-muted);">📋 등록 특허</span>
+            <b style="color:var(--text);margin-left:6px;">${t.patent_count != null ? Number(t.patent_count).toLocaleString() : '—'}건</b>
           </div>
 
           <!-- 핵심 기술 태그 -->
-          <div style="margin-bottom:${disclosureRows ? '12px' : '0'};">
-            <div style="font-size:0.67rem;color:var(--text-muted);margin-bottom:5px;">🏷️ 핵심 기술</div>
-            <div>${tags || '<span style="color:var(--text-muted);font-size:0.65rem;">데이터 없음</span>'}</div>
+          <div style="margin-bottom:${disclosures ? '10px' : '0'};">
+            <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:4px;">🏷️ 핵심 기술</div>
+            <div>${tags || '<span style="color:var(--text-muted);font-size:0.62rem;">데이터 없음</span>'}</div>
           </div>
 
-          <!-- DART 기술 공시 -->
-          ${disclosureRows ? `
-          <div>
-            <div style="font-size:0.67rem;color:var(--text-muted);margin-bottom:5px;">📢 최근 기술 공시 (DART)</div>
-            ${disclosureRows}
+          <!-- DART 공시 -->
+          ${disclosures ? `<div>
+            <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:4px;">📢 최근 DART 공시</div>
+            ${disclosures}
           </div>` : ''}
         </div>`;
+      }).join('');
     }
 
-    // 초기 렌더 + 종목 변경 연동
-    updateProfile(select.value);
-    select.removeEventListener('change', select.__techHandler);
-    select.__techHandler = () => updateProfile(select.value);
-    select.addEventListener('change', select.__techHandler);
+    // 섹터 필터 버튼
+    filterRow.innerHTML = SECTORS.map(s =>
+      `<button class="tech-filter-btn${s === activeFilter ? ' is-active' : ''}"
+        data-sector="${escapeHtml(s)}"
+        style="padding:5px 14px;border-radius:20px;font-size:0.72rem;cursor:pointer;font-family:inherit;
+          ${s === activeFilter
+            ? 'background:rgba(139,92,246,0.25);border:1px solid rgba(139,92,246,0.6);color:#a78bfa;'
+            : 'background:rgba(15,23,42,0.5);border:1px solid rgba(148,163,184,0.2);color:var(--text-muted);'}">
+        ${escapeHtml(s)}</button>`
+    ).join('');
+
+    filterRow.querySelectorAll('.tech-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeFilter = btn.dataset.sector;
+        filterRow.querySelectorAll('.tech-filter-btn').forEach(b => {
+          const active = b.dataset.sector === activeFilter;
+          b.style.background = active ? 'rgba(139,92,246,0.25)' : 'rgba(15,23,42,0.5)';
+          b.style.border     = active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(148,163,184,0.2)';
+          b.style.color      = active ? '#a78bfa' : 'var(--text-muted)';
+        });
+        renderCards(activeFilter);
+      });
+    });
+
+    renderCards(activeFilter);
   }
 
   function renderMarketInvestorBreakdown(data) {
