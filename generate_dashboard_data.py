@@ -1187,6 +1187,72 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     print(f"[INFO] 포트폴리오 데이터 추출 중...")
     portfolios = extract_portfolios(daily_dir, date_str)
 
+    # 7.5) 매크로 캐시 — None 값 복원용 전용 캐시 파일 관리
+    #   docs/macro_cache.json 은 non-None 값이 있을 때만 갱신.
+    #   자동화 실행이 None을 덮어써도 마지막 유효 데이터가 보존됨.
+    _cache_path = os.path.join(os.path.dirname(output_path), "macro_cache.json")
+
+    def _has_valid_macro(md: dict) -> bool:
+        """VIX·FFR 중 하나라도 실제 값이 있으면 True."""
+        vix_ok = isinstance(md.get("vix"), dict) and md["vix"].get("current") is not None
+        ffr_ok = isinstance(md.get("ffr"), dict) and md["ffr"].get("current") is not None
+        dxy_ok = isinstance(md.get("dollar_index"), dict) and md["dollar_index"].get("current") is not None
+        return vix_ok or ffr_ok or dxy_ok
+
+    _EMPTY_SENTINELS = {None, "N/A", "N\\A", "", "NaN"}
+
+    def _patch_none(current: dict, cached: dict) -> dict:
+        """current 딕셔너리의 None/'N/A'/빈 값을 cached 딕셔너리의 값으로 채웁니다.
+        중첩 dict는 재귀적으로 처리하며, current에 없는 키는 추가하지 않습니다.
+        """
+        if not cached:
+            return current
+        result = dict(current)
+        for key, cur_val in result.items():
+            if cur_val in _EMPTY_SENTINELS:
+                cached_val = cached.get(key)
+                if cached_val not in _EMPTY_SENTINELS and cached_val is not None:
+                    result[key] = cached_val
+            elif isinstance(cur_val, dict) and isinstance(cached.get(key), dict):
+                result[key] = _patch_none(cur_val, cached[key])
+        return result
+
+    # 현재 macro_detail에 유효 값이 있으면 캐시 갱신
+    if _has_valid_macro(macro_detail):
+        try:
+            with open(_cache_path, "w", encoding="utf-8") as f:
+                json.dump({"macro_detail": macro_detail, "geopolitical": geopolitical}, f,
+                          ensure_ascii=False, indent=2)
+            print(f"[INFO] macro_cache.json 갱신 완료")
+        except Exception as e:
+            print(f"[WARN] macro_cache.json 갱신 실패: {e}")
+    else:
+        # 현재 데이터가 빈 경우 — 캐시에서 복원
+        cached_macro: dict = {}
+        if os.path.exists(_cache_path):
+            try:
+                with open(_cache_path, encoding="utf-8") as f:
+                    cached_macro = json.load(f)
+                print(f"[INFO] macro_cache.json 에서 캐시 복원")
+            except Exception as e:
+                print(f"[WARN] macro_cache.json 로드 실패: {e}")
+
+        if cached_macro.get("macro_detail"):
+            macro_detail = _patch_none(macro_detail, cached_macro["macro_detail"])
+            print(f"[INFO] macro_detail 캐시 복원 완료 (VIX={macro_detail.get('vix',{}).get('current')})")
+        if cached_macro.get("geopolitical"):
+            geopolitical = _patch_none(geopolitical, cached_macro["geopolitical"])
+            print(f"[INFO] geopolitical 캐시 복원 완료 (risk_score={geopolitical.get('risk_score')}, level={geopolitical.get('risk_level')})")
+
+    # 기존 data.json 로드 (sectors/macro 보존용)
+    old_data: dict = {}
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, encoding="utf-8") as f:
+                old_data = json.load(f)
+        except Exception as e:
+            print(f"[WARN] 기존 data.json 로드 실패: {e}")
+
     # 8) 인사이트 생성
     print(f"[INFO] 인사이트 생성 중...")
     insights = generate_insights(
@@ -1197,19 +1263,13 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     # 새 sectors가 비어있으면 기존 data.json의 sectors/macro 보존 (덮어쓰기 방지)
     final_sectors = parsed["sectors"]
     final_macro = parsed["macro"]
-    old_data = {}
-    if not final_sectors and os.path.exists(output_path):
-        try:
-            with open(output_path, encoding="utf-8") as f:
-                old_data = json.load(f)
-            old_sectors = old_data.get("sectors", [])
-            if old_sectors:
-                final_sectors = old_sectors
-                print(f"[INFO] 새 분석 데이터 없음 → 기존 sectors 보존 ({len(old_sectors)}개)")
-            if not final_macro:
-                final_macro = old_data.get("macro", {})
-        except Exception as e:
-            print(f"[WARN] 기존 sectors 로드 실패: {e}")
+    if not final_sectors:
+        old_sectors = old_data.get("sectors", [])
+        if old_sectors:
+            final_sectors = old_sectors
+            print(f"[INFO] 새 분석 데이터 없음 → 기존 sectors 보존 ({len(old_sectors)}개)")
+        if not final_macro:
+            final_macro = old_data.get("macro", {})
 
     output_data = {
         "date": parsed["date"],
