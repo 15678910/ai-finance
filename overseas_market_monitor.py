@@ -50,6 +50,7 @@ MARKETS = {
         {"ticker": "^IXIC", "name": "Nasdaq", "region": "🇺🇸"},
         {"ticker": "^DJI", "name": "Dow Jones", "region": "🇺🇸"},
         {"ticker": "^VIX", "name": "VIX", "region": "🇺🇸", "is_vix": True},
+        {"ticker": "^SOX", "name": "필라델피아 반도체", "region": "🇺🇸", "is_semi": True},
     ],
     "미국_선물": [
         {"ticker": "ES=F", "name": "S&P 선물", "region": "🇺🇸", "is_futures": True},
@@ -176,6 +177,7 @@ def fetch_market_data(ticker_info: dict) -> dict:
             "low_52w":   low_52w,
             "is_vix":    ticker_info.get("is_vix", False),
             "is_futures": ticker_info.get("is_futures", False),
+            "is_semi":   ticker_info.get("is_semi", False),
         }
     except Exception as e:
         print(f"  [실패] {ticker_info['name']}: {e}")
@@ -245,6 +247,13 @@ def predict_kospi_open(markets: list) -> str:
 # 메인
 # ====================================================================
 def main():
+    # Windows cp949 콘솔에서 이모지 출력 오류 방지
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     print("=" * 60)
     print("  해외 시장 실시간 모니터링")
     print(f"  현재 KST: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}")
