@@ -1,0 +1,93 @@
+name: Security Review
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast-python:
+    name: SAST (bandit, Python)
+    runs-on: ubuntu-latest
+    if: hashFiles('requirements.txt', 'pyproject.toml', 'setup.py') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install bandit
+        run: pip install bandit[toml]
+      - name: Run bandit (HIGH/CRITICAL only)
+        run: |
+          bandit -r . -ll \
+            -x './tests,./node_modules,./.venv,./venv,./build,./dist,./frontend' \
+            --severity-level high
+
+  sast-js:
+    name: SAST (npm audit)
+    runs-on: ubuntu-latest
+    if: hashFiles('package.json') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        continue-on-error: true
+      - name: npm audit (HIGH/CRITICAL)
+        run: npm audit --audit-level=high
+
+  threat-tests-python:
+    name: Threat Scenario Tests (pytest)
+    runs-on: ubuntu-latest
+    if: hashFiles('tests/test_threat_scenarios.py') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install pytest
+          [ -f requirements.txt ] && pip install -r requirements.txt || true
+          [ -f requirements-dev.txt ] && pip install -r requirements-dev.txt || true
+      - name: Run threat scenarios
+        run: pytest tests/test_threat_scenarios.py -v
+
+  threat-tests-js:
+    name: Threat Scenario Tests (vitest/jest)
+    runs-on: ubuntu-latest
+    if: >
+      hashFiles(
+        'tests/threat-scenarios.test.ts',
+        'tests/threat-scenarios.test.js',
+        'src/__tests__/threat-scenarios.test.ts'
+      ) != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run threat tests
+        run: npm test -- --grep "threat-scenarios" || npm test
