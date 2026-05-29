@@ -107,3 +107,11 @@ ai-finance/
 - [SETUP.md](SETUP.md) — API 키 발급 + GitHub Secrets 등록
 - [ARCHITECTURE.md](ARCHITECTURE.md) — 시스템 아키텍처 + 데이터 흐름
 - [CHANGELOG.md](CHANGELOG.md) — 버전별 변경 이력
+
+
+---
+
+## 위협 모델
+
+전체 위협 카탈로그·자산·완화 매트릭스: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+회귀 테스트: `tests/test_threat_scenarios.py`
