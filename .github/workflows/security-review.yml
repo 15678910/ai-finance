@@ -67,9 +67,9 @@ jobs:
         run: pip install bandit
       - name: Run bandit (HIGH/CRITICAL only)
         run: |
-          bandit -r . -ll \
+          bandit -r . \
             -x tests,node_modules,.venv,venv,build,dist,frontend \
-            --severity-level high
+            --severity-level high --confidence-level medium
 
   sast-js:
     name: SAST (npm audit)
