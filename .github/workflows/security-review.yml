@@ -12,6 +12,33 @@ permissions:
   pull-requests: write
 
 jobs:
+  detect-stack:
+    name: Detect Stack
+    runs-on: ubuntu-latest
+    outputs:
+      has_python: ${{ steps.check.outputs.has_python }}
+      has_node: ${{ steps.check.outputs.has_node }}
+      has_threat_py: ${{ steps.check.outputs.has_threat_py }}
+      has_threat_js: ${{ steps.check.outputs.has_threat_js }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check stack files
+        id: check
+        run: |
+          has_python=false
+          has_node=false
+          has_threat_py=false
+          has_threat_js=false
+          [ -f requirements.txt ] || [ -f pyproject.toml ] || [ -f setup.py ] && has_python=true || true
+          [ -f package.json ] && has_node=true || true
+          [ -f tests/test_threat_scenarios.py ] && has_threat_py=true || true
+          [ -f tests/threat-scenarios.test.ts ] || [ -f tests/threat-scenarios.test.js ] || [ -f src/__tests__/threat-scenarios.test.ts ] && has_threat_js=true || true
+          echo "has_python=$has_python" >> "$GITHUB_OUTPUT"
+          echo "has_node=$has_node" >> "$GITHUB_OUTPUT"
+          echo "has_threat_py=$has_threat_py" >> "$GITHUB_OUTPUT"
+          echo "has_threat_js=$has_threat_js" >> "$GITHUB_OUTPUT"
+          echo "Stack: python=$has_python node=$has_node threat_py=$has_threat_py threat_js=$has_threat_js"
+
   secret-scan:
     name: Secret Scan (gitleaks)
     runs-on: ubuntu-latest
@@ -24,29 +51,31 @@ jobs:
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
             | tar -xz -C /usr/local/bin gitleaks
       - name: Run gitleaks
-        run: gitleaks detect --source . --redact --no-git=false
+        run: gitleaks detect --source . --redact
 
   sast-python:
     name: SAST (bandit, Python)
     runs-on: ubuntu-latest
-    if: hashFiles('requirements.txt', 'pyproject.toml', 'setup.py') != ''
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_python == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Install bandit
-        run: pip install "bandit[toml]"
+        run: pip install bandit
       - name: Run bandit (HIGH/CRITICAL only)
         run: |
           bandit -r . -ll \
-            -x './tests,./node_modules,./.venv,./venv,./build,./dist,./frontend' \
+            -x tests,node_modules,.venv,venv,build,dist,frontend \
             --severity-level high
 
   sast-js:
     name: SAST (npm audit)
     runs-on: ubuntu-latest
-    if: hashFiles('package.json') != ''
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_node == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,7 +90,8 @@ jobs:
   threat-tests-python:
     name: Threat Scenario Tests (pytest)
     runs-on: ubuntu-latest
-    if: hashFiles('tests/test_threat_scenarios.py') != ''
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_threat_py == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -70,15 +100,16 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pytest
-          [ -f requirements.txt ] && pip install -r requirements.txt || true
-          [ -f requirements-dev.txt ] && pip install -r requirements-dev.txt || true
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
       - name: Run threat scenarios
         run: pytest tests/test_threat_scenarios.py -v
 
   threat-tests-js:
     name: Threat Scenario Tests (vitest/jest)
     runs-on: ubuntu-latest
-    if: hashFiles('tests/threat-scenarios.test.ts', 'tests/threat-scenarios.test.js', 'src/__tests__/threat-scenarios.test.ts') != ''
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_threat_js == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
