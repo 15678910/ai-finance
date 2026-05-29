@@ -76,12 +76,7 @@ jobs:
   threat-tests-js:
     name: Threat Scenario Tests (vitest/jest)
     runs-on: ubuntu-latest
-    if: >
-      hashFiles(
-        'tests/threat-scenarios.test.ts',
-        'tests/threat-scenarios.test.js',
-        'src/__tests__/threat-scenarios.test.ts'
-      ) != ''
+    if: hashFiles('tests/threat-scenarios.test.ts', 'tests/threat-scenarios.test.js', 'src/__tests__/threat-scenarios.test.ts') != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
