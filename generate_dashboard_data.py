@@ -1263,6 +1263,130 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         parsed["macro"], macro_detail, geopolitical, portfolios, parsed["sectors"]
     )
 
+    # 10.0) treemap_sectors.json 기반 확장 종목 수집
+    _treemap_config = os.path.join(SCRIPT_DIR, "treemap_sectors.json")
+    def build_treemap_sectors(config_path: str, existing_sectors: list) -> list:
+        """treemap_sectors.json에서 종목을 읽어 yfinance로 시가총액/등락률을 수집합니다.
+        기존 sectors의 regime/sentiment 데이터는 유지합니다."""
+        try:
+            import yfinance as _yf  # 함수 로컬 임포트 (모듈 임포트 순서 독립적)
+        except ImportError:
+            print("[WARN] yfinance 미설치, treemap 확장 스킵")
+            return existing_sectors
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception as e:
+            print(f"[WARN] treemap_sectors.json 로드 실패: {e}")
+            return existing_sectors
+
+        # 기존 데이터 인덱스: {ticker: stock_dict}
+        existing_index: dict = {}
+        for sec in existing_sectors:
+            for st in sec.get("stocks", []):
+                if st.get("ticker"):
+                    existing_index[st["ticker"]] = st
+
+        sectors_out = []
+        for sector_name, sector_data in cfg.get("sectors", {}).items():
+            tickers_map = sector_data.get("tickers", {})
+            stocks = []
+            for ticker, name in tickers_map.items():
+                # yfinance 심볼 변환
+                if ticker.isdigit() and len(ticker) == 6:
+                    yt_list = [ticker + ".KS", ticker + ".KQ"]
+                elif ticker.endswith("-USD"):
+                    yt_list = [ticker]
+                else:
+                    yt_list = [ticker]
+
+                # 기존 데이터 기반
+                base = dict(existing_index.get(ticker, {})) or {
+                    "name": name, "ticker": ticker,
+                    "regime": "N/A", "sentiment_label": "N/A", "sentiment_score": "N/A",
+                    "price": None, "market_cap": None, "change_pct": 0,
+                    "per": None, "roe": None,
+                }
+                base["name"] = name
+                base["ticker"] = ticker
+
+                # yfinance에서 최신 데이터 수집 (fast_info 우선 → info → history 폴백)
+                for yt in yt_list:
+                    try:
+                        t = _yf.Ticker(yt)
+                        cp = None
+                        prev_close = None
+                        mc = None
+
+                        # 1) fast_info (장 마감 후에도 작동)
+                        try:
+                            fi = t.fast_info
+                            if fi.last_price and float(fi.last_price) > 0:
+                                cp = float(fi.last_price)
+                            if fi.previous_close and float(fi.previous_close) > 0:
+                                prev_close = float(fi.previous_close)
+                            if hasattr(fi, "market_cap") and fi.market_cap:
+                                mc = round(float(fi.market_cap) / 1e12, 1)
+                        except Exception:
+                            pass
+
+                        # 2) info 폴백
+                        if not cp:
+                            try:
+                                info = t.info or {}
+                                cp = float(info.get("currentPrice") or info.get("regularMarketPrice") or 0) or None
+                                if not prev_close:
+                                    prev_close = float(info.get("regularMarketPreviousClose") or info.get("previousClose") or 0) or None
+                                if not mc and info.get("marketCap"):
+                                    mc = round(float(info["marketCap"]) / 1e12, 1)
+                                # PER
+                                pe = info.get("trailingPE") or info.get("forwardPE")
+                                if pe and float(pe) > 0:
+                                    base["per"] = round(float(pe), 2)
+                            except Exception:
+                                pass
+
+                        # 3) history 폴백 (최후 수단)
+                        if not cp:
+                            try:
+                                hist = t.history(period="5d")
+                                if not hist.empty:
+                                    cp = float(hist["Close"].iloc[-1])
+                                    if len(hist) >= 2:
+                                        prev_close = float(hist["Close"].iloc[-2])
+                            except Exception:
+                                pass
+
+                        if not cp:
+                            continue  # 다음 티커 시도
+
+                        is_usd = ticker.endswith("-USD")
+                        base["price"] = round(cp, 2 if is_usd else 0)
+                        if mc:
+                            base["market_cap"] = mc
+                        # 등락률 계산
+                        if prev_close and prev_close > 0 and abs(cp - prev_close) > 1e-6:
+                            base["change_pct"] = round((cp - prev_close) / prev_close * 100, 2)
+                        break
+                    except Exception:
+                        continue
+
+                if base.get("market_cap") or base.get("price"):
+                    stocks.append(base)
+                else:
+                    print(f"  [SKIP] {name} ({ticker}): 데이터 없음")
+
+            if stocks:
+                sectors_out.append({"name": sector_name, "stocks": stocks})
+                print(f"  [treemap] {sector_name}: {len(stocks)}개")
+
+        return sectors_out if sectors_out else existing_sectors
+
+    if os.path.exists(_treemap_config):
+        print(f"[INFO] treemap_sectors.json 기반 종목 확장 중...")
+        parsed["sectors"] = build_treemap_sectors(_treemap_config, parsed["sectors"])
+        print(f"[INFO] 트리맵 종목 확장 완료: {sum(len(s['stocks']) for s in parsed['sectors'])}개")
+
     # 9) 최종 JSON 구조 조립
     # 새 sectors가 비어있으면 기존 data.json의 sectors/macro 보존 (덮어쓰기 방지)
     final_sectors = parsed["sectors"]

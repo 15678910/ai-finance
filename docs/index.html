@@ -5937,10 +5937,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       return;
     }
 
-    // ── 분류 설정 ────────────────────────────────────────────────
-    const DOMESTIC = new Set(['IT/반도체','에너지','방산','배터리/2차전지','바이오/헬스케어']);
-    const CRYPTO   = new Set(['암호화폐']);
-    const US       = new Set(['미국 빅테크']);
+    // ── 분류 설정 (treemap_sectors.json의 market 필드와 동기화) ──────
+    // 섹터명이 '미국_'으로 시작하면 US, '암호화폐'면 crypto, 나머지는 국내
+    const isUS     = (name) => name.startsWith('미국_') || name === '미국 빅테크';
+    const isCrypto = (name) => name === '암호화폐';
+    const DOMESTIC = { has: (n) => !isUS(n) && !isCrypto(n) };
+    const CRYPTO   = { has: (n) => isCrypto(n) };
+    const US       = { has: (n) => isUS(n) };
 
     const normCap = (raw) => { const v = raw || 1; return v > 5000 ? v / 10000 : v; };
     const scaleVal = (c) => Math.sqrt(Math.max(c, 0.1)) * 1e4;
