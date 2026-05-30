@@ -5904,12 +5904,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
 
     // 트리맵용 계층 구조
+    // market_cap 단위 정규화: 조원 기준이어야 함.
+    // 5000조 초과 시 억원으로 판단 → 10,000으로 나눠 조원 변환 (이상값 방어)
+    const normCap = (raw) => {
+      const v = raw || 1;
+      return v > 5000 ? v / 10000 : v;  // 억원 → 조원 자동 변환
+    };
     const root = { name: 'root', children: sectors.map(sec => ({
       name: sec.name || sec.sector || 'Unknown',
       children: (sec.stocks || []).map(s => ({
         name: s.name,
         ticker: s.ticker,
-        value: (s.market_cap || 1) * 1e8,  // 시총
+        value: Math.max(normCap(s.market_cap), 0.1) * 1e8,  // 시총(조원 → 내부 단위)
         change_pct: s.change_pct || 0,
         per: s.per,
         roe: s.roe_pct,

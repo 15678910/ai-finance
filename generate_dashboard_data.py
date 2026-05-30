@@ -246,9 +246,13 @@ def load_metrics(metrics_path: str) -> dict:
         v = data.get(key, fallback)
         return v if v not in (None, "", "N/A") else fallback
 
+    # 시가총액: metrics.json은 억원 단위 → 조원으로 변환 (yfinance 경로와 단위 통일)
+    _cap_eok = _val("시가총액(억)")
+    _cap_jo = round(_cap_eok / 10_000, 1) if isinstance(_cap_eok, (int, float)) and _cap_eok > 0 else None
+
     return {
         "price": _val("현재주가"),
-        "market_cap": _val("시가총액(억)"),
+        "market_cap": _cap_jo,
         "per": data.get("PER", "N/A"),
         "forward_per": _val("Forward PER"),
         "roe": _val("ROE(%)"),
