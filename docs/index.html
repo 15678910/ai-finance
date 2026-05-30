@@ -5945,7 +5945,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const CRYPTO   = { has: (n) => isCrypto(n) };
     const US       = { has: (n) => isUS(n) };
 
-    const normCap = (raw) => { const v = raw || 1; return v > 5000 ? v / 10000 : v; };
+    // market_cap null → 0.001 (거의 보이지 않음), 실제 값 우선
+    const normCap = (raw) => {
+      if (raw == null || raw <= 0) return 0.001;
+      return raw > 5000 ? raw / 10000 : raw;
+    };
     const scaleVal = (c) => Math.sqrt(Math.max(c, 0.1)) * 1e4;
 
     const makeLeaf = (s) => ({

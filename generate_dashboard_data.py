@@ -1326,25 +1326,25 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                             if fi.previous_close and float(fi.previous_close) > 0:
                                 prev_close = float(fi.previous_close)
                             if hasattr(fi, "market_cap") and fi.market_cap:
-                                mc = round(float(fi.market_cap) / 1e12, 1)
+                                mc = round(float(fi.market_cap) / 1e12, 3)  # 3자리: 소형코인 0.0 방지
                         except Exception:
                             pass
 
-                        # 2) info 폴백
-                        if not cp:
-                            try:
-                                info = t.info or {}
+                        # 2) info 폴백 — price 유무와 무관하게 market_cap 보완
+                        try:
+                            info = t.info or {}
+                            if not cp:
                                 cp = float(info.get("currentPrice") or info.get("regularMarketPrice") or 0) or None
-                                if not prev_close:
-                                    prev_close = float(info.get("regularMarketPreviousClose") or info.get("previousClose") or 0) or None
-                                if not mc and info.get("marketCap"):
-                                    mc = round(float(info["marketCap"]) / 1e12, 1)
-                                # PER
-                                pe = info.get("trailingPE") or info.get("forwardPE")
-                                if pe and float(pe) > 0:
-                                    base["per"] = round(float(pe), 2)
-                            except Exception:
-                                pass
+                            if not prev_close:
+                                prev_close = float(info.get("regularMarketPreviousClose") or info.get("previousClose") or 0) or None
+                            if not mc and info.get("marketCap"):
+                                mc = round(float(info["marketCap"]) / 1e12, 3)
+                            # PER
+                            pe = info.get("trailingPE") or info.get("forwardPE")
+                            if pe and float(pe) > 0:
+                                base["per"] = round(float(pe), 2)
+                        except Exception:
+                            pass
 
                         # 3) history 폴백 (최후 수단)
                         if not cp:
@@ -1673,7 +1673,7 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                                 stock["change_pct"] = round(v * 100 if abs(v) < 1 else v, 2)
                             # 시총
                             if info.get("marketCap"):
-                                stock["market_cap"] = round(info["marketCap"] / 1e12, 1)
+                                stock["market_cap"] = round(info["marketCap"] / 1e12, 3)
                             # PER (trailing 우선, forward fallback)
                             trailing_pe = info.get("trailingPE")
                             forward_pe = info.get("forwardPE")
