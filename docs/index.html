@@ -5944,13 +5944,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     treemap(hier);
 
+    // 전체 시총 합산 (점유율 계산용 — 실제 조원 값 사용)
+    const totalCap = hier.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0);
+    const sharePct = (cap) => totalCap > 0 ? (cap / totalCap * 100) : 0;
+
+    // 섹터별 시총 합산
+    const sectorCapMap = {};
+    (hier.children || []).forEach(sec => {
+      sectorCapMap[sec.data.name] = sec.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0);
+    });
+
     // 색상: change_pct (-5% red ~ +5% green)
     const colorScale = d3.scaleLinear()
       .domain([-5, -1, 0, 1, 5])
       .range(['#dc2626', '#f87171', '#475569', '#4ade80', '#16a34a'])
       .clamp(true);
 
-    // 섹터 레이블
+    // 섹터 레이블 (이름 + 점유율%)
     const sectorNodes = svg.selectAll('g.sector')
       .data(hier.children || [])
       .enter()
@@ -5963,7 +5973,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .attr('width', d => d.x1 - d.x0)
       .attr('height', d => d.y1 - d.y0)
       .attr('fill', 'rgba(167,139,250,0.05)')
-      .attr('stroke', 'rgba(167,139,250,0.25)')
+      .attr('stroke', 'rgba(167,139,250,0.35)')
       .attr('stroke-width', 1);
 
     sectorNodes.append('text')
@@ -5972,7 +5982,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .attr('fill', '#a78bfa')
       .attr('font-size', '0.7rem')
       .attr('font-weight', 600)
-      .text(d => d.data.name);
+      .text(d => {
+        const sp = sharePct(sectorCapMap[d.data.name] || 0);
+        return `${d.data.name}  ${sp.toFixed(1)}%`;
+      });
 
     // 종목 셀
     const stockNodes = svg.selectAll('g.stock')
@@ -5992,27 +6005,45 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       .attr('stroke', 'rgba(0,0,0,0.3)')
       .attr('stroke-width', 0.5);
 
+    // 툴팁: 시총 + 점유율 + 등락률
     stockNodes.append('title')
-      .text(d => `${d.data.name} (${d.data.ticker || ''})\n시총: ${Math.round((d.value || 0)/1e12)}조원\n등락: ${(d.data.change_pct || 0).toFixed(2)}%\nPER: ${d.data.per || '—'}\nROE: ${d.data.roe || '—'}%`);
+      .text(d => {
+        const sp = sharePct(d.data.market_cap || 0).toFixed(2);
+        const cap = (d.data.market_cap || 0).toFixed(1);
+        return `${d.data.name} (${d.data.ticker || ''})\n시총: ${cap}조원  점유율: ${sp}%\n등락: ${(d.data.change_pct || 0).toFixed(2)}%\nPER: ${d.data.per || '—'}  ROE: ${d.data.roe || '—'}%`;
+      });
 
     // 종목명 (충분히 큰 셀에만)
-    stockNodes.filter(d => (d.x1 - d.x0) > 60 && (d.y1 - d.y0) > 30)
+    stockNodes.filter(d => (d.x1 - d.x0) > 55 && (d.y1 - d.y0) > 28)
       .append('text')
       .attr('x', d => (d.x0 + d.x1) / 2)
-      .attr('y', d => (d.y0 + d.y1) / 2 - 4)
+      .attr('y', d => (d.y0 + d.y1) / 2 - 6)
       .attr('text-anchor', 'middle')
       .attr('fill', '#ffffff')
       .attr('font-size', d => Math.min(13, Math.max(9, (d.x1 - d.x0) / 8)) + 'px')
       .attr('font-weight', 600)
       .text(d => d.data.name);
 
-    stockNodes.filter(d => (d.x1 - d.x0) > 70 && (d.y1 - d.y0) > 45)
+    // 1행: 시장 점유율 % (주요 정보)
+    stockNodes.filter(d => (d.x1 - d.x0) > 55 && (d.y1 - d.y0) > 42)
       .append('text')
       .attr('x', d => (d.x0 + d.x1) / 2)
-      .attr('y', d => (d.y0 + d.y1) / 2 + 12)
+      .attr('y', d => (d.y0 + d.y1) / 2 + 9)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'rgba(255,255,255,0.9)')
-      .attr('font-size', '0.7rem')
+      .attr('fill', 'rgba(255,255,230,0.95)')
+      .attr('font-size', '0.68rem')
+      .attr('font-family', 'var(--font-mono)')
+      .attr('font-weight', 700)
+      .text(d => sharePct(d.data.market_cap || 0).toFixed(1) + '%');
+
+    // 2행: 등락률 (보조 정보)
+    stockNodes.filter(d => (d.x1 - d.x0) > 65 && (d.y1 - d.y0) > 58)
+      .append('text')
+      .attr('x', d => (d.x0 + d.x1) / 2)
+      .attr('y', d => (d.y0 + d.y1) / 2 + 23)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'rgba(255,255,255,0.75)')
+      .attr('font-size', '0.63rem')
       .attr('font-family', 'var(--font-mono)')
       .text(d => (d.data.change_pct >= 0 ? '+' : '') + (d.data.change_pct || 0).toFixed(1) + '%');
 
