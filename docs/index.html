@@ -2708,7 +2708,7 @@ body {
       </div>
 
       <!-- 시각화 캔버스 (Sovereign Watch 스타일: 별이 빛나는 우주 배경) -->
-      <div id="tcm-canvas" class="glass-card" style="height:560px;background:radial-gradient(ellipse at center, #001020 0%, #000005 100%);border-radius:8px;overflow:hidden;position:relative;padding:0;">
+      <div id="tcm-canvas" class="glass-card" style="height:680px;background:radial-gradient(ellipse at center, #001020 0%, #000005 100%);border-radius:8px;overflow:hidden;position:relative;padding:0;">
         <svg id="tcm-globe" style="width:100%;height:100%;display:block;cursor:grab;"></svg>
         <svg id="tcm-treemap" style="width:100%;height:100%;display:none;"></svg>
         <svg id="tcm-heatmap" style="width:100%;height:100%;display:none;"></svg>
@@ -5910,12 +5910,16 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const v = raw || 1;
       return v > 5000 ? v / 10000 : v;  // 억원 → 조원 자동 변환
     };
+    // √ 스케일링: 극단적 시총 차이(삼성전자 2000조 vs 암호화폐 0.1조)를 압축해
+    // 모든 섹터가 화면에 표시될 수 있도록 함. 상대 비율은 유지.
+    const scaleVal = (capJo) => Math.sqrt(Math.max(capJo, 0.1)) * 1e4;
     const root = { name: 'root', children: sectors.map(sec => ({
       name: sec.name || sec.sector || 'Unknown',
       children: (sec.stocks || []).map(s => ({
         name: s.name,
         ticker: s.ticker,
-        value: Math.max(normCap(s.market_cap), 0.1) * 1e8,  // 시총(조원 → 내부 단위)
+        value: scaleVal(normCap(s.market_cap)),  // √(시총조원) — 압축 스케일
+        market_cap: normCap(s.market_cap),        // 원래 시총(조원) — 툴팁용
         change_pct: s.change_pct || 0,
         per: s.per,
         roe: s.roe_pct,
@@ -5930,8 +5934,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const treemap = d3.treemap()
       .size([width, height])
       .paddingInner(1)
-      .paddingOuter(2)
-      .paddingTop(18)
+      .paddingOuter(3)
+      .paddingTop(16)
       .round(true);
 
     const hier = d3.hierarchy(root)
