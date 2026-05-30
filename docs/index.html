@@ -7218,7 +7218,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   };
 
   // ─── Load Data ───────────────────────────────────────
-  fetch('./data.json')
+  fetch('./data.json?v=' + Date.now(), { cache: 'no-store' })
     .then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
