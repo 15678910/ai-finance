@@ -1537,6 +1537,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         if cp:
                             # 가격
                             stock["price"] = round(float(cp), 0) if not ticker.endswith("-USD") else round(float(cp), 2)
+                            # 당일 등락률 (트리맵 색상용)
+                            chg_pct = info.get("regularMarketChangePercent")
+                            if chg_pct is None:
+                                prev_close = info.get("regularMarketPreviousClose") or info.get("previousClose")
+                                if prev_close and float(prev_close) > 0:
+                                    chg_pct = (float(cp) - float(prev_close)) / float(prev_close) * 100
+                            if chg_pct is not None:
+                                # yfinance는 소수(0.05 = 5%) 또는 정수(5.0 = 5%) 혼용
+                                v = float(chg_pct)
+                                stock["change_pct"] = round(v * 100 if abs(v) < 1 else v, 2)
                             # 시총
                             if info.get("marketCap"):
                                 stock["market_cap"] = round(info["marketCap"] / 1e12, 1)
