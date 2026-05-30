@@ -5894,7 +5894,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!svg.node()) return;
     svg.selectAll('*').remove();
 
-    // 데이터: sectors 또는 KG의 종목·섹터 조합
     const sectors = data.sectors || [];
     if (sectors.length === 0) {
       svg.append('text').attr('x', '50%').attr('y', '50%')
@@ -5903,29 +5902,34 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       return;
     }
 
-    // 트리맵용 계층 구조
-    // market_cap 단위 정규화: 조원 기준이어야 함.
-    // 5000조 초과 시 억원으로 판단 → 10,000으로 나눠 조원 변환 (이상값 방어)
-    const normCap = (raw) => {
-      const v = raw || 1;
-      return v > 5000 ? v / 10000 : v;  // 억원 → 조원 자동 변환
+    // ── 국내 / 국외 분류 ──────────────────────────────────────────
+    const DOMESTIC = new Set(['IT/반도체','에너지','방산','배터리/2차전지','바이오/헬스케어']);
+    const normCap = (raw) => { const v = raw || 1; return v > 5000 ? v / 10000 : v; };
+    const scaleVal = (c) => Math.sqrt(Math.max(c, 0.1)) * 1e4;
+
+    const makeChildren = (secList) => secList
+      .map(sec => ({
+        name: sec.name || sec.sector || 'Unknown',
+        children: (sec.stocks || []).map(s => ({
+          name: s.name, ticker: s.ticker,
+          value: scaleVal(normCap(s.market_cap)),
+          market_cap: normCap(s.market_cap),
+          change_pct: s.change_pct || 0,
+          per: s.per, roe: s.roe_pct, price: s.price,
+        })),
+      }))
+      .filter(s => s.children.length > 0);
+
+    const domestic = sectors.filter(s => DOMESTIC.has(s.name || s.sector || ''));
+    const overseas = sectors.filter(s => !DOMESTIC.has(s.name || s.sector || ''));
+
+    const root = {
+      name: 'root',
+      children: [
+        { name: '🇰🇷 국내 시장', isGroup: true, children: makeChildren(domestic) },
+        { name: '🌐 국외 시장',  isGroup: true, children: makeChildren(overseas) },
+      ].filter(g => g.children.length > 0),
     };
-    // √ 스케일링: 극단적 시총 차이(삼성전자 2000조 vs 암호화폐 0.1조)를 압축해
-    // 모든 섹터가 화면에 표시될 수 있도록 함. 상대 비율은 유지.
-    const scaleVal = (capJo) => Math.sqrt(Math.max(capJo, 0.1)) * 1e4;
-    const root = { name: 'root', children: sectors.map(sec => ({
-      name: sec.name || sec.sector || 'Unknown',
-      children: (sec.stocks || []).map(s => ({
-        name: s.name,
-        ticker: s.ticker,
-        value: scaleVal(normCap(s.market_cap)),  // √(시총조원) — 압축 스케일
-        market_cap: normCap(s.market_cap),        // 원래 시총(조원) — 툴팁용
-        change_pct: s.change_pct || 0,
-        per: s.per,
-        roe: s.roe_pct,
-        price: s.price,
-      })),
-    })).filter(s => s.children.length > 0)};
 
     const width = svg.node().clientWidth || 800;
     const height = svg.node().clientHeight || 480;
@@ -5934,8 +5938,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const treemap = d3.treemap()
       .size([width, height])
       .paddingInner(1)
-      .paddingOuter(3)
-      .paddingTop(16)
+      .paddingOuter(d => d.depth === 0 ? 4 : 2)
+      .paddingTop(d => d.depth === 1 ? 22 : 16)
       .round(true);
 
     const hier = d3.hierarchy(root)
@@ -5944,108 +5948,95 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     treemap(hier);
 
-    // 전체 시총 합산 (점유율 계산용 — 실제 조원 값 사용)
+    // 점유율 계산 (실제 조원 기준)
     const totalCap = hier.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0);
-    const sharePct = (cap) => totalCap > 0 ? (cap / totalCap * 100) : 0;
+    const pct = (cap) => totalCap > 0 ? (cap / totalCap * 100) : 0;
 
-    // 섹터별 시총 합산
-    const sectorCapMap = {};
-    (hier.children || []).forEach(sec => {
-      sectorCapMap[sec.data.name] = sec.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0);
-    });
-
-    // 색상: change_pct (-5% red ~ +5% green)
+    // 색상: change_pct
     const colorScale = d3.scaleLinear()
       .domain([-5, -1, 0, 1, 5])
-      .range(['#dc2626', '#f87171', '#475569', '#4ade80', '#16a34a'])
+      .range(['#dc2626','#f87171','#475569','#4ade80','#16a34a'])
       .clamp(true);
 
-    // 섹터 레이블 (이름 + 점유율%)
-    const sectorNodes = svg.selectAll('g.sector')
+    // ── 1단계: 국내/국외 그룹 테두리 + 헤더 ────────────────────────
+    const groupNodes = svg.selectAll('g.grp')
       .data(hier.children || [])
-      .enter()
-      .append('g')
-      .attr('class', 'sector');
+      .enter().append('g').attr('class', 'grp');
 
-    sectorNodes.append('rect')
-      .attr('x', d => d.x0)
-      .attr('y', d => d.y0)
-      .attr('width', d => d.x1 - d.x0)
-      .attr('height', d => d.y1 - d.y0)
-      .attr('fill', 'rgba(167,139,250,0.05)')
-      .attr('stroke', 'rgba(167,139,250,0.35)')
-      .attr('stroke-width', 1);
+    groupNodes.append('rect')
+      .attr('x', d => d.x0).attr('y', d => d.y0)
+      .attr('width', d => d.x1 - d.x0).attr('height', d => d.y1 - d.y0)
+      .attr('fill', 'none')
+      .attr('stroke', d => d.data.name.includes('국내') ? 'rgba(0,255,136,0.5)' : 'rgba(56,189,248,0.5)')
+      .attr('stroke-width', 2).attr('rx', 3);
 
-    sectorNodes.append('text')
-      .attr('x', d => d.x0 + 6)
-      .attr('y', d => d.y0 + 13)
-      .attr('fill', '#a78bfa')
-      .attr('font-size', '0.7rem')
-      .attr('font-weight', 600)
+    groupNodes.append('text')
+      .attr('x', d => d.x0 + 8).attr('y', d => d.y0 + 16)
+      .attr('fill', d => d.data.name.includes('국내') ? '#00ff88' : '#38bdf8')
+      .attr('font-size', '0.78rem').attr('font-weight', 700)
       .text(d => {
-        const sp = sharePct(sectorCapMap[d.data.name] || 0);
-        return `${d.data.name}  ${sp.toFixed(1)}%`;
+        const gc = d.leaves().reduce((s, l) => s + (l.data.market_cap || 0), 0);
+        return `${d.data.name}  ${pct(gc).toFixed(1)}%`;
       });
 
-    // 종목 셀
+    // ── 2단계: 섹터 배경 + 레이블 ───────────────────────────────────
+    const secNodes = svg.selectAll('g.sec')
+      .data(hier.descendants().filter(d => d.depth === 2))
+      .enter().append('g').attr('class', 'sec');
+
+    secNodes.append('rect')
+      .attr('x', d => d.x0).attr('y', d => d.y0)
+      .attr('width', d => d.x1 - d.x0).attr('height', d => d.y1 - d.y0)
+      .attr('fill', 'rgba(167,139,250,0.04)')
+      .attr('stroke', 'rgba(167,139,250,0.3)').attr('stroke-width', 0.8);
+
+    secNodes.append('text')
+      .attr('x', d => d.x0 + 5).attr('y', d => d.y0 + 12)
+      .attr('fill', '#c4b5fd').attr('font-size', '0.65rem').attr('font-weight', 600)
+      .text(d => {
+        const sc = d.leaves().reduce((s, l) => s + (l.data.market_cap || 0), 0);
+        return `${d.data.name}  ${pct(sc).toFixed(1)}%`;
+      });
+
+    // ── 3단계: 종목 셀 ───────────────────────────────────────────────
     const stockNodes = svg.selectAll('g.stock')
       .data(hier.leaves())
-      .enter()
-      .append('g')
-      .attr('class', 'stock')
-      .style('cursor', 'pointer');
+      .enter().append('g').attr('class', 'stock').style('cursor', 'pointer');
 
     stockNodes.append('rect')
-      .attr('x', d => d.x0)
-      .attr('y', d => d.y0)
+      .attr('x', d => d.x0).attr('y', d => d.y0)
       .attr('width', d => Math.max(0, d.x1 - d.x0 - 1))
       .attr('height', d => Math.max(0, d.y1 - d.y0 - 1))
       .attr('fill', d => colorScale(d.data.change_pct || 0))
       .attr('opacity', 0.85)
-      .attr('stroke', 'rgba(0,0,0,0.3)')
-      .attr('stroke-width', 0.5);
+      .attr('stroke', 'rgba(0,0,0,0.25)').attr('stroke-width', 0.5);
 
-    // 툴팁: 시총 + 점유율 + 등락률
     stockNodes.append('title')
       .text(d => {
-        const sp = sharePct(d.data.market_cap || 0).toFixed(2);
-        const cap = (d.data.market_cap || 0).toFixed(1);
-        return `${d.data.name} (${d.data.ticker || ''})\n시총: ${cap}조원  점유율: ${sp}%\n등락: ${(d.data.change_pct || 0).toFixed(2)}%\nPER: ${d.data.per || '—'}  ROE: ${d.data.roe || '—'}%`;
+        const sp = pct(d.data.market_cap || 0).toFixed(2);
+        return `${d.data.name} (${d.data.ticker || ''})\n시총: ${(d.data.market_cap||0).toFixed(1)}조원  점유율: ${sp}%\n등락: ${(d.data.change_pct||0).toFixed(2)}%\nPER: ${d.data.per||'—'}  ROE: ${d.data.roe||'—'}%`;
       });
 
-    // 종목명 (충분히 큰 셀에만)
-    stockNodes.filter(d => (d.x1 - d.x0) > 55 && (d.y1 - d.y0) > 28)
+    stockNodes.filter(d => (d.x1-d.x0) > 55 && (d.y1-d.y0) > 28)
       .append('text')
-      .attr('x', d => (d.x0 + d.x1) / 2)
-      .attr('y', d => (d.y0 + d.y1) / 2 - 6)
-      .attr('text-anchor', 'middle')
-      .attr('fill', '#ffffff')
-      .attr('font-size', d => Math.min(13, Math.max(9, (d.x1 - d.x0) / 8)) + 'px')
-      .attr('font-weight', 600)
-      .text(d => d.data.name);
+      .attr('x', d => (d.x0+d.x1)/2).attr('y', d => (d.y0+d.y1)/2 - 6)
+      .attr('text-anchor', 'middle').attr('fill', '#fff')
+      .attr('font-size', d => Math.min(13, Math.max(9, (d.x1-d.x0)/8)) + 'px')
+      .attr('font-weight', 600).text(d => d.data.name);
 
-    // 1행: 시장 점유율 % (주요 정보)
-    stockNodes.filter(d => (d.x1 - d.x0) > 55 && (d.y1 - d.y0) > 42)
+    stockNodes.filter(d => (d.x1-d.x0) > 55 && (d.y1-d.y0) > 42)
       .append('text')
-      .attr('x', d => (d.x0 + d.x1) / 2)
-      .attr('y', d => (d.y0 + d.y1) / 2 + 9)
-      .attr('text-anchor', 'middle')
-      .attr('fill', 'rgba(255,255,230,0.95)')
-      .attr('font-size', '0.68rem')
-      .attr('font-family', 'var(--font-mono)')
-      .attr('font-weight', 700)
-      .text(d => sharePct(d.data.market_cap || 0).toFixed(1) + '%');
+      .attr('x', d => (d.x0+d.x1)/2).attr('y', d => (d.y0+d.y1)/2 + 9)
+      .attr('text-anchor', 'middle').attr('fill', 'rgba(255,255,230,0.95)')
+      .attr('font-size', '0.68rem').attr('font-family', 'var(--font-mono)').attr('font-weight', 700)
+      .text(d => pct(d.data.market_cap || 0).toFixed(1) + '%');
 
-    // 2행: 등락률 (보조 정보)
-    stockNodes.filter(d => (d.x1 - d.x0) > 65 && (d.y1 - d.y0) > 58)
+    stockNodes.filter(d => (d.x1-d.x0) > 65 && (d.y1-d.y0) > 58)
       .append('text')
-      .attr('x', d => (d.x0 + d.x1) / 2)
-      .attr('y', d => (d.y0 + d.y1) / 2 + 23)
-      .attr('text-anchor', 'middle')
-      .attr('fill', 'rgba(255,255,255,0.75)')
-      .attr('font-size', '0.63rem')
-      .attr('font-family', 'var(--font-mono)')
-      .text(d => (d.data.change_pct >= 0 ? '+' : '') + (d.data.change_pct || 0).toFixed(1) + '%');
+      .attr('x', d => (d.x0+d.x1)/2).attr('y', d => (d.y0+d.y1)/2 + 23)
+      .attr('text-anchor', 'middle').attr('fill', 'rgba(255,255,255,0.75)')
+      .attr('font-size', '0.63rem').attr('font-family', 'var(--font-mono)')
+      .text(d => (d.data.change_pct >= 0 ? '+' : '') + (d.data.change_pct||0).toFixed(1) + '%');
 
     // 클릭: 인스펙터 열기 (해당 종목 SAO 검색)
     stockNodes.on('click', function(event, d) {
