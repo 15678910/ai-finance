@@ -1377,7 +1377,24 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                     print(f"  [SKIP] {name} ({ticker}): 데이터 없음")
 
             if stocks:
-                sectors_out.append({"name": sector_name, "stocks": stocks})
+                sec_entry: dict = {"name": sector_name, "stocks": stocks}
+
+                # 암호화폐 섹터: CoinGecko에서 전체 크립토 시가총액 수집 → 진짜 도미넌스 계산용
+                if sector_name == "암호화폐":
+                    try:
+                        import urllib.request as _req
+                        _url = "https://api.coingecko.com/api/v3/global"
+                        _r = _req.Request(_url, headers={"accept": "application/json",
+                                                         "User-Agent": "Mozilla/5.0"})
+                        with _req.urlopen(_r, timeout=6) as resp:
+                            _gc = json.loads(resp.read())
+                            _total = _gc["data"]["total_market_cap"]["usd"]
+                            sec_entry["crypto_global_cap"] = round(_total / 1e12, 3)
+                            print(f"  [crypto] 전체 시가총액 {sec_entry['crypto_global_cap']:.3f}T$ (CoinGecko)")
+                    except Exception as e:
+                        print(f"  [WARN] CoinGecko 전체 시총 수집 실패: {e}")
+
+                sectors_out.append(sec_entry)
                 print(f"  [treemap] {sector_name}: {len(stocks)}개")
 
         return sectors_out if sectors_out else existing_sectors

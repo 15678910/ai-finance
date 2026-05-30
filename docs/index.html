@@ -6072,9 +6072,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       });
 
     // ── 3단계: 종목 셀 ───────────────────────────────────────────────
-    // 암호화폐 전용 도미넌스 계산 (crypto 탭에서는 crypto 내부 비중)
+    // 암호화폐 전용 도미넌스 계산
+    // crypto_global_cap: CoinGecko 전체 시장 시가총액(조달러) → 진짜 도미넌스
+    // 없으면 추적 코인 합계로 폴백 (근사값)
+    const _cryptoSec = (data.sectors || []).find(s => s.name === '암호화폐');
+    const _globalCap = (_cryptoSec && _cryptoSec.crypto_global_cap) || 0;
     const cryptoTotalCap = filter === 'crypto'
-      ? hier.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0)
+      ? (_globalCap > 0 ? _globalCap : hier.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0))
       : 0;
     const dominance = (cap) => cryptoTotalCap > 0 ? (cap / cryptoTotalCap * 100) : pct(cap);
 
