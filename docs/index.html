@@ -2707,6 +2707,19 @@ body {
         <button class="tcm-tab" data-tcm-view="kg" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:0.78rem;cursor:pointer;">🕸️ 지식 그래프 (아래 섹션)</button>
       </div>
 
+      <!-- 트리맵 시장 필터 탭 (트리맵 뷰일 때만 표시) -->
+      <div id="tm-market-tabs" style="display:none;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:0.7rem;color:var(--text-muted);align-self:center;margin-right:4px;">시장</span>
+        <button class="tm-mkt-btn is-active" data-mkt="all"
+          style="padding:5px 14px;background:rgba(167,139,250,0.25);color:#c4b5fd;border:1px solid rgba(167,139,250,0.5);border-radius:20px;font-size:0.75rem;cursor:pointer;font-weight:600;">🌍 전체</button>
+        <button class="tm-mkt-btn" data-mkt="domestic"
+          style="padding:5px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:0.75rem;cursor:pointer;">🇰🇷 국내</button>
+        <button class="tm-mkt-btn" data-mkt="us"
+          style="padding:5px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:0.75rem;cursor:pointer;">🇺🇸 미국</button>
+        <button class="tm-mkt-btn" data-mkt="crypto"
+          style="padding:5px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:0.75rem;cursor:pointer;">🪙 암호화폐</button>
+      </div>
+
       <!-- 시각화 캔버스 (Sovereign Watch 스타일: 별이 빛나는 우주 배경) -->
       <div id="tcm-canvas" class="glass-card" style="height:680px;background:radial-gradient(ellipse at center, #001020 0%, #000005 100%);border-radius:8px;overflow:hidden;position:relative;padding:0;">
         <svg id="tcm-globe" style="width:100%;height:100%;display:block;cursor:grab;"></svg>
@@ -5560,18 +5573,22 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         const hm = document.getElementById('tcm-heatmap');
         const gc = document.getElementById('tcm-globe-controls');
         const gs = document.getElementById('tcm-globe-stats');
+        const mktTabs = document.getElementById('tm-market-tabs');
         if (view === 'globe') {
           gb.style.display = 'block'; tm.style.display = 'none'; hm.style.display = 'none';
           if (gc) gc.style.display = 'block';
           if (gs) gs.style.display = 'block';
+          if (mktTabs) mktTabs.style.display = 'none';
         } else if (view === 'treemap') {
           gb.style.display = 'none'; tm.style.display = 'block'; hm.style.display = 'none';
           if (gc) gc.style.display = 'none';
           if (gs) gs.style.display = 'none';
+          if (mktTabs) mktTabs.style.display = 'flex';
         } else if (view === 'heatmap') {
           gb.style.display = 'none'; tm.style.display = 'none'; hm.style.display = 'block';
           if (gc) gc.style.display = 'none';
           if (gs) gs.style.display = 'none';
+          if (mktTabs) mktTabs.style.display = 'none';
         } else if (view === 'kg') {
           const kgEl = document.querySelector('[id^="sec-통합-지식-그래프"]') || document.querySelector('[id*="지식"]');
           if (kgEl) kgEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5579,9 +5596,26 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       });
     });
 
+    // ─── 시장 필터 탭 클릭 ──────────────────────────────────────
+    window.__tmMarketFilter = 'all';
+    document.querySelectorAll('.tm-mkt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tm-mkt-btn').forEach(b => {
+          b.style.background = 'transparent';
+          b.style.color = 'var(--text-muted)';
+          b.style.borderColor = 'rgba(255,255,255,0.15)';
+        });
+        btn.style.background = 'rgba(167,139,250,0.25)';
+        btn.style.color = '#c4b5fd';
+        btn.style.borderColor = 'rgba(167,139,250,0.5)';
+        window.__tmMarketFilter = btn.dataset.mkt;
+        renderTcmTreemap(window.__dashboardData || {}, window.__tmMarketFilter);
+      });
+    });
+
     // ─── 모든 뷰 렌더링 ─────────
     renderTcmGlobe(data);
-    renderTcmTreemap(data);
+    renderTcmTreemap(data, 'all');
     renderTcmHeatmap(data);
   }
 
@@ -5889,7 +5923,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     updateGlobe();
   }
 
-  function renderTcmTreemap(data) {
+  function renderTcmTreemap(data, filter) {
+    filter = filter || 'all';
     const svg = d3.select('#tcm-treemap');
     if (!svg.node()) return;
     svg.selectAll('*').remove();
@@ -5902,44 +5937,70 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       return;
     }
 
-    // ── 국내 / 국외 분류 ──────────────────────────────────────────
+    // ── 분류 설정 ────────────────────────────────────────────────
     const DOMESTIC = new Set(['IT/반도체','에너지','방산','배터리/2차전지','바이오/헬스케어']);
+    const CRYPTO   = new Set(['암호화폐']);
+    const US       = new Set(['미국 빅테크']);
+
     const normCap = (raw) => { const v = raw || 1; return v > 5000 ? v / 10000 : v; };
     const scaleVal = (c) => Math.sqrt(Math.max(c, 0.1)) * 1e4;
 
+    const makeLeaf = (s) => ({
+      name: s.name, ticker: s.ticker,
+      value: scaleVal(normCap(s.market_cap)),
+      market_cap: normCap(s.market_cap),
+      change_pct: s.change_pct || 0,
+      per: s.per, roe: s.roe_pct, price: s.price,
+    });
+
     const makeChildren = (secList) => secList
-      .map(sec => ({
-        name: sec.name || sec.sector || 'Unknown',
-        children: (sec.stocks || []).map(s => ({
-          name: s.name, ticker: s.ticker,
-          value: scaleVal(normCap(s.market_cap)),
-          market_cap: normCap(s.market_cap),
-          change_pct: s.change_pct || 0,
-          per: s.per, roe: s.roe_pct, price: s.price,
-        })),
-      }))
+      .map(sec => ({ name: sec.name || sec.sector || 'Unknown',
+        children: (sec.stocks || []).map(makeLeaf) }))
       .filter(s => s.children.length > 0);
 
-    const domestic = sectors.filter(s => DOMESTIC.has(s.name || s.sector || ''));
-    const overseas = sectors.filter(s => !DOMESTIC.has(s.name || s.sector || ''));
+    // 전체 시총 기준 (어떤 필터든 점유율은 전체 대비)
+    const allLeaves = sectors.flatMap(s => (s.stocks || []).map(makeLeaf));
+    const totalCapAll = allLeaves.reduce((s, d) => s + (d.market_cap || 0), 0);
+    const pct = (cap) => totalCapAll > 0 ? (cap / totalCapAll * 100) : 0;
 
-    const root = {
-      name: 'root',
-      children: [
-        { name: '🇰🇷 국내 시장', isGroup: true, children: makeChildren(domestic) },
-        { name: '🌐 국외 시장',  isGroup: true, children: makeChildren(overseas) },
-      ].filter(g => g.children.length > 0),
-    };
+    // ── 필터별 계층 구조 ─────────────────────────────────────────
+    let root;
+    if (filter === 'domestic') {
+      const sec = sectors.filter(s => DOMESTIC.has(s.name || s.sector || ''));
+      root = { name: 'root', children: makeChildren(sec) };
+    } else if (filter === 'us') {
+      const sec = sectors.filter(s => US.has(s.name || s.sector || ''));
+      root = { name: 'root', children: makeChildren(sec) };
+    } else if (filter === 'crypto') {
+      const sec = sectors.filter(s => CRYPTO.has(s.name || s.sector || ''));
+      root = { name: 'root', children: makeChildren(sec) };
+    } else {
+      // 전체: 국내/국외 2그룹
+      const domestic = sectors.filter(s => DOMESTIC.has(s.name || s.sector || ''));
+      const overseas = sectors.filter(s => !DOMESTIC.has(s.name || s.sector || ''));
+      root = {
+        name: 'root',
+        children: [
+          { name: '🇰🇷 국내 시장', isGroup: true, children: makeChildren(domestic) },
+          { name: '🌐 국외 시장',  isGroup: true, children: makeChildren(overseas) },
+        ].filter(g => g.children.length > 0),
+      };
+    }
 
     const width = svg.node().clientWidth || 800;
     const height = svg.node().clientHeight || 480;
     svg.attr('viewBox', `0 0 ${width} ${height}`);
 
+    const isGrouped = (filter === 'all');  // 3단계 vs 2단계
+
     const treemap = d3.treemap()
       .size([width, height])
       .paddingInner(1)
       .paddingOuter(d => d.depth === 0 ? 4 : 2)
-      .paddingTop(d => d.depth === 1 ? 22 : 16)
+      .paddingTop(d => {
+        if (isGrouped) return d.depth === 1 ? 22 : 16;
+        return d.depth === 1 ? 18 : 0;
+      })
       .round(true);
 
     const hier = d3.hierarchy(root)
@@ -5948,51 +6009,56 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     treemap(hier);
 
-    // 점유율 계산 (실제 조원 기준)
-    const totalCap = hier.leaves().reduce((s, d) => s + (d.data.market_cap || 0), 0);
-    const pct = (cap) => totalCap > 0 ? (cap / totalCap * 100) : 0;
-
     // 색상: change_pct
     const colorScale = d3.scaleLinear()
       .domain([-5, -1, 0, 1, 5])
       .range(['#dc2626','#f87171','#475569','#4ade80','#16a34a'])
       .clamp(true);
 
-    // ── 1단계: 국내/국외 그룹 테두리 + 헤더 ────────────────────────
-    const groupNodes = svg.selectAll('g.grp')
-      .data(hier.children || [])
-      .enter().append('g').attr('class', 'grp');
+    if (isGrouped) {
+      // ── 전체 뷰: 1단계 국내/국외 그룹 테두리 ────────────────────
+      const groupNodes = svg.selectAll('g.grp')
+        .data(hier.children || [])
+        .enter().append('g').attr('class', 'grp');
 
-    groupNodes.append('rect')
-      .attr('x', d => d.x0).attr('y', d => d.y0)
-      .attr('width', d => d.x1 - d.x0).attr('height', d => d.y1 - d.y0)
-      .attr('fill', 'none')
-      .attr('stroke', d => d.data.name.includes('국내') ? 'rgba(0,255,136,0.5)' : 'rgba(56,189,248,0.5)')
-      .attr('stroke-width', 2).attr('rx', 3);
+      groupNodes.append('rect')
+        .attr('x', d => d.x0).attr('y', d => d.y0)
+        .attr('width', d => d.x1 - d.x0).attr('height', d => d.y1 - d.y0)
+        .attr('fill', 'none')
+        .attr('stroke', d => d.data.name.includes('국내') ? 'rgba(0,255,136,0.5)' : 'rgba(56,189,248,0.5)')
+        .attr('stroke-width', 2).attr('rx', 3);
 
-    groupNodes.append('text')
-      .attr('x', d => d.x0 + 8).attr('y', d => d.y0 + 16)
-      .attr('fill', d => d.data.name.includes('국내') ? '#00ff88' : '#38bdf8')
-      .attr('font-size', '0.78rem').attr('font-weight', 700)
-      .text(d => {
-        const gc = d.leaves().reduce((s, l) => s + (l.data.market_cap || 0), 0);
-        return `${d.data.name}  ${pct(gc).toFixed(1)}%`;
-      });
+      groupNodes.append('text')
+        .attr('x', d => d.x0 + 8).attr('y', d => d.y0 + 16)
+        .attr('fill', d => d.data.name.includes('국내') ? '#00ff88' : '#38bdf8')
+        .attr('font-size', '0.78rem').attr('font-weight', 700)
+        .text(d => {
+          const gc = d.leaves().reduce((s, l) => s + (l.data.market_cap || 0), 0);
+          return `${d.data.name}  ${pct(gc).toFixed(1)}%`;
+        });
+    }
 
-    // ── 2단계: 섹터 배경 + 레이블 ───────────────────────────────────
+    // ── 섹터 배경 + 레이블 (depth=2 for grouped, depth=1 for filtered) ──
+    const secDepth = isGrouped ? 2 : 1;
+    const secColor = filter === 'us'     ? '#93c5fd' :
+                     filter === 'crypto' ? '#fbbf24' : '#c4b5fd';
+    const secBg    = filter === 'us'     ? 'rgba(147,197,253,0.04)' :
+                     filter === 'crypto' ? 'rgba(251,191,36,0.04)' : 'rgba(167,139,250,0.04)';
+    const secBorder= filter === 'us'     ? 'rgba(147,197,253,0.3)' :
+                     filter === 'crypto' ? 'rgba(251,191,36,0.3)' : 'rgba(167,139,250,0.3)';
+
     const secNodes = svg.selectAll('g.sec')
-      .data(hier.descendants().filter(d => d.depth === 2))
+      .data(hier.descendants().filter(d => d.depth === secDepth))
       .enter().append('g').attr('class', 'sec');
 
     secNodes.append('rect')
       .attr('x', d => d.x0).attr('y', d => d.y0)
       .attr('width', d => d.x1 - d.x0).attr('height', d => d.y1 - d.y0)
-      .attr('fill', 'rgba(167,139,250,0.04)')
-      .attr('stroke', 'rgba(167,139,250,0.3)').attr('stroke-width', 0.8);
+      .attr('fill', secBg).attr('stroke', secBorder).attr('stroke-width', 0.8);
 
     secNodes.append('text')
       .attr('x', d => d.x0 + 5).attr('y', d => d.y0 + 12)
-      .attr('fill', '#c4b5fd').attr('font-size', '0.65rem').attr('font-weight', 600)
+      .attr('fill', secColor).attr('font-size', '0.65rem').attr('font-weight', 600)
       .text(d => {
         const sc = d.leaves().reduce((s, l) => s + (l.data.market_cap || 0), 0);
         return `${d.data.name}  ${pct(sc).toFixed(1)}%`;
