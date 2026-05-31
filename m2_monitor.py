@@ -11,7 +11,6 @@ import json
 import os
 import sys
 import urllib.request
-import urllib.parse
 from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
@@ -25,34 +24,43 @@ FRED_SERIES = {
         "unit": "B USD",
         "color": "#22d3ee",
     },
-    "kr": {
-        "id": "MYAGM2KRM189S",
-        "name": "한국 M2",
-        "unit": "M KRW",
-        "color": "#4ade80",
-    },
+    # 한국 M2: FRED 시리즈 단종(2017). 한국은행 ECOS API(BOK_API_KEY) 사용 권장.
+    # BOK_API_KEY 미설정 시 한국 M2 미표시.
 }
 
+# 한국은행 ECOS M2 시리즈 코드
+BOK_M2_CODE  = "101Y004"   # M2(광의통화) 전년동월비
+BOK_STAT_URL = "https://ecos.bok.or.kr/api/StatisticSearch/{key}/json/kr/1/500/{code}/M/{start}/{end}/"
 
-def fetch_fred(series_id: str, api_key: str, months: int = 48) -> list:
-    """FRED에서 월별 데이터를 가져옵니다."""
-    from datetime import date, timedelta as td
-    start = (date.today().replace(day=1) - td(days=months * 31)).strftime("%Y-%m-%d")
-    params = urllib.parse.urlencode({
-        "series_id": series_id,
-        "observation_start": start,
-        "file_type": "json",
-        "sort_order": "asc",
-        "api_key": api_key,
-    })
-    url = f"https://api.stlouisfed.org/fred/series/observations?{params}"
+
+FRED_CSV_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+USER_AGENT = "Mozilla/5.0 (compatible; ai-finance-m2-monitor/1.0)"
+
+
+def fetch_fred(series_id: str) -> list:
+    """FRED CSV 엔드포인트로 월별 데이터를 수집합니다 (API 키 불필요).
+    credit_spread_monitor.py와 동일한 방식 사용.
+    """
+    from datetime import date
+    # 4년치 데이터 확보 (YoY 계산에 13개월 이상 필요)
+    start_year = date.today().year - 4
+    start = f"{start_year}-01-01"
+    url = f"{FRED_CSV_BASE}?id={series_id}&vintage_date={start}"
     try:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.loads(r.read())
-            obs = data.get("observations", [])
-            # '.' 값 제거 (결측치)
-            return [(o["date"], float(o["value"])) for o in obs if o["value"] != "."]
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            text = r.read().decode("utf-8")
+        rows = []
+        for line in text.strip().splitlines()[1:]:   # 헤더 skip
+            parts = line.split(",")
+            if len(parts) == 2 and parts[1].strip() not in (".", ""):
+                try:
+                    rows.append((parts[0].strip(), float(parts[1].strip())))
+                except ValueError:
+                    pass
+        rows.sort(key=lambda x: x[0])
+        print(f"  {series_id}: {len(rows)}개 월별 데이터 수집")
+        return rows
     except Exception as e:
         print(f"  [WARN] FRED {series_id} 수집 실패: {e}")
         return []
@@ -80,15 +88,7 @@ def calc_yoy(series: list) -> list:
 
 
 def main():
-    api_key = os.environ.get("FRED_API_KEY", "")
-    if not api_key:
-        print("[ERROR] FRED_API_KEY 환경변수 미설정")
-        # Fallback: preserve existing file
-        if os.path.exists(OUTPUT_FILE):
-            print("[INFO] 기존 m2_data.json 유지")
-            return 0
-        sys.exit(1)
-
+    # CSV 방식은 API 키 불필요 (credit_spread_monitor.py와 동일)
     print("=" * 50)
     print("  M2 증가율 모니터")
     print(f"  KST: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}")
@@ -99,9 +99,10 @@ def main():
         "series": {},
     }
 
+    # ── 미국 M2 (FRED CSV, 키 불필요) ────────────────────────────────
     for key, meta in FRED_SERIES.items():
         print(f"\n[{meta['name']}] 수집 중...")
-        raw = fetch_fred(meta["id"], api_key)
+        raw = fetch_fred(meta["id"])
         if not raw:
             print(f"  데이터 없음")
             continue
@@ -119,6 +120,52 @@ def main():
                 "latest_date": latest["date"],
                 "latest_value": latest["value"],
             }
+
+    # ── 한국 M2 (한국은행 ECOS API, BOK_API_KEY 환경변수 필요) ─────────
+    bok_key = os.environ.get("BOK_API_KEY", "")
+    if bok_key:
+        print("\n[한국 M2] 한국은행 ECOS API 수집 중...")
+        try:
+            from datetime import date
+            start_ym = f"{date.today().year - 4}01"
+            end_ym   = f"{date.today().year}{date.today().month:02d}"
+            url = BOK_STAT_URL.format(key=bok_key, code=BOK_M2_CODE,
+                                      start=start_ym, end=end_ym)
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                d = json.loads(r.read())
+            rows = d.get("StatisticSearch", {}).get("row", [])
+            # ECOS는 YoY % 직접 반환 (전년동월비)
+            kr_data = []
+            for row in rows:
+                ym = row.get("TIME", "")           # "202601" 형식
+                val_str = row.get("DATA_VALUE", "")
+                if ym and val_str not in ("", "-", "N/A"):
+                    try:
+                        date_str = f"{ym[:4]}-{ym[4:6]}-01"
+                        yoy = float(val_str)
+                        kr_data.append({"date": date_str, "value": yoy, "yoy_pct": yoy})
+                    except ValueError:
+                        pass
+            kr_data = kr_data[-36:]
+            if kr_data:
+                latest = kr_data[-1]
+                print(f"  최신: {latest['date']}  YoY={latest['yoy_pct']:+.2f}%")
+                output["series"]["kr"] = {
+                    "name": "한국 M2",
+                    "unit": "전년동월비 %",
+                    "color": "#4ade80",
+                    "series_id": BOK_M2_CODE,
+                    "data": kr_data,
+                    "latest_yoy": latest["yoy_pct"],
+                    "latest_date": latest["date"],
+                    "latest_value": latest["yoy_pct"],
+                }
+        except Exception as e:
+            print(f"  [WARN] 한국은행 ECOS 수집 실패: {e}")
+    else:
+        print("\n[한국 M2] BOK_API_KEY 미설정 - 한국은행 ECOS API 키 등록 후 활성화")
+        print("  등록: https://ecos.bok.or.kr → 개발자서비스 → API키발급")
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

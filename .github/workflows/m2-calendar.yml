@@ -26,12 +26,14 @@ jobs:
       - name: Collect M2 data
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          BOK_API_KEY: ${{ secrets.BOK_API_KEY }}
           PYTHONIOENCODING: utf-8
         run: python m2_monitor.py
 
       - name: Update economic calendar
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          BOK_API_KEY: ${{ secrets.BOK_API_KEY }}
           PYTHONIOENCODING: utf-8
         run: python economic_calendar.py
 
