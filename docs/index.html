@@ -7589,18 +7589,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <div style="font-size:0.92rem;font-weight:700;color:var(--text-bright);margin-bottom:6px;">
               ${icon} ${h(ev.title)}
             </div>
-            <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;margin-bottom:10px;">${h(ev.detail||'')}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;margin-bottom:${ev.impact_analysis ? '4px' : '10px'};">${h(ev.detail||'')}</div>
+            ${ev.impact_analysis ? `<div style="font-size:0.7rem;color:var(--text);line-height:1.6;background:rgba(255,255,255,0.04);border-radius:4px;padding:6px 8px;margin-bottom:10px;border-left:2px solid rgba(99,179,237,0.4);">
+              <span style="font-size:0.6rem;color:var(--cyan);font-weight:600;display:block;margin-bottom:2px;">📊 시장 영향 분석</span>
+              ${h(ev.impact_analysis)}
+            </div>` : ''}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               ${meetings.length ? `<div>
                 <div style="font-size:0.68rem;color:var(--cyan);font-weight:600;margin-bottom:6px;">👥 면담 일정</div>
                 <table style="width:100%;border-collapse:collapse;font-size:0.68rem;">
-                  ${meetings.map(m => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:4px 6px;color:var(--text-bright);font-weight:600;">${h(m.name)}</td>
-                    <td style="padding:4px 6px;color:var(--text-muted);">${h(m.role)}</td>
-                    <td style="padding:4px 6px;color:var(--text);">${h(m.topic)}</td>
-                    <td style="padding:4px 6px;">
-                      ${m.confirmed ? '<span style="color:#4ade80;font-size:0.6rem;">✓ 확정</span>'
-                                    : `<span style="color:#fbbf24;font-size:0.6rem;">${h(m.note||'조율중')}</span>`}
+                  ${meetings.map(m => `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <td style="padding:5px 8px;color:var(--text-bright);font-weight:700;white-space:nowrap;min-width:60px;">${h(m.name)}</td>
+                    <td style="padding:5px 8px;color:var(--text-muted);font-size:0.65rem;white-space:nowrap;">${h(m.role)}</td>
+                    <td style="padding:5px 8px;color:var(--text);font-size:0.68rem;">${h(m.topic)}</td>
+                    <td style="padding:5px 8px;text-align:center;white-space:nowrap;">
+                      ${m.confirmed
+                        ? '<span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 6px;border-radius:8px;font-size:0.6rem;font-weight:600;">✓ 확정</span>'
+                        : `<span style="background:rgba(251,191,36,0.12);color:#fbbf24;padding:2px 6px;border-radius:8px;font-size:0.6rem;">${h(m.note||'조율중')}</span>`}
                     </td>
                   </tr>`).join('')}
                 </table>
@@ -7635,9 +7640,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <div style="font-size:0.85rem;font-weight:700;color:var(--text-bright);margin-bottom:4px;">
             ${icon} ${h(ev.title)}
           </div>
-          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;margin-bottom:6px;">
+          ${ev.boj_hike_probability != null ? `<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:6px;background:rgba(251,191,36,0.1);padding:4px 10px;border-radius:12px;border:1px solid rgba(251,191,36,0.3);">
+            <span style="font-size:0.65rem;color:var(--text-muted);">금리 인상 확률 (OIS)</span>
+            <span style="font-size:1.0rem;font-weight:800;color:#fbbf24;">${ev.boj_hike_probability}%</span>
+            <span style="font-size:0.6rem;color:var(--text-muted);">캐리잔고 ~$${ev.carry_trade_size_bn}0억</span>
+          </div>` : ''}
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;margin-bottom:${ev.impact_analysis ? '4px' : '6px'};">
             ${h(ev.detail || '')}
           </div>
+          ${ev.impact_analysis ? `<div style="font-size:0.7rem;color:var(--text);line-height:1.6;background:rgba(255,255,255,0.04);border-radius:4px;padding:6px 8px;margin-bottom:6px;border-left:2px solid rgba(99,179,237,0.4);">
+            <span style="font-size:0.6rem;color:var(--cyan);font-weight:600;display:block;margin-bottom:2px;">📊 시장 영향 분석</span>
+            ${h(ev.impact_analysis)}
+          </div>` : ''}
           <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
             <span style="padding:1px 7px;background:rgba(255,255,255,0.06);border-radius:10px;font-size:0.62rem;color:var(--cyan);">${h(ev.category)}</span>
             ${tags}

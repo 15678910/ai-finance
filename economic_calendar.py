@@ -26,9 +26,10 @@ CENTRAL_BANK_EVENTS = [
     {"date": "2026-01-28", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리"]},
     {"date": "2026-03-18", "title": "FOMC 금리 결정 + 경제전망(SEP)", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리", "SEP"]},
     {"date": "2026-05-06", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리"]},
-    {"date": "2026-06-17", "title": "FOMC 통화정책회의 (1일차)", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리"]},
-    {"date": "2026-06-18", "title": "FOMC 금리 결정 + Kevin Warsh 기자회견", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "detail": "신임 의장 Kevin Warsh의 공식 포워드 가이던스 주목. SEP(점도표) 동반 발표.", "tags": ["FOMC", "Fed", "Warsh", "금리", "기자회견"]},
-    {"date": "2026-07-29", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리"]},
+    # 6/17·6/18 FOMC는 CURATED_EVENTS의 Warsh 기자회견 항목으로 대체
+    {"date": "2026-07-29", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸",
+     "tags": ["FOMC", "Fed", "금리"],
+     "impact_analysis": "Warsh 의장 체제 첫 하반기 회의. 9월 인하 여부 시그널 주목. 점도표(SEP) 미발표 회의."},
     {"date": "2026-09-16", "title": "FOMC 금리 결정 + SEP", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리", "SEP"]},
     {"date": "2026-10-28", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리"]},
     {"date": "2026-12-09", "title": "FOMC 금리 결정 + SEP", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리", "SEP"]},
@@ -36,28 +37,34 @@ CENTRAL_BANK_EVENTS = [
     {"date": "2026-01-30", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리", "유로"]},
     {"date": "2026-03-06", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리"]},
     {"date": "2026-04-17", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리"]},
-    {"date": "2026-06-11", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "detail": "유로존 경기 둔화 속 추가 인하 여부 결정.", "tags": ["ECB", "금리", "유로"]},
-    {"date": "2026-07-17", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리"]},
+    # 6/11 ECB는 CURATED_EVENTS로 대체
+    {"date": "2026-07-17", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺",
+     "tags": ["ECB", "금리"],
+     "impact_analysis": "6월 인하 후 연속 인하 여부. 유로존 경기 회복 속도가 관건. EUR/USD 방향성 결정."},
     {"date": "2026-09-11", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리"]},
     {"date": "2026-10-23", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리"]},
     {"date": "2026-12-11", "title": "ECB 기준금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇪🇺", "tags": ["ECB", "금리"]},
     # BOJ (일본)
     {"date": "2026-03-19", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵", "tags": ["BOJ", "엔화", "금리"]},
     {"date": "2026-05-01", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵", "tags": ["BOJ", "엔화"]},
-    {"date": "2026-06-16", "title": "BOJ 금융정책결정회의 + 엔 캐리 청산 시그널", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵", "detail": "BOJ 추가 금리 인상 가능성. 엔 캐리 트레이드 청산 글로벌 리스크오프 트리거 주의.", "tags": ["BOJ", "엔화", "캐리트레이드", "리스크오프"]},
-    {"date": "2026-07-30", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵", "tags": ["BOJ", "엔화"]},
+    # 6/16 BOJ는 CURATED_EVENTS의 엔캐리 시그널 항목으로 대체
+    {"date": "2026-07-30", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵",
+     "tags": ["BOJ", "엔화"],
+     "impact_analysis": "6월 인상 이후 연속 인상 여부. 1.25% 도달 시 엔캐리 청산 2차 파고 가능성."},
     {"date": "2026-09-18", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵", "tags": ["BOJ", "엔화"]},
     # 한국은행
     {"date": "2026-01-16", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행", "기준금리"]},
     {"date": "2026-02-27", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행"]},
     {"date": "2026-04-17", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행"]},
     {"date": "2026-05-29", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행"]},
-    {"date": "2026-07-10", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행"]},
+    {"date": "2026-07-10", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷",
+     "tags": ["BOK", "한국은행"],
+     "impact_analysis": "5월 금통위 매파 2명 인상 주장 → 7월 인상 기대. 인상 시 USD/KRW 하락, 은행주 수혜. 부동산 대출 규제와 연계."},
 ]
 
 # ── 2. 수동 큐레이션 (IPO/지정학 등 — 뉴스 기반) ───────────────────
 CURATED_EVENTS = [
-    # ── 젠슨 황(NVIDIA CEO) 방한 — 2026-06-05 ──────────────────────
+    # ── 젠슨 황(NVIDIA CEO) 방한 ──────────────────────────────────────
     {
         "date": "2026-06-05",
         "title": "젠슨 황(NVIDIA CEO) 방한 — 2차 깐부 서밋",
@@ -66,42 +73,190 @@ CURATED_EVENTS = [
         "region": "🇰🇷",
         "detail": (
             "COMPUTEX 2026(타이베이) 기조연설 직후 서울 방문. "
-            "주요 면담: ① 최태원(SK그룹 회장) — HBM4 공급 확대·iHBM 냉각 기술, "
-            "② 구광모(LG그룹 회장, 첫 만남) — Isaac 로보틱스 플랫폼 × LG CLOiD 협력, "
-            "③ 이해진(네이버 창업자) — 옴니버스 디지털트윈 확장, "
-            "④ 정의선(현대차그룹 회장) — Atlas 휴머노이드 자동화 (일정 확정 중). "
-            "이재용(삼성 회장)은 해외 출장으로 불참. "
-            "핵심 의제: Physical AI·로보틱스·소버린 AI(260,000 GPU 공급 2030년 목표). "
-            "영향 종목: LG전자(+29.9%↑), 네이버(+14.1%↑), 삼성SDS(+20.3%↑), "
-            "현대오토에버(+24.8%↑), SK하이닉스(HBM4 70% 점유), 삼성전자(HBM4E 샘플 최초 출하)."
+            "주제: Physical AI, 로보틱스(Isaac), 소버린 AI(2030년까지 260,000 GPU 공급 약속)."
         ),
         "ticker": "NVDA",
-        "tags": ["NVIDIA", "젠슨황", "Physical AI", "HBM4", "로보틱스", "LG", "SK하이닉스", "방한"],
+        "tags": ["NVIDIA", "젠슨황", "Physical AI", "HBM4", "로보틱스", "LG", "SK하이닉스"],
+        "impact_analysis": (
+            "📈 직접 수혜: LG전자(+29.9% 상한가·Isaac 로보틱스 협력), 네이버(+14.1%·Omniverse), "
+            "삼성SDS(+20.3%), 현대오토에버(+24.8%). "
+            "💾 반도체: SK하이닉스(HBM4 70% 점유·iHBM 냉각기술), 삼성전자(HBM4E 세계 최초 샘플 출하). "
+            "⚠️ 주의: LG그룹 지주사·IT서비스 급등 — 방한 이후 차익 실현 가능성 고려."
+        ),
         "meetings": [
             {"name": "최태원", "role": "SK그룹 회장", "topic": "HBM4 공급·iHBM 냉각기술", "confirmed": True},
-            {"name": "구광모", "role": "LG그룹 회장", "topic": "Isaac 로보틱스 × CLOiD 협력", "confirmed": True},
+            {"name": "구광모", "role": "LG그룹 회장", "topic": "Isaac 로보틱스 × LG CLOiD", "confirmed": True},
             {"name": "이해진", "role": "네이버 창업자", "topic": "Omniverse 디지털트윈", "confirmed": True},
             {"name": "정의선", "role": "현대차그룹 회장", "topic": "Atlas 휴머노이드 자동화", "confirmed": False},
-            {"name": "이재용", "role": "삼성전자 회장", "topic": "HBM4E / 파운드리", "confirmed": False, "note": "해외 출장으로 불참"},
+            {"name": "이재용", "role": "삼성전자 회장", "topic": "HBM4E·파운드리", "confirmed": False, "note": "해외 출장 불참"},
         ],
         "affected_stocks": [
-            {"ticker": "066570", "name": "LG전자", "move": "+29.9%", "reason": "Isaac 로보틱스 협력"},
-            {"ticker": "000660", "name": "SK하이닉스", "move": "HBM4 70%↑", "reason": "HBM4 최대 공급사"},
+            {"ticker": "066570", "name": "LG전자", "move": "+29.9%", "reason": "Isaac 로보틱스 플랫폼 협력"},
+            {"ticker": "000660", "name": "SK하이닉스", "move": "HBM4 70%↑", "reason": "HBM4 최대 공급사·iHBM"},
             {"ticker": "035420", "name": "네이버", "move": "+14.1%", "reason": "Omniverse 디지털트윈"},
             {"ticker": "018260", "name": "삼성SDS", "move": "+20.3%", "reason": "AI 인프라"},
-            {"ticker": "005930", "name": "삼성전자", "move": "HBM4E 최초 출하", "reason": "HBM4E 샘플 세계 최초"},
+            {"ticker": "005930", "name": "삼성전자", "move": "HBM4E 최초 출하", "reason": "Rubin Ultra용 HBM4E 선제 출하"},
         ],
     },
-    {"date": "2026-06-10", "title": "SpaceX IPO", "category": "IPO", "impact": "HIGH", "region": "🇺🇸",
-     "detail": "공모액 기준 역대 최대 규모 예상. 나스닥 상장, 기술주·방산우주 섹터 전반에 영향.", "tags": ["IPO", "우주항공", "기술"]},
-    {"date": "2026-06-TBD", "title": "Anthropic IPO", "category": "IPO", "impact": "HIGH", "region": "🇺🇸",
-     "detail": "AI 대형 언어모델 선두주자. 상장 시 AI 섹터 밸류에이션 기준점.", "tags": ["IPO", "AI", "LLM"]},
-    {"date": "2026-06-TBD", "title": "OpenAI IPO / 구조 전환", "category": "IPO", "impact": "HIGH", "region": "🇺🇸",
-     "detail": "비영리→영리 구조전환 후 상장 추진. ChatGPT 밸류에이션 $1000억+ 예상.", "tags": ["IPO", "AI", "ChatGPT"]},
-    {"date": "2026-06-TBD", "title": "창신메모리(CXMT) A주 상장", "category": "IPO", "impact": "HIGH", "region": "🇨🇳",
-     "detail": "중국 최대 DRAM 업체. 삼성·SK하이닉스 잠재 경쟁자. 한국 반도체 섹터 영향 주시.", "tags": ["IPO", "반도체", "DRAM", "중국"]},
-    {"date": "2026-06-TBD", "title": "APEC 정상회담 (경주)", "category": "지정학", "impact": "MEDIUM", "region": "🇰🇷",
-     "detail": "한국 경주 개최. 미중 양자회담 및 반도체·무역 협의 가능성.", "tags": ["APEC", "지정학", "미중", "무역"]},
+    # ── SpaceX IPO ────────────────────────────────────────────────
+    {
+        "date": "2026-06-12",
+        "title": "SpaceX IPO (나스닥 상장)",
+        "category": "IPO",
+        "impact": "HIGH",
+        "region": "🇺🇸",
+        "detail": (
+            "공모가격 결정 6/11, 나스닥 상장 6/12. 밸류에이션 $1.75조(~2,600조원) — 역대 최대 IPO. "
+            "공모 규모 $750억. 주관: 골드만삭스·모건스탠리, 미래에셋증권(공동주관). "
+            "매출 $185억(2025) — Starlink가 70% 이상 차지. 2026E 매출 $220-240억."
+        ),
+        "ticker": "SPCE",
+        "tags": ["IPO", "SpaceX", "Starlink", "우주항공", "패시브펀드", "미래에셋"],
+        "impact_analysis": (
+            "🌐 글로벌 영향: S&P500 편입 시 패시브 펀드가 공모 물량의 ~19% 강제 매수 — "
+            "이를 위해 기존 S&P500 종목(애플·엔비디아·마이크로소프트 등) 약 $9,500억 기계적 매도 예상. "
+            "📈 직접 수혜 한국 기업: ① 미래에셋증권(공동주관, +190% YTD), "
+            "② 미래에셋벤처투자(SpaceX 8,000억원 투자·+349%), "
+            "③ 아주IB(미국법인 보유 SpaceX 지분·+446%), "
+            "④ OCI홀딩스(폴리실리콘 공급·+173%), "
+            "⑤ 스피어(특수합금 10년 계약), ⑥ 켄코아에어로스페이스(Tier-1 공급사). "
+            "⚠️ 주의: 한화에어로스페이스·KAI·LIG넥스원은 직접 공급사 아님 — 테마 급등 후 차익실현 위험. "
+            "💸 자본이동: 스페이스 ETF YTD +82%↑, 상장 후 Magnificent 7 기계적 매도 압력 주시."
+        ),
+    },
+    # ── 미국 CPI ──────────────────────────────────────────────────
+    {
+        "date": "2026-06-11",
+        "title": "미국 CPI 발표 (5월)",
+        "category": "경제지표",
+        "impact": "HIGH",
+        "region": "🇺🇸",
+        "detail": "BLS 소비자물가지수 5월 데이터 발표. 관세 인상의 물가 전이 여부 확인.",
+        "tags": ["CPI", "인플레이션", "Fed", "Warsh"],
+        "impact_analysis": (
+            "📊 예상치 상회(HOT) 시: 달러 강세, 미국채 수익률 급등, KOSPI 외국인 이탈 압력. "
+            "📊 예상치 하회(COOL) 시: Fed 9월 인하 기대 강화, 나스닥 랠리, 반도체·성장주 수혜. "
+            "🔑 6/18 Warsh 기자회견 전 마지막 핵심 데이터 — 금리 경로 결정에 직결."
+        ),
+    },
+    # ── ECB 기준금리 ───────────────────────────────────────────────
+    {
+        "date": "2026-06-11",
+        "title": "ECB 기준금리 결정",
+        "category": "중앙은행",
+        "impact": "HIGH",
+        "region": "🇪🇺",
+        "detail": "유럽중앙은행 통화정책회의. 현재 3.25% — 유로존 성장 둔화 속 추가 인하 여부.",
+        "tags": ["ECB", "금리", "유로", "라가르드"],
+        "impact_analysis": (
+            "✂️ 인하 시: EUR/USD 약세, 유럽 주식 상승, 글로벌 채권 강세 전반. "
+            "한국: 달러 강세 → USD/KRW 상방 압력, 수출주(삼성·현대차) 단기 긍정. "
+            "⏸️ 동결 시: ECB 신뢰도 훼손 우려, 유럽 경기 회의론 확산."
+        ),
+    },
+    # ── BOJ 금융정책결정회의 + 엔 캐리 ────────────────────────────
+    {
+        "date": "2026-06-16",
+        "title": "BOJ 금융정책결정회의 + 엔 캐리 청산 시그널",
+        "category": "중앙은행",
+        "impact": "HIGH",
+        "region": "🇯🇵",
+        "detail": (
+            "현재 BOJ 정책금리 0.75%. OIS 시장 금리 인상 확률 74%(+25bp → 1.00%). "
+            "4월 회의 6-3 동결(매파 3인 인상 주장), 전 심의위원 사쿠라이 '이번엔 올릴 것'. "
+            "위험 요인: 도쿄 CPI 5월 +1.3%(목표 2% 하회, 6개월 연속 둔화) — BOJ 동결 빌미 가능."
+        ),
+        "tags": ["BOJ", "엔화", "캐리트레이드", "금리", "리스크오프"],
+        "boj_hike_probability": 74,
+        "carry_trade_size_bn": 400,
+        "impact_analysis": (
+            "🔴 인상 시(74% 확률): ① USD/JPY → 140 급락(현재 155-156), "
+            "② 엔 캐리 잔고 $3,000-5,000억 청산 → VIX 급등(2024.8 사태: VIX 65, S&P -6% 3일). "
+            "③ KOSPI 외국인 리밸런싱 매도(YTD +80% 고평가로 1순위 청산 대상). "
+            "④ USD/KRW → 1,480-1,490 일시 하락(아시아 통화 강세 연동). "
+            "⑤ 한국채 수익률 상승(BoK 인상 가속 기대). "
+            "⑥ 삼성·SK하이닉스: 원화 강세 → 달러 매출 환산손 단기 부담. "
+            "🟡 동결 시: 일시 안도 랠리, 하반기 인상 기대 유지 — 불확실성 지속."
+        ),
+    },
+    # ── FOMC 기자회견 ─────────────────────────────────────────────
+    {
+        "date": "2026-06-18",
+        "title": "FOMC + Kevin Warsh 기자회견",
+        "category": "중앙은행",
+        "impact": "HIGH",
+        "region": "🇺🇸",
+        "detail": (
+            "신임 Fed 의장 Warsh 첫 공식 기자회견. SEP(점도표) 동반 발표. "
+            "현재 FFR 3.75% — 시장은 9월 인하 기대 반영 중."
+        ),
+        "tags": ["FOMC", "Fed", "Warsh", "점도표", "금리"],
+        "impact_analysis": (
+            "🦅 매파 서프라이즈(인하 후퇴): 달러 급등, 나스닥 급락, KOSPI 외국인 이탈, "
+            "USD/KRW 1,520+ 재진입 위험. "
+            "🕊️ 비둘기(9월 인하 확인): 성장주 랠리, 반도체·배터리 강세, "
+            "원화 강세(USD/KRW 1,450-1,480). "
+            "🔑 BOJ 인상(6/16) + Warsh 매파(6/18) 동시 발생 시 — 복합 리스크오프 최대."
+        ),
+    },
+    # ── Anthropic IPO ─────────────────────────────────────────────
+    {
+        "date": "2026-06-TBD",
+        "title": "Anthropic IPO",
+        "category": "IPO",
+        "impact": "HIGH",
+        "region": "🇺🇸",
+        "detail": "Claude 개발사. 아마존·구글 투자. 밸류에이션 $400억+ 예상.",
+        "tags": ["IPO", "AI", "Claude", "LLM"],
+        "impact_analysis": (
+            "🤖 AI 섹터 밸류에이션 기준점 형성 — OpenAI 다음 최대 LLM 업체. "
+            "국내: 네이버(HyperCLOVA 비교), 카카오(KoGPT), 업스테이지 등 AI 기업 재평가 촉매."
+        ),
+    },
+    # ── OpenAI ────────────────────────────────────────────────────
+    {
+        "date": "2026-06-TBD",
+        "title": "OpenAI IPO / 구조 전환",
+        "category": "IPO",
+        "impact": "HIGH",
+        "region": "🇺🇸",
+        "detail": "비영리→영리법인 전환 후 상장. ChatGPT 밸류에이션 $1,500억+ 예상.",
+        "tags": ["IPO", "AI", "ChatGPT", "OpenAI"],
+        "impact_analysis": (
+            "💡 AI 인프라 수요 재확인 — 삼성전자·SK하이닉스 HBM 수요 간접 증명. "
+            "경쟁사 압박: 네이버·카카오 AI 투자 확대 불가피 → 비용 증가 우려."
+        ),
+    },
+    # ── CXMT 상장 ─────────────────────────────────────────────────
+    {
+        "date": "2026-06-TBD",
+        "title": "창신메모리(CXMT) A주 상장",
+        "category": "IPO",
+        "impact": "HIGH",
+        "region": "🇨🇳",
+        "detail": "중국 최대 DRAM 제조사. DDR5 양산 돌입. 미국 수출 제한 하에 내수 공략.",
+        "tags": ["IPO", "반도체", "DRAM", "중국", "경쟁"],
+        "impact_analysis": (
+            "⚠️ 중장기 위협: 삼성·SK하이닉스 중국 내수 시장 잠식 가능성(현재 점유율 낮음). "
+            "단기: DRAM 가격 하방 압력 우려로 SK하이닉스·삼성 밸류에이션 할인 요인. "
+            "단, CXMT 기술력은 삼성 대비 2-3세대 격차 — HBM 경쟁은 아직 먼 미래."
+        ),
+    },
+    # ── APEC ──────────────────────────────────────────────────────
+    {
+        "date": "2026-06-TBD",
+        "title": "APEC 정상회담 (경주)",
+        "category": "지정학",
+        "impact": "MEDIUM",
+        "region": "🇰🇷",
+        "detail": "한국 경주 개최. 21개국 정상 참여. 미중 양자회담 가능성.",
+        "tags": ["APEC", "지정학", "미중", "무역", "반도체"],
+        "impact_analysis": (
+            "🤝 미중 무역 합의 시: 한국 수출주(삼성·현대차·POSCO) 긍정, 원화 강세. "
+            "반도체 수출 규제 완화 논의 가능성 → SK하이닉스 중국 HBM 판매 제한 해소 기대. "
+            "⚡ 미중 갈등 격화 시: 한국의 진영 선택 압박 강화, 수출 불확실성 증가."
+        ),
+    },
 ]
 
 # ── 3. FRED 릴리스 캘린더에서 경제지표 발표일 자동 수집 ──────────────
@@ -203,14 +358,19 @@ def main():
     all_events.extend(curated)
     print(f"[큐레이션] {len(curated)}개 IPO/지정학 이벤트 로드")
 
-    # 중복 제거 (같은 날짜+제목)
-    seen = set()
+    # 중복 제거 (같은 날짜+제목) — 더 많은 필드를 가진 항목 우선
+    seen: dict = {}  # key → index in deduped
     deduped = []
     for ev in all_events:
         key = (ev.get("date"), ev.get("title"))
         if key not in seen:
-            seen.add(key)
+            seen[key] = len(deduped)
             deduped.append(ev)
+        else:
+            # 기존 항목보다 필드가 많으면(더 풍부하면) 교체
+            existing_idx = seen[key]
+            if len(ev) > len(deduped[existing_idx]):
+                deduped[existing_idx] = ev
 
     deduped = sort_events(deduped)
     print(f"\n[합계] {len(deduped)}개 이벤트 (3개월 이내)")
