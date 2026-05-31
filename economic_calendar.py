@@ -57,6 +57,41 @@ CENTRAL_BANK_EVENTS = [
 
 # ── 2. 수동 큐레이션 (IPO/지정학 등 — 뉴스 기반) ───────────────────
 CURATED_EVENTS = [
+    # ── 젠슨 황(NVIDIA CEO) 방한 — 2026-06-05 ──────────────────────
+    {
+        "date": "2026-06-05",
+        "title": "젠슨 황(NVIDIA CEO) 방한 — 2차 깐부 서밋",
+        "category": "VIP방한",
+        "impact": "HIGH",
+        "region": "🇰🇷",
+        "detail": (
+            "COMPUTEX 2026(타이베이) 기조연설 직후 서울 방문. "
+            "주요 면담: ① 최태원(SK그룹 회장) — HBM4 공급 확대·iHBM 냉각 기술, "
+            "② 구광모(LG그룹 회장, 첫 만남) — Isaac 로보틱스 플랫폼 × LG CLOiD 협력, "
+            "③ 이해진(네이버 창업자) — 옴니버스 디지털트윈 확장, "
+            "④ 정의선(현대차그룹 회장) — Atlas 휴머노이드 자동화 (일정 확정 중). "
+            "이재용(삼성 회장)은 해외 출장으로 불참. "
+            "핵심 의제: Physical AI·로보틱스·소버린 AI(260,000 GPU 공급 2030년 목표). "
+            "영향 종목: LG전자(+29.9%↑), 네이버(+14.1%↑), 삼성SDS(+20.3%↑), "
+            "현대오토에버(+24.8%↑), SK하이닉스(HBM4 70% 점유), 삼성전자(HBM4E 샘플 최초 출하)."
+        ),
+        "ticker": "NVDA",
+        "tags": ["NVIDIA", "젠슨황", "Physical AI", "HBM4", "로보틱스", "LG", "SK하이닉스", "방한"],
+        "meetings": [
+            {"name": "최태원", "role": "SK그룹 회장", "topic": "HBM4 공급·iHBM 냉각기술", "confirmed": True},
+            {"name": "구광모", "role": "LG그룹 회장", "topic": "Isaac 로보틱스 × CLOiD 협력", "confirmed": True},
+            {"name": "이해진", "role": "네이버 창업자", "topic": "Omniverse 디지털트윈", "confirmed": True},
+            {"name": "정의선", "role": "현대차그룹 회장", "topic": "Atlas 휴머노이드 자동화", "confirmed": False},
+            {"name": "이재용", "role": "삼성전자 회장", "topic": "HBM4E / 파운드리", "confirmed": False, "note": "해외 출장으로 불참"},
+        ],
+        "affected_stocks": [
+            {"ticker": "066570", "name": "LG전자", "move": "+29.9%", "reason": "Isaac 로보틱스 협력"},
+            {"ticker": "000660", "name": "SK하이닉스", "move": "HBM4 70%↑", "reason": "HBM4 최대 공급사"},
+            {"ticker": "035420", "name": "네이버", "move": "+14.1%", "reason": "Omniverse 디지털트윈"},
+            {"ticker": "018260", "name": "삼성SDS", "move": "+20.3%", "reason": "AI 인프라"},
+            {"ticker": "005930", "name": "삼성전자", "move": "HBM4E 최초 출하", "reason": "HBM4E 샘플 세계 최초"},
+        ],
+    },
     {"date": "2026-06-10", "title": "SpaceX IPO", "category": "IPO", "impact": "HIGH", "region": "🇺🇸",
      "detail": "공모액 기준 역대 최대 규모 예상. 나스닥 상장, 기술주·방산우주 섹터 전반에 영향.", "tags": ["IPO", "우주항공", "기술"]},
     {"date": "2026-06-TBD", "title": "Anthropic IPO", "category": "IPO", "impact": "HIGH", "region": "🇺🇸",

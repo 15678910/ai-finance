@@ -7546,7 +7546,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const impactLabel = { HIGH: '🔴 HIGH', MEDIUM: '🟡 MEDIUM', LOW: '🟢 LOW' };
     const catIcon = {
       'IPO': '🚀', '경제지표': '📊', '중앙은행': '🏦',
-      'FX/금리': '💱', '지정학': '🌍', '기타': '📌'
+      'FX/금리': '💱', '지정학': '🌍', 'VIP방한': '✈️', '기타': '📌'
     };
 
     // Group by date
@@ -7577,6 +7577,52 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           `<span style="padding:1px 6px;background:rgba(255,255,255,0.08);border-radius:10px;font-size:0.6rem;color:var(--text-muted);">${h(t)}</span>`
         ).join(' ');
 
+        // ── VIP 방한 특별 카드 (면담 테이블 + 영향 종목) ──────────────
+        if (ev.category === 'VIP방한' && (ev.meetings || ev.affected_stocks)) {
+          const meetings = ev.meetings || [];
+          const stocks   = ev.affected_stocks || [];
+          html += `<div class="glass-card anim-item" style="padding:14px 16px;border-left:3px solid ${color};grid-column:span 2;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+              <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono);">${ev.region||''} ${dateDisplay}</div>
+              <div style="font-size:0.65rem;font-weight:600;color:${color};">${impactLabel[ev.impact]||ev.impact}</div>
+            </div>
+            <div style="font-size:0.92rem;font-weight:700;color:var(--text-bright);margin-bottom:6px;">
+              ${icon} ${h(ev.title)}
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;margin-bottom:10px;">${h(ev.detail||'')}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              ${meetings.length ? `<div>
+                <div style="font-size:0.68rem;color:var(--cyan);font-weight:600;margin-bottom:6px;">👥 면담 일정</div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.68rem;">
+                  ${meetings.map(m => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:4px 6px;color:var(--text-bright);font-weight:600;">${h(m.name)}</td>
+                    <td style="padding:4px 6px;color:var(--text-muted);">${h(m.role)}</td>
+                    <td style="padding:4px 6px;color:var(--text);">${h(m.topic)}</td>
+                    <td style="padding:4px 6px;">
+                      ${m.confirmed ? '<span style="color:#4ade80;font-size:0.6rem;">✓ 확정</span>'
+                                    : `<span style="color:#fbbf24;font-size:0.6rem;">${h(m.note||'조율중')}</span>`}
+                    </td>
+                  </tr>`).join('')}
+                </table>
+              </div>` : ''}
+              ${stocks.length ? `<div>
+                <div style="font-size:0.68rem;color:var(--amber);font-weight:600;margin-bottom:6px;">📈 영향 종목</div>
+                ${stocks.map(s => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <span style="font-size:0.7rem;color:var(--text-bright);">${h(s.name)}</span>
+                  <span style="font-size:0.68rem;color:#4ade80;font-family:var(--font-mono);">${h(s.move)}</span>
+                </div>
+                <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:2px;">${h(s.reason)}</div>`).join('')}
+              </div>` : ''}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+              <span style="padding:1px 7px;background:rgba(255,100,50,0.15);border-radius:10px;font-size:0.62rem;color:#fb923c;">${h(ev.category)}</span>
+              ${tags}
+            </div>
+          </div>`;
+          return;
+        }
+
+        // ── 일반 이벤트 카드 ──────────────────────────────────────────
         html += `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${color};">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
             <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono);">
