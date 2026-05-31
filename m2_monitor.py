@@ -87,35 +87,38 @@ def bok_get(_api_key: str, endpoint: str, timeout: int = 15) -> dict:
         return json.loads(r.read())
 
 
-def find_bok_m2_table(api_key: str) -> tuple:
-    """StatisticTableList에서 M2/광의통화 관련 통계표 코드와 항목코드를 검색."""
+def find_bok_m2_table(api_key: str) -> list:
+    """StatisticTableList에서 M2/광의통화 통계표의 (stat_code, item_code) 후보 목록 반환."""
     keywords = ["광의통화", "M2", "통화량"]
+    results = []
     try:
         d = bok_get(api_key, f"StatisticTableList/{api_key}/json/kr/1/200/")
         tables = d.get("StatisticTableList", {}).get("row", [])
         print(f"  ECOS 통계표 {len(tables)}개 검색 중...")
         for t in tables:
-            name = t.get("STAT_NAME", "") + t.get("STAT_NAME_KOR", "")
+            name = t.get("STAT_NAME", "")
             if any(k in name for k in keywords):
                 code = t.get("STAT_CODE", "")
-                print(f"  M2 테이블 발견: {code} - {t.get('STAT_NAME','')}")
-                # 항목 코드 조회
+                print(f"  M2 테이블 발견: {code} - {name}")
+                # 항목 코드 전체 조회
                 try:
                     d2 = bok_get(api_key, f"StatisticItemList/{api_key}/json/kr/1/100/{code}/")
                     items = d2.get("StatisticItemList", {}).get("row", [])
-                    for item in items:
-                        iname = item.get("ITEM_NAME", "")
-                        if "M2" in iname or "광의" in iname:
-                            icode = item.get("ITEM_CODE", "")
-                            print(f"    항목 발견: {icode} - {iname}")
-                            return code, icode
-                    # 항목 미발견 시 코드만 반환
-                    return code, ""
-                except Exception:
-                    return code, ""
+                    print(f"    항목 {len(items)}개: {[(i.get('ITEM_CODE',''), i.get('ITEM_NAME','')) for i in items[:5]]}")
+                    # 모든 항목을 후보로 추가 (우선: M2/광의 포함 항목)
+                    matched = [(code, i.get("ITEM_CODE",""), i.get("ITEM_NAME",""))
+                               for i in items if any(k in i.get("ITEM_NAME","") for k in keywords)]
+                    others  = [(code, i.get("ITEM_CODE",""), i.get("ITEM_NAME",""))
+                               for i in items if not any(k in i.get("ITEM_NAME","") for k in keywords)]
+                    results.extend(matched + others[:3])  # 매칭 항목 + 기타 최대 3개
+                    if not items:
+                        results.append((code, "", "항목없음"))
+                except Exception as e:
+                    print(f"    [WARN] 항목 조회 실패: {e}")
+                    results.append((code, "", "항목조회실패"))
     except Exception as e:
         print(f"  [WARN] StatisticTableList 조회 실패: {e}")
-    return "", ""
+    return results
 
 
 def fetch_bok_m2(api_key: str) -> tuple:
@@ -127,12 +130,10 @@ def fetch_bok_m2(api_key: str) -> tuple:
     end_ym   = f"{prev.year}{prev.month:02d}"
 
     # 1단계: 동적으로 올바른 통계코드 탐색
-    stat_code, item_code = find_bok_m2_table(api_key)
+    dynamic = find_bok_m2_table(api_key)
 
     # 2단계: 알려진 코드 후보 (항목코드 포함)
-    candidates = []
-    if stat_code:
-        candidates.append((stat_code, item_code, "동적 탐색"))
+    candidates = [(c, i, label) for c, i, label in dynamic]
     candidates += [
         ("BOBASE202Y", "",   "M2 잔액"),
         ("101Y004",    "AA", "M2 광의통화"),
