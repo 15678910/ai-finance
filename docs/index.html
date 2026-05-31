@@ -7520,21 +7520,19 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </div>
     </section>`;
 
-    // Inject after credit spread section or append to main
-    const creditEl = document.querySelector('[id*="신용-스프레드"], [id*="credit"]');
-    const mainContent = document.getElementById('main-content') || document.querySelector('.main-content');
+    // M2 섹션 주입: #app에 직접 추가 (가장 안전한 방법)
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     const newEl = tmp.firstElementChild;
-    if (creditEl) {
-      creditEl.insertAdjacentElement('afterend', newEl);
-    } else if (mainContent) {
-      mainContent.appendChild(newEl);
+    if (!newEl) return;
+    // 기존 M2 섹션이 있으면 교체, 없으면 #app 끝에 추가
+    const existing = document.getElementById('m2-chart-section');
+    if (existing) {
+      existing.replaceWith(newEl);
     } else {
-      const sections = document.querySelectorAll('.section-wrap');
-      if (sections.length > 0) {
-        sections[sections.length - 1].insertAdjacentElement('afterend', newEl);
-      }
+      newEl.id = 'm2-chart-section';
+      const app = document.getElementById('app') || document.body;
+      app.appendChild(newEl);
     }
   }
 
