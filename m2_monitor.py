@@ -129,6 +129,25 @@ def fetch_bok_m2(api_key: str) -> tuple:
     start_ym = f"{today.year - 4}01"
     end_ym   = f"{prev.year}{prev.month:02d}"
 
+    # 0단계: API 키 유효성 확인 (GDP 시리즈로 테스트)
+    try:
+        test_url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/1/722Y001/A/202301/202301/"
+        req0 = urllib.request.Request(test_url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req0, timeout=10) as r0:
+            td = json.loads(r0.read())
+        if "RESULT" in td and "StatisticSearch" not in td:
+            res = td["RESULT"]
+            print(f"  [키 검증] 오류: {res.get('CODE')} - {res.get('MESSAGE')}")
+            if res.get("CODE") in ("API-100", "API-200", "API-300"):
+                print("  [키 검증] API 키가 유효하지 않거나 아직 활성화되지 않았습니다.")
+                print("  [키 검증] ECOS 키 발급 후 수분~수시간 내 활성화됩니다.")
+                return [], ""
+        else:
+            rows_t = td.get("StatisticSearch", {}).get("row", [])
+            print(f"  [키 검증] 정상 ({len(rows_t)}행)")
+    except Exception as e:
+        print(f"  [키 검증] 네트워크 오류: {e}")
+
     # 1단계: 동적으로 올바른 통계코드 탐색
     dynamic = find_bok_m2_table(api_key)
 
