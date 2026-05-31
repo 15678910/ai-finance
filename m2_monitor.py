@@ -152,12 +152,14 @@ def fetch_bok_m2(api_key: str) -> tuple:
     dynamic = find_bok_m2_table(api_key)
 
     # 2단계: 알려진 코드 후보 (항목코드 포함)
+    # 161Y006/BBHA00 = M2 상품별 구성내역(평잔, 원계열) — 2026-06 검증 완료
+    # 161Y005/BBHS00 = M2(평잔, 계절조정계열) — 검증 완료
     candidates = [(c, i, label) for c, i, label in dynamic]
     candidates += [
-        ("BOBASE202Y", "",   "M2 잔액"),
-        ("101Y004",    "AA", "M2 광의통화"),
-        ("101Y004",    "",   "M2 광의통화(항목없음)"),
-        ("101Y001",    "",   "통화 및 유동성"),
+        ("161Y006", "BBHA00", "M2 평잔 원계열(검증됨)"),
+        ("161Y005", "BBHS00", "M2 평잔 계절조정(검증됨)"),
+        ("161Y008", "BBGA00", "M2 말잔 원계열"),
+        ("161Y007", "BBGS00", "M2 말잔 계절조정"),
     ]
 
     for code, icode, label in candidates:
