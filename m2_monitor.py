@@ -12,6 +12,7 @@ import os
 import sys
 import urllib.request
 import urllib.parse
+import urllib.error
 from datetime import datetime, date, timezone, timedelta
 
 KST      = timezone(timedelta(hours=9))
@@ -28,13 +29,13 @@ FRED_SERIES = {
 def fetch_fred(series_id: str, api_key: str) -> list:
     """FRED JSON API로 월별 M2 데이터 수집."""
     start = f"{date.today().year - 5}-01-01"
+    key = api_key.strip()   # 공백 제거
     params = urllib.parse.urlencode({
         "series_id": series_id,
-        "api_key": api_key,
+        "api_key": key,
         "observation_start": start,
         "file_type": "json",
         "sort_order": "asc",
-        "frequency": "m",
     })
     url = f"https://api.stlouisfed.org/fred/series/observations?{params}"
     try:
@@ -46,6 +47,10 @@ def fetch_fred(series_id: str, api_key: str) -> list:
         rows = [(o["date"], float(o["value"])) for o in obs if o["value"] not in (".", "")]
         print(f"  {series_id}: {len(rows)}개 월별 데이터 수집")
         return rows
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")[:200]
+        print(f"  [WARN] FRED {series_id} HTTP {e.code}: {body}")
+        return []
     except Exception as e:
         print(f"  [WARN] FRED {series_id} 수집 실패: {e}")
         return []
