@@ -7409,6 +7409,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // ─── 💵 M2 Chart ─────────────────────────────────────
   function renderM2Chart(m2Data) {
+    try {
     if (!m2Data || !m2Data.series) return;
     const us = m2Data.series.us;
     const kr = m2Data.series.kr;
@@ -7419,121 +7420,72 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ...(us ? us.data.map(d => d.date) : []),
       ...(kr ? kr.data.map(d => d.date) : []),
     ])].sort();
+    if (allDates.length < 2) return;
 
     const usMap = us ? Object.fromEntries(us.data.map(d => [d.date, d.yoy_pct])) : {};
     const krMap = kr ? Object.fromEntries(kr.data.map(d => [d.date, d.yoy_pct])) : {};
 
-    // Format: "2024-01" → "24.01"
     const fmtDate = (d) => d.slice(2, 4) + '.' + d.slice(5, 7);
 
-    // D3 SVG chart
     const W = 700, H = 220, MT = 20, MR = 20, MB = 40, ML = 50;
     const innerW = W - ML - MR, innerH = H - MT - MB;
+    const n = allDates.length;
 
-    const allVals = [...Object.values(usMap), ...Object.values(krMap)].filter(v => v != null);
+    const allVals = [...Object.values(usMap), ...Object.values(krMap)].filter(v => v != null && !isNaN(v));
     const minV = Math.min(...allVals, -2) - 1;
     const maxV = Math.max(...allVals, 5) + 1;
+    const range = maxV - minV || 1;
 
-    const xScale = (i) => (i / (allDates.length - 1)) * innerW;
-    const yScale = (v) => innerH - ((v - minV) / (maxV - minV)) * innerH;
+    const xS = (i) => ((i / (n - 1)) * innerW).toFixed(1);
+    const yS = (v) => (innerH - ((v - minV) / range) * innerH).toFixed(1);
 
-    // Only show every 6th label
-    const tickDates = allDates.filter((_, i) => i % 6 === 0);
+    // ── SVG 경로를 템플릿 밖에서 미리 계산 (IIFE 오류 방지) ──
+    let usPath = '', krPath = '', gridLines = '', xLabels = '', legend = '';
+    allDates.forEach((d, i) => {
+      const uv = usMap[d], kv = krMap[d];
+      if (uv != null && !isNaN(uv)) usPath += (usPath ? 'L' : 'M') + xS(i) + ',' + yS(uv) + ' ';
+      if (kv != null && !isNaN(kv)) krPath += (krPath ? 'L' : 'M') + xS(i) + ',' + yS(kv) + ' ';
+      if (i % 6 === 0) xLabels += '<text x="' + xS(i) + '" y="' + (innerH + 16) + '" text-anchor="middle" fill="#64748b" font-size="9">' + fmtDate(d) + '</text>';
+    });
+    [0, 2, 4, 6, -2].forEach(v => {
+      if (v >= minV && v <= maxV)
+        gridLines += '<line x1="0" y1="' + yS(v) + '" x2="' + innerW + '" y2="' + yS(v) + '" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>'
+                   + '<text x="-6" y="' + (parseFloat(yS(v)) + 4) + '" text-anchor="end" fill="#64748b" font-size="10">' + v + '%</text>';
+    });
+    if (us) legend += '<line x1="' + (innerW-120) + '" y1="10" x2="' + (innerW-100) + '" y2="10" stroke="#22d3ee" stroke-width="2"/><text x="' + (innerW-96) + '" y="14" fill="#22d3ee" font-size="10">US M2</text>';
+    if (kr) legend += '<line x1="' + (innerW-120) + '" y1="26" x2="' + (innerW-100) + '" y2="26" stroke="#4ade80" stroke-width="2"/><text x="' + (innerW-96) + '" y="30" fill="#4ade80" font-size="10">KR M2</text>';
 
-    const svgId = 'svg-m2-chart';
+    const usKpi  = us ? '<div class="glass-card" style="padding:10px 16px;min-width:160px;"><div style="font-size:0.68rem;color:var(--text-muted);">🇺🇸 미국 M2 YoY</div><div style="font-size:1.4rem;font-weight:700;color:' + (us.latest_yoy >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)') + ';">' + (us.latest_yoy >= 0 ? '+' : '') + us.latest_yoy.toFixed(1) + '%</div><div style="font-size:0.65rem;color:var(--text-muted);">' + us.latest_date + ' 기준</div></div>' : '';
+    const krKpi  = kr ? '<div class="glass-card" style="padding:10px 16px;min-width:160px;"><div style="font-size:0.68rem;color:var(--text-muted);">🇰🇷 한국 M2 YoY</div><div style="font-size:1.4rem;font-weight:700;color:' + (kr.latest_yoy >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)') + ';">' + (kr.latest_yoy >= 0 ? '+' : '') + kr.latest_yoy.toFixed(1) + '%</div><div style="font-size:0.65rem;color:var(--text-muted);">' + kr.latest_date + ' 기준</div></div>' : '';
+    const zeroY  = yS(Math.max(minV, Math.min(0, maxV)));
 
-    let html = `<section class="section-wrap">
-      <div class="section-label" style="color:var(--cyan);">💵 M2 통화량 증가율 (전년동월비)
-        <span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(m2Data.generated_at||'')}</span>
-      </div>
+    const html = '<section class="section-wrap" id="m2-chart-section">'
+      + '<div class="section-label" style="color:var(--cyan);">💵 M2 통화량 증가율 (전년동월비)<span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">갱신: ' + h(m2Data.generated_at||'') + '</span></div>'
+      + '<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">'
+      + usKpi + krKpi
+      + '<div class="glass-card" style="padding:10px 16px;flex:1;min-width:200px;"><div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:4px;">해석 가이드</div><div style="font-size:0.72rem;color:var(--text);line-height:1.6;">M2 증가율 ↑ → 유동성 확대 → 위험자산 선호<br>M2 증가율 ↓ → 긴축 효과 → 채권·달러 강세<br><span style="color:var(--amber);">2022~23: 급격한 M2 수축 → 고금리 충격</span></div></div>'
+      + '</div>'
+      + '<div class="glass-card anim-item" style="padding:14px;overflow-x:auto;">'
+      + '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;height:auto;display:block;">'
+      + '<g transform="translate(' + ML + ',' + MT + ')">'
+      + gridLines
+      + '<line x1="0" y1="' + zeroY + '" x2="' + innerW + '" y2="' + zeroY + '" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>'
+      + (usPath ? '<path d="' + usPath.trim() + '" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linejoin="round"/>' : '')
+      + (krPath ? '<path d="' + krPath.trim() + '" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round"/>' : '')
+      + xLabels + legend
+      + '</g></svg></div>'
+      + '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;">출처: FRED (M2SL — 미국) · 한국은행 ECOS (161Y005) | 🚨 시뮬레이션/분석용</div>'
+      + '</section>';
 
-      <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
-        ${us ? `<div class="glass-card" style="padding:10px 16px;min-width:160px;">
-          <div style="font-size:0.68rem;color:var(--text-muted);">🇺🇸 미국 M2 YoY</div>
-          <div style="font-size:1.4rem;font-weight:700;color:${us.latest_yoy >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'};">${us.latest_yoy >= 0 ? '+' : ''}${us.latest_yoy.toFixed(1)}%</div>
-          <div style="font-size:0.65rem;color:var(--text-muted);">${us.latest_date} 기준</div>
-        </div>` : ''}
-        ${kr ? `<div class="glass-card" style="padding:10px 16px;min-width:160px;">
-          <div style="font-size:0.68rem;color:var(--text-muted);">🇰🇷 한국 M2 YoY</div>
-          <div style="font-size:1.4rem;font-weight:700;color:${kr.latest_yoy >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'};">${kr.latest_yoy >= 0 ? '+' : ''}${kr.latest_yoy.toFixed(1)}%</div>
-          <div style="font-size:0.65rem;color:var(--text-muted);">${kr.latest_date} 기준</div>
-        </div>` : ''}
-        <div class="glass-card" style="padding:10px 16px;flex:1;min-width:200px;">
-          <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:4px;">해석 가이드</div>
-          <div style="font-size:0.72rem;color:var(--text);line-height:1.6;">
-            M2 증가율 ↑ → 유동성 확대 → 위험자산 선호<br>
-            M2 증가율 ↓ → 긴축 효과 → 채권·달러 강세<br>
-            <span style="color:var(--amber);">2022~23: 급격한 M2 수축 → 고금리 충격</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="glass-card anim-item" style="padding:14px;overflow-x:auto;">
-        <svg id="${svgId}" viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;display:block;">
-          <defs>
-            <linearGradient id="m2-us-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
-            </linearGradient>
-            <linearGradient id="m2-kr-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#4ade80" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <g transform="translate(${ML},${MT})">
-            <!-- Grid lines -->
-            ${[0, 2, 4, 6, -2].map(v => v >= minV && v <= maxV ? `
-              <line x1="0" y1="${yScale(v).toFixed(1)}" x2="${innerW}" y2="${yScale(v).toFixed(1)}"
-                stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-              <text x="-6" y="${(yScale(v)+4).toFixed(1)}" text-anchor="end" fill="#64748b" font-size="10">${v}%</text>
-            ` : '').join('')}
-            <!-- Zero line -->
-            <line x1="0" y1="${yScale(0).toFixed(1)}" x2="${innerW}" y2="${yScale(0).toFixed(1)}"
-              stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
-
-            ${us ? (() => {
-              const linePts = allDates.map((d, i) => usMap[d] != null ? `${i === 0 ? 'M' : 'L'}${xScale(i).toFixed(1)},${yScale(usMap[d]).toFixed(1)}` : '').filter(Boolean).join(' ');
-              return `<path d="${linePts}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linejoin="round"/>`;
-            })() : ''}
-
-            ${kr ? (() => {
-              const linePts = allDates.map((d, i) => krMap[d] != null ? `${i === 0 ? 'M' : 'L'}${xScale(i).toFixed(1)},${yScale(krMap[d]).toFixed(1)}` : '').filter(Boolean).join(' ');
-              return `<path d="${linePts}" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round"/>`;
-            })() : ''}
-
-            <!-- X axis labels -->
-            ${tickDates.map(d => {
-              const i = allDates.indexOf(d);
-              return `<text x="${xScale(i).toFixed(1)}" y="${innerH + 16}" text-anchor="middle" fill="#64748b" font-size="9">${fmtDate(d)}</text>`;
-            }).join('')}
-
-            <!-- Legend -->
-            ${us ? `<line x1="${innerW-120}" y1="10" x2="${innerW-100}" y2="10" stroke="#22d3ee" stroke-width="2"/>
-            <text x="${innerW-96}" y="14" fill="#22d3ee" font-size="10">🇺🇸 미국 M2</text>` : ''}
-            ${kr ? `<line x1="${innerW-120}" y1="26" x2="${innerW-100}" y2="26" stroke="#4ade80" stroke-width="2"/>
-            <text x="${innerW-96}" y="30" fill="#4ade80" font-size="10">🇰🇷 한국 M2</text>` : ''}
-          </g>
-        </svg>
-      </div>
-      <div style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;">
-        출처: FRED (M2SL — 미국, MYAGM2KRM189S — 한국) | 🚨 시뮬레이션/분석용
-      </div>
-    </section>`;
-
-    // M2 섹션 주입: #app에 직접 추가 (가장 안전한 방법)
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    const newEl = tmp.firstElementChild;
-    if (!newEl) return;
-    // 기존 M2 섹션이 있으면 교체, 없으면 #app 끝에 추가
+    // M2 섹션 주입
     const existing = document.getElementById('m2-chart-section');
     if (existing) {
-      existing.replaceWith(newEl);
+      existing.outerHTML = html;   // 교체
     } else {
-      newEl.id = 'm2-chart-section';
       const app = document.getElementById('app') || document.body;
-      app.appendChild(newEl);
+      app.insertAdjacentHTML('beforeend', html);
     }
+    } catch(e) { console.error('[M2 Chart]', e); }
   }
 
   // ─── 📅 Economic Calendar ────────────────────────────
