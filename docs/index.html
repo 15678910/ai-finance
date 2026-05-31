@@ -7407,13 +7407,106 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
   };
 
+  // ─── 📅 Economic Calendar ────────────────────────────
+  function renderEconomicCalendar(calData) {
+    if (!calData || !calData.events || calData.events.length === 0) return;
+
+    const impactColor = { HIGH: '#f87171', MEDIUM: '#fbbf24', LOW: '#4ade80' };
+    const impactLabel = { HIGH: '🔴 HIGH', MEDIUM: '🟡 MEDIUM', LOW: '🟢 LOW' };
+    const catIcon = {
+      'IPO': '🚀', '경제지표': '📊', '중앙은행': '🏦',
+      'FX/금리': '💱', '지정학': '🌍', '기타': '📌'
+    };
+
+    // Group by date
+    const byDate = {};
+    calData.events.forEach(ev => {
+      const d = ev.date || 'TBD';
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(ev);
+    });
+
+    let html = `<section class="section-wrap">
+      <div class="section-label" style="color:var(--amber,#fbbf24);">📅 주요 이벤트 캘린더
+        <span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">${h(calData.month || '')} · ${calData.events.length}개 이벤트</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;">`;
+
+    Object.entries(byDate).forEach(([date, events]) => {
+      const isTBD = date.includes('TBD');
+      const dateDisplay = isTBD ? '📌 일정 미정' : (() => {
+        const parts = date.split('-');
+        return `${parts[1]}월 ${parts[2]}일`;
+      })();
+
+      events.forEach(ev => {
+        const color = impactColor[ev.impact] || '#94a3b8';
+        const icon  = catIcon[ev.category] || '📌';
+        const tags  = (ev.tags || []).map(t =>
+          `<span style="padding:1px 6px;background:rgba(255,255,255,0.08);border-radius:10px;font-size:0.6rem;color:var(--text-muted);">${h(t)}</span>`
+        ).join(' ');
+
+        html += `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${color};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono);">
+              ${ev.region || ''} ${dateDisplay}
+            </div>
+            <div style="font-size:0.65rem;font-weight:600;color:${color};white-space:nowrap;margin-left:8px;">
+              ${impactLabel[ev.impact] || ev.impact}
+            </div>
+          </div>
+          <div style="font-size:0.85rem;font-weight:700;color:var(--text-bright);margin-bottom:4px;">
+            ${icon} ${h(ev.title)}
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;margin-bottom:6px;">
+            ${h(ev.detail || '')}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+            <span style="padding:1px 7px;background:rgba(255,255,255,0.06);border-radius:10px;font-size:0.62rem;color:var(--cyan);">${h(ev.category)}</span>
+            ${tags}
+          </div>
+        </div>`;
+      });
+    });
+
+    html += `</div>
+      <div style="margin-top:8px;font-size:0.65rem;color:var(--text-muted);text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정에 활용 금지. 갱신: ${h(calData.generated_at || '')}
+      </div>
+    </section>`;
+
+    // Inject into main content
+    const container = document.getElementById('main-content') || document.querySelector('.dashboard-content');
+    if (container) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      // Insert before the last section or append
+      container.appendChild(tmp.firstElementChild);
+    } else {
+      // Fallback: find the section-wrap areas and append after last one
+      const sections = document.querySelectorAll('.section-wrap');
+      if (sections.length > 0) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        sections[sections.length - 1].insertAdjacentElement('afterend', tmp.firstElementChild);
+      }
+    }
+  }
+
   // ─── Load Data ───────────────────────────────────────
   fetch('./data.json?v=' + Date.now(), { cache: 'no-store' })
     .then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     })
-    .then(data => render(data))
+    .then(data => {
+      render(data);
+      // Load economic calendar
+      fetch('./economic_calendar.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+        .then(calData => { if (calData) renderEconomicCalendar(calData); });
+    })
     .catch(err => {
       $('#app').innerHTML = `
         <div class="state-screen">
