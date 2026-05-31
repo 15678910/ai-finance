@@ -1,0 +1,51 @@
+name: Update M2 & Economic Calendar
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 매일 KST 10:00 (UTC 01:00)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests yfinance
+
+      - name: Collect M2 data
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: python m2_monitor.py
+
+      - name: Update economic calendar
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: python economic_calendar.py
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/m2_data.json docs/economic_calendar.json 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update M2 data and economic calendar [automated]"
+          for i in 1 2 3; do
+            if git push 2>/dev/null; then exit 0; fi
+            git pull --rebase origin master
+          done
