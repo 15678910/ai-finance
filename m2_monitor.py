@@ -42,28 +42,31 @@ def fetch_fred(series_id: str) -> list:
     credit_spread_monitor.py와 동일한 방식 사용.
     """
     from datetime import date
-    # 4년치 데이터 확보 (YoY 계산에 13개월 이상 필요)
-    start_year = date.today().year - 4
-    start = f"{start_year}-01-01"
-    url = f"{FRED_CSV_BASE}?id={series_id}&vintage_date={start}"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            text = r.read().decode("utf-8")
-        rows = []
-        for line in text.strip().splitlines()[1:]:   # 헤더 skip
-            parts = line.split(",")
-            if len(parts) == 2 and parts[1].strip() not in (".", ""):
-                try:
-                    rows.append((parts[0].strip(), float(parts[1].strip())))
-                except ValueError:
-                    pass
-        rows.sort(key=lambda x: x[0])
-        print(f"  {series_id}: {len(rows)}개 월별 데이터 수집")
-        return rows
-    except Exception as e:
-        print(f"  [WARN] FRED {series_id} 수집 실패: {e}")
-        return []
+    # 전체 시계열 다운로드 후 최근 5년만 사용 (vintage_date 파라미터 제거)
+    url = f"{FRED_CSV_BASE}?id={series_id}"
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                text = r.read().decode("utf-8")
+            from datetime import date
+            cutoff = f"{date.today().year - 5}-01-01"
+            rows = []
+            for line in text.strip().splitlines()[1:]:   # 헤더 skip
+                parts = line.split(",")
+                if len(parts) == 2 and parts[1].strip() not in (".", ""):
+                    d_str = parts[0].strip()
+                    if d_str >= cutoff:
+                        try:
+                            rows.append((d_str, float(parts[1].strip())))
+                        except ValueError:
+                            pass
+            rows.sort(key=lambda x: x[0])
+            print(f"  {series_id}: {len(rows)}개 월별 데이터 수집 (최근 5년)")
+            return rows
+        except Exception as e:
+            print(f"  [WARN] FRED {series_id} 시도 {attempt+1}/3 실패: {e}")
+    return []
 
 
 def calc_yoy(series: list) -> list:
@@ -134,13 +137,19 @@ def main():
             req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=15) as r:
                 d = json.loads(r.read())
-            rows = d.get("StatisticSearch", {}).get("row", [])
-            # ECOS는 YoY % 직접 반환 (전년동월비)
+            # 응답 구조 디버그 (첫 실행 시 구조 파악용)
+            top_keys = list(d.keys())
+            inner = d.get("StatisticSearch", d.get("STATISTICSEARCH", {}))
+            rows = inner.get("row", inner.get("Row", []))
+            print(f"  BOK 응답 키: {top_keys}, 행수: {len(rows)}")
+            if rows:
+                print(f"  첫행 키: {list(rows[0].keys())}, 샘플: {rows[0]}")
+            # ECOS 전년동월비 파싱
             kr_data = []
             for row in rows:
-                ym = row.get("TIME", "")           # "202601" 형식
+                ym = row.get("TIME", "")
                 val_str = row.get("DATA_VALUE", "")
-                if ym and val_str not in ("", "-", "N/A"):
+                if ym and val_str not in ("", "-", "N/A", "N\\A"):
                     try:
                         date_str = f"{ym[:4]}-{ym[4:6]}-01"
                         yoy = float(val_str)
