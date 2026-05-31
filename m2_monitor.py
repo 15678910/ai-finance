@@ -76,39 +76,87 @@ def calc_yoy(series: list) -> list:
 
 
 # ── BOK ECOS: 한국 M2 ─────────────────────────────────────────────────
-# ECOS M2 통계 코드 후보 (순서대로 시도)
-BOK_M2_CODES = [
-    ("BOBASE202Y", "M2(광의통화) 전년동월비"),
-    ("101Y004",    "통화및유동성/M2"),
-    ("101Y001",    "M2(원계열)"),
-]
-BOK_URL = "https://ecos.bok.or.kr/api/StatisticSearch/{key}/json/kr/1/500/{code}/M/{s}/{e}/"
+BOK_BASE = "https://ecos.bok.or.kr/api"
+
+
+def bok_get(_api_key: str, endpoint: str, timeout: int = 15) -> dict:
+    """ECOS API 호출 헬퍼."""
+    url = f"{BOK_BASE}/{endpoint}"
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read())
+
+
+def find_bok_m2_table(api_key: str) -> tuple:
+    """StatisticTableList에서 M2/광의통화 관련 통계표 코드와 항목코드를 검색."""
+    keywords = ["광의통화", "M2", "통화량"]
+    try:
+        d = bok_get(api_key, f"StatisticTableList/{api_key}/json/kr/1/200/")
+        tables = d.get("StatisticTableList", {}).get("row", [])
+        print(f"  ECOS 통계표 {len(tables)}개 검색 중...")
+        for t in tables:
+            name = t.get("STAT_NAME", "") + t.get("STAT_NAME_KOR", "")
+            if any(k in name for k in keywords):
+                code = t.get("STAT_CODE", "")
+                print(f"  M2 테이블 발견: {code} - {t.get('STAT_NAME','')}")
+                # 항목 코드 조회
+                try:
+                    d2 = bok_get(api_key, f"StatisticItemList/{api_key}/json/kr/1/100/{code}/")
+                    items = d2.get("StatisticItemList", {}).get("row", [])
+                    for item in items:
+                        iname = item.get("ITEM_NAME", "")
+                        if "M2" in iname or "광의" in iname:
+                            icode = item.get("ITEM_CODE", "")
+                            print(f"    항목 발견: {icode} - {iname}")
+                            return code, icode
+                    # 항목 미발견 시 코드만 반환
+                    return code, ""
+                except Exception:
+                    return code, ""
+    except Exception as e:
+        print(f"  [WARN] StatisticTableList 조회 실패: {e}")
+    return "", ""
 
 
 def fetch_bok_m2(api_key: str) -> tuple:
     """한국은행 ECOS API에서 M2 데이터 수집. (rows, code_used) 반환."""
     today = date.today()
+    # 이전 달까지만 조회 (당월 데이터 미확정)
+    prev = date(today.year, today.month, 1) - timedelta(days=1)
     start_ym = f"{today.year - 4}01"
-    end_ym   = f"{today.year}{today.month:02d}"
+    end_ym   = f"{prev.year}{prev.month:02d}"
 
-    for code, label in BOK_M2_CODES:
-        url = BOK_URL.format(key=api_key, code=code, s=start_ym, e=end_ym)
+    # 1단계: 동적으로 올바른 통계코드 탐색
+    stat_code, item_code = find_bok_m2_table(api_key)
+
+    # 2단계: 알려진 코드 후보 (항목코드 포함)
+    candidates = []
+    if stat_code:
+        candidates.append((stat_code, item_code, "동적 탐색"))
+    candidates += [
+        ("BOBASE202Y", "",   "M2 잔액"),
+        ("101Y004",    "AA", "M2 광의통화"),
+        ("101Y004",    "",   "M2 광의통화(항목없음)"),
+        ("101Y001",    "",   "통화 및 유동성"),
+    ]
+
+    for code, icode, label in candidates:
+        suffix = f"/{icode}" if icode else ""
+        url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/500/{code}/M/{start_ym}/{end_ym}{suffix}/"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=15) as r:
                 d = json.loads(r.read())
 
-            # 오류 응답 처리
             if "RESULT" in d and "StatisticSearch" not in d:
                 res = d["RESULT"]
-                print(f"  [{code}] 오류: {res.get('CODE','?')} - {res.get('MESSAGE','?')}")
+                print(f"  [{code}{suffix}] {label}: {res.get('CODE','?')} - {res.get('MESSAGE','?')}")
                 continue
 
-            inner = d.get("StatisticSearch", {})
-            rows  = inner.get("row", [])
-            print(f"  [{code}] {label}: {len(rows)}행 수신")
+            rows = d.get("StatisticSearch", {}).get("row", [])
+            print(f"  [{code}{suffix}] {label}: {len(rows)}행 수신")
             if rows:
-                print(f"    첫행 샘플: {rows[0]}")
+                print(f"    첫행: {rows[0]}")
                 return rows, code
         except Exception as e:
             print(f"  [{code}] 수집 실패: {e}")
