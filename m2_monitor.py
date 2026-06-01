@@ -96,7 +96,8 @@ def find_bok_m2_tables(api_key: str) -> tuple:
     after_cands, before_cands = [], []
 
     try:
-        d = bok_get(api_key, f"StatisticTableList/{api_key}/json/kr/1/200/")
+        # 500개로 확장 (개정전 테이블이 200번 이후에 있을 수 있음)
+        d = bok_get(api_key, f"StatisticTableList/{api_key}/json/kr/1/500/")
         tables = d.get("StatisticTableList", {}).get("row", [])
         print(f"  ECOS 통계표 {len(tables)}개 검색 중...")
         for t in tables:
