@@ -6414,13 +6414,17 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         }[t.sector] || '#a78bfa';
 
         return `<div class="glass-card anim-item" style="padding:14px 16px;
-            border-left:3px solid ${sectorColor};background:rgba(15,23,42,0.6);">
+            border-left:3px solid ${sectorColor};background:rgba(15,23,42,0.6);cursor:pointer;transition:box-shadow 0.15s;"
+            onclick="openStockDetail('${escapeHtml(t.ticker || '')}')"
+            onmouseenter="this.style.boxShadow='0 0 0 1px ${sectorColor}55'"
+            onmouseleave="this.style.boxShadow=''">
 
           <!-- 헤더 -->
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
             <div>
               <b style="color:#fff;font-size:0.88rem;">${escapeHtml(t.name)}</b>
               <span style="color:var(--text-muted);font-size:0.62rem;margin-left:4px;">(${escapeHtml(t.ticker || '')})</span>
+              <span style="color:${sectorColor};font-size:0.55rem;margin-left:4px;opacity:0.7;">클릭 → 분석</span>
             </div>
             <div style="display:flex;gap:6px;align-items:center;">
               <span style="padding:2px 7px;background:rgba(0,0,0,0.3);border:1px solid ${sectorColor}40;
@@ -7083,9 +7087,30 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         },
       });
     });
-    // 3. 종목 (KG에서)
+    // 3. 종목 (섹터 데이터 우선 — 애널리스트 분석 포함)
+    const seenTickers = new Set();
+    (data.sectors || []).forEach(sec => {
+      (sec.stocks || []).forEach(st => {
+        if (!st.ticker || seenTickers.has(st.ticker)) return;
+        seenTickers.add(st.ticker);
+        const cleanTicker = st.ticker.replace(/\.KS|\.KQ/g, '');
+        const rec = st.recommendation || '';
+        const recShort = { strong_buy:'강한매수', buy:'매수', hold:'중립', sell:'매도', strong_sell:'강한매도' }[rec] || rec;
+        items.push({
+          type: 'stock',
+          id: 'stock:' + cleanTicker,
+          title: st.name || cleanTicker,
+          subtitle: `${sec.name} · ${cleanTicker}${recShort ? ' · ' + recShort : ''}`,
+          meta: st.change_pct != null ? (st.change_pct >= 0 ? '+' : '') + st.change_pct.toFixed(1) + '%' : 'STOCK',
+          emoji: '📊',
+          action: () => openStockDetail(cleanTicker),
+        });
+      });
+    });
+    // 3b. KG 종목 (섹터에 없는 것만 추가)
     const kg = data.knowledge_graph || {};
     (kg.nodes || []).filter(n => n.type === 'Stock').forEach(n => {
+      if (seenTickers.has(n.id)) return;
       items.push({
         type: 'stock',
         id: n.id,
@@ -7093,15 +7118,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         subtitle: (n.data && n.data.sector) || 'Stock',
         meta: 'KG',
         emoji: '📈',
-        action: () => {
-          // SAO 시그널에 있으면 인스펙터, 없으면 KG 섹션
-          const has = ((data.sao_signals || {}).signals || []).find(s => s.id === n.id);
-          if (has) openInspector(n.id);
-          else {
-            const kgEl = document.querySelector('[id*="지식"]');
-            if (kgEl) kgEl.scrollIntoView({ behavior: 'smooth' });
-          }
-        },
+        action: () => openStockDetail(n.id.replace('stock:', '')),
       });
     });
     return items;
