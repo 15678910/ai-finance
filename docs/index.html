@@ -6850,10 +6850,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${healthHtml}
         <!-- 기타 지표 -->
         ${extrasHtml}
-        <!-- 레짐·심리 -->
-        ${st.regime ? `<div class="glass-card" style="padding:8px 12px;margin-bottom:8px;font-size:0.7rem;">
+        <!-- 레짐·심리 (N/A 종목은 숨김) -->
+        ${st.regime && st.regime !== 'N/A' ? `<div class="glass-card" style="padding:8px 12px;margin-bottom:8px;font-size:0.7rem;">
           <span style="color:var(--text-muted);">레짐: </span><b style="color:var(--cyan);">${h(st.regime)}</b>
-          ${st.sentiment_label ? ` · <span style="color:var(--text-muted);">심리: </span><b style="color:${st.sentiment_label.includes('긍') ? '#22c55e' : '#f87171'};">${h(st.sentiment_label)}</b>` : ''}
+          ${st.sentiment_label && st.sentiment_label !== 'N/A' ? ` · <span style="color:var(--text-muted);">심리: </span><b style="color:${st.sentiment_label.includes('긍') ? '#22c55e' : '#f87171'};">${h(st.sentiment_label)}</b>` : ''}
         </div>` : ''}
         <div style="font-size:0.6rem;color:var(--text-muted);text-align:center;margin-top:8px;">🚨 시뮬레이션·분석용. 투자 결정 금지.</div>
       </div>
@@ -7834,19 +7834,22 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const bars = sorted.map(p => {
       const pct = (p.export_bn / maxExport * 100).toFixed(1);
       const cc = catColor[p.category] || '#64748b';
-      return `<div style="margin-bottom:7px;" title="${h(p.name)}: ${p.export_bn}억달러 (${p.yoy_pct >= 0 ? '+' : ''}${p.yoy_pct}%)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-          <div style="display:flex;align-items:center;gap:6px;min-width:90px;">
-            <span style="font-size:0.7rem;color:var(--text-bright);font-weight:600;">${h(p.name)}</span>
-            ${p.record ? `<span style="font-size:0.55rem;background:rgba(250,204,21,0.2);color:#fbbf24;padding:1px 4px;border-radius:4px;">🏆${h(p.record)}</span>` : ''}
+      // 막대 먼저(위), 품목명 아래
+      return `<div style="margin-bottom:9px;" title="${h(p.name)}: ${p.export_bn}억달러 (${p.yoy_pct >= 0 ? '+' : ''}${p.yoy_pct}%)">
+        <div style="height:10px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;margin-bottom:4px;">
+          <div style="height:100%;width:${pct}%;background:${cc};border-radius:4px;
+               opacity:${p.yoy_pct >= 0 ? 0.9 : 0.5};transition:width 0.5s ease;
+               box-shadow:${p.record ? `0 0 6px ${cc}88` : 'none'};"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:0.72rem;color:var(--text-bright);font-weight:600;">${h(p.name)}</span>
+            ${p.record ? `<span style="font-size:0.55rem;background:rgba(250,204,21,0.2);color:#fbbf24;padding:1px 4px;border-radius:4px;white-space:nowrap;">🏆${h(p.record)}</span>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:0.68rem;color:var(--text-muted);">${p.export_bn.toFixed(1)}억$</span>
-            <span style="font-size:0.68rem;font-weight:700;background:${chgBg(p.yoy_pct)};color:${chgColor(p.yoy_pct)};padding:1px 6px;border-radius:6px;min-width:52px;text-align:right;">${p.yoy_pct >= 0 ? '+' : ''}${p.yoy_pct}%</span>
+            <span style="font-size:0.68rem;font-weight:700;background:${chgBg(p.yoy_pct)};color:${chgColor(p.yoy_pct)};padding:1px 6px;border-radius:6px;min-width:54px;text-align:right;">${p.yoy_pct >= 0 ? '+' : ''}${p.yoy_pct}%</span>
           </div>
-        </div>
-        <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
-          <div style="height:100%;width:${pct}%;background:${cc};border-radius:3px;opacity:${p.yoy_pct >= 0 ? 0.85 : 0.4};transition:width 0.4s ease;"></div>
         </div>
       </div>`;
     }).join('');
