@@ -7444,9 +7444,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const yS = (v) => (innerH - ((v - minV) / range) * innerH).toFixed(1);
 
     // SVG 경로 사전 계산
-    let usPath = '', krPath = '', krbPath = '', gridLines = '', xLabels = '', legend = '';
-    allDates.forEach((d, i) => {
-      const uv = usMap[d], kv = krMap[d], bv = krbMap[d];
+    let usPath = '', krPath = '', krbPath = '', gridLines = '', xLabels = '';
+    // 데이터 포인트도 저장 (툴팁용)
+    const ptData = allDates.map((d, i) => ({d, i, uv: usMap[d], kv: krMap[d], bv: krbMap[d]}));
+    ptData.forEach(({d, i, uv, kv, bv}) => {
       if (uv != null && !isNaN(uv)) usPath  += (usPath  ? 'L' : 'M') + xS(i) + ',' + yS(uv) + ' ';
       if (kv != null && !isNaN(kv)) krPath  += (krPath  ? 'L' : 'M') + xS(i) + ',' + yS(kv) + ' ';
       if (bv != null && !isNaN(bv)) krbPath += (krbPath ? 'L' : 'M') + xS(i) + ',' + yS(bv) + ' ';
@@ -7458,11 +7459,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       gridLines += '<line x1="0" y1="' + yS(v) + '" x2="' + innerW + '" y2="' + yS(v) + '" stroke="' + (isZero ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.06)') + '" stroke-width="' + (isZero ? 1.5 : 1) + '" ' + (isZero ? 'stroke-dasharray="4,3"' : '') + '/>'
                + '<text x="-6" y="' + (parseFloat(yS(v)) + 4) + '" text-anchor="end" fill="#64748b" font-size="10">' + v + '%</text>';
     }
-    // 범례 (세 시리즈)
-    const lx = innerW - 170;
-    if (us)       legend += '<line x1="' + lx + '" y1="10" x2="' + (lx+20) + '" y2="10" stroke="#22d3ee" stroke-width="2.5"/><text x="' + (lx+24) + '" y="14" fill="#22d3ee" font-size="10">미국</text>';
-    if (krBefore) legend += '<line x1="' + lx + '" y1="26" x2="' + (lx+20) + '" y2="26" stroke="#f87171" stroke-width="2"/><text x="' + (lx+24) + '" y="30" fill="#f87171" font-size="10">한국(개정전)</text>';
-    if (kr)       legend += '<line x1="' + lx + '" y1="42" x2="' + (lx+20) + '" y2="42" stroke="#4ade80" stroke-width="2"/><text x="' + (lx+24) + '" y="46" fill="#4ade80" font-size="10">한국(개정후)</text>';
+    // HTML 범례 (SVG 밖 — 라인과 겹치지 않음)
+    const htmlLegend = '<div style="display:flex;gap:16px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">'
+      + (us       ? '<span style="display:flex;align-items:center;gap:5px;font-size:0.72rem;"><span style="display:inline-block;width:20px;height:2.5px;background:#22d3ee;border-radius:2px;"></span><span style="color:#22d3ee;">미국 M2</span></span>' : '')
+      + (krBefore ? '<span style="display:flex;align-items:center;gap:5px;font-size:0.72rem;"><span style="display:inline-block;width:20px;height:2px;background:#f87171;border-radius:2px;"></span><span style="color:#f87171;">한국(개정전)</span></span>' : '')
+      + (kr       ? '<span style="display:flex;align-items:center;gap:5px;font-size:0.72rem;"><span style="display:inline-block;width:20px;height:2px;background:#4ade80;border-radius:2px;"></span><span style="color:#4ade80;">한국(개정후)</span></span>' : '')
+      + '<span style="font-size:0.63rem;color:var(--text-muted);margin-left:auto;">마우스를 올리면 수치 표시</span>'
+      + '</div>';
 
     // KPI 카드
     const kpiStyle = 'padding:12px 16px;min-width:150px;';
@@ -7494,14 +7497,19 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       + 'M2 ↓ → 긴축 효과 → 채권·달러 강세<br>'
       + '<span style="color:var(--amber);">2022~23: 미국 M2 급수축 → 고금리·SVB 충격</span></div></div>'
       + '</div>'
-      + '<div class="glass-card anim-item" style="padding:14px;overflow-x:auto;">'
-      + '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;height:auto;display:block;">'
+      + htmlLegend
+      + '<div class="glass-card anim-item" style="padding:14px;overflow-x:auto;position:relative;">'
+      + '<svg id="m2-svg" viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;height:auto;display:block;">'
       + '<g transform="translate(' + ML + ',' + MT + ')">'
       + gridLines
-      + (krbPath ? '<path d="' + krbPath.trim() + '" fill="none" stroke="#f87171" stroke-width="1.8" stroke-linejoin="round" opacity="0.9"/>' : '')
-      + (krPath  ? '<path d="' + krPath.trim()  + '" fill="none" stroke="#4ade80" stroke-width="2"   stroke-linejoin="round"/>' : '')
+      + (krbPath ? '<path d="' + krbPath.trim() + '" fill="none" stroke="#f87171" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>' : '')
+      + (krPath  ? '<path d="' + krPath.trim()  + '" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linejoin="round"/>' : '')
       + (usPath  ? '<path d="' + usPath.trim()  + '" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round"/>' : '')
-      + xLabels + legend
+      + xLabels
+      + '<g id="m2-crosshair" style="display:none;pointer-events:none;">'
+      + '<line id="m2-vline" x1="0" x2="0" y1="0" y2="' + innerH + '" stroke="rgba(255,255,255,0.45)" stroke-width="1" stroke-dasharray="3,2"/>'
+      + '</g>'
+      + '<rect id="m2-overlay" x="0" y="0" width="' + innerW + '" height="' + innerH + '" fill="transparent" style="cursor:crosshair;"/>'
       + '</g></svg></div>'
       + '<div style="font-size:0.63rem;color:var(--text-muted);margin-top:6px;">🚨 시뮬레이션·분석용. 투자 결정 금지. 출처: FRED (M2SL) · 한국은행 ECOS (161Y005)</div>'
       + '</section>';
@@ -7509,6 +7517,47 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('m2-chart-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+
+    // ── 마우스 오버 툴팁 설정 ──────────────────────────────────────
+    const overlay   = document.getElementById('m2-overlay');
+    const crosshair = document.getElementById('m2-crosshair');
+    const vline     = document.getElementById('m2-vline');
+    if (overlay && crosshair && vline) {
+      let tip = document.getElementById('m2-tip');
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'm2-tip';
+        tip.style.cssText = 'position:fixed;background:rgba(10,14,20,0.97);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 14px;font-size:0.72rem;pointer-events:none;display:none;z-index:9999;min-width:195px;box-shadow:0 4px 16px rgba(0,0,0,0.6);line-height:1.8;font-family:var(--font-mono,monospace);';
+        document.body.appendChild(tip);
+      }
+      const svgEl = document.getElementById('m2-svg');
+      overlay.addEventListener('mousemove', function(e) {
+        if (!svgEl) return;
+        const rect = svgEl.getBoundingClientRect();
+        const scaleX = W / rect.width;
+        const xPx = (e.clientX - rect.left) * scaleX - ML;
+        const ci = Math.max(0, Math.min(n - 1, Math.round(xPx / (innerW / (n - 1)))));
+        const date = allDates[ci];
+        const xPos = parseFloat(xS(ci));
+        crosshair.style.display = '';
+        vline.setAttribute('x1', xPos.toFixed(1));
+        vline.setAttribute('x2', xPos.toFixed(1));
+        const fmt = (v) => v != null && !isNaN(v) ? ((v >= 0 ? '+' : '') + v.toFixed(2) + '%') : '—';
+        const uv = usMap[date], kv = krMap[date], bv = krbMap[date];
+        tip.innerHTML = '<div style="color:#94a3b8;font-size:0.63rem;margin-bottom:5px;">📅 ' + date.slice(0,7) + '</div>'
+          + (uv != null ? '<div style="color:#22d3ee;">🇺🇸 미국 M2: <b>' + fmt(uv) + '</b></div>' : '')
+          + (bv != null ? '<div style="color:#f87171;">🇰🇷 개정전: <b>' + fmt(bv) + '</b></div>' : '')
+          + (kv != null ? '<div style="color:#4ade80;">🇰🇷 개정후: <b>' + fmt(kv) + '</b></div>' : '')
+          + (bv != null && kv != null ? '<div style="color:#94a3b8;font-size:0.63rem;margin-top:3px;">격차: ' + (bv - kv).toFixed(2) + '%p</div>' : '');
+        tip.style.display = 'block';
+        tip.style.left = (e.clientX + 18) + 'px';
+        tip.style.top  = Math.max(50, e.clientY - 70) + 'px';
+      });
+      overlay.addEventListener('mouseleave', function() {
+        crosshair.style.display = 'none';
+        if (tip) tip.style.display = 'none';
+      });
+    }
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
