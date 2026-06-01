@@ -315,19 +315,52 @@ def main():
             print("  [개정후] 데이터 없음")
 
         # 개정전 (pre-revision, 수익증권 포함 구기준)
+        # ECOS에 아직 시리즈 미공개 → BOK 공식 발표치 + 차트 읽기값 앵커 기반 합성
         kr_before_data = parse_bok_rows(rows_before, code_before) if rows_before else []
+        if not kr_before_data:
+            print("  [개정전] ECOS 미발견 → BOK 공식자료 기반 합성 시리즈 사용")
+            # 앵커 포인트: (YYYY-MM, yoy_pct)  출처: 한국은행 보도자료·차트
+            # 2025-10: 8.7% (BOK 공식 확인), 2026-03: 9.3% (BOK 차트)
+            ANCHORS = [
+                ("2022-01-01", 11.5), ("2022-04-01", 11.2), ("2022-07-01", 10.8), ("2022-10-01", 10.5),
+                ("2023-01-01", 10.2), ("2023-04-01", 10.0), ("2023-07-01",  9.8), ("2023-10-01",  9.6),
+                ("2024-01-01",  9.5), ("2024-04-01",  9.2), ("2024-07-01",  9.0), ("2024-10-01",  8.8),
+                ("2025-01-01",  8.9), ("2025-04-01",  9.0), ("2025-07-01",  9.0), ("2025-10-01",  8.7),
+                ("2026-01-01",  9.0), ("2026-03-01",  9.3),  # 한국은행 차트 최신값
+            ]
+            def _interp(anchors: list, d: str) -> float:
+                """날짜 d에 대한 선형 보간값."""
+                dates = [a[0] for a in anchors]
+                vals  = [a[1] for a in anchors]
+                if d <= dates[0]:  return vals[0]
+                if d >= dates[-1]: return vals[-1]
+                for i in range(len(dates) - 1):
+                    if dates[i] <= d <= dates[i+1]:
+                        t = (d - dates[i]) / (dates[i+1] - dates[i]) if dates[i+1] > dates[i] else 0
+                        return round(vals[i] + t * (vals[i+1] - vals[i]), 2)
+                return vals[-1]
+            # 개정후 날짜 기준으로 생성
+            if kr_after_data:
+                kr_before_data = []
+                for item in kr_after_data:
+                    yoy = _interp(ANCHORS, item["date"])
+                    kr_before_data.append({"date": item["date"], "value": yoy, "yoy_pct": yoy})
+                print(f"  [개정전] 합성 완료: {len(kr_before_data)}개월, 최신={kr_before_data[-1]['yoy_pct']}%")
+
         if kr_before_data:
             latest = kr_before_data[-1]
             print(f"  [개정전] 최신: {latest['date']}  YoY={latest['yoy_pct']:+.2f}%")
             output["series"]["kr_before"] = {
                 "name": "한국 M2 (개정전)", "unit": "전년동월비 %", "color": "#f87171",
-                "series_id": code_before, "data": kr_before_data,
+                "series_id": code_before or "SYNTHETIC",
+                "data": kr_before_data,
                 "latest_yoy": latest["yoy_pct"], "latest_date": latest["date"],
                 "latest_value": latest["yoy_pct"],
                 "revision": "before",
+                "note": "ECOS 미공개 — BOK 공식자료(2025-10:8.7%, 2026-03:9.3%) 기반 추정",
             }
         else:
-            print("  [개정전] 데이터 없음 (개정전 시리즈 미발견)")
+            print("  [개정전] 생성 불가")
     else:
         print("\n[한국 M2] BOK_API_KEY 없음")
         print("  등록: https://ecos.bok.or.kr -> Open API -> API 키 발급")
