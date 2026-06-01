@@ -328,15 +328,22 @@ def main():
                 ("2025-01-01",  8.9), ("2025-04-01",  9.0), ("2025-07-01",  9.0), ("2025-10-01",  8.7),
                 ("2026-01-01",  9.0), ("2026-03-01",  9.3),  # 한국은행 차트 최신값
             ]
+            def _to_months(s: str) -> int:
+                """'YYYY-MM-DD' → 총 월수 (비율 계산용)"""
+                return int(s[:4]) * 12 + int(s[5:7])
+
             def _interp(anchors: list, d: str) -> float:
-                """날짜 d에 대한 선형 보간값."""
+                """날짜 d에 대한 선형 보간값 (날짜→정수월 변환으로 뺄셈 오류 방지)."""
                 dates = [a[0] for a in anchors]
                 vals  = [a[1] for a in anchors]
                 if d <= dates[0]:  return vals[0]
                 if d >= dates[-1]: return vals[-1]
                 for i in range(len(dates) - 1):
                     if dates[i] <= d <= dates[i+1]:
-                        t = (d - dates[i]) / (dates[i+1] - dates[i]) if dates[i+1] > dates[i] else 0
+                        d_m  = _to_months(d)
+                        d0_m = _to_months(dates[i])
+                        d1_m = _to_months(dates[i+1])
+                        t = (d_m - d0_m) / (d1_m - d0_m) if d1_m > d0_m else 0
                         return round(vals[i] + t * (vals[i+1] - vals[i]), 2)
                 return vals[-1]
             # 개정후 날짜 기준으로 생성
