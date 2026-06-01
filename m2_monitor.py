@@ -87,49 +87,65 @@ def bok_get(_api_key: str, endpoint: str, timeout: int = 15) -> dict:
         return json.loads(r.read())
 
 
-def find_bok_m2_table(api_key: str) -> list:
-    """StatisticTableList에서 M2/광의통화 통계표의 (stat_code, item_code) 후보 목록 반환."""
-    keywords = ["광의통화", "M2", "통화량"]
-    results = []
+def find_bok_m2_tables(api_key: str) -> tuple:
+    """ECOS StatisticTableList에서 개정후/개정전 M2 통계표 코드 탐색.
+    Returns: (after_candidates, before_candidates) — 각각 [(stat_code, item_code, label), ...]
+    """
+    keywords_after  = ["광의통화", "M2"]
+    keywords_before = ["개정전", "구기준", "구잔액", "구방식"]
+    after_cands, before_cands = [], []
+
     try:
         d = bok_get(api_key, f"StatisticTableList/{api_key}/json/kr/1/200/")
         tables = d.get("StatisticTableList", {}).get("row", [])
         print(f"  ECOS 통계표 {len(tables)}개 검색 중...")
         for t in tables:
             name = t.get("STAT_NAME", "")
-            if any(k in name for k in keywords):
-                code = t.get("STAT_CODE", "")
-                print(f"  M2 테이블 발견: {code} - {name}")
-                # 항목 코드 전체 조회
+            code = t.get("STAT_CODE", "")
+            if not code:
+                continue
+            is_before = any(k in name for k in keywords_before)
+            is_after  = any(k in name for k in keywords_after) and not is_before
+
+            if is_before or is_after:
+                print(f"  {'[개정전]' if is_before else '[개정후]'} 발견: {code} - {name}")
+                # 항목 조회
+                items = []
                 try:
                     d2 = bok_get(api_key, f"StatisticItemList/{api_key}/json/kr/1/100/{code}/")
                     items = d2.get("StatisticItemList", {}).get("row", [])
-                    print(f"    항목 {len(items)}개: {[(i.get('ITEM_CODE',''), i.get('ITEM_NAME','')) for i in items[:5]]}")
-                    # 모든 항목을 후보로 추가 (우선: M2/광의 포함 항목)
-                    matched = [(code, i.get("ITEM_CODE",""), i.get("ITEM_NAME",""))
-                               for i in items if any(k in i.get("ITEM_NAME","") for k in keywords)]
-                    others  = [(code, i.get("ITEM_CODE",""), i.get("ITEM_NAME",""))
-                               for i in items if not any(k in i.get("ITEM_NAME","") for k in keywords)]
-                    results.extend(matched + others[:3])  # 매칭 항목 + 기타 최대 3개
-                    if not items:
-                        results.append((code, "", "항목없음"))
+                    print(f"    항목 {len(items)}개")
                 except Exception as e:
-                    print(f"    [WARN] 항목 조회 실패: {e}")
-                    results.append((code, "", "항목조회실패"))
+                    print(f"    항목 조회 실패: {e}")
+
+                kw_m2 = ["M2", "광의통화", "총계", "total"]
+                matched = [(code, i.get("ITEM_CODE",""), i.get("ITEM_NAME",""))
+                           for i in items if any(k in i.get("ITEM_NAME","") for k in kw_m2)]
+                others  = [(code, i.get("ITEM_CODE",""), i.get("ITEM_NAME",""))
+                           for i in items if not any(k in i.get("ITEM_NAME","") for k in kw_m2)][:3]
+                if not items:
+                    matched = [(code, "", "항목없음")]
+
+                if is_before:
+                    before_cands.extend(matched + others)
+                else:
+                    after_cands.extend(matched + others)
     except Exception as e:
         print(f"  [WARN] StatisticTableList 조회 실패: {e}")
-    return results
+
+    return after_cands, before_cands
 
 
 def fetch_bok_m2(api_key: str) -> tuple:
-    """한국은행 ECOS API에서 M2 데이터 수집. (rows, code_used) 반환."""
+    """한국은행 ECOS API에서 개정전/개정후 M2 데이터 수집.
+    Returns: (rows_after, code_after, rows_before, code_before)
+    """
     today = date.today()
-    # 이전 달까지만 조회 (당월 데이터 미확정)
-    prev = date(today.year, today.month, 1) - timedelta(days=1)
+    prev  = date(today.year, today.month, 1) - timedelta(days=1)
     start_ym = f"{today.year - 4}01"
     end_ym   = f"{prev.year}{prev.month:02d}"
 
-    # 0단계: API 키 유효성 확인 (GDP 시리즈로 테스트)
+    # 0단계: 키 유효성 (GDP 테스트)
     try:
         test_url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/1/722Y001/A/202301/202301/"
         req0 = urllib.request.Request(test_url, headers={"User-Agent": USER_AGENT})
@@ -139,51 +155,58 @@ def fetch_bok_m2(api_key: str) -> tuple:
             res = td["RESULT"]
             print(f"  [키 검증] 오류: {res.get('CODE')} - {res.get('MESSAGE')}")
             if res.get("CODE") in ("API-100", "API-200", "API-300"):
-                print("  [키 검증] API 키가 유효하지 않거나 아직 활성화되지 않았습니다.")
-                print("  [키 검증] ECOS 키 발급 후 수분~수시간 내 활성화됩니다.")
-                return [], ""
+                print("  API 키 유효하지 않음 — 스킵")
+                return [], "", [], ""
         else:
             rows_t = td.get("StatisticSearch", {}).get("row", [])
             print(f"  [키 검증] 정상 ({len(rows_t)}행)")
     except Exception as e:
         print(f"  [키 검증] 네트워크 오류: {e}")
 
-    # 1단계: 동적으로 올바른 통계코드 탐색
-    dynamic = find_bok_m2_table(api_key)
+    # 1단계: 동적 탐색
+    after_dynamic, before_dynamic = find_bok_m2_tables(api_key)
 
-    # 2단계: 알려진 코드 후보 (항목코드 포함)
-    # 161Y006/BBHA00 = M2 상품별 구성내역(평잔, 원계열) — 2026-06 검증 완료
-    # 161Y005/BBHS00 = M2(평잔, 계절조정계열) — 검증 완료
-    candidates = [(c, i, label) for c, i, label in dynamic]
-    candidates += [
-        ("161Y006", "BBHA00", "M2 평잔 원계열(검증됨)"),
+    # 2단계: 후보 목록 구성
+    after_cands = list(after_dynamic) + [
         ("161Y005", "BBHS00", "M2 평잔 계절조정(검증됨)"),
-        ("161Y008", "BBGA00", "M2 말잔 원계열"),
+        ("161Y006", "BBHA00", "M2 평잔 원계열(검증됨)"),
         ("161Y007", "BBGS00", "M2 말잔 계절조정"),
+        ("161Y008", "BBGA00", "M2 말잔 원계열"),
+    ]
+    # 개정전 후보 — 동적으로 찾은 것 우선, 그 외 알려진 패턴 시도
+    before_cands = list(before_dynamic) + [
+        ("161Y021", "BBHS00", "개정전 M2 추정(161Y021)"),
+        ("161Y022", "BBHS00", "개정전 M2 추정(161Y022)"),
+        ("161Y003", "BBHS00", "개정전 M2 추정(161Y003)"),
+        ("BOBASE302Y", "",    "개정전 M2 추정(BOBASE302Y)"),
     ]
 
-    for code, icode, label in candidates:
-        suffix = f"/{icode}" if icode else ""
-        url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/500/{code}/M/{start_ym}/{end_ym}{suffix}/"
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=15) as r:
-                d = json.loads(r.read())
+    def try_series(candidates: list, label: str) -> tuple:
+        for code, icode, desc in candidates:
+            suffix = f"/{icode}" if icode else ""
+            url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/500/{code}/M/{start_ym}/{end_ym}{suffix}/"
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    d = json.loads(r.read())
+                if "RESULT" in d and "StatisticSearch" not in d:
+                    res = d["RESULT"]
+                    print(f"  [{label}/{code}{suffix}] {res.get('CODE')} - {res.get('MESSAGE')}")
+                    continue
+                rows = d.get("StatisticSearch", {}).get("row", [])
+                print(f"  [{label}/{code}{suffix}] {desc}: {len(rows)}행 수신")
+                if rows:
+                    print(f"    첫행: {rows[0]}")
+                    return rows, code
+            except Exception as e:
+                print(f"  [{label}/{code}] 수집 실패: {e}")
+        return [], ""
 
-            if "RESULT" in d and "StatisticSearch" not in d:
-                res = d["RESULT"]
-                print(f"  [{code}{suffix}] {label}: {res.get('CODE','?')} - {res.get('MESSAGE','?')}")
-                continue
-
-            rows = d.get("StatisticSearch", {}).get("row", [])
-            print(f"  [{code}{suffix}] {label}: {len(rows)}행 수신")
-            if rows:
-                print(f"    첫행: {rows[0]}")
-                return rows, code
-        except Exception as e:
-            print(f"  [{code}] 수집 실패: {e}")
-
-    return [], ""
+    print("\n  [개정후] 탐색 중...")
+    rows_after, code_after = try_series(after_cands, "개정후")
+    print("\n  [개정전] 탐색 중...")
+    rows_before, code_before = try_series(before_cands, "개정전")
+    return rows_after, code_after, rows_before, code_before
 
 
 def parse_bok_rows(rows: list, code: str = "") -> list:  # noqa: ARG001
@@ -251,22 +274,40 @@ def main():
     # 한국 M2
     if bok_key:
         print("\n[한국 M2] 한국은행 ECOS API 수집 중...")
-        rows, code_used = fetch_bok_m2(bok_key)
-        kr_data = parse_bok_rows(rows, code_used) if rows else []
-        if kr_data:
-            latest = kr_data[-1]
-            print(f"  최신: {latest['date']}  YoY={latest['yoy_pct']:+.2f}%")
+        rows_after, code_after, rows_before, code_before = fetch_bok_m2(bok_key)
+
+        # 개정후 (post-revision, 현행 기준)
+        kr_after_data = parse_bok_rows(rows_after, code_after) if rows_after else []
+        if kr_after_data:
+            latest = kr_after_data[-1]
+            print(f"  [개정후] 최신: {latest['date']}  YoY={latest['yoy_pct']:+.2f}%")
             output["series"]["kr"] = {
-                "name": "한국 M2", "unit": "전년동월비 %", "color": "#4ade80",
-                "series_id": code_used, "data": kr_data,
+                "name": "한국 M2 (개정후)", "unit": "전년동월비 %", "color": "#4ade80",
+                "series_id": code_after, "data": kr_after_data,
                 "latest_yoy": latest["yoy_pct"], "latest_date": latest["date"],
                 "latest_value": latest["yoy_pct"],
+                "revision": "after",
             }
         else:
-            print("  데이터 없음 (모든 통계코드 실패)")
+            print("  [개정후] 데이터 없음")
+
+        # 개정전 (pre-revision, 수익증권 포함 구기준)
+        kr_before_data = parse_bok_rows(rows_before, code_before) if rows_before else []
+        if kr_before_data:
+            latest = kr_before_data[-1]
+            print(f"  [개정전] 최신: {latest['date']}  YoY={latest['yoy_pct']:+.2f}%")
+            output["series"]["kr_before"] = {
+                "name": "한국 M2 (개정전)", "unit": "전년동월비 %", "color": "#f87171",
+                "series_id": code_before, "data": kr_before_data,
+                "latest_yoy": latest["yoy_pct"], "latest_date": latest["date"],
+                "latest_value": latest["yoy_pct"],
+                "revision": "before",
+            }
+        else:
+            print("  [개정전] 데이터 없음 (개정전 시리즈 미발견)")
     else:
         print("\n[한국 M2] BOK_API_KEY 없음")
-        print("  등록: https://ecos.bok.or.kr → Open API → API 키 발급")
+        print("  등록: https://ecos.bok.or.kr -> Open API -> API 키 발급")
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
