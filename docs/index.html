@@ -7561,6 +7561,99 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
+  // ─── ⚔️ Key Debates ──────────────────────────────────
+  function renderKeyDebates(db) {
+    if (!db || !db.debates || !db.debates.length) return;
+
+    const statusColor = { '진행 중': '#fbbf24', '논란': '#f87171', '임박': '#f87171', '결론': '#4ade80' };
+    const getStatusColor = (s) => {
+      for (const [k, v] of Object.entries(statusColor)) { if (s && s.includes(k)) return v; }
+      return '#22d3ee';
+    };
+    const colorVar = { red:'#f87171', amber:'#fbbf24', green:'#4ade80', cyan:'#22d3ee', muted:'#64748b' };
+
+    let debatesHtml = '';
+    db.debates.forEach(d => {
+      const sc = getStatusColor(d.status);
+      const tagsHtml = (d.tags||[]).map(t =>
+        `<span style="padding:1px 6px;background:rgba(255,255,255,0.07);border-radius:8px;font-size:0.6rem;color:var(--text-muted);">${h(t)}</span>`
+      ).join(' ');
+      const dataHtml = (d.key_data||[]).map(kd =>
+        `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+          <span style="font-size:0.68rem;color:var(--text-muted);">${h(kd.label)}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:${colorVar[kd.color]||'var(--text)'};">${h(kd.value)}</span>
+        </div>`
+      ).join('');
+      const srcLink = d.source_url
+        ? `<a href="${h(d.source_url)}" target="_blank" style="color:var(--cyan);text-decoration:none;font-size:0.62rem;">${h(d.source)}</a>`
+        : `<span style="font-size:0.62rem;color:var(--text-muted);">${h(d.source||'')}</span>`;
+
+      debatesHtml += `
+      <div class="glass-card anim-item" style="padding:0;overflow:hidden;border-top:3px solid ${sc};">
+        <!-- 헤더 -->
+        <div style="padding:12px 16px 8px;background:rgba(255,255,255,0.02);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div style="font-size:0.85rem;font-weight:700;color:var(--text-bright);flex:1;">${h(d.title)}</div>
+            <span style="background:${sc}22;color:${sc};padding:2px 8px;border-radius:10px;font-size:0.63rem;font-weight:600;white-space:nowrap;">${h(d.status)}</span>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.5;">${h(d.summary)}</div>
+        </div>
+        <!-- 주장 vs 반박 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+          <div style="padding:10px 14px;background:rgba(99,179,237,0.04);border-right:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:0.65rem;color:#93c5fd;font-weight:600;margin-bottom:6px;">${h(d.position_a.icon)} ${h(d.position_a.label)}
+              <span style="background:rgba(147,197,253,0.15);padding:1px 5px;border-radius:6px;margin-left:4px;">${h(d.position_a.stance)}</span>
+            </div>
+            ${(d.position_a.claims||[]).map(c =>
+              `<div style="font-size:0.68rem;color:var(--text);line-height:1.55;margin-bottom:4px;padding-left:8px;border-left:2px solid rgba(147,197,253,0.3);">${h(c)}</div>`
+            ).join('')}
+          </div>
+          <div style="padding:10px 14px;background:rgba(248,113,113,0.04);">
+            <div style="font-size:0.65rem;color:#f87171;font-weight:600;margin-bottom:6px;">${h(d.position_b.icon)} ${h(d.position_b.label)}
+              <span style="background:rgba(248,113,113,0.15);padding:1px 5px;border-radius:6px;margin-left:4px;">${h(d.position_b.stance)}</span>
+            </div>
+            ${(d.position_b.claims||[]).map(c =>
+              `<div style="font-size:0.68rem;color:var(--text);line-height:1.55;margin-bottom:4px;padding-left:8px;border-left:2px solid rgba(248,113,113,0.3);">${h(c)}</div>`
+            ).join('')}
+          </div>
+        </div>
+        <!-- 핵심 데이터 -->
+        ${dataHtml ? `<div style="padding:8px 14px;background:rgba(0,0,0,0.15);border-top:1px solid rgba(255,255,255,0.05);">
+          <div style="font-size:0.62rem;color:var(--cyan);font-weight:600;margin-bottom:4px;">📊 핵심 데이터</div>
+          ${dataHtml}
+        </div>` : ''}
+        <!-- 소결·출처 -->
+        <div style="padding:8px 14px 10px;background:rgba(255,255,255,0.01);border-top:1px solid rgba(255,255,255,0.05);">
+          <div style="font-size:0.68rem;color:var(--text);line-height:1.5;margin-bottom:6px;">
+            <span style="color:${sc};font-weight:600;">▶ 소결: </span>${h(d.verdict||'')}
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+            <div style="display:flex;flex-wrap:wrap;gap:3px;">${tagsHtml}</div>
+            <div style="display:flex;gap:8px;align-items:center;">${srcLink}
+              <span style="font-size:0.6rem;color:var(--text-muted);">${h(d.date||'')}</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    const html = `<section class="section-wrap" id="key-debates-section">
+      <div class="section-label" style="color:var(--amber,#fbbf24);">⚔️ 핵심 논쟁
+        <span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">${h(db.section_desc||'')} · ${db.debates.length}개 이슈</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:14px;">
+        ${debatesHtml}
+      </div>
+      <div style="margin-top:8px;font-size:0.62rem;color:var(--text-muted);text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 금지. 갱신: ${h(db.generated_at||'')}
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('key-debates-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
   // ─── 📅 Economic Calendar ────────────────────────────
   function renderEconomicCalendar(calData) {
     if (!calData || !calData.events || calData.events.length === 0) return;
@@ -7724,6 +7817,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./m2_data.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(m2 => { if (m2) renderM2Chart(m2); });
+      // Load Key Debates
+      fetch('./key_debates.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(db => { if (db) renderKeyDebates(db); });
     })
     .catch(err => {
       $('#app').innerHTML = `
