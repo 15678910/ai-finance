@@ -7833,8 +7833,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const sorted = [...(td.products||[])].sort((a,b) => b.export_bn - a.export_bn);
     const maxExport = sorted[0]?.export_bn || 1;
 
-    const BAR_W = 38, GAP = 6, ML = 38, MR = 10, MT = 36, MB = 72;
-    const CH = 220; // 차트 영역 높이 (막대만)
+    const BAR_W = 50, GAP = 8, ML = 46, MR = 12, MT = 52, MB = 90;
+    const CH = 240; // 차트 영역 높이
     const totalW = ML + sorted.length * (BAR_W + GAP) - GAP + MR;
     const SVG_H = MT + CH + MB;
 
@@ -7848,40 +7848,41 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         const y = MT + yScl(v);
         return `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${totalW - MR}" y2="${y.toFixed(1)}"
           stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-          <text x="${ML - 4}" y="${(y + 4).toFixed(1)}" text-anchor="end"
-            fill="#64748b" font-size="9">${v}억</text>`;
+          <text x="${ML - 6}" y="${(y + 4.5).toFixed(1)}" text-anchor="end"
+            fill="#94a3b8" font-size="12" font-weight="500">${v}억</text>`;
       }).join('');
 
     let barsSvg = sorted.map((p, i) => {
       const x    = ML + i * (BAR_W + GAP);
-      const bH   = Math.max(2, (p.export_bn / maxExport) * CH);
+      const bH   = Math.max(3, (p.export_bn / maxExport) * CH);
       const by   = MT + CH - bH;
       const cc   = p.yoy_pct >= 0 ? (p.yoy_pct >= 20 ? '#22c55e' : '#4ade80') : (p.yoy_pct >= -5 ? '#fbbf24' : '#f87171');
-      const opacity = p.yoy_pct >= 0 ? 0.85 : 0.6;
-      const nameShort = p.name.length > 4 ? p.name.slice(0, 4) + '…' : p.name;
+      const opacity = p.yoy_pct >= 0 ? 0.88 : 0.65;
+      const nameShort = p.name.length > 5 ? p.name.slice(0, 5) : p.name;
       const chgTxt = (p.yoy_pct >= 0 ? '+' : '') + p.yoy_pct + '%';
+      const cx = (x + BAR_W / 2).toFixed(1);
 
       return `<g>
         <!-- 막대 -->
         <rect x="${x}" y="${by.toFixed(1)}" width="${BAR_W}" height="${bH.toFixed(1)}"
-          rx="3" fill="${cc}" opacity="${opacity}"/>
+          rx="4" fill="${cc}" opacity="${opacity}"/>
         ${p.record ? `<rect x="${x}" y="${by.toFixed(1)}" width="${BAR_W}" height="${bH.toFixed(1)}"
-          rx="3" fill="${cc}" opacity="0.25" filter="url(#glow)"/>` : ''}
-        <!-- 수출액 (막대 위) -->
-        <text x="${(x + BAR_W/2).toFixed(1)}" y="${(by - 14).toFixed(1)}"
-          text-anchor="middle" fill="${cc}" font-size="8" font-weight="700"
-          font-family="monospace">${p.export_bn.toFixed(1)}</text>
+          rx="4" fill="${cc}" opacity="0.3" filter="url(#glow)"/>` : ''}
+        <!-- 수출액 (막대 위, 더 위쪽) -->
+        <text x="${cx}" y="${(by - 20).toFixed(1)}"
+          text-anchor="middle" fill="${cc}" font-size="12" font-weight="700"
+          font-family="monospace">${p.export_bn.toFixed(1)}억</text>
         <!-- 증감률 (막대 바로 위) -->
-        <text x="${(x + BAR_W/2).toFixed(1)}" y="${(by - 4).toFixed(1)}"
-          text-anchor="middle" fill="${cc}" font-size="9" font-weight="800"
+        <text x="${cx}" y="${(by - 5).toFixed(1)}"
+          text-anchor="middle" fill="${cc}" font-size="13" font-weight="800"
           font-family="monospace">${chgTxt}</text>
         <!-- 역대순위 뱃지 -->
-        ${p.record ? `<text x="${(x + BAR_W/2).toFixed(1)}" y="${(MT + CH + 12).toFixed(1)}"
-          text-anchor="middle" fill="#fbbf24" font-size="8">🏆</text>` : ''}
+        ${p.record ? `<text x="${cx}" y="${(MT + CH + 16).toFixed(1)}"
+          text-anchor="middle" fill="#fbbf24" font-size="13">🏆</text>` : ''}
         <!-- 품목명 (45도 회전) -->
-        <text transform="rotate(-45,${(x + BAR_W/2).toFixed(1)},${(MT + CH + 20).toFixed(1)})"
-          x="${(x + BAR_W/2).toFixed(1)}" y="${(MT + CH + 20).toFixed(1)}"
-          text-anchor="end" fill="#cbd5e1" font-size="10" font-weight="500">${h(nameShort)}</text>
+        <text transform="rotate(-40,${cx},${(MT + CH + 28).toFixed(1)})"
+          x="${cx}" y="${(MT + CH + 28).toFixed(1)}"
+          text-anchor="end" fill="#e2e8f0" font-size="13" font-weight="600">${h(nameShort)}</text>
       </g>`;
     }).join('');
 
