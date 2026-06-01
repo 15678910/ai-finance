@@ -185,31 +185,49 @@ def fetch_bok_m2(api_key: str) -> tuple:
         ("161Y022", "BBHS00", "개정전 추정(161Y022)"),
     ]
 
-    def try_series(candidates: list, label: str) -> tuple:
+    # 개정전은 2025년 이후 병행공표 — 최근 날짜도 별도 시도
+    recent_start = f"{today.year - 1}01"   # 1년 전부터
+
+    def try_series(candidates: list, label: str, extra_start: "str | None" = None) -> tuple:
+        """extra_start: 추가로 시도할 최근 시작날짜 (개정전용)."""
+        date_ranges = [(start_ym, end_ym)]
+        if extra_start:
+            date_ranges.append((extra_start, end_ym))
         for code, icode, desc in candidates:
             suffix = f"/{icode}" if icode else ""
-            url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/500/{code}/M/{start_ym}/{end_ym}{suffix}/"
-            try:
-                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-                with urllib.request.urlopen(req, timeout=15) as r:
-                    d = json.loads(r.read())
-                if "RESULT" in d and "StatisticSearch" not in d:
-                    res = d["RESULT"]
-                    print(f"  [{label}/{code}{suffix}] {res.get('CODE')} - {res.get('MESSAGE')}")
-                    continue
-                rows = d.get("StatisticSearch", {}).get("row", [])
-                print(f"  [{label}/{code}{suffix}] {desc}: {len(rows)}행 수신")
-                if rows:
-                    print(f"    첫행: {rows[0]}")
-                    return rows, code
-            except Exception as e:
-                print(f"  [{label}/{code}] 수집 실패: {e}")
+            # 먼저 StatisticItemList로 항목코드 확인 (항목코드 없을 때)
+            if not icode:
+                try:
+                    d2 = bok_get(api_key, f"StatisticItemList/{api_key}/json/kr/1/20/{code}/")
+                    items = d2.get("StatisticItemList", {}).get("row", [])
+                    if items:
+                        print(f"    [{code}] 항목 {len(items)}개: {[(i.get('ITEM_CODE',''), i.get('ITEM_NAME','')[:15]) for i in items[:4]]}")
+                except Exception:
+                    pass
+            for s_ym, e_ym in date_ranges:
+                url = f"{BOK_BASE}/StatisticSearch/{api_key}/json/kr/1/500/{code}/M/{s_ym}/{e_ym}{suffix}/"
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                    with urllib.request.urlopen(req, timeout=15) as r:
+                        d = json.loads(r.read())
+                    if "RESULT" in d and "StatisticSearch" not in d:
+                        res = d["RESULT"]
+                        if s_ym == start_ym:  # 첫 시도만 출력
+                            print(f"  [{label}/{code}{suffix}] {res.get('CODE')} - {res.get('MESSAGE')}")
+                        continue
+                    rows = d.get("StatisticSearch", {}).get("row", [])
+                    print(f"  [{label}/{code}{suffix}] {desc} ({s_ym}-{e_ym}): {len(rows)}행 수신")
+                    if rows:
+                        print(f"    첫행: {rows[0]}")
+                        return rows, code
+                except Exception as e:
+                    print(f"  [{label}/{code}] 수집 실패: {e}")
         return [], ""
 
     print("\n  [개정후] 탐색 중...")
-    rows_after, code_after = try_series(after_cands, "개정후")
-    print("\n  [개정전] 탐색 중...")
-    rows_before, code_before = try_series(before_cands, "개정전")
+    rows_after, code_after = try_series(after_cands, "개정후", None)
+    print("\n  [개정전] 탐색 중... (최근 날짜도 시도)")
+    rows_before, code_before = try_series(before_cands, "개정전", recent_start)
     return rows_after, code_after, rows_before, code_before
 
 
