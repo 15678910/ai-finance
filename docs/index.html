@@ -6202,12 +6202,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         .text(d => (d.data.change_pct >= 0 ? '+' : '') + (d.data.change_pct||0).toFixed(1) + '%');
     }
 
-    // 클릭: 인스펙터 열기 (해당 종목 SAO 검색)
+    // 클릭: 종목 분석 팝업 (애널리스트·기술적 데이터 표시)
     stockNodes.on('click', function(event, d) {
       const ticker = d.data.ticker;
       if (!ticker) return;
-      const saoId = 'stock:' + String(ticker).replace(/\.KS|\.KQ/g, '');
-      openInspector(saoId);
+      openStockDetail(String(ticker).replace(/\.KS|\.KQ/g, ''));
     });
   }
 
@@ -6672,6 +6671,199 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     // 초기 렌더
     renderForMarket(currentMarket);
+  }
+
+  // ─── 종목 분석 팝업 패널 ────────────────────────────
+  function findStockData(ticker) {
+    const data = window.__dashboardData || {};
+    for (const sec of (data.sectors || [])) {
+      for (const st of (sec.stocks || [])) {
+        if (st.ticker === ticker || st.ticker === ticker + '.KS' || st.ticker === ticker + '.KQ')
+          return { ...st, sector: sec.name };
+      }
+    }
+    return null;
+  }
+
+  function openStockDetail(ticker) {
+    const st = findStockData(ticker);
+    if (!st) { openInspector('stock:' + ticker); return; }
+
+    // 기존 팝업 제거
+    document.getElementById('stock-detail-overlay')?.remove();
+
+    const rec    = st.recommendation || '';
+    const recMap = { strong_buy:'강한 매수', buy:'매수', hold:'중립', sell:'매도', strong_sell:'강한 매도',
+                     'outperform':'매수', 'underperform':'매도', 'market perform':'중립' };
+    const recLabel = recMap[rec] || (rec ? rec.replace(/_/g,' ') : '—');
+    const recMean  = st.recommendation_mean;  // 1=strong buy, 5=strong sell
+    const recScore = recMean ? Math.max(0, Math.min(100, (5 - recMean) / 4 * 100)) : null;
+
+    // 게이지 색상
+    const gaugeColor = recScore == null ? '#64748b'
+      : recScore >= 70 ? '#22c55e' : recScore >= 55 ? '#4ade80'
+      : recScore >= 40 ? '#fbbf24' : recScore >= 25 ? '#f97316' : '#f87171';
+
+    // 반원 게이지 SVG
+    const gW = 220, gH = 120;
+    const cx = gW/2, cy = gH - 10, r = 80;
+    const angleRange = Math.PI; // 180도
+    const angle = recScore != null ? (Math.PI - recScore / 100 * Math.PI) : Math.PI / 2;
+    const needleX = cx + r * Math.cos(Math.PI - angle);
+    const needleY = cy - r * Math.sin(Math.PI - angle);
+    const arcSvg = `<svg viewBox="0 0 ${gW} ${gH}" width="${gW}" height="${gH}" style="display:block;margin:0 auto;">
+      <defs><linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#f87171"/><stop offset="50%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#22c55e"/>
+      </linearGradient></defs>
+      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="url(#gGrad)" stroke-width="14" stroke-linecap="round" opacity="0.3"/>
+      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="url(#gGrad)" stroke-width="14" stroke-linecap="round"
+            stroke-dasharray="${Math.PI*r}" stroke-dashoffset="${recScore != null ? (1 - recScore/100)*Math.PI*r : Math.PI*r/2}"/>
+      ${recScore != null ? `<line x1="${cx}" y1="${cy}" x2="${needleX.toFixed(1)}" y2="${needleY.toFixed(1)}"
+        stroke="${gaugeColor}" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="${cx}" cy="${cy}" r="5" fill="${gaugeColor}"/>` : ''}
+      <text x="${cx-r-4}" y="${cy+4}" fill="#f87171" font-size="9" text-anchor="middle">매도</text>
+      <text x="${cx+r+4}" y="${cy+4}" fill="#22c55e" font-size="9" text-anchor="start">매수</text>
+      <text x="${cx}" y="${cy-r-8}" fill="${gaugeColor}" font-size="13" font-weight="700" text-anchor="middle">${recLabel}</text>
+    </svg>`;
+
+    // 52주 레인지 바
+    const price = st.price || 0;
+    const hi52  = st.week52_high || 0;
+    const lo52  = st.week52_low  || 0;
+    const rangePct = (hi52 > lo52 && price) ? Math.round((price - lo52) / (hi52 - lo52) * 100) : null;
+    const rangeBar = rangePct != null ? `
+      <div style="margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">
+          <span>52주 최저<br><b style="color:var(--text);">${lo52.toLocaleString()}</b></span>
+          <span style="text-align:center;color:${rangePct >= 70 ? '#22c55e' : rangePct >= 40 ? '#fbbf24' : '#f87171'}">
+            현재위치<br><b>${rangePct}%</b></span>
+          <span style="text-align:right;">52주 최고<br><b style="color:var(--text);">${hi52.toLocaleString()}</b></span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;position:relative;">
+          <div style="height:100%;width:${rangePct}%;background:linear-gradient(90deg,#f87171,#fbbf24,#22c55e);border-radius:3px;"></div>
+          <div style="position:absolute;top:-2px;left:${rangePct}%;transform:translateX(-50%);width:10px;height:10px;background:#fff;border-radius:50%;border:2px solid ${gaugeColor};"></div>
+        </div>
+      </div>` : '';
+
+    // 목표가
+    const tp   = st.target_price_mean;
+    const tpHi = st.target_price_high;
+    const tpLo = st.target_price_low;
+    const upside = (tp && price) ? ((tp - price) / price * 100).toFixed(1) : null;
+    const targetBlock = tp ? `
+      <div class="glass-card" style="padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px;">🎯 애널리스트 목표가
+          ${st.analyst_count ? `<span style="color:var(--text-muted);">(${st.analyst_count}명)</span>` : ''}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:1.2rem;font-weight:700;color:${upside && parseFloat(upside) > 0 ? '#22c55e' : '#f87171'};">
+              ${tp.toLocaleString()}</div>
+            ${tpLo && tpHi ? `<div style="font-size:0.62rem;color:var(--text-muted);">범위: ${tpLo.toLocaleString()} ~ ${tpHi.toLocaleString()}</div>` : ''}
+          </div>
+          ${upside ? `<div style="text-align:right;">
+            <div style="font-size:0.72rem;color:var(--text-muted);">현재 대비</div>
+            <div style="font-size:1rem;font-weight:700;color:${parseFloat(upside) > 0 ? '#22c55e' : '#f87171'};">
+              ${parseFloat(upside) > 0 ? '+' : ''}${upside}%</div>
+          </div>` : ''}
+        </div>
+      </div>` : '';
+
+    // 재무 건전성 바
+    const healthBars = [
+      { label: 'ROE',     val: st.roe,           max: 40,  unit: '%',  color: '#22d3ee' },
+      { label: '영업이익률', val: st.profit_margin, max: 30,  unit: '%',  color: '#4ade80' },
+      { label: '매출성장률', val: st.revenue_growth, max: 50, unit: '%',  color: '#a78bfa' },
+    ].filter(b => b.val != null && !isNaN(b.val));
+    const healthHtml = healthBars.length ? `
+      <div class="glass-card" style="padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:6px;">📊 재무 건전성</div>
+        ${healthBars.map(b => {
+          const pct = Math.max(0, Math.min(100, (b.val / b.max) * 100));
+          return `<div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:2px;">
+              <span style="color:var(--text-muted);">${h(b.label)}</span>
+              <span style="color:${b.color};font-weight:600;">${b.val >= 0 ? '+' : ''}${b.val.toFixed(1)}${b.unit}</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.08);border-radius:3px;">
+              <div style="height:100%;width:${pct}%;background:${b.color};border-radius:3px;opacity:0.8;"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>` : '';
+
+    // 기타 지표
+    const extras = [
+      ['PER',    st.per,           '배'],
+      ['베타',    st.beta,          ''],
+      ['D/E',    st.debt_to_equity,''],
+      ['시가총액', st.market_cap,    '조'],
+    ].filter(([,v]) => v != null && v !== 'N/A');
+
+    const extrasHtml = extras.length ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+        ${extras.map(([l, v, u]) => `
+          <div class="glass-card" style="padding:7px 10px;">
+            <div style="font-size:0.6rem;color:var(--text-muted);">${h(l)}</div>
+            <div style="font-size:0.85rem;font-weight:700;color:var(--text-bright);">${typeof v === 'number' ? v.toFixed(2) : h(String(v))}${h(u)}</div>
+          </div>`).join('')}
+      </div>` : '';
+
+    const changeColor = (st.change_pct || 0) >= 0 ? '#22c55e' : '#f87171';
+    const isCrypto = (st.ticker || '').endsWith('-USD');
+    const priceDisp = isCrypto
+      ? `$${(st.price||0).toLocaleString('en-US', {maximumFractionDigits:2})}`
+      : `${(st.price||0).toLocaleString()}원`;
+
+    const panelHtml = `
+    <div id="stock-detail-overlay" style="position:fixed;inset:0;z-index:10000;display:flex;justify-content:flex-end;"
+         onclick="if(event.target===this)this.remove()">
+      <div style="width:360px;height:100%;background:#0d1117;border-left:1px solid rgba(255,255,255,0.1);
+                  overflow-y:auto;padding:16px;animation:slideInRight 0.2s ease;">
+        <!-- 헤더 -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+          <div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);">${h(st.name || ticker)}</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);">${h(st.ticker||'')} · ${h(st.sector||'')}</div>
+            <div style="margin-top:4px;">
+              <span style="font-size:1.3rem;font-weight:700;color:var(--text-bright);">${priceDisp}</span>
+              ${st.change_pct != null ? `<span style="font-size:0.8rem;color:${changeColor};margin-left:6px;">${st.change_pct >= 0 ? '+' : ''}${st.change_pct.toFixed(2)}%</span>` : ''}
+            </div>
+          </div>
+          <button onclick="document.getElementById('stock-detail-overlay').remove()"
+                  style="background:rgba(255,255,255,0.06);border:none;color:var(--text-muted);cursor:pointer;padding:6px 10px;border-radius:6px;font-size:0.8rem;">✕</button>
+        </div>
+        <!-- 기술적 분석 게이지 -->
+        <div class="glass-card" style="padding:12px;margin-bottom:8px;text-align:center;">
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px;">📈 기술적 분석 · 애널리스트</div>
+          ${arcSvg}
+          ${st.recommendation_mean ? `<div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;">점수: ${((5 - st.recommendation_mean)/4*10).toFixed(1)}/10</div>` : ''}
+        </div>
+        <!-- 52주 레인지 -->
+        ${rangeBar ? `<div class="glass-card" style="padding:10px 12px;margin-bottom:8px;">${rangeBar}</div>` : ''}
+        <!-- 목표가 -->
+        ${targetBlock}
+        <!-- 재무 건전성 -->
+        ${healthHtml}
+        <!-- 기타 지표 -->
+        ${extrasHtml}
+        <!-- 레짐·심리 -->
+        ${st.regime ? `<div class="glass-card" style="padding:8px 12px;margin-bottom:8px;font-size:0.7rem;">
+          <span style="color:var(--text-muted);">레짐: </span><b style="color:var(--cyan);">${h(st.regime)}</b>
+          ${st.sentiment_label ? ` · <span style="color:var(--text-muted);">심리: </span><b style="color:${st.sentiment_label.includes('긍') ? '#22c55e' : '#f87171'};">${h(st.sentiment_label)}</b>` : ''}
+        </div>` : ''}
+        <div style="font-size:0.6rem;color:var(--text-muted);text-align:center;margin-top:8px;">🚨 시뮬레이션·분석용. 투자 결정 금지.</div>
+      </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', panelHtml);
+
+    // 슬라이드 애니메이션
+    if (!document.getElementById('stock-panel-style')) {
+      const s = document.createElement('style');
+      s.id = 'stock-panel-style';
+      s.textContent = '@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}';
+      document.head.appendChild(s);
+    }
   }
 
   // ─── 우측 인스펙터 패널 열기/닫기 ─────────────────

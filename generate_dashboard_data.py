@@ -1343,6 +1343,37 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                             pe = info.get("trailingPE") or info.get("forwardPE")
                             if pe and float(pe) > 0:
                                 base["per"] = round(float(pe), 2)
+                            # 애널리스트 / 기술적 데이터 (treemap용)
+                            if not base.get("recommendation"):
+                                rec = info.get("recommendationKey", "")
+                                if rec: base["recommendation"] = rec
+                            if not base.get("target_price_mean"):
+                                tp = info.get("targetMeanPrice")
+                                if tp: base["target_price_mean"] = round(float(tp), 2)
+                            if not base.get("recommendation_mean"):
+                                rm = info.get("recommendationMean")
+                                if rm is not None: base["recommendation_mean"] = round(float(rm), 2)
+                            if not base.get("analyst_count"):
+                                na = info.get("numberOfAnalystOpinions")
+                                if na: base["analyst_count"] = int(na)
+                            if not base.get("profit_margin"):
+                                pm = info.get("profitMargins")
+                                if pm is not None: base["profit_margin"] = round(float(pm) * 100, 2)
+                            if not base.get("beta"):
+                                b = info.get("beta")
+                                if b is not None: base["beta"] = round(float(b), 2)
+                            try:
+                                wh2 = info.get("fiftyTwoWeekHigh")
+                                wl2 = info.get("fiftyTwoWeekLow")
+                                if not wh2 or not wl2:
+                                    fi2 = getattr(t, 'fast_info', None)
+                                    if fi2:
+                                        wh2 = wh2 or getattr(fi2, "year_high", None)
+                                        wl2 = wl2 or getattr(fi2, "year_low",  None)
+                                if wh2 and not base.get("week52_high"): base["week52_high"] = round(float(wh2), 2)
+                                if wl2 and not base.get("week52_low"):  base["week52_low"]  = round(float(wl2), 2)
+                            except Exception:
+                                pass
                         except Exception:
                             pass
 
@@ -1708,6 +1739,47 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                             rev_growth = info.get("revenueGrowth")
                             if rev_growth is not None:
                                 stock["revenue_growth"] = round(float(rev_growth) * 100, 2) if abs(rev_growth) < 5 else round(float(rev_growth), 2)
+                            # 애널리스트 데이터
+                            rec_key = info.get("recommendationKey", "")
+                            if rec_key:
+                                stock["recommendation"] = rec_key  # 'strong_buy', 'buy', 'hold', etc.
+                            rec_mean = info.get("recommendationMean")
+                            if rec_mean is not None:
+                                stock["recommendation_mean"] = round(float(rec_mean), 2)
+                            n_analysts = info.get("numberOfAnalystOpinions")
+                            if n_analysts:
+                                stock["analyst_count"] = int(n_analysts)
+                            target_mean = info.get("targetMeanPrice")
+                            if target_mean:
+                                stock["target_price_mean"] = round(float(target_mean), 2)
+                            target_high = info.get("targetHighPrice")
+                            if target_high:
+                                stock["target_price_high"] = round(float(target_high), 2)
+                            target_low = info.get("targetLowPrice")
+                            if target_low:
+                                stock["target_price_low"] = round(float(target_low), 2)
+                            # 재무 건전성 지표
+                            profit_m = info.get("profitMargins")
+                            if profit_m is not None:
+                                stock["profit_margin"] = round(float(profit_m) * 100, 2)
+                            d2e = info.get("debtToEquity")
+                            if d2e is not None:
+                                stock["debt_to_equity"] = round(float(d2e), 2)
+                            beta = info.get("beta")
+                            if beta is not None:
+                                stock["beta"] = round(float(beta), 2)
+                            # 52주 고저 (info dict 우선, fast_info year_high/year_low 폴백)
+                            try:
+                                wh = info.get("fiftyTwoWeekHigh")
+                                wl = info.get("fiftyTwoWeekLow")
+                                if not wh or not wl:
+                                    fi2 = t.fast_info
+                                    wh = wh or getattr(fi2, "year_high", None)
+                                    wl = wl or getattr(fi2, "year_low",  None)
+                                if wh: stock["week52_high"] = round(float(wh), 2)
+                                if wl: stock["week52_low"]  = round(float(wl), 2)
+                            except Exception:
+                                pass
                             refreshed += 1
                             break
                     except Exception:
