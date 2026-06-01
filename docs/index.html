@@ -7770,6 +7770,106 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
+  // ─── 📦 수출입 동향 ──────────────────────────────────
+  function renderTradeData(td) {
+    if (!td || !td.products) return;
+    const s = td.summary || {};
+    const catColor = {
+      'IT/전자':'#22d3ee','에너지/화학':'#fbbf24','자동차':'#f59e0b',
+      '기계':'#94a3b8','조선':'#60a5fa','소재':'#a78bfa','소비재':'#f472b6',
+      '바이오':'#34d399','농식품':'#4ade80','배터리':'#86efac'
+    };
+    const chgColor = v => v >= 20 ? '#22c55e' : v >= 0 ? '#4ade80' : v >= -5 ? '#fbbf24' : '#f87171';
+    const chgBg   = v => v >= 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
+
+    // 월별 트렌드 미니차트
+    const trend = td.monthly_trend || [];
+    let trendSvg = '';
+    if (trend.length >= 2) {
+      const vals = trend.map(t => t.total);
+      const maxV = Math.max(...vals), minV = Math.min(...vals);
+      const TW = 200, TH = 44;
+      let pts = '';
+      trend.forEach((t, i) => {
+        const x = (i / (trend.length - 1)) * TW;
+        const y = TH - ((t.total - minV) / (maxV - minV + 1)) * (TH - 8) - 4;
+        pts += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      });
+      const last = trend[trend.length - 1];
+      const lx = TW, ly = TH - ((last.total - minV) / (maxV - minV + 1)) * (TH - 8) - 4;
+      trendSvg = `<svg viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="display:block;">
+        <path d="${pts.trim()}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="3" fill="#22d3ee"/>
+      </svg>`;
+    }
+
+    // 상단 KPI
+    const kpis = `<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="glass-card" style="padding:12px 18px;min-width:160px;border-left:3px solid #22d3ee;">
+        <div style="font-size:0.65rem;color:var(--text-muted);">📦 총 수출액 (${h(td.period_label||'')})</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--text-bright);">${h(s.total_export_str||'')}</div>
+        <div style="font-size:0.75rem;color:#22c55e;font-weight:600;">${s.yoy_pct >= 0 ? '+' : ''}${s.yoy_pct}% YoY</div>
+        ${s.record ? `<div style="font-size:0.62rem;background:rgba(250,204,21,0.15);color:#fbbf24;padding:2px 7px;border-radius:8px;display:inline-block;margin-top:3px;">🏆 ${h(s.record)}</div>` : ''}
+      </div>
+      <div class="glass-card" style="padding:12px 18px;flex:1;min-width:200px;">
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px;">📈 월별 수출 추이 (억달러)</div>
+        ${trendSvg}
+        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-muted);margin-top:2px;">
+          ${trend.map(t => `<span>${t.month.slice(5)}월</span>`).join('')}
+        </div>
+      </div>
+      <div class="glass-card" style="padding:12px 18px;min-width:200px;">
+        <div style="font-size:0.65rem;color:#22c55e;font-weight:600;margin-bottom:4px;">✅ 주요 성과</div>
+        ${(td.insights||[]).slice(0,3).map(ins => `<div style="font-size:0.68rem;color:var(--text);line-height:1.5;margin-bottom:3px;">${h(ins)}</div>`).join('')}
+      </div>
+      <div class="glass-card" style="padding:12px 18px;min-width:200px;">
+        <div style="font-size:0.65rem;color:#f87171;font-weight:600;margin-bottom:4px;">⚠️ 리스크</div>
+        ${(td.risk_factors||[]).map(r => `<div style="font-size:0.67rem;color:var(--text-muted);line-height:1.5;margin-bottom:3px;">• ${h(r)}</div>`).join('')}
+      </div>
+    </div>`;
+
+    // 제품별 바 차트
+    const sorted = [...(td.products||[])].sort((a,b) => b.export_bn - a.export_bn);
+    const maxExport = sorted[0]?.export_bn || 1;
+    const bars = sorted.map(p => {
+      const pct = (p.export_bn / maxExport * 100).toFixed(1);
+      const cc = catColor[p.category] || '#64748b';
+      return `<div style="margin-bottom:7px;" title="${h(p.name)}: ${p.export_bn}억달러 (${p.yoy_pct >= 0 ? '+' : ''}${p.yoy_pct}%)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <div style="display:flex;align-items:center;gap:6px;min-width:90px;">
+            <span style="font-size:0.7rem;color:var(--text-bright);font-weight:600;">${h(p.name)}</span>
+            ${p.record ? `<span style="font-size:0.55rem;background:rgba(250,204,21,0.2);color:#fbbf24;padding:1px 4px;border-radius:4px;">🏆${h(p.record)}</span>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:0.68rem;color:var(--text-muted);">${p.export_bn.toFixed(1)}억$</span>
+            <span style="font-size:0.68rem;font-weight:700;background:${chgBg(p.yoy_pct)};color:${chgColor(p.yoy_pct)};padding:1px 6px;border-radius:6px;min-width:52px;text-align:right;">${p.yoy_pct >= 0 ? '+' : ''}${p.yoy_pct}%</span>
+          </div>
+        </div>
+        <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${cc};border-radius:3px;opacity:${p.yoy_pct >= 0 ? 0.85 : 0.4};transition:width 0.4s ease;"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const html = `<section class="section-wrap" id="trade-section">
+      <div class="section-label" style="color:var(--cyan);">📦 수출입 동향
+        <span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">${h(td.period_label||'')} · 출처: ${h(td.source||'')} · 갱신: ${h(td.generated_at||'')}</span>
+      </div>
+      ${kpis}
+      <div class="glass-card anim-item" style="padding:14px 18px;">
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:10px;">20대 주요 품목별 수출액 · 증감률 (막대: 수출액 기준, 우측: 전년동월비)</div>
+        ${bars}
+      </div>
+      <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 금지. 자료: 산업통상자원부
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('trade-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
   // ─── ⚔️ Key Debates ──────────────────────────────────
   function renderKeyDebates(db) {
     if (!db || !db.debates || !db.debates.length) return;
@@ -8030,6 +8130,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./key_debates.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(db => { if (db) renderKeyDebates(db); });
+      // Load Trade Data
+      fetch('./trade_data.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(td => { if (td) renderTradeData(td); });
     })
     .catch(err => {
       $('#app').innerHTML = `
