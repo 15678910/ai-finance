@@ -4180,8 +4180,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         html += `
               <tr class="stock-row" onclick="toggleDetail(this)">
                 <td class="col-name"><span class="stock-name">${st.name}</span><span class="stock-ticker">${st.ticker}</span></td>
-                <td class="col-regime"><span class="regime ${rc}">${st.regime || '?'}</span></td>
-                <td class="col-sent"><span class="sent-label ${sc}">${st.sentiment_label || ''}</span><span class="sent-score ${sc}">${h(st.sentiment_score)}</span></td>
+                <td class="col-regime">${st.regime && st.regime !== 'N/A' ? `<span class="regime ${rc}">${st.regime}</span>` : '<span style="color:var(--text-muted);font-size:0.7rem;">—</span>'}</td>
+                <td class="col-sent">${st.sentiment_label && st.sentiment_label !== 'N/A' ? `<span class="sent-label ${sc}">${st.sentiment_label}</span><span class="sent-score ${sc}">${h(st.sentiment_score)}</span>` : '<span style="color:var(--text-muted);font-size:0.7rem;">—</span>'}</td>
                 <td class="col-price hide-mobile"><span class="num">${fmtPrice(st.price)}</span></td>
                 <td class="col-mcap hide-mobile"><span class="num-muted">${fmtMcap(st.market_cap)}</span></td>
                 <td class="col-per hide-mobile"><span class="num-muted">${(st.per != null && st.per !== 'N/A') ? Number(st.per).toFixed(1) : (st.forward_per != null ? st.forward_per.toFixed(1) : 'N/A')}</span></td>
