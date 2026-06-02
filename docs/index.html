@@ -1987,9 +1987,12 @@ body {
   }
 
   function fmtMcap(v) {
+    // market_cap은 조원 단위로 저장됨 (yfinance marketCap / 1e12)
+    // 삼성전자 2337.7조, LG전자 66.3조, 소형주 0.5조 등
     if (v == null) return 'N/A';
-    if (v >= 10000) return (v / 10000).toFixed(1) + '조';
-    return Math.round(v).toLocaleString() + '억';
+    if (v >= 1)   return v.toFixed(1) + '조';
+    if (v > 0)    return (v * 10000).toFixed(0) + '억';
+    return 'N/A';
   }
 
   function fmtPct(v) {
