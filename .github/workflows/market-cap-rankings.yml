@@ -1,0 +1,45 @@
+name: Update Market Cap Rankings
+
+on:
+  schedule:
+    - cron: '30 0 * * 1-5'   # 평일 KST 09:30 (UTC 00:30) — 장 시작 직후
+    - cron: '0 7 * * 1-5'    # 평일 KST 16:00 (UTC 07:00) — 장 마감 직후
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance requests
+
+      - name: Collect market cap rankings
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python market_cap_rankings.py
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/market_cap_rankings.json 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update market cap rankings [automated]"
+          for i in 1 2 3; do
+            if git push 2>/dev/null; then exit 0; fi
+            git pull --rebase origin master
+          done

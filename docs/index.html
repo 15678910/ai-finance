@@ -7770,6 +7770,71 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
+  // ─── 🏆 시가총액 순위 ────────────────────────────────
+  function renderMarketCapRankings(rc) {
+    if (!rc) return;
+    const cc = v => v >= 1 ? '#22c55e' : v >= 0 ? '#4ade80' : v >= -2 ? '#fbbf24' : '#f87171';
+    const arrow = v => v >= 0 ? '▲' : '▼';
+
+    function makeTable(list, unit, title, flag) {
+      const rows = list.slice(0, 20).map((s, i) => {
+        const mc = unit === '조원'
+          ? (s.market_cap >= 1000 ? (s.market_cap / 10000).toFixed(2) + '경원' : s.market_cap.toFixed(0) + '조원')
+          : (s.market_cap >= 1 ? s.market_cap.toFixed(2) + 'T$' : (s.market_cap * 1000).toFixed(0) + 'B$');
+        const chg = s.change_pct ?? 0;
+        const rankColor = i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#f97316' : 'var(--text-muted)';
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;"
+                    onclick="openStockDetail('${h(s.ticker.replace(/\.KS|\.KQ/g,''))}')">
+          <td style="padding:6px 8px;font-size:0.7rem;font-weight:700;color:${rankColor};width:28px;">${i + 1}</td>
+          <td style="padding:6px 4px;font-size:0.88rem;">${s.flag || ''}</td>
+          <td style="padding:6px 6px;font-size:0.75rem;font-weight:600;color:var(--text-bright);">${h(s.name)}</td>
+          <td style="padding:6px 8px;font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);">${h(s.sector || '')}</td>
+          <td style="padding:6px 8px;font-size:0.78rem;font-weight:700;color:var(--text-bright);text-align:right;font-family:var(--font-mono);">${mc}</td>
+          <td style="padding:6px 8px;font-size:0.72rem;font-weight:700;color:${cc(chg)};text-align:right;white-space:nowrap;">${arrow(chg)} ${Math.abs(chg).toFixed(2)}%</td>
+        </tr>`;
+      }).join('');
+
+      return `<div>
+        <div style="font-size:0.75rem;font-weight:700;color:var(--cyan);margin-bottom:8px;">${flag} ${title}</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                <th style="padding:5px 8px;color:var(--text-muted);font-size:0.62rem;font-weight:500;text-align:left;">#</th>
+                <th style="padding:5px 4px;"></th>
+                <th style="padding:5px 6px;color:var(--text-muted);font-size:0.62rem;font-weight:500;text-align:left;">기업명</th>
+                <th style="padding:5px 8px;color:var(--text-muted);font-size:0.62rem;font-weight:500;text-align:left;">섹터</th>
+                <th style="padding:5px 8px;color:var(--text-muted);font-size:0.62rem;font-weight:500;text-align:right;">시가총액</th>
+                <th style="padding:5px 8px;color:var(--text-muted);font-size:0.62rem;font-weight:500;text-align:right;">등락</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    const domTable = makeTable(rc.domestic || [], '조원',  '국내 시총 순위 (KOSPI/KOSDAQ)', '🇰🇷');
+    const glbTable = makeTable(rc.global   || [], '조달러','글로벌 시총 순위', '🌐');
+
+    const html = `<section class="section-wrap" id="market-cap-rankings-section">
+      <div class="section-label" style="color:var(--amber,#fbbf24);">🏆 시가총액 순위
+        <span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">클릭 → 종목 분석 · 갱신: ${h(rc.generated_at || '')}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="glass-card anim-item" style="padding:14px 16px;">${domTable}</div>
+        <div class="glass-card anim-item" style="padding:14px 16px;">${glbTable}</div>
+      </div>
+      <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 금지. 출처: yfinance
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('market-cap-rankings-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
   // ─── 📦 수출입 동향 ──────────────────────────────────
   function renderTradeData(td) {
     if (!td || !td.products) return;
@@ -8185,6 +8250,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./trade_data.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(td => { if (td) renderTradeData(td); });
+      // Load Market Cap Rankings
+      fetch('./market_cap_rankings.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(rc => { if (rc) renderMarketCapRankings(rc); });
     })
     .catch(err => {
       $('#app').innerHTML = `
