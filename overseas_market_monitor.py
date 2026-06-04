@@ -49,6 +49,7 @@ MARKETS = {
         {"ticker": "^GSPC", "name": "S&P 500", "region": "🇺🇸"},
         {"ticker": "^IXIC", "name": "Nasdaq", "region": "🇺🇸"},
         {"ticker": "^DJI", "name": "Dow Jones", "region": "🇺🇸"},
+        {"ticker": "^RUT", "name": "Russell 2000", "region": "🇺🇸"},
         {"ticker": "^VIX", "name": "VIX", "region": "🇺🇸", "is_vix": True},
         {"ticker": "^SOX", "name": "필라델피아 반도체", "region": "🇺🇸", "is_semi": True},
     ],
@@ -70,6 +71,13 @@ MARKETS = {
         {"ticker": "DX-Y.NYB", "name": "달러 인덱스", "region": "🌍"},
         {"ticker": "^TNX", "name": "美 10Y 국채", "region": "🇺🇸"},
         {"ticker": "KRW=X", "name": "USD/KRW", "region": "🇰🇷"},
+        {"ticker": "JPY=X", "name": "USD/JPY", "region": "🇯🇵"},
+    ],
+    "원자재": [
+        {"ticker": "GC=F", "name": "금 (Gold)", "region": "🥇"},
+        {"ticker": "CL=F", "name": "WTI 원유", "region": "🛢️"},
+        {"ticker": "BZ=F", "name": "브렌트 원유", "region": "🛢️"},
+        {"ticker": "SI=F", "name": "은 (Silver)", "region": "⚪"},
     ],
 }
 

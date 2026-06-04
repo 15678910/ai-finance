@@ -7,6 +7,9 @@ on:
     # = 모든 정시에 실행하되 KOSPI 운영 중(09:00~15:00 KST = 00:00~06:00 UTC)에는 스킵
     - cron: '0 7-23 * * *'  # UTC 07:00~23:00 = KST 16:00~다음날 08:00
     - cron: '0 0 * * *'     # UTC 00:00 = KST 09:00 (KOSPI 시초가 직전)
+    # 미국 장 마감 확정값 캡처 (4PM EDT=20:00 UTC, 15·30분 후 정산값)
+    - cron: '15 20 * * 1-5' # UTC 20:15 = 4:15PM EDT (장 마감 직후)
+    - cron: '30 20 * * 1-5' # UTC 20:30 = 4:30PM EDT (마감 정산값 확정)
   workflow_dispatch:
 
 concurrency:
