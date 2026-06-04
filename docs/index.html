@@ -7510,19 +7510,21 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       }
     });
 
-    // HTML 빌드: SIGNALS 카드 (상단) + 섹션 네비게이션 (하단)
-    let html = '';
-
-    // 1. SAO 시그널 카드 섹션 (Sovereign Watch 스타일)
-    if (window.__dashboardData) {
-      html += buildSidebarSignals(window.__dashboardData);
-      html += `<div style="height:14px;border-bottom:1px solid rgba(255,255,255,0.06);margin:8px 0;"></div>`;
-    }
-
-    // 2. 기존 섹션 네비게이션 (Claude Docs 스타일)
-    html += `<div class="sw-section-title" style="color:#a78bfa;border-bottom-color:rgba(167,139,250,0.15);">
-      <span>🗂️ SECTIONS</span>
+    // HTML 빌드: 상단 탭 토글 [섹션 | 시그널], 기본 = 섹션
+    const sigCount = (window.__dashboardData && window.__dashboardData.sao_signals
+                      && window.__dashboardData.sao_signals.signals)
+                      ? window.__dashboardData.sao_signals.signals.length : 0;
+    let html = `<div style="display:flex;gap:4px;padding:8px 8px 6px;position:sticky;top:0;background:var(--bg-sidebar,#0a0e14);z-index:5;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <button id="sb-tab-sections" onclick="switchSidebarTab('sections')"
+        style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(167,139,250,0.4);
+          background:rgba(167,139,250,0.18);color:#a78bfa;font-size:0.7rem;font-weight:700;cursor:pointer;">🗂️ 섹션</button>
+      <button id="sb-tab-signals" onclick="switchSidebarTab('signals')"
+        style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(34,211,238,0.15);
+          background:transparent;color:var(--text-muted);font-size:0.7rem;font-weight:700;cursor:pointer;">📡 시그널 ${sigCount}</button>
     </div>`;
+
+    // 섹션 페인 (기본 표시)
+    html += `<div id="sb-sections-pane" style="display:block;">`;
     Object.entries(groups).forEach(([groupName, groupItems]) => {
       if (groupItems.length === 0) return;
       html += `<div class="sidebar-group-label">${groupName}</div>`;
@@ -7530,6 +7532,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         html += `<a class="sidebar-link" href="#${item.id}" data-target="${item.id}">${escapeHtml(item.label)}</a>`;
       });
     });
+    html += `</div>`;
+
+    // 시그널 페인 (기본 숨김)
+    html += `<div id="sb-signals-pane" style="display:none;">`;
+    if (window.__dashboardData) {
+      html += buildSidebarSignals(window.__dashboardData);
+    }
+    html += `</div>`;
+
     navEl.innerHTML = html;
 
     // SIGNALS 카드 클릭 → 인스펙터 패널 열기
@@ -7660,6 +7671,30 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       panel.style.maxHeight = '0';
       panel.classList.remove('is-open');
     }
+  };
+
+  // 사이드바 탭 전환 (섹션 ↔ 시그널)
+  window.switchSidebarTab = function(tab) {
+    const secPane = document.getElementById('sb-sections-pane');
+    const sigPane = document.getElementById('sb-signals-pane');
+    const secBtn  = document.getElementById('sb-tab-sections');
+    const sigBtn  = document.getElementById('sb-tab-signals');
+    if (!secPane || !sigPane) return;
+    const showSec = tab === 'sections';
+    secPane.style.display = showSec ? 'block' : 'none';
+    sigPane.style.display = showSec ? 'none' : 'block';
+    if (secBtn) {
+      secBtn.style.background = showSec ? 'rgba(167,139,250,0.18)' : 'transparent';
+      secBtn.style.color = showSec ? '#a78bfa' : 'var(--text-muted)';
+      secBtn.style.borderColor = showSec ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.1)';
+    }
+    if (sigBtn) {
+      sigBtn.style.background = showSec ? 'transparent' : 'rgba(34,211,238,0.18)';
+      sigBtn.style.color = showSec ? 'var(--text-muted)' : '#22d3ee';
+      sigBtn.style.borderColor = showSec ? 'rgba(34,211,238,0.15)' : 'rgba(34,211,238,0.4)';
+    }
+    const navEl = document.getElementById('sidebarNav');
+    if (navEl) navEl.scrollTo({ top: 0 });
   };
 
   // 인라인 onclick(전역 스코프)에서 호출되는 IIFE 내부 함수를 window에 노출
