@@ -7864,14 +7864,38 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
       <!-- 상단 3 KPI -->
       <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-        <!-- 변동성 레짐 -->
-        <div class="glass-card" style="padding:12px 16px;min-width:200px;border-left:3px solid ${regColor};">
-          <div style="font-size:0.65rem;color:var(--text-muted);">📊 변동성 레짐 (VIX ${vixVal||'—'})</div>
-          <div style="font-size:1.5rem;font-weight:800;color:${regColor};">${h(reg.level||'—')}</div>
-          <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:5px;overflow:hidden;">
-            <div style="height:100%;width:${vixPct}%;background:linear-gradient(90deg,#22c55e,#fbbf24,#f87171);border-radius:3px;"></div>
+        <!-- 변동성 레짐 (눈금 + 구간 라벨 + 현재 마커 + 25 위험선) -->
+        <div class="glass-card" style="padding:12px 16px;min-width:280px;border-left:3px solid ${regColor};">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <div style="font-size:0.65rem;color:var(--text-muted);">📊 변동성 레짐 (VIX <b style="color:${regColor};">${vixVal||'—'}</b>)</div>
+            <div style="font-size:1.3rem;font-weight:800;color:${regColor};line-height:1;">${h(reg.level||'—')}</div>
           </div>
-          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:4px;">캐스케이드 위험: <b style="color:${regColor};">${h(reg.cascade_risk||'—')}</b></div>
+          <!-- 눈금 게이지: 0~40, 구간 경계 15/20/25/30 -->
+          <div style="position:relative;height:18px;margin-top:8px;">
+            <!-- 구간 색상 띠 (안정<15 정상<20 경계<25 위험<30 패닉) -->
+            <div style="position:absolute;top:6px;left:0;right:0;height:7px;border-radius:4px;overflow:hidden;display:flex;">
+              <div style="width:37.5%;background:#22c55e;opacity:0.55;"></div>
+              <div style="width:12.5%;background:#22d3ee;opacity:0.55;"></div>
+              <div style="width:12.5%;background:#fbbf24;opacity:0.6;"></div>
+              <div style="width:12.5%;background:#f97316;opacity:0.6;"></div>
+              <div style="width:25%;background:#f87171;opacity:0.6;"></div>
+            </div>
+            <!-- 25 위험선 강조 -->
+            <div style="position:absolute;top:2px;left:62.5%;width:2px;height:15px;background:#f87171;"></div>
+            <div style="position:absolute;top:-2px;left:62.5%;transform:translateX(-50%);font-size:0.5rem;color:#f87171;font-weight:700;white-space:nowrap;">⚠️25</div>
+            <!-- 현재 VIX 마커 -->
+            <div style="position:absolute;top:3px;left:${vixPct}%;transform:translateX(-50%);width:11px;height:11px;background:#fff;border:2px solid ${regColor};border-radius:50%;box-shadow:0 0 4px ${regColor};"></div>
+          </div>
+          <!-- 구간 라벨 -->
+          <div style="display:flex;font-size:0.5rem;color:var(--text-muted);margin-top:1px;">
+            <span style="width:37.5%;text-align:center;color:#22c55e;">안정<15</span>
+            <span style="width:12.5%;text-align:center;color:#22d3ee;">정상</span>
+            <span style="width:12.5%;text-align:center;color:#fbbf24;">경계</span>
+            <span style="width:12.5%;text-align:center;color:#f97316;">위험</span>
+            <span style="width:25%;text-align:center;color:#f87171;">패닉≥30</span>
+          </div>
+          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:5px;">캐스케이드 위험: <b style="color:${regColor};">${h(reg.cascade_risk||'—')}</b>
+            ${vixVal && vixVal < 25 ? ` · 위험선까지 <b style="color:var(--text);">${(25-vixVal).toFixed(1)}p</b>` : ''}</div>
         </div>
         <!-- 레버리지/인버스 비율 -->
         <div class="glass-card" style="padding:12px 16px;min-width:200px;border-left:3px solid ${ratioColor};">
