@@ -7820,6 +7820,93 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
+  // ─── 🧠 퀀트 신호 (월드퀀트 전략 3종) ───────────────
+  function renderQuantSignals(q) {
+    if (!q) return;
+    const cc = v => v >= 0 ? '#22c55e' : '#f87171';
+
+    // ① 이름 유사도 이상급등
+    const ns = q.name_similarity || [];
+    const nsRows = ns.length ? ns.map(r => {
+      const suspColor = r.same_group ? '#64748b' : (r.suspicion >= 80 ? '#f87171' : r.suspicion >= 40 ? '#fbbf24' : '#4ade80');
+      const relBadge = r.same_group
+        ? '<span style="font-size:0.55rem;background:rgba(100,116,139,0.2);color:#94a3b8;padding:1px 5px;border-radius:5px;">관계사</span>'
+        : '<span style="font-size:0.55rem;background:rgba(248,113,113,0.2);color:#f87171;padding:1px 5px;border-radius:5px;">⚠️ 무관</span>';
+      return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <div style="display:flex;gap:5px;align-items:center;">
+            <span style="font-size:0.72rem;font-weight:600;color:var(--text-bright);cursor:pointer;" onclick="openStockDetail('${h(r.stock_a.ticker)}')">${h(r.stock_a.name)}</span>
+            <span style="color:var(--text-muted);">↔</span>
+            <span style="font-size:0.72rem;font-weight:600;color:var(--text-bright);cursor:pointer;" onclick="openStockDetail('${h(r.stock_b.ticker)}')">${h(r.stock_b.name)}</span>
+            ${relBadge}
+          </div>
+          <span style="font-size:0.68rem;font-weight:700;color:${suspColor};font-family:var(--font-mono);">의심 ${r.suspicion}</span>
+        </div>
+        <div style="font-size:0.62rem;color:var(--text-muted);">
+          유사도 ${r.similarity}% · ${r.co_move} (${r.stock_a.change_pct>=0?'+':''}${r.stock_a.change_pct}% / ${r.stock_b.change_pct>=0?'+':''}${r.stock_b.change_pct}%)${r.diff_sector?' · 섹터무관':''}
+        </div>
+      </div>`;
+    }).join('') : '<div style="font-size:0.68rem;color:var(--text-muted);padding:10px 0;">현재 무관 종목 동조 없음 (대형주 유니버스). 소형·테마주 추가 시 탐지.</div>';
+
+    // ② 롱숏 시장중립
+    const ls = q.long_short || {};
+    const facBar = (factors) => Object.entries(factors||{}).map(([k,v]) =>
+      `<span style="font-size:0.54rem;color:var(--text-muted);">${k}<b style="color:${v>=60?'#4ade80':v>=40?'#fbbf24':'#f87171'};">${v}</b></span>`
+    ).join(' ');
+    const lsRow = (p, side) => {
+      const sColor = side==='long' ? '#22c55e' : '#f87171';
+      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;" onclick="openStockDetail('${h(p.ticker)}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.74rem;font-weight:600;color:var(--text-bright);">${h(p.name)}</span>
+          <span style="font-size:0.74rem;font-weight:800;color:${sColor};font-family:var(--font-mono);">${p.score>=0?'+':''}${p.score}</span>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:1px;">${facBar(p.factors)}</div>
+      </div>`;
+    };
+    const longCol  = (ls.long||[]).map(p => lsRow(p,'long')).join('');
+    const shortCol = (ls.short||[]).map(p => lsRow(p,'short')).join('');
+
+    // ③ 생존 편향 경고
+    const sv = q.survivorship || {};
+    const svBlock = `<div class="glass-card" style="padding:12px 16px;background:rgba(248,113,113,0.05);border-left:3px solid rgba(248,113,113,0.5);">
+      <div style="font-size:0.72rem;font-weight:700;color:#f87171;margin-bottom:5px;">⚠️ ${h(sv.title||'')}</div>
+      <div style="font-size:0.68rem;color:var(--text);line-height:1.6;margin-bottom:7px;">${h(sv.body||'')}</div>
+      ${(sv.rules||[]).map(r => `<div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;">• ${h(r)}</div>`).join('')}
+      <div style="font-size:0.6rem;color:var(--text-muted);margin-top:5px;">출처: ${h(sv.source||'')}</div>
+    </div>`;
+
+    const html = `<section class="section-wrap" id="quant-signals-section">
+      <div class="section-label" style="color:#a78bfa;">🧠 퀀트 신호 <span style="font-size:0.62rem;color:var(--text-muted);">(월드퀀트 전략 — 이름유사도·롱숏중립·편향경고)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(q.generated_at||'')}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <!-- ① 이름 유사도 -->
+        <div class="glass-card anim-item" style="padding:14px 16px;">
+          <div style="font-size:0.72rem;font-weight:700;color:#22d3ee;margin-bottom:4px;">🔤 이름 유사도 이상급등 탐지</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:8px;">이름만 비슷한 무관 종목의 비이성 동조 = 알파 기회</div>
+          ${nsRows}
+        </div>
+        <!-- ② 롱숏 -->
+        <div class="glass-card anim-item" style="padding:14px 16px;">
+          <div style="font-size:0.72rem;font-weight:700;color:#4ade80;margin-bottom:4px;">⚖️ 롱숏 시장중립 스코어 <span style="font-size:0.58rem;color:var(--text-muted);">(${ls.universe||0}종목)</span></div>
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:8px;">가치·수익성·성장·모멘텀·컨센서스 결합 → 시장방향 무관</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+            <div><div style="font-size:0.62rem;color:#22c55e;font-weight:700;margin-bottom:4px;">📈 LONG (상위)</div>${longCol}</div>
+            <div><div style="font-size:0.62rem;color:#f87171;font-weight:700;margin-bottom:4px;">📉 SHORT (하위)</div>${shortCol}</div>
+          </div>
+        </div>
+      </div>
+      ${svBlock}
+      <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 단독 사용 금지.
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('quant-signals-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
   // ─── 📊 ETF 구성종목 비중 ───────────────────────────
   function renderEtfHoldings(ed) {
     if (!ed || !ed.etfs || !ed.etfs.length) return;
@@ -8417,6 +8504,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./etf_holdings.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(ed => { if (ed) renderEtfHoldings(ed); });
+      // Load Quant Signals
+      fetch('./quant_signals.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(q => { if (q) renderQuantSignals(q); });
     })
     .catch(err => {
       $('#app').innerHTML = `

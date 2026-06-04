@@ -1,0 +1,32 @@
+name: Update Quant Signals
+
+on:
+  schedule:
+    - cron: '0 7 * * 1-5'   # 평일 KST 16:00 (UTC 07:00) — 장 마감 후
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Collect quant signals
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python quant_signals.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/quant_signals.json 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Update quant signals [automated]"
+          for i in 1 2 3; do git push 2>/dev/null && exit 0; git pull --rebase origin master; done
