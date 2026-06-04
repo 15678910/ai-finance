@@ -7820,6 +7820,104 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
+  // ─── ⚡ 레버리지·변동성 모니터 ───────────────────────
+  function renderLeverageVol(lv) {
+    if (!lv) return;
+    const colorMap = { green:'#22c55e', cyan:'#22d3ee', amber:'#fbbf24', red:'#f87171', muted:'#64748b' };
+    const reg = lv.vol_regime || {};
+    const regColor = colorMap[reg.color] || '#64748b';
+    const vix = lv.vix || {};
+
+    // 변동성 레짐 게이지 (VIX 0~40)
+    const vixVal = vix.current || 0;
+    const vixPct = Math.min(100, vixVal / 40 * 100);
+
+    // ETF 행
+    const etfRows = (lv.etfs || []).map(e => {
+      const chg = e.change_pct || 0;
+      const cc = chg >= 0 ? '#22c55e' : '#f87171';
+      const typeColor = e.type === 'leverage' ? '#f59e0b' : '#a78bfa';
+      const typeLabel = e.type === 'leverage' ? `레버리지 ${e.mult}X` : `인버스 ${Math.abs(e.mult)}X`;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;" onclick="openStockDetail('${h(e.ticker)}')">
+        <td style="padding:5px 6px;font-size:0.72rem;font-weight:600;color:var(--text-bright);">${h(e.name)}</td>
+        <td style="padding:5px 6px;"><span style="font-size:0.55rem;background:${typeColor}22;color:${typeColor};padding:1px 5px;border-radius:5px;white-space:nowrap;">${typeLabel}</span></td>
+        <td style="padding:5px 6px;font-size:0.72rem;color:var(--text);text-align:right;font-family:var(--font-mono);">${e.aum_tril!=null?e.aum_tril+'조':'—'}</td>
+        <td style="padding:5px 6px;font-size:0.72rem;font-weight:700;color:${cc};text-align:right;">${chg>=0?'+':''}${chg.toFixed(2)}%</td>
+        <td style="padding:5px 6px;font-size:0.66rem;color:var(--text-muted);text-align:right;font-family:var(--font-mono);">${e.rebal_pressure_tril>0?'~'+e.rebal_pressure_tril+'조':'—'}</td>
+      </tr>`;
+    }).join('');
+
+    // 메커니즘 설명
+    const mechs = (lv.mechanisms || []).map(m =>
+      `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <div style="font-size:0.68rem;font-weight:600;color:#fbbf24;">▸ ${h(m.name)}</div>
+        <div style="font-size:0.64rem;color:var(--text-muted);line-height:1.5;">${h(m.desc)}</div>
+      </div>`).join('');
+
+    const ratio = lv.lev_inv_ratio;
+    const ratioColor = ratio == null ? '#64748b' : ratio > 1.5 ? '#f87171' : ratio < 0.7 ? '#22c55e' : '#22d3ee';
+
+    const html = `<section class="section-wrap" id="leverage-vol-section">
+      <div class="section-label" style="color:#f59e0b;">⚡ 레버리지·변동성 모니터 <span style="font-size:0.62rem;color:var(--text-muted);">(ETF·레버리지의 변동성 증폭 추적)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(lv.generated_at||'')}</span>
+      </div>
+
+      <!-- 상단 3 KPI -->
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <!-- 변동성 레짐 -->
+        <div class="glass-card" style="padding:12px 16px;min-width:200px;border-left:3px solid ${regColor};">
+          <div style="font-size:0.65rem;color:var(--text-muted);">📊 변동성 레짐 (VIX ${vixVal||'—'})</div>
+          <div style="font-size:1.5rem;font-weight:800;color:${regColor};">${h(reg.level||'—')}</div>
+          <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:5px;overflow:hidden;">
+            <div style="height:100%;width:${vixPct}%;background:linear-gradient(90deg,#22c55e,#fbbf24,#f87171);border-radius:3px;"></div>
+          </div>
+          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:4px;">캐스케이드 위험: <b style="color:${regColor};">${h(reg.cascade_risk||'—')}</b></div>
+        </div>
+        <!-- 레버리지/인버스 비율 -->
+        <div class="glass-card" style="padding:12px 16px;min-width:200px;border-left:3px solid ${ratioColor};">
+          <div style="font-size:0.65rem;color:var(--text-muted);">⚖️ 레버리지 ÷ 인버스 비율</div>
+          <div style="font-size:1.5rem;font-weight:800;color:${ratioColor};">${ratio!=null?ratio:'—'}</div>
+          <div style="font-size:0.62rem;color:var(--text);line-height:1.5;margin-top:3px;">${h(lv.ratio_signal||'')}</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">레버리지 ${lv.leverage_aum_tril||0}조 / 인버스 ${lv.inverse_aum_tril||0}조</div>
+        </div>
+        <!-- 대응 가이드 -->
+        <div class="glass-card" style="padding:12px 16px;flex:1;min-width:240px;">
+          <div style="font-size:0.65rem;color:${regColor};font-weight:700;margin-bottom:5px;">🎯 현 국면 대응 가이드</div>
+          ${(reg.guide||[]).map(g => `<div style="font-size:0.66rem;color:var(--text);line-height:1.6;margin-bottom:2px;">• ${h(g)}</div>`).join('')}
+        </div>
+      </div>
+
+      <!-- ETF 테이블 + 메커니즘 -->
+      <div style="display:grid;grid-template-columns:3fr 2fr;gap:14px;">
+        <div class="glass-card anim-item" style="padding:14px 16px;">
+          <div style="font-size:0.7rem;font-weight:700;color:#f59e0b;margin-bottom:8px;">📋 주요 레버리지·인버스 ETF</div>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+              <th style="padding:4px 6px;text-align:left;font-size:0.6rem;color:var(--text-muted);font-weight:500;">ETF</th>
+              <th style="padding:4px 6px;text-align:left;font-size:0.6rem;color:var(--text-muted);font-weight:500;">유형</th>
+              <th style="padding:4px 6px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">AUM</th>
+              <th style="padding:4px 6px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">등락</th>
+              <th style="padding:4px 6px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">마감 리밸런싱</th>
+            </tr></thead>
+            <tbody>${etfRows}</tbody>
+          </table>
+          <div style="font-size:0.58rem;color:var(--text-muted);margin-top:6px;">※ 마감 리밸런싱: 장 마감 무렵 배율 유지 위한 추정 기계적 주문 규모 (방향: 상승추세 증폭 시 매수)</div>
+        </div>
+        <div class="glass-card anim-item" style="padding:14px 16px;">
+          <div style="font-size:0.7rem;font-weight:700;color:#fbbf24;margin-bottom:8px;">🔬 변동성 증폭 메커니즘</div>
+          ${mechs}
+        </div>
+      </div>
+      <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 단독 사용 금지.
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('leverage-vol-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
   // ─── 🧠 퀀트 신호 (월드퀀트 전략 3종) ───────────────
   function renderQuantSignals(q) {
     if (!q) return;
@@ -8508,6 +8606,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./quant_signals.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(q => { if (q) renderQuantSignals(q); });
+      // Load Leverage/Volatility Monitor
+      fetch('./leverage_volatility.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(lv => { if (lv) renderLeverageVol(lv); });
     })
     .catch(err => {
       $('#app').innerHTML = `
