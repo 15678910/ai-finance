@@ -4904,6 +4904,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     // ─── 📚 Build Sidebar Navigation (Claude Docs 스타일) ──
     setTimeout(() => buildSidebarNav(), 300);
+    // 비동기 주입 섹션(핵심논쟁·퀀트신호·M2·시총순위 등) 자동 반영
+    setTimeout(() => setupSidebarObserver(), 600);
 
     // ─── 📚 Credit Spread Guide 2-pane Reader 탭 전환 ──
     setTimeout(() => { attachCsGuideTabs(); attachCsCardClicks(); }, 350);
@@ -7455,6 +7457,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     return html;
   }
 
+  // 비동기 주입 섹션을 감지해 사이드바 자동 재빌드 (디바운스)
+  let __sidebarObserver = null;
+  let __sidebarRebuildTimer = null;
+  function setupSidebarObserver() {
+    const app = document.getElementById('app');
+    if (!app || __sidebarObserver) return;
+    let lastCount = document.querySelectorAll('.section-wrap').length;
+    __sidebarObserver = new MutationObserver(() => {
+      const cur = document.querySelectorAll('.section-wrap').length;
+      if (cur === lastCount) return;   // 섹션 수 변화 없으면 무시
+      lastCount = cur;
+      clearTimeout(__sidebarRebuildTimer);
+      __sidebarRebuildTimer = setTimeout(() => buildSidebarNav(), 250);
+    });
+    __sidebarObserver.observe(app, { childList: true, subtree: true });
+  }
+
   function buildSidebarNav() {
     const navEl = document.getElementById('sidebarNav');
     if (!navEl) return;
@@ -7497,13 +7516,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     };
     items.forEach(item => {
       const l = item.label;
-      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자/.test(l)) {
+      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트/.test(l)) {
         groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터/.test(l)) {
+      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역/.test(l)) {
         groups['한국 시장'].push(item);
-      } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시/.test(l)) {
+      } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
