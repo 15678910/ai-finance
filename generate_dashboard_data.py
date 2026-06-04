@@ -1780,6 +1780,49 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                                 if wl: stock["week52_low"]  = round(float(wl), 2)
                             except Exception:
                                 pass
+                            # 기술적 레짐 계산 (레짐 없는 종목에 한해)
+                            if stock.get("regime") in (None, "", "N/A"):
+                                try:
+                                    hist = t.history(period="3mo")
+                                    if len(hist) >= 20:
+                                        closes = hist["Close"].dropna()
+                                        ma20 = float(closes.iloc[-20:].mean())
+                                        ma60 = float(closes.iloc[-min(60, len(closes)):].mean())
+                                        cur  = float(closes.iloc[-1])
+                                        chg5 = (cur - float(closes.iloc[-6])) / float(closes.iloc[-6]) * 100 if len(closes) >= 6 else 0
+                                        # 레짐 결정
+                                        if cur > ma20 * 1.03 and ma20 > ma60 and chg5 > 1:
+                                            stock["regime"] = "강한상승"
+                                        elif cur > ma20 * 1.01 and ma20 >= ma60:
+                                            stock["regime"] = "상승"
+                                        elif cur > ma20 * 0.99:
+                                            stock["regime"] = "약한상승"
+                                        elif cur > ma20 * 0.97 and abs(cur - ma20) / ma20 < 0.02:
+                                            stock["regime"] = "횡보"
+                                        elif cur < ma20 * 0.97 and ma20 > ma60:
+                                            stock["regime"] = "약한하락"
+                                        elif cur < ma20 and ma20 < ma60:
+                                            stock["regime"] = "하락"
+                                        elif cur < ma20 * 0.95 and ma20 < ma60:
+                                            stock["regime"] = "강한하락"
+                                        else:
+                                            stock["regime"] = "횡보"
+                                        # 센티멘트 (20일 수익률 기반)
+                                        ret20 = (cur - float(closes.iloc[-min(21, len(closes))])) / float(closes.iloc[-min(21, len(closes))]) * 100 if len(closes) >= 21 else 0
+                                        if ret20 > 5:
+                                            stock["sentiment_label"] = "긍정"
+                                            stock["sentiment_score"] = f"+{ret20:.1f}"
+                                        elif ret20 > 0:
+                                            stock["sentiment_label"] = "약한긍정"
+                                            stock["sentiment_score"] = f"+{ret20:.1f}"
+                                        elif ret20 > -5:
+                                            stock["sentiment_label"] = "약세"
+                                            stock["sentiment_score"] = f"{ret20:.1f}"
+                                        else:
+                                            stock["sentiment_label"] = "약세"
+                                            stock["sentiment_score"] = f"{ret20:.1f}"
+                                except Exception:
+                                    pass
                             refreshed += 1
                             break
                     except Exception:
