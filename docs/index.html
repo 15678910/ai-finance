@@ -2493,25 +2493,25 @@ body {
         { key: 'ndx',  label: '🇺🇸 나스닥 100', sym: 'NASDAQ%3AQQQ',   note: 'QQQ ETF — 나스닥 100 지수 추종. 애플·MS·엔비디아·아마존 등 시총 상위 100개 비금융 기업 편입 (NASDAQ:NDX 지수는 임베드 제한)' },
         { key: 'n225', label: '🇯🇵 일본 (EWJ)', sym: 'AMEX%3AEWJ', note: 'EWJ — iShares MSCI Japan ETF (달러표시). 닛케이225 지수·선물은 TradingView 임베드 제한으로, 일본 증시를 추종하는 美 상장 ETF로 대체. 달러 표시라 일본 주가 + 엔화 움직임을 함께 반영 → BOJ·엔 캐리 맥락에 적합 (닛케이225와 ~0.95 연동)' },
       ];
+      // 단일 iframe + src 교체 방식 (display:none 안에서 iframe이 0×0으로 깨지는 문제 회피)
+      // tvBase/sym/note 데이터를 버튼 data-* 속성에 담아 switchTvIndex가 읽음
       html += `<div class="glass-card anim-item" style="margin-top:14px;padding:14px;">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
           <span style="font-size:0.7rem;color:var(--text-muted);align-self:center;margin-right:4px;">📈 글로벌 지수</span>
           ${tvIndices.map((idx, i) => `<button class="tv-idx-btn" data-tv-idx="${idx.key}"
-            onclick="switchTvIndex('${idx.key}')"
+            data-tv-src="${tvBase}${idx.sym}" data-tv-note="${h(idx.note)}"
+            onclick="switchTvIndex(this)"
             style="padding:5px 14px;border-radius:20px;border:1px solid rgba(34,211,238,${i===0?'0.5':'0.15'});
               background:${i===0?'rgba(34,211,238,0.18)':'transparent'};
               color:${i===0?'#22d3ee':'var(--text-muted)'};
               font-size:0.74rem;font-weight:600;cursor:pointer;transition:all 0.15s;">${idx.label}</button>`).join('')}
         </div>
-        ${tvIndices.map((idx, i) => `
-        <div class="tv-idx-panel" data-tv-panel="${idx.key}" style="display:${i===0?'block':'none'};">
-          <div style="border-radius:6px;overflow:hidden;">
-            <iframe src="${tvBase}${idx.sym}"
-              width="100%" height="360" frameborder="0"
-              allowtransparency="true" scrolling="no" style="display:block;"></iframe>
-          </div>
-          <div style="margin-top:8px;font-size:0.65rem;color:var(--text-muted);line-height:1.6;">※ ${idx.note}</div>
-        </div>`).join('')}
+        <div style="border-radius:6px;overflow:hidden;">
+          <iframe id="tv-idx-frame" src="${tvBase}${tvIndices[0].sym}"
+            width="100%" height="360" frameborder="0"
+            allowtransparency="true" scrolling="no" style="display:block;"></iframe>
+        </div>
+        <div id="tv-idx-note" style="margin-top:8px;font-size:0.65rem;color:var(--text-muted);line-height:1.6;">※ ${h(tvIndices[0].note)}</div>
       </div>`;
 
       // 알림 메시지
@@ -6721,13 +6721,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     return null;
   }
 
-  // 글로벌 지수 TradingView 탭 전환 (나스닥100 / 닛케이225)
-  function switchTvIndex(key) {
-    document.querySelectorAll('.tv-idx-panel').forEach(p => {
-      p.style.display = (p.dataset.tvPanel === key) ? 'block' : 'none';
-    });
+  // 글로벌 지수 TradingView 탭 전환 (단일 iframe src 교체)
+  function switchTvIndex(btn) {
+    const frame = document.getElementById('tv-idx-frame');
+    const noteEl = document.getElementById('tv-idx-note');
+    if (frame && btn.dataset.tvSrc) frame.src = btn.dataset.tvSrc;
+    if (noteEl && btn.dataset.tvNote) noteEl.textContent = '※ ' + btn.dataset.tvNote;
     document.querySelectorAll('.tv-idx-btn').forEach(b => {
-      const active = b.dataset.tvIdx === key;
+      const active = b === btn;
       b.style.background = active ? 'rgba(34,211,238,0.18)' : 'transparent';
       b.style.color = active ? '#22d3ee' : 'var(--text-muted)';
       b.style.borderColor = active ? 'rgba(34,211,238,0.5)' : 'rgba(34,211,238,0.15)';
