@@ -1852,6 +1852,13 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
             return [_clean_nan(item) for item in obj]
         return obj
 
+    # 데이터 재조립(실제 저장) 시각 — 헤더 "갱신" 표시용.
+    # generated_at은 일일 분석(Excel) 기준 시각이라 analysis_basis_at에 별도 보관.
+    from datetime import timezone as _tz, timedelta as _td
+    _kst = _tz(_td(hours=9))
+    output_data["analysis_basis_at"] = output_data.get("generated_at", "")
+    output_data["data_refreshed_at"] = datetime.now(_kst).strftime("%Y-%m-%d %H:%M:%S")
+
     output_data = _clean_nan(output_data)
 
     # 11) docs/ 디렉터리 생성 및 파일 저장 (allow_nan=False로 강제 검증)

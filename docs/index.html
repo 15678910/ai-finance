@@ -2093,8 +2093,13 @@ body {
     const app = $('#app');
     const dateParts = (data.date || '').split('-');
     const dateStr = dateParts.length === 3 ? `${dateParts[0]}년 ${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : data.date;
-    const timeStr = data.generated_at ? data.generated_at.split(' ')[1] || '' : '';
-    const relStr = relativeTime(data.generated_at);
+    // 갱신 시각 = 데이터 재조립(data_refreshed_at) 우선, 없으면 generated_at
+    const refreshedAt = data.data_refreshed_at || data.generated_at;
+    const timeStr = refreshedAt ? refreshedAt.split(' ')[1] || '' : '';
+    const relStr = relativeTime(refreshedAt);
+    // 분석 기준 = 일일 분석(Excel) 생성 시각 (부가 표시)
+    const basisAt = data.analysis_basis_at || data.generated_at;
+    const basisTime = basisAt ? basisAt.split(' ')[1] || '' : '';
 
     let html = '';
 
@@ -2117,7 +2122,8 @@ body {
         <div class="header-meta">
           <span class="live-badge"><span class="live-dot"></span>LIVE</span>
           <span class="meta-date">${dateStr}</span>
-          ${timeStr ? `<span class="meta-time" title="데이터 생성 시각">생성: ${timeStr}${relStr ? ` (${relStr})` : ''}</span>` : ''}
+          ${timeStr ? `<span class="meta-time" title="시세 데이터 갱신 시각">갱신: ${timeStr}${relStr ? ` (${relStr})` : ''}</span>` : ''}
+          ${basisTime && basisTime !== timeStr ? `<span class="meta-time" title="일일 분석(레짐·센티멘트) 기준 시각" style="opacity:0.65;">분석기준: ${basisTime}</span>` : ''}
           <span class="meta-time" id="now-clock" title="현재 시각 (KST)" style="color:var(--cyan);">현재: <span id="now-time">${nowKST()}</span> KST</span>
         </div>
       </div>
