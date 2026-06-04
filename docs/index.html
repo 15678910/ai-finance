@@ -7773,6 +7773,115 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch(e) { console.error('[M2 Chart]', e); }
   }
 
+  // ─── 📊 ETF 구성종목 비중 ───────────────────────────
+  function renderEtfHoldings(ed) {
+    if (!ed || !ed.etfs || !ed.etfs.length) return;
+
+    // ── ETF 탭 ──
+    const tabs = ed.etfs.map((e, i) =>
+      `<button class="etf-tab-btn" data-etf-idx="${i}"
+        style="padding:5px 12px;border-radius:16px;border:1px solid ${e.color}44;
+          background:${i===0 ? e.color+'22' : 'transparent'};
+          color:${i===0 ? e.color : 'var(--text-muted)'};
+          font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap;">
+        ${h(e.name)} <span style="font-size:0.58rem;opacity:0.7;">${e.aum_tril}조</span>
+      </button>`
+    ).join('');
+
+    // ── ETF별 상세 패널 ──
+    const panels = ed.etfs.map((e, i) => {
+      const maxW = e.holdings[0]?.weight || 1;
+      const rows = e.holdings.slice(0, 10).map((h2, rank) => {
+        const pct = (h2.weight / maxW * 100).toFixed(1);
+        const isTop3 = rank < 3;
+        return `<div style="margin-bottom:8px;" onclick="openStockDetail('${h2.ticker}')" style="cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="width:18px;text-align:center;font-size:0.65rem;font-weight:700;
+                color:${rank===0?'#fbbf24':rank===1?'#94a3b8':rank===2?'#f97316':'var(--text-muted)'};">${rank+1}</span>
+              <span style="font-size:0.78rem;font-weight:${isTop3?700:500};color:var(--text-bright);cursor:pointer;"
+                onclick="openStockDetail('${h2.ticker}')">${h(h2.name)}</span>
+              ${h2.ticker ? `<span style="font-size:0.58rem;color:var(--text-muted);">${h(h2.ticker)}</span>` : ''}
+            </div>
+            <span style="font-size:0.78rem;font-weight:700;color:${e.color};font-family:var(--font-mono);">${h2.weight}%</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${e.color};border-radius:3px;opacity:${isTop3?0.9:0.6};"></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `<div class="etf-panel" data-etf-idx="${i}" style="display:${i===0?'block':'none'};">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:0.68rem;color:var(--text-muted);">운용사: <b style="color:var(--text);">${h(e.manager)}</b></span>
+          <span style="font-size:0.68rem;color:var(--text-muted);">AUM: <b style="color:${e.color};">${e.aum_tril}조원</b></span>
+          <span style="font-size:0.62rem;color:var(--text-muted);">티커: ${h(e.ticker)}</span>
+          <span style="font-size:0.6rem;color:var(--text-muted);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:4px;">${h(e.data_source||'')}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">${rows}</div>
+      </div>`;
+    }).join('');
+
+    // ── 전체 종목 ETF 노출도 ──
+    const exposure = (ed.stock_exposure || []).slice(0, 12).map(s => {
+      const badges = s.etfs.map(e =>
+        `<span style="font-size:0.58rem;padding:1px 5px;border-radius:4px;background:${e.color}22;color:${e.color};white-space:nowrap;">${e.weight}%</span>`
+      ).join(' ');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;
+          padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;"
+          onclick="openStockDetail('${h(s.ticker)}')">
+        <div>
+          <span style="font-size:0.75rem;font-weight:600;color:var(--text-bright);">${h(s.name)}</span>
+          <span style="font-size:0.6rem;color:var(--text-muted);margin-left:5px;">${s.etf_count}개 ETF 편입</span>
+        </div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:60%;">${badges}</div>
+      </div>`;
+    }).join('');
+
+    const html = `<section class="section-wrap" id="etf-holdings-section">
+      <div class="section-label" style="color:#f472b6;">📊 반도체 ETF 구성종목 비중
+        <span style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;">클릭 → 종목 분석 · 갱신: ${h(ed.generated_at||'')}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:3fr 2fr;gap:16px;">
+        <!-- 좌: ETF 탭 + 구성종목 -->
+        <div class="glass-card anim-item" style="padding:14px 16px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${tabs}</div>
+          <div id="etf-panels-wrap">${panels}</div>
+        </div>
+        <!-- 우: 전체 종목 ETF 노출도 -->
+        <div class="glass-card anim-item" style="padding:14px 16px;">
+          <div style="font-size:0.7rem;font-weight:600;color:var(--text-muted);margin-bottom:10px;">
+            🔗 종목별 ETF 편입 현황 <span style="font-size:0.6rem;">(AUM 가중 평균 비중)</span>
+          </div>
+          ${exposure}
+        </div>
+      </div>
+      <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 금지. 출처: KRX PDF / 각 운용사 공시
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('etf-holdings-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+
+    // 탭 클릭 이벤트
+    document.querySelectorAll('.etf-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.etfIdx);
+        const etfs = document.getElementById('etf-holdings-section')?.querySelectorAll('.etf-panel');
+        const tabs2 = document.getElementById('etf-holdings-section')?.querySelectorAll('.etf-tab-btn');
+        if (!etfs) return;
+        etfs.forEach((p, i) => p.style.display = i === idx ? 'block' : 'none');
+        tabs2?.forEach((t, i) => {
+          const e = ed.etfs[i];
+          t.style.background = i === idx ? e.color + '22' : 'transparent';
+          t.style.color = i === idx ? e.color : 'var(--text-muted)';
+        });
+      });
+    });
+  }
+
   // ─── 🏆 시가총액 순위 ────────────────────────────────
   function renderMarketCapRankings(rc) {
     if (!rc) return;
@@ -8257,6 +8366,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./market_cap_rankings.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(rc => { if (rc) renderMarketCapRankings(rc); });
+      // Load ETF Holdings
+      fetch('./etf_holdings.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(ed => { if (ed) renderEtfHoldings(ed); });
     })
     .catch(err => {
       $('#app').innerHTML = `
