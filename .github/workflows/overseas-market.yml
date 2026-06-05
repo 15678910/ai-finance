@@ -40,7 +40,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install yfinance
+          # generate_dashboard_data.py 병합에 필요한 전체 의존성 (openpyxl 등)
+          pip install -r requirements.txt || pip install yfinance openpyxl pandas requests
 
       - name: Run overseas market monitor
         env:
