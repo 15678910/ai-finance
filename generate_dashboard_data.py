@@ -1205,17 +1205,24 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
 
     _EMPTY_SENTINELS = {None, "N/A", "N\\A", "", "NaN"}
 
+    def _is_empty(v) -> bool:
+        """빈 값 판정. dict/list는 unhashable이므로 set 멤버십 검사 전에 제외."""
+        if isinstance(v, (dict, list)):
+            return False
+        return v in _EMPTY_SENTINELS
+
     def _patch_none(current: dict, cached: dict) -> dict:
         """current 딕셔너리의 None/'N/A'/빈 값을 cached 딕셔너리의 값으로 채웁니다.
         중첩 dict는 재귀적으로 처리하며, current에 없는 키는 추가하지 않습니다.
+        (dict/list 값은 unhashable이라 set 멤버십 검사에서 TypeError 방지)
         """
         if not cached:
             return current
         result = dict(current)
         for key, cur_val in result.items():
-            if cur_val in _EMPTY_SENTINELS:
+            if _is_empty(cur_val):
                 cached_val = cached.get(key)
-                if cached_val not in _EMPTY_SENTINELS and cached_val is not None:
+                if cached_val is not None and not _is_empty(cached_val):
                     result[key] = cached_val
             elif isinstance(cur_val, dict) and isinstance(cached.get(key), dict):
                 result[key] = _patch_none(cur_val, cached[key])
