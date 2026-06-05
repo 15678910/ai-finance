@@ -3050,9 +3050,18 @@ body {
           const i5d = (r.institutional_5d_net_shares || 0);
           const hold = r.foreign_holding_pct_now;
           const holdChg = r.foreign_holding_pct_5d_change;
+          // 정확한 연속 일수 배지 (foreign_streak_days)
+          const streakD = r.foreign_streak_days || 0;
+          const streakDir = r.foreign_streak_direction || '';
+          const streakBadge = (streakD >= 2 && (streakDir === 'buy' || streakDir === 'sell'))
+            ? `<span style="font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;white-space:nowrap;
+                background:${streakDir === 'sell' ? 'rgba(220,38,38,0.18)' : 'rgba(251,191,36,0.18)'};
+                color:${streakDir === 'sell' ? '#f87171' : '#fbbf24'};">
+                ${streakDir === 'sell' ? '🩸' : '🔥'} ${streakD}일 연속</span>`
+            : '';
           inner += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,0.06);font-size:0.72rem;">
             <div style="flex:1;min-width:0;">
-              <div style="color:#ffffff;font-weight:600;">${h(r.name)} <span style="color:var(--text-muted);font-size:0.65rem;font-family:var(--font-mono);">${r.ticker}</span></div>
+              <div style="color:#ffffff;font-weight:600;">${h(r.name)} <span style="color:var(--text-muted);font-size:0.65rem;font-family:var(--font-mono);">${r.ticker}</span>${streakBadge}</div>
               <div style="color:var(--text-muted);font-size:0.6rem;">${h(r.sector || '')}</div>
             </div>
             <div style="text-align:right;font-family:var(--font-mono);font-size:0.65rem;">
@@ -3062,8 +3071,13 @@ body {
             </div>
           </div>`;
         });
+        // 최대 연속일 (제목 보조 표시)
+        const maxStreak = Math.max(0, ...items.map(r => r.foreign_streak_days || 0));
+        const maxBadge = maxStreak >= 5
+          ? `<span style="color:${color};font-size:0.62rem;font-weight:700;margin-left:4px;">(최대 ${maxStreak}일)</span>`
+          : '';
         return `<div class="glass-card anim-item" style="padding:12px 14px;border-left:3px solid ${color};">
-          <div style="font-size:0.85rem;font-weight:700;color:${color};margin-bottom:8px;">${emoji} ${h(title)} <span style="color:var(--text-muted);font-size:0.65rem;font-weight:400;">${items.length}건</span></div>
+          <div style="font-size:0.85rem;font-weight:700;color:${color};margin-bottom:8px;">${emoji} ${h(title)}${maxBadge} <span style="color:var(--text-muted);font-size:0.65rem;font-weight:400;">${items.length}건</span></div>
           ${inner}
         </div>`;
       };
