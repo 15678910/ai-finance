@@ -7543,7 +7543,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -8100,6 +8100,112 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     </section>`;
 
     const existing = document.getElementById('quant-signals-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
+  // ─── 🤖 AI 패러다임 모니터 (MV=PY · 휴머노이드 · CAPEX) ──────
+  function renderAiParadigm(ap) {
+    if (!ap) return;
+    const COL = { green:'#22c55e', amber:'#fbbf24', red:'#f87171', muted:'#94a3b8' };
+    const fmtV = (v, suf) => (v === null || v === undefined) ? '<span style="color:var(--text-muted);">수집중</span>'
+      : `${v >= 0 ? '+' : ''}${v}${suf || ''}`;
+
+    // ① MV=PY 진단
+    const mv = ap.mv_py || {};
+    const vc = COL[mv.verdict_color] || COL.muted;
+    const varCard = (k, o, accent) => `
+      <div class="glass-card" style="padding:11px 13px;background:rgba(255,255,255,0.02);border-top:2px solid ${accent};">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:0.66rem;font-weight:700;color:${accent};">${k} · ${h(o.label||'')}</span>
+          <span style="font-size:0.6rem;color:var(--text-muted);">${h(o.date||'')}</span>
+        </div>
+        <div style="font-size:1.15rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);margin:3px 0;">
+          ${fmtV(o.value, o.unit ? ' '+o.unit : (k==='V'?'':''))}${(k==='V'&&o.yoy!=null)?` <span style="font-size:0.62rem;color:${o.yoy>=0?'#4ade80':'#f87171'};">(${o.yoy>=0?'+':''}${o.yoy}%)</span>`:''}
+        </div>
+        <div style="font-size:0.58rem;color:var(--text-muted);line-height:1.5;">${h(o.desc||'')}</div>
+      </div>`;
+    const mvBlock = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
+        ${varCard('M', mv.M||{}, '#60a5fa')}
+        ${varCard('V', mv.V||{}, '#a78bfa')}
+        ${varCard('P', mv.P||{}, '#fbbf24')}
+        ${varCard('Y', mv.Y||{}, '#4ade80')}
+      </div>
+      <div class="glass-card" style="padding:13px 16px;background:${vc}11;border-left:3px solid ${vc};margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">
+          <span style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);">${h(mv.equation||'')}</span>
+          <span style="font-size:0.82rem;font-weight:800;color:${vc};">▶ ${h(mv.verdict||'')}</span>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text);line-height:1.6;">${h(mv.verdict_desc||'')}</div>
+      </div>`;
+
+    // ② 휴머노이드 테마
+    const hms = ap.humanoid || [];
+    const hmRows = hms.map(s => {
+      const cc = s.change_pct >= 0 ? '#4ade80' : '#f87171';
+      const mc = s.market_cap ? `${s.market_cap}조$` : '';
+      return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;" onclick="openStockDetail('${h(s.ticker)}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.74rem;font-weight:600;color:var(--text-bright);">${s.flag} ${h(s.name)}</span>
+          <span style="font-size:0.74rem;font-weight:700;color:${cc};font-family:var(--font-mono);">${s.change_pct>=0?'+':''}${s.change_pct}%</span>
+        </div>
+        <div style="font-size:0.58rem;color:var(--text-muted);line-height:1.45;margin-top:1px;">${h(s.role||'')}${mc?` · ${mc}`:''}</div>
+      </div>`;
+    }).join('');
+    const hmBlock = `
+      <div class="glass-card anim-item" style="padding:14px 16px;">
+        <div style="font-size:0.72rem;font-weight:700;color:#f472b6;margin-bottom:4px;">🤖 휴머노이드·Physical AI 밸류체인</div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:8px;">로봇 양산(2025~26) = 생산성 혁명의 실체 · 인구감소 대안</div>
+        ${hmRows}
+      </div>`;
+
+    // ③ 하이퍼스케일러 CAPEX 게이지
+    const cx = ap.capex || {};
+    const ref = cx.dotcom_ref || 35;
+    const cxRows = (cx.items||[]).map(it => {
+      const w = Math.min(100, it.capex_ratio / ref * 100);
+      const bc = it.capex_ratio >= 35 ? '#f87171' : it.capex_ratio >= 25 ? '#fbbf24' : '#4ade80';
+      return `<div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <span style="font-size:0.7rem;font-weight:600;color:var(--text-bright);">${h(it.name)} <span style="font-size:0.55rem;color:var(--text-muted);">${h(it.note||'')}</span></span>
+          <span style="font-size:0.72rem;font-weight:800;color:${bc};font-family:var(--font-mono);">${it.capex_ratio}%</span>
+        </div>
+        <div style="height:7px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;position:relative;">
+          <div style="height:100%;width:${w}%;background:${bc};border-radius:4px;opacity:0.85;"></div>
+        </div>
+        <div style="font-size:0.55rem;color:var(--text-muted);margin-top:1px;">CAPEX $${it.capex_b}B / 매출 $${it.revenue_b}B</div>
+      </div>`;
+    }).join('');
+    const cxSig = cx.avg_ratio >= 25 ? '#f87171' : '#4ade80';
+    const cxBlock = `
+      <div class="glass-card anim-item" style="padding:14px 16px;">
+        <div style="font-size:0.72rem;font-weight:700;color:#38bdf8;margin-bottom:4px;">💰 하이퍼스케일러 CAPEX 게이지</div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:8px;">생태계 선점 투자 · 닷컴버블 IT CAPEX ${ref}% 대비 (붉은 선)</div>
+        ${cxRows}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
+          <span style="font-size:0.62rem;color:var(--text-muted);">평균 CAPEX/매출 <b style="color:${cxSig};font-size:0.78rem;font-family:var(--font-mono);">${cx.avg_ratio}%</b></span>
+          <span style="font-size:0.62rem;font-weight:700;color:${cxSig};">${h(cx.signal||'')}</span>
+        </div>
+      </div>`;
+
+    const html = `<section class="section-wrap" id="ai-paradigm-section">
+      <div class="section-label" style="color:#c084fc;">🌐 AI 패러다임 모니터
+        <span style="font-size:0.62rem;color:var(--text-muted);">(MV=PY 생산성 · 휴머노이드 · CAPEX 버블)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(ap.generated_at||'')}</span>
+      </div>
+      <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:10px;">${h(ap.source||'')}</div>
+      ${mvBlock}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        ${hmBlock}
+        ${cxBlock}
+      </div>
+      <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
+        🚨 시뮬레이션·분석용. 투자 결정 단독 사용 금지.
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('ai-paradigm-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
   }
@@ -8725,6 +8831,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./leverage_volatility.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(lv => { if (lv) renderLeverageVol(lv); });
+      // Load AI Paradigm Monitor (MV=PY · 휴머노이드 · CAPEX)
+      fetch('./ai_paradigm.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(ap => { if (ap) renderAiParadigm(ap); });
     })
     .catch(err => {
       $('#app').innerHTML = `
