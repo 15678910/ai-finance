@@ -8617,13 +8617,29 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono);">
               ${ev.region || ''} ${dateDisplay}
             </div>
-            <div style="font-size:0.65rem;font-weight:600;color:${color};white-space:nowrap;margin-left:8px;">
-              ${impactLabel[ev.impact] || ev.impact}
+            <div style="display:flex;gap:5px;align-items:center;margin-left:8px;">
+              ${ev.status === 'released'
+                ? `<span style="font-size:0.6rem;font-weight:700;color:#4ade80;background:rgba(74,222,128,0.15);padding:1px 6px;border-radius:8px;white-space:nowrap;">✅ 발표완료</span>`
+                : ev.status === 'upcoming' && ev.category === '경제지표'
+                ? `<span style="font-size:0.6rem;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.12);padding:1px 6px;border-radius:8px;white-space:nowrap;">⏳ 예정</span>` : ''}
+              <span style="font-size:0.65rem;font-weight:600;color:${color};white-space:nowrap;">${impactLabel[ev.impact] || ev.impact}</span>
             </div>
           </div>
           <div style="font-size:0.85rem;font-weight:700;color:var(--text-bright);margin-bottom:4px;">
             ${icon} ${h(ev.title)}
           </div>
+          ${ev.actual_value != null ? (() => {
+            const sd = ev.surprise_dir || '';
+            const sColor = sd === '상승' ? '#f87171' : sd === '하락' ? '#4ade80' : '#94a3b8';
+            return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:6px;padding:6px 10px;">
+              <div><div style="font-size:0.58rem;color:var(--text-muted);">실제 발표값${ev.actual_period ? ' (' + ev.actual_period + ')' : ''}</div>
+                <div style="font-size:1.1rem;font-weight:800;color:#4ade80;">${ev.actual_value}${h(ev.actual_unit || '')}</div></div>
+              ${ev.prior_value != null ? `<div><div style="font-size:0.58rem;color:var(--text-muted);">직전</div>
+                <div style="font-size:0.8rem;color:var(--text);font-family:var(--font-mono);">${ev.prior_value}${h(ev.actual_unit || '')}</div></div>
+              <div><div style="font-size:0.58rem;color:var(--text-muted);">전월대비</div>
+                <div style="font-size:0.8rem;font-weight:700;color:${sColor};font-family:var(--font-mono);">${ev.surprise_vs_prior >= 0 ? '+' : ''}${ev.surprise_vs_prior} ${sd}</div></div>` : ''}
+            </div>`;
+          })() : ''}
           ${ev.boj_hike_probability != null ? `<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:6px;background:rgba(251,191,36,0.1);padding:4px 10px;border-radius:12px;border:1px solid rgba(251,191,36,0.3);">
             <span style="font-size:0.65rem;color:var(--text-muted);">금리 인상 확률 (OIS)</span>
             <span style="font-size:1.0rem;font-weight:800;color:#fbbf24;">${ev.boj_hike_probability}%</span>

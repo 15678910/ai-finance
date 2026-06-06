@@ -298,6 +298,96 @@ def fetch_fred_releases(api_key: str, start: str, end: str) -> list:
     return events
 
 
+# ── 발표 완료 실제값 수집 (FRED 시리즈) ───────────────────────────────
+# 태그 키워드 → (series_id, units, 단위라벨, 소수자리)
+#   units: pc1=전년동월비%, chg=전월대비변화, lin=수준값
+FRED_VALUE_MAP = [
+    (["CPI"],        "CPIAUCSL", "pc1", "% YoY", 1),   # 소비자물가 전년비
+    (["PCE"],        "PCEPI",    "pc1", "% YoY", 1),   # PCE 물가 전년비
+    (["PPI"],        "PPIFIS",   "pc1", "% YoY", 1),   # 생산자물가 전년비
+    (["고용", "NFP"], "PAYEMS",   "chg", "천명",  0),   # 비농업고용 전월대비(천명)
+    (["GDP"],        "A191RL1Q225SBEA", "lin", "%",  1),  # 실질GDP 성장률(연율)
+    (["소매", "소비"], "RSAFS",    "pc1", "% YoY", 1),   # 소매판매 전년비
+]
+
+
+def fetch_indicator_value(api_key: str, series_id: str, units: str) -> tuple:
+    """FRED에서 최신 발표값 + 직전값 반환. (latest_val, latest_date, prior_val) 또는 (None,None,None)."""
+    try:
+        params = urllib.parse.urlencode({
+            "series_id": series_id, "api_key": api_key, "file_type": "json",
+            "units": units, "sort_order": "desc", "limit": 3,
+        })
+        url = f"https://api.stlouisfed.org/fred/series/observations?{params}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        obs = [o for o in data.get("observations", []) if o.get("value") not in (".", "", None)]
+        if not obs:
+            return None, None, None
+        latest = obs[0]
+        prior = obs[1] if len(obs) > 1 else None
+        return (float(latest["value"]), latest["date"],
+                float(prior["value"]) if prior else None)
+    except Exception as e:
+        print(f"  [WARN] FRED 값 수집 실패 ({series_id}): {e}")
+        return None, None, None
+
+
+def enrich_events_with_actuals(events: list, api_key: str) -> list:
+    """경제지표 이벤트에 발표완료 상태 + 실제값 부여.
+    - 발표일 <= 오늘: status=released, 실제값/직전값/서프라이즈 첨부
+    - 발표일 > 오늘:  status=upcoming
+    """
+    if not api_key:
+        for ev in events:
+            ev.setdefault("status", "upcoming")
+        return events
+    today = date.today()
+    cache: dict = {}  # series_id → (val, date, prior)
+    for ev in events:
+        if ev.get("category") != "경제지표":
+            ev.setdefault("status", "upcoming")
+            continue
+        d = ev.get("date", "")
+        try:
+            is_released = ("TBD" not in d) and (date.fromisoformat(d) <= today)
+        except Exception:
+            is_released = False
+        ev["status"] = "released" if is_released else "upcoming"
+        if not is_released:
+            continue
+        # 매핑 찾기
+        tags = ev.get("tags", []) + [ev.get("title", "")]
+        match = next((m for m in FRED_VALUE_MAP
+                      if any(k in t for k in m[0] for t in tags)), None)
+        if not match:
+            continue
+        _, sid, units, unit_label, dec = match
+        if sid not in cache:
+            cache[sid] = fetch_indicator_value(api_key, sid, units)
+        val, vdate, prior = cache[sid]
+        if val is None:
+            continue
+        ev["actual_value"] = round(val, dec)
+        ev["actual_unit"] = unit_label
+        ev["actual_period"] = (vdate or "")[:7]   # 기준월 (YYYY-MM)
+        if prior is not None:
+            ev["prior_value"] = round(prior, dec)
+            diff = val - prior
+            ev["surprise_vs_prior"] = round(diff, dec)
+            # 물가·고용 상승 = 매파(인플레↑/경기과열), 하락 = 비둘기
+            if abs(diff) < (0.1 if dec >= 1 else 1):
+                ev["surprise_dir"] = "보합"
+            elif diff > 0:
+                ev["surprise_dir"] = "상승"
+            else:
+                ev["surprise_dir"] = "하락"
+        print(f"  [발표완료] {ev['title']}: {ev['actual_value']}{unit_label} "
+              f"(직전 {ev.get('prior_value','—')}, {ev.get('surprise_dir','')})")
+    return events
+
+
 def sort_events(events: list) -> list:
     def key(e):
         d = e.get("date", "")
@@ -305,11 +395,13 @@ def sort_events(events: list) -> list:
     return sorted(events, key=key)
 
 
-def filter_upcoming(events: list, months_ahead: int = 3) -> list:
-    """오늘 이후 ~ months_ahead개월 이내 이벤트만 반환."""
+def filter_window(events: list, months_ahead: int = 3, days_back: int = 14) -> list:
+    """과거 days_back일 ~ 미래 months_ahead개월 이벤트 반환.
+    과거(발표완료 결과 표시용)는 days_back일까지만 유지."""
     today = date.today()
     cutoff = date(today.year + (today.month + months_ahead - 1) // 12,
                   (today.month + months_ahead - 1) % 12 + 1, 1)
+    back_limit = today - timedelta(days=days_back)
     result = []
     for ev in events:
         d = ev.get("date", "")
@@ -318,18 +410,22 @@ def filter_upcoming(events: list, months_ahead: int = 3) -> list:
             continue
         try:
             ev_date = date.fromisoformat(d)
-            if today <= ev_date < cutoff:
+            if back_limit <= ev_date < cutoff:
                 result.append(ev)
         except Exception:
             pass
     return result
 
 
+# 하위호환 별칭
+filter_upcoming = filter_window
+
+
 def main():
     api_key = os.environ.get("FRED_API_KEY", "")
     now = datetime.now(KST)
     today = date.today()
-    start_str = today.strftime("%Y-%m-%d")
+    _ = today.strftime("%Y-%m-%d")  # start_str 예약
     end_str = date(today.year + 1, today.month, 1).strftime("%Y-%m-%d")
 
     print("=" * 55)
@@ -344,12 +440,13 @@ def main():
     all_events.extend(cb_upcoming)
     print(f"[중앙은행] {len(cb_upcoming)}개 일정 로드")
 
-    # FRED 경제지표 발표일 (API 자동 수집)
+    # FRED 경제지표 발표일 (API 자동 수집) — 과거 14일분도 포함(발표완료 결과용)
     if api_key:
-        fred_events = fetch_fred_releases(api_key, start_str, end_str)
-        fred_upcoming = filter_upcoming(fred_events)
-        all_events.extend(fred_upcoming)
-        print(f"[FRED] {len(fred_upcoming)}개 경제지표 발표일 수집")
+        past_str = (today - timedelta(days=14)).strftime("%Y-%m-%d")
+        fred_events = fetch_fred_releases(api_key, past_str, end_str)
+        fred_win = filter_window(fred_events)
+        all_events.extend(fred_win)
+        print(f"[FRED] {len(fred_win)}개 경제지표 발표일 수집 (과거 14일 포함)")
     else:
         print("[WARN] FRED_API_KEY 없음 - 경제지표 발표일 자동 수집 생략")
 
@@ -372,8 +469,13 @@ def main():
             if len(ev) > len(deduped[existing_idx]):
                 deduped[existing_idx] = ev
 
+    # 발표완료 경제지표에 실제값 부여 (FRED)
+    print("\n[발표완료 결과 수집]")
+    deduped = enrich_events_with_actuals(deduped, api_key)
+
     deduped = sort_events(deduped)
-    print(f"\n[합계] {len(deduped)}개 이벤트 (3개월 이내)")
+    released = sum(1 for e in deduped if e.get("status") == "released")
+    print(f"\n[합계] {len(deduped)}개 이벤트 (발표완료 {released}개)")
 
     output = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
