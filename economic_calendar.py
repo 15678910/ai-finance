@@ -314,36 +314,65 @@ def fetch_fred_releases(api_key: str, start: str, end: str) -> list:
 
 
 # ── 발표 완료 실제값 수집 (FRED 시리즈) ───────────────────────────────
-# 태그 키워드 → (series_id, units, 단위라벨, 소수자리)
-#   units: pc1=전년동월비%, chg=전월대비변화, lin=수준값
+# 태그 키워드 → (series_id, metric, 단위라벨, 소수자리)
+#   metric: yoy=전년동월비%, mom=전월대비변화, level=원시값
+#   (units= 파라미터는 PAYEMS에서 400 오류 → 원시값 받아 직접 계산)
 FRED_VALUE_MAP = [
-    (["CPI"],        "CPIAUCSL", "pc1", "% YoY", 1),   # 소비자물가 전년비
-    (["PCE"],        "PCEPI",    "pc1", "% YoY", 1),   # PCE 물가 전년비
-    (["PPI"],        "PPIFIS",   "pc1", "% YoY", 1),   # 생산자물가 전년비
-    (["고용", "NFP"], "PAYEMS",   "chg", "천명",  0),   # 비농업고용 전월대비(천명)
-    (["GDP"],        "A191RL1Q225SBEA", "lin", "%",  1),  # 실질GDP 성장률(연율)
-    (["소매", "소비"], "RSAFS",    "pc1", "% YoY", 1),   # 소매판매 전년비
+    (["CPI"],        "CPIAUCSL", "yoy",  "% YoY", 1),  # 소비자물가 전년비
+    (["PCE"],        "PCEPI",    "yoy",  "% YoY", 1),  # PCE 물가 전년비
+    (["PPI"],        "PPIFIS",   "yoy",  "% YoY", 1),  # 생산자물가 전년비
+    (["고용", "NFP"], "PAYEMS",   "mom",  "천명",  0),  # 비농업고용 전월대비(천명)
+    (["GDP"],        "A191RL1Q225SBEA", "level", "%", 1),  # 실질GDP 성장률(연율)
+    (["소매", "소비"], "RSAFS",    "yoy",  "% YoY", 1),  # 소매판매 전년비
 ]
 
 
-def fetch_indicator_value(api_key: str, series_id: str, units: str) -> tuple:
-    """FRED에서 최신 발표값 + 직전값 반환. (latest_val, latest_date, prior_val) 또는 (None,None,None)."""
+def fetch_indicator_value(api_key: str, series_id: str, metric: str) -> tuple:
+    """FRED 원시 관측값을 받아 metric(yoy/mom/level) 계산.
+    (latest_val, latest_period_date, prior_val) 또는 (None,None,None).
+    units= 파라미터 미사용(400 회피) — m2_monitor와 동일한 안정적 호출.
+    """
     try:
+        from datetime import date as _date
+        start = f"{_date.today().year - 2}-01-01"
         params = urllib.parse.urlencode({
-            "series_id": series_id, "api_key": api_key, "file_type": "json",
-            "units": units, "sort_order": "desc", "limit": 3,
+            "series_id": series_id, "api_key": api_key.strip(),
+            "observation_start": start, "file_type": "json", "sort_order": "asc",
         })
         url = f"https://api.stlouisfed.org/fred/series/observations?{params}"
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=15) as r:
             data = json.loads(r.read())
-        obs = [o for o in data.get("observations", []) if o.get("value") not in (".", "", None)]
-        if not obs:
+        rows = [(o["date"], float(o["value"])) for o in data.get("observations", [])
+                if o.get("value") not in (".", "", None)]
+        if len(rows) < 2:
             return None, None, None
-        latest = obs[0]
-        prior = obs[1] if len(obs) > 1 else None
-        return (float(latest["value"]), latest["date"],
-                float(prior["value"]) if prior else None)
+
+        if metric == "level":
+            latest_d, latest_v = rows[-1]
+            prior_v = rows[-2][1]
+            return latest_v, latest_d, prior_v
+
+        if metric == "mom":
+            latest_d, latest_v = rows[-1]
+            prior_v = rows[-2][1]
+            # 전월대비 변화 (천명 등): 절대 변화량
+            cur_chg = latest_v - prior_v
+            prv_chg = prior_v - rows[-3][1] if len(rows) >= 3 else None
+            return cur_chg, latest_d, prv_chg
+
+        # yoy: 전년동월비 %
+        date_to_val = {d: v for d, v in rows}
+        def _yoy(idx):
+            d, v = rows[idx]
+            ya = f"{int(d[:4]) - 1}{d[4:]}"
+            pv = date_to_val.get(ya)
+            return ((v - pv) / pv * 100) if (pv and pv != 0) else None
+        cur = _yoy(-1)
+        prv = _yoy(-2)
+        if cur is None:
+            return None, None, None
+        return cur, rows[-1][0], prv
     except Exception as e:
         print(f"  [WARN] FRED 값 수집 실패 ({series_id}): {e}")
         return None, None, None
