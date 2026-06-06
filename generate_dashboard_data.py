@@ -1446,6 +1446,39 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     # 새 sectors가 비어있으면 기존 data.json의 sectors/macro 보존 (덮어쓰기 방지)
     final_sectors = parsed["sectors"]
     final_macro = parsed["macro"]
+
+    # 9.1) 매크로 환경 카드 복구
+    #   종합요약 txt의 한글이 cp949→utf-8 서브프로세스 캡처로 깨질 수 있음(U+FFFD).
+    #   깨졌거나 비었으면 xlsx 기반 macro_detail(완전 신뢰)에서 파생해 채운다.
+    def _clean_str(s):
+        if not isinstance(s, str):
+            return None
+        if "�" in s:  # 인코딩 깨짐(replacement char)
+            return None
+        s = s.strip()
+        return s or None
+
+    def _repair_macro(macro: dict, md: dict) -> dict:
+        macro = dict(macro or {})
+        ec_stage = (md.get("economic_cycle") or {}).get("stage")
+        rc_stage = (md.get("rate_cycle") or {}).get("stage")
+        infl     = md.get("inflation_status")
+        cpi_yoy  = md.get("cpi_yoy")
+        ffr_cur  = (md.get("ffr") or {}).get("current")
+        if not _clean_str(macro.get("cycle")):
+            macro["cycle"] = _clean_str(ec_stage) or "N/A"
+        if not _clean_str(macro.get("rate")):
+            macro["rate"] = _clean_str(rc_stage) or "N/A"
+        if not _clean_str(macro.get("inflation")):
+            macro["inflation"] = _clean_str(infl) or "N/A"
+        if not _clean_str(macro.get("ffr")) and ffr_cur is not None:
+            macro["ffr"] = f"{ffr_cur}%"
+        if not _clean_str(macro.get("cpi")):
+            macro["cpi"] = _clean_str(cpi_yoy) or "N/A"
+        return macro
+
+    final_macro = _repair_macro(final_macro, macro_detail)
+
     if not final_sectors:
         old_sectors = old_data.get("sectors", [])
         if old_sectors:
