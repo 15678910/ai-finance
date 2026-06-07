@@ -7543,7 +7543,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -8210,6 +8210,112 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
   }
 
+  // ─── 🎯 KOSPI 시나리오 시뮬레이터 (실시간 베타 예측) ──────
+  function renderKospiScenario(sc) {
+    if (!sc || !sc.current || !sc.beta) return;
+    const cur = sc.current, b = sc.beta;
+    const kNow = cur.KOSPI, soxxNow = cur.SOXX, qqqNow = cur.QQQ;
+    const tailMul = sc.tail_multiplier || 1.8;
+    const dft = sc.default_targets || { soxx: 460, qqq: 650 };
+    if (!kNow || !soxxNow || !qqqNow) return;
+
+    const fmtN = n => Math.round(n).toLocaleString();
+    // 슬라이더 범위: 현재가 대비 -40% ~ +15%
+    const sRange = [Math.round(soxxNow * 0.6), Math.round(soxxNow * 1.15)];
+    const qRange = [Math.round(qqqNow * 0.6), Math.round(qqqNow * 1.15)];
+
+    const html = `<section class="section-wrap" id="kospi-scenario-section">
+      <div class="section-label" style="color:#34d399;">🎯 KOSPI 시나리오 시뮬레이터
+        <span style="font-size:0.62rem;color:var(--text-muted);">(SOX·나스닥100 → KOSPI 실시간 베타 예측)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">기준일 ${h(sc.asof||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:16px 18px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#22d3ee;margin-bottom:4px;">
+              <span>📉 SOXX (필라델피아 반도체)</span>
+              <span id="ksc-sox-val" style="font-family:var(--font-mono);"></span>
+            </div>
+            <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="1" value="${dft.soxx}"
+              style="width:100%;accent-color:#22d3ee;cursor:pointer;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${soxxNow} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#a78bfa;margin-bottom:4px;">
+              <span>📉 QQQ (나스닥100)</span>
+              <span id="ksc-qqq-val" style="font-family:var(--font-mono);"></span>
+            </div>
+            <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="1" value="${dft.qqq}"
+              style="width:100%;accent-color:#a78bfa;cursor:pointer;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${qqqNow} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
+          </div>
+        </div>
+        <div id="ksc-result"></div>
+        <div style="font-size:0.58rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">
+          ${h(sc.note||'')}<br>🚨 통계 추정 · 비선형 패닉/환율 효과는 별도. 투자 결정 단독 사용 금지.
+        </div>
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('kospi-scenario-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+
+    // ── 실시간 계산 ──
+    const elSox = document.getElementById('ksc-sox');
+    const elQqq = document.getElementById('ksc-qqq');
+    const elSoxV = document.getElementById('ksc-sox-val');
+    const elQqqV = document.getElementById('ksc-qqq-val');
+    const elRes = document.getElementById('ksc-result');
+    if (!elSox || !elRes) return;
+
+    function compute() {
+      const sT = +elSox.value, qT = +elQqq.value;
+      const dSox = Math.log(sT / soxxNow), dQqq = Math.log(qT / qqqNow);
+      const soxPct = (sT / soxxNow - 1) * 100, qqqPct = (qT / qqqNow - 1) * 100;
+      // 단일 요인
+      const kSox = kNow * Math.exp(b.sox_weekly * dSox);
+      const kQqq = kNow * Math.exp(b.ndx_weekly * dQqq);
+      // 종합 stress 중앙값
+      const blended = 0.5 * (b.sox_stress * dSox + b.ndx_stress * dQqq);
+      const kCentral = kNow * Math.exp(blended);
+      // 정상 밴드 / 패닉 꼬리
+      const lo = Math.min(kSox, kQqq, kCentral), hi = Math.max(kSox, kQqq, kCentral);
+      const kTail = kNow * Math.exp(tailMul * blended);
+      const cPct = (kCentral / kNow - 1) * 100, tPct = (kTail / kNow - 1) * 100;
+      const cColor = cPct >= 0 ? '#4ade80' : cPct >= -8 ? '#fbbf24' : '#f87171';
+
+      elSoxV.textContent = `${sT} (${soxPct >= 0 ? '+' : ''}${soxPct.toFixed(1)}%)`;
+      elQqqV.textContent = `${qT} (${qqqPct >= 0 ? '+' : ''}${qqqPct.toFixed(1)}%)`;
+      elSoxV.style.color = soxPct < 0 ? '#f87171' : '#4ade80';
+      elQqqV.style.color = qqqPct < 0 ? '#f87171' : '#4ade80';
+
+      elRes.innerHTML = `
+        <div style="text-align:center;padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:0.66rem;color:var(--text-muted);margin-bottom:2px;">예상 KOSPI (중심값)</div>
+          <div style="font-size:2rem;font-weight:800;font-family:var(--font-mono);color:${cColor};line-height:1.1;">${fmtN(kCentral)}</div>
+          <div style="font-size:0.82rem;font-weight:700;color:${cColor};">${cPct >= 0 ? '+' : ''}${cPct.toFixed(1)}% <span style="font-size:0.62rem;color:var(--text-muted);">(현재 ${fmtN(kNow)})</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+          <div style="text-align:center;padding:8px;background:rgba(251,191,36,0.06);border-radius:8px;">
+            <div style="font-size:0.6rem;color:var(--text-muted);">정상 밴드</div>
+            <div style="font-size:0.95rem;font-weight:700;font-family:var(--font-mono);color:#fbbf24;">${fmtN(lo)} ~ ${fmtN(hi)}</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:rgba(248,113,113,0.06);border-radius:8px;">
+            <div style="font-size:0.6rem;color:var(--text-muted);">패닉 꼬리위험 (β×${tailMul})</div>
+            <div style="font-size:0.95rem;font-weight:700;font-family:var(--font-mono);color:#f87171;">${fmtN(kTail)} <span style="font-size:0.62rem;">(${tPct.toFixed(1)}%)</span></div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-around;margin-top:10px;font-size:0.62rem;color:var(--text-muted);">
+          <span>SOX 단독 → <b style="color:var(--text-bright);">${fmtN(kSox)}</b></span>
+          <span>나스닥 단독 → <b style="color:var(--text-bright);">${fmtN(kQqq)}</b></span>
+        </div>`;
+    }
+    elSox.addEventListener('input', compute);
+    elQqq.addEventListener('input', compute);
+    compute();
+  }
+
   // ─── 📊 ETF 구성종목 비중 ───────────────────────────
   function renderEtfHoldings(ed) {
     if (!ed || !ed.etfs || !ed.etfs.length) return;
@@ -8835,6 +8941,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./ai_paradigm.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(ap => { if (ap) renderAiParadigm(ap); });
+      // Load KOSPI Scenario Simulator (실시간 베타 예측)
+      fetch('./kospi_scenario.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(sc => { if (sc) renderKospiScenario(sc); });
     })
     .catch(err => {
       $('#app').innerHTML = `
