@@ -9050,6 +9050,17 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderEconomicCalendar(calData) {
     if (!calData || !calData.events || calData.events.length === 0) return;
 
+    // ── 실시간 카운트다운 타깃 계산 (ET 이벤트는 EDT, 그 외 KST) ──
+    const eventTargetMs = (ev) => {
+      if (!ev.date || String(ev.date).includes('TBD')) return null;
+      const m = String(ev.time || '').match(/(\d{1,2}):(\d{2})/);
+      const hh = m ? m[1].padStart(2, '0') : '09';
+      const mm = m ? m[2] : '00';
+      const tz = /ET|EST|EDT/i.test(ev.time || '') ? '-04:00' : '+09:00';
+      const t = new Date(`${ev.date}T${hh}:${mm}:00${tz}`).getTime();
+      return isNaN(t) ? null : t;
+    };
+
     const impactColor = { HIGH: '#f87171', MEDIUM: '#fbbf24', LOW: '#4ade80' };
     const impactLabel = { HIGH: '🔴 HIGH', MEDIUM: '🟡 MEDIUM', LOW: '🟢 LOW' };
     const catIcon = {
@@ -9085,6 +9096,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           `<span style="padding:1px 6px;background:rgba(255,255,255,0.08);border-radius:10px;font-size:0.6rem;color:var(--text-muted);">${h(t)}</span>`
         ).join(' ');
 
+        // 실시간 카운트다운 배지 (예정 이벤트만)
+        const cdMs = (ev.status !== 'released') ? eventTargetMs(ev) : null;
+        const cdBadge = cdMs ? `<span class="evt-cd" data-t="${cdMs}" style="font-size:0.6rem;font-weight:700;font-family:var(--font-mono);color:#fbbf24;background:rgba(251,191,36,0.12);padding:1px 7px;border-radius:8px;white-space:nowrap;">…</span>` : '';
+
         // ── VIP 방한 특별 카드 (면담 테이블 + 영향 종목) ──────────────
         if (ev.category === 'VIP방한' && (ev.meetings || ev.affected_stocks)) {
           const meetings = ev.meetings || [];
@@ -9092,7 +9107,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           html += `<div class="glass-card anim-item" style="padding:14px 16px;border-left:3px solid ${color};grid-column:span 2;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
               <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono);">${ev.region||''} ${dateDisplay}</div>
-              <div style="font-size:0.65rem;font-weight:600;color:${color};">${impactLabel[ev.impact]||ev.impact}</div>
+              <div style="display:flex;gap:6px;align-items:center;">${cdBadge}<span style="font-size:0.65rem;font-weight:600;color:${color};">${impactLabel[ev.impact]||ev.impact}</span></div>
             </div>
             <div style="font-size:0.92rem;font-weight:700;color:var(--text-bright);margin-bottom:6px;">
               ${icon} ${h(ev.title)}
@@ -9142,6 +9157,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
               ${ev.region || ''} ${dateDisplay}
             </div>
             <div style="display:flex;gap:5px;align-items:center;margin-left:8px;">
+              ${cdBadge}
               ${ev.status === 'released'
                 ? `<span style="font-size:0.6rem;font-weight:700;color:#4ade80;background:rgba(74,222,128,0.15);padding:1px 6px;border-radius:8px;white-space:nowrap;">✅ 발표완료</span>`
                 : ev.status === 'upcoming' && ev.category === '경제지표'
@@ -9206,6 +9222,35 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         sections[sections.length - 1].insertAdjacentElement('afterend', tmp.firstElementChild);
       }
     }
+    startCalendarCountdown();
+    scheduleNavRebuild();
+  }
+
+  // ── 이벤트 실시간 카운트다운 (매초 갱신) ──
+  function startCalendarCountdown() {
+    if (window.__calCdTimer) clearInterval(window.__calCdTimer);
+    const p = n => String(n).padStart(2, '0');
+    const tick = () => {
+      const els = document.querySelectorAll('.evt-cd');
+      if (!els.length) { clearInterval(window.__calCdTimer); return; }
+      const now = Date.now();
+      els.forEach(el => {
+        const diff = (+el.dataset.t) - now;
+        if (diff <= 0) {
+          el.textContent = '🔔 발표/시작';
+          el.style.color = '#4ade80';
+          el.style.background = 'rgba(74,222,128,0.15)';
+          return;
+        }
+        const s = Math.floor(diff / 1000);
+        const d = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600), mi = Math.floor(s % 3600 / 60), se = s % 60;
+        el.textContent = d > 0 ? `D-${d} ${p(hh)}:${p(mi)}:${p(se)}` : `⏰ ${p(hh)}:${p(mi)}:${p(se)}`;
+        // 임박(24시간 이내) 강조
+        if (diff < 86400000) { el.style.color = '#f87171'; el.style.background = 'rgba(248,113,113,0.12)'; }
+      });
+    };
+    tick();
+    window.__calCdTimer = setInterval(tick, 1000);
   }
 
   // ─── Load Data ───────────────────────────────────────
