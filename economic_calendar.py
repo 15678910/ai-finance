@@ -124,36 +124,7 @@ CURATED_EVENTS = [
             "💸 자본이동: 스페이스 ETF YTD +82%↑, 상장 후 Magnificent 7 기계적 매도 압력 주시."
         ),
     },
-    # ── 미국 고용 (NFP) — 최근 발표완료 (매월 첫 금요일) ──────────────
-    {
-        "date": "2026-06-05",
-        "title": "미국 고용 발표 (5월·NFP)",
-        "category": "경제지표",
-        "impact": "HIGH",
-        "region": "🇺🇸",
-        "detail": "BLS 비농업부문 고용 5월 데이터. 실제값은 FRED에서 자동 수집.",
-        "tags": ["고용", "NFP", "Fed"],
-        "impact_analysis": (
-            "💼 고용 호조(예상 상회) 시: 경기 견조 → Fed 인하 지연 우려, 금리 상승·달러 강세. "
-            "💼 고용 둔화 시: 인하 기대 강화, 위험자산 선호. "
-            "🔑 BLS 매월 첫 금요일 발표 — Fed 이중책무(고용·물가)의 한 축."
-        ),
-    },
-    # ── 미국 CPI ──────────────────────────────────────────────────
-    {
-        "date": "2026-06-10",
-        "title": "미국 CPI 발표 (5월)",
-        "category": "경제지표",
-        "impact": "HIGH",
-        "region": "🇺🇸",
-        "detail": "BLS 소비자물가지수 5월 데이터 발표 (6/10 08:30 ET). 관세 인상의 물가 전이 여부 확인.",
-        "tags": ["CPI", "인플레이션", "Fed", "Warsh"],
-        "impact_analysis": (
-            "📊 예상치 상회(HOT) 시: 달러 강세, 미국채 수익률 급등, KOSPI 외국인 이탈 압력. "
-            "📊 예상치 하회(COOL) 시: Fed 9월 인하 기대 강화, 나스닥 랠리, 반도체·성장주 수혜. "
-            "🔑 6/18 Warsh 기자회견 전 마지막 핵심 데이터 — 금리 경로 결정에 직결."
-        ),
-    },
+    # (미국 CPI·NFP·PPI·GDP·PCE·소매판매는 Nasdaq 캘린더에서 자동 수집 — 수동 큐레이션 제거)
     # ── ECB 기준금리 ───────────────────────────────────────────────
     {
         "date": "2026-06-11",
@@ -344,6 +315,95 @@ def fetch_fred_releases(api_key: str, start: str, end: str) -> list:
     return events
 
 
+# ── Nasdaq 경제 캘린더 자동수집 (무료·키 불필요) ──────────────────────
+import time as _time
+
+NASDAQ_INDICATORS = [
+    {"key": "NFP",    "names": ["nonfarm payrolls", "non farm payrolls"],
+     "title": "미국 고용보고서 (NFP)", "impact": "HIGH", "tags": ["고용", "NFP", "Fed"],
+     "analysis": "💼 고용 호조(예상 상회) 시 Fed 인하 지연·금리 상승·달러 강세 / 둔화 시 인하 기대·위험자산 선호. 매월 첫 금요일 BLS 발표 — Fed 이중책무의 한 축."},
+    {"key": "CPI",    "names": ["cpi", "consumer price index", "inflation rate"],
+     "title": "미국 CPI (소비자물가)", "impact": "HIGH", "tags": ["CPI", "인플레이션", "Fed"],
+     "analysis": "📊 예상 상회(HOT) 시 달러 강세·미국채 금리 급등·KOSPI 외국인 이탈 / 하회(COOL) 시 인하 기대 강화·나스닥·반도체 수혜. 금리 경로 결정 핵심."},
+    {"key": "PPI",    "names": ["ppi", "producer price index"],
+     "title": "미국 PPI (생산자물가)", "impact": "MEDIUM", "tags": ["PPI", "인플레이션"],
+     "analysis": "🏭 생산자물가는 CPI를 선행. 상승 지속 시 인플레 압력 신호 — 기업 비용 전가 여부 확인."},
+    {"key": "GDP",    "names": ["gdp growth rate", "gdp growth rate qoq", "gdp"],
+     "title": "미국 GDP (성장률)", "impact": "HIGH", "tags": ["GDP", "경기"],
+     "analysis": "📈 성장률 호조 시 경기 견조·위험선호 / 둔화 시 침체 우려·인하 기대. 분기별(속보·잠정·확정) 발표."},
+    {"key": "PCE",    "names": ["pce price index", "core pce price index", "core pce price index annual"],
+     "title": "미국 PCE 물가", "impact": "HIGH", "tags": ["PCE", "인플레이션", "Fed"],
+     "analysis": "🎯 Fed가 가장 중시하는 물가지표. 2% 목표 대비 경로 확인 — 금리 결정에 직결."},
+    {"key": "Retail", "names": ["retail sales", "retail sales mom", "retail sales ex autos"],
+     "title": "미국 소매판매", "impact": "MEDIUM", "tags": ["소비", "소매"],
+     "analysis": "🛒 미국 소비(GDP의 ~70%) 건전성 척도. 강하면 경기 견조·인하 지연 압력."},
+    {"key": "FOMC",   "names": ["fed interest rate decision", "federal funds rate", "fed press conference"],
+     "title": "미국 FOMC 금리결정", "impact": "HIGH", "tags": ["Fed", "FOMC", "금리"],
+     "analysis": "🏦 연준 기준금리 결정·점도표·기자회견. 시장 최대 이벤트 — 금리 경로와 위험자산 방향 결정."},
+]
+
+
+def _clean_cell(s) -> str:
+    return (s or "").replace("&nbsp;", "").replace("\xa0", "").strip()
+
+
+def fetch_nasdaq_calendar(days_back: int = 10, days_ahead: int = 50) -> list:
+    """Nasdaq 경제 캘린더 API(무료·키 불필요)에서 미국 주요 지표 발표 일정을 수집.
+    공식 일정 + 컨센서스 + 직전값 + (발표 시) 실제값 제공."""
+    events = []
+    base = date.today()
+    ok_days = 0
+    for off in range(-days_back, days_ahead + 1):
+        d = base + timedelta(days=off)
+        if d.weekday() >= 5:  # 주말 스킵 (미 지표는 평일)
+            continue
+        ds = d.isoformat()
+        try:
+            url = f"https://api.nasdaq.com/api/calendar/economicevents?date={ds}"
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (compatible; ai-finance/1.0)",
+                "Accept": "application/json",
+            })
+            with urllib.request.urlopen(req, timeout=12) as r:
+                payload = json.loads(r.read())
+            rows = (payload.get("data") or {}).get("rows") or []
+            ok_days += 1
+        except Exception:
+            continue
+        us = [row for row in rows if row.get("country") == "United States"]
+        for ind in NASDAQ_INDICATORS:
+            match = None
+            for row in us:
+                if (row.get("eventName") or "").strip().lower() in ind["names"]:
+                    match = row
+                    break
+            if not match:
+                continue
+            gmt = _clean_cell(match.get("gmt"))
+            ev = {
+                "date": ds,
+                "time": f"{gmt} ET" if gmt else "08:30 ET",
+                "title": ind["title"], "category": "경제지표", "impact": ind["impact"],
+                "region": "🇺🇸", "tags": ind["tags"][:],
+                "impact_analysis": ind["analysis"],
+                "detail": "Nasdaq 경제캘린더 자동수집. 컨센서스 대비 서프라이즈 시 변동성 확대.",
+                "source": "Nasdaq",
+            }
+            cons = _clean_cell(match.get("consensus"))
+            prev = _clean_cell(match.get("previous"))
+            act = _clean_cell(match.get("actual"))
+            if cons:
+                ev["consensus"] = cons
+            if prev:
+                ev["prior_hint"] = prev
+            if act:
+                ev["nasdaq_actual"] = act
+            events.append(ev)
+        _time.sleep(0.12)
+    print(f"  [Nasdaq] {ok_days}일 조회, {len(events)}개 미국 지표 이벤트 수집")
+    return events
+
+
 # ── 발표 완료 실제값 수집 (FRED 시리즈) ───────────────────────────────
 # 태그 키워드 → (series_id, metric, 단위라벨, 소수자리)
 #   metric: yoy=전년동월비%, mom=전월대비변화, level=원시값
@@ -515,15 +575,12 @@ def main():
     all_events.extend(cb_upcoming)
     print(f"[중앙은행] {len(cb_upcoming)}개 일정 로드")
 
-    # FRED 경제지표 발표일 (API 자동 수집) — 과거 14일분도 포함(발표완료 결과용)
-    if api_key:
-        past_str = (today - timedelta(days=14)).strftime("%Y-%m-%d")
-        fred_events = fetch_fred_releases(api_key, past_str, end_str)
-        fred_win = filter_window(fred_events)
-        all_events.extend(fred_win)
-        print(f"[FRED] {len(fred_win)}개 경제지표 발표일 수집 (과거 14일 포함)")
-    else:
-        print("[WARN] FRED_API_KEY 없음 - 경제지표 발표일 자동 수집 생략")
+    # 미국 경제지표 발표일 (Nasdaq 캘린더 자동 수집 — 무료·키 불필요)
+    print("[Nasdaq] 미국 경제지표 발표일 자동 수집 중...")
+    nasdaq_events = fetch_nasdaq_calendar(days_back=10, days_ahead=50)
+    nasdaq_win = filter_window(nasdaq_events)
+    all_events.extend(nasdaq_win)
+    print(f"[Nasdaq] {len(nasdaq_win)}개 경제지표 발표일 (윈도우 내)")
 
     # 수동 큐레이션 (IPO/지정학)
     curated = filter_upcoming(CURATED_EVENTS)
@@ -567,6 +624,12 @@ def main():
     # 발표완료 경제지표에 실제값 부여 (FRED)
     print("\n[발표완료 결과 수집]")
     deduped = enrich_events_with_actuals(deduped, api_key)
+
+    # Nasdaq actual 폴백: 발표완료인데 FRED 실제값이 없으면 Nasdaq 값 사용
+    for ev in deduped:
+        if ev.get("status") == "released" and ev.get("actual_value") is None and ev.get("nasdaq_actual"):
+            ev["actual_value"] = ev["nasdaq_actual"]
+            ev["actual_unit"] = ""
 
     deduped = sort_events(deduped)
     released = sum(1 for e in deduped if e.get("status") == "released")

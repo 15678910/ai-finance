@@ -9185,6 +9185,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <span style="font-size:1.0rem;font-weight:800;color:#fbbf24;">${ev.boj_hike_probability}%</span>
             <span style="font-size:0.6rem;color:var(--text-muted);">캐리잔고 ~$${ev.carry_trade_size_bn}0억</span>
           </div>` : ''}
+          ${(ev.consensus && ev.status !== 'released') ? `<div style="display:inline-flex;gap:10px;align-items:center;margin-bottom:6px;background:rgba(99,179,237,0.08);padding:3px 9px;border-radius:8px;font-size:0.62rem;">
+            <span style="color:var(--text-muted);">컨센서스 <b style="color:var(--cyan);">${h(ev.consensus)}</b></span>
+            ${ev.prior_hint ? `<span style="color:var(--text-muted);">직전 <b style="color:var(--text);">${h(ev.prior_hint)}</b></span>` : ''}
+          </div>` : ''}
           <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;margin-bottom:${ev.impact_analysis ? '4px' : '6px'};">
             ${h(ev.detail || '')}
           </div>
