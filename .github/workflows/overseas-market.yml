@@ -73,6 +73,13 @@ jobs:
         run: |
           python overheating_monitor.py || echo "Overheating monitor had errors, continuing..."
 
+      # 분봉 단타 보조지표 (SK하이닉스·XRP)
+      - name: Run intraday monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python intraday_monitor.py || echo "Intraday monitor had errors, continuing..."
+
       # overseas_market.json을 data.json에 병합 (대시보드는 data.json을 읽음)
       # 이 단계가 없으면 시세는 수집돼도 화면·갱신시각이 멈춤
       - name: Regenerate dashboard data.json
@@ -89,7 +96,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/intraday.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"
