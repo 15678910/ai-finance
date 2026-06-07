@@ -276,38 +276,69 @@ CURATED_EVENTS = [
 
 # ── 3. FRED 릴리스 캘린더에서 경제지표 발표일 자동 수집 ──────────────
 # FRED 경제 릴리스 ID 매핑
+# FRED 릴리스 ID (표준): 10=CPI, 46=PPI, 50=고용보고서, 53=GDP, 54=개인소득·PCE, 9=소매판매
+# 라벨은 FRED가 반환하는 실제 릴리스명(영문)을 키워드 매칭해 부여 → ID 오류 시 오라벨 방지
 FRED_RELEASES = {
-    10:  {"title": "미국 CPI (소비자물가)",       "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["CPI", "인플레이션", "Fed"]},
-    31:  {"title": "미국 PPI (생산자물가)",        "category": "경제지표", "impact": "MEDIUM", "region": "🇺🇸", "tags": ["PPI", "인플레이션"]},
-    50:  {"title": "미국 GDP (성장률)",            "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["GDP", "경기"]},
-    51:  {"title": "미국 비농업고용 (NFP)",        "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["고용", "NFP", "Fed"]},
-    103: {"title": "미국 소매판매",                "category": "경제지표", "impact": "MEDIUM", "region": "🇺🇸", "tags": ["소비", "소매"]},
-    113: {"title": "미국 PCE 물가",               "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["PCE", "인플레이션", "Fed"]},
+    10: {"title": "미국 CPI (소비자물가)",  "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["CPI", "인플레이션", "Fed"],      "match": "Consumer Price"},
+    46: {"title": "미국 PPI (생산자물가)",   "category": "경제지표", "impact": "MEDIUM", "region": "🇺🇸", "tags": ["PPI", "인플레이션"],            "match": "Producer Price"},
+    50: {"title": "미국 고용보고서 (NFP)",   "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["고용", "NFP", "Fed"],            "match": "Employment Situation"},
+    53: {"title": "미국 GDP (성장률)",       "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["GDP", "경기"],                  "match": "Gross Domestic"},
+    54: {"title": "미국 PCE·개인소득",       "category": "경제지표", "impact": "HIGH",   "region": "🇺🇸", "tags": ["PCE", "인플레이션", "Fed"],      "match": "Personal Income"},
+    9:  {"title": "미국 소매판매",            "category": "경제지표", "impact": "MEDIUM", "region": "🇺🇸", "tags": ["소비", "소매"],                  "match": "Retail"},
 }
 
 
+def _fred_get(url: str):
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read())
+
+
+def _release_name(api_key: str, release_id: int):
+    """릴리스 ID의 실제 영문명 조회 (ID 검증용)."""
+    try:
+        params = urllib.parse.urlencode({"release_id": release_id, "file_type": "json", "api_key": api_key})
+        data = _fred_get(f"https://api.stlouisfed.org/fred/release?{params}")
+        rels = data.get("releases", [])
+        return rels[0].get("name") if rels else None
+    except Exception:
+        return None
+
+
 def fetch_fred_releases(api_key: str, start: str, end: str) -> list:
-    """FRED 릴리스 캘린더 API에서 발표 일정을 수집합니다."""
+    """FRED release/dates API에서 미래 발표 일정을 수집합니다.
+    핵심: include_release_dates_with_no_data=true 여야 '미래 예정일'(데이터 없음)이 반환됨."""
     events = []
     for release_id, meta in FRED_RELEASES.items():
         try:
+            # ID 검증: 실제 릴리스명이 기대 키워드와 일치하는지
+            name = _release_name(api_key, release_id)
+            if name and meta.get("match") and meta["match"].lower() not in name.lower():
+                print(f"  [WARN] FRED release {release_id} 이름 불일치: '{name}' (기대 '{meta['match']}') → 스킵")
+                continue
             params = urllib.parse.urlencode({
                 "release_id": release_id,
-                "realtime_start": start,
-                "realtime_end": end,
+                "include_release_dates_with_no_data": "true",  # 미래 예정일 포함 (필수)
+                "sort_order": "asc",
+                "limit": 1000,
                 "file_type": "json",
                 "api_key": api_key,
             })
-            url = f"https://api.stlouisfed.org/fred/release/dates?{params}"
-            req = urllib.request.Request(url, headers={"Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read())
-                for rd in data.get("release_dates", []):
-                    events.append({
-                        "date": rd["date"],
-                        **meta,
-                        "detail": f"BLS/BEA 공식 발표. 시장 컨센서스 대비 서프라이즈 시 변동성 확대.",
+            data = _fred_get(f"https://api.stlouisfed.org/fred/release/dates?{params}")
+            cnt = 0
+            for rd in data.get("release_dates", []):
+                d = rd.get("date", "")
+                if start <= d <= end:
+                    ev = {k: v for k, v in meta.items() if k != "match"}
+                    ev.update({
+                        "date": d,
+                        "time": "08:30 ET",  # BLS/BEA 통상 발표 시각 (카운트다운용)
+                        "detail": "BLS/BEA 공식 발표 일정 (FRED 자동수집). 컨센서스 대비 서프라이즈 시 변동성 확대.",
+                        "source": "FRED",
                     })
+                    events.append(ev)
+                    cnt += 1
+            print(f"  [FRED] {release_id} {name or meta['title']}: 윈도우 내 {cnt}건")
         except Exception as e:
             print(f"  [WARN] FRED release {release_id} 수집 실패: {e}")
     return events
@@ -499,19 +530,39 @@ def main():
     all_events.extend(curated)
     print(f"[큐레이션] {len(curated)}개 IPO/지정학 이벤트 로드")
 
-    # 중복 제거 (같은 날짜+제목) — 더 많은 필드를 가진 항목 우선
+    # 중복 제거 — 경제지표는 (날짜+지표)로 묶어 FRED·큐레이션 병합 (분석 풍부한 쪽 우선)
+    _INDICATORS = ["CPI", "PPI", "NFP", "고용", "GDP", "PCE", "소매", "소비"]
+
+    def _dedup_key(ev):
+        d = ev.get("date")
+        if ev.get("category") == "경제지표":
+            tags = ev.get("tags", [])
+            ind = next((i for i in _INDICATORS if i in tags), None)
+            if ind in ("고용", "NFP"):
+                ind = "NFP"
+            if ind in ("소매", "소비"):
+                ind = "소매"
+            if ind:
+                return (d, "경제지표", ind)
+        return (d, ev.get("title"))
+
     seen: dict = {}  # key → index in deduped
     deduped = []
     for ev in all_events:
-        key = (ev.get("date"), ev.get("title"))
+        key = _dedup_key(ev)
         if key not in seen:
             seen[key] = len(deduped)
             deduped.append(ev)
         else:
-            # 기존 항목보다 필드가 많으면(더 풍부하면) 교체
+            # 더 풍부한 항목(impact_analysis 등) 우선, 단 FRED date·source는 보존
             existing_idx = seen[key]
-            if len(ev) > len(deduped[existing_idx]):
-                deduped[existing_idx] = ev
+            cur = deduped[existing_idx]
+            richer = ev if len(ev) > len(cur) else cur
+            poorer = cur if richer is ev else ev
+            # FRED source 정보가 한쪽에만 있으면 병합
+            if poorer.get("source") == "FRED" and "source" not in richer:
+                richer = {**richer, "source": "FRED"}
+            deduped[existing_idx] = richer
 
     # 발표완료 경제지표에 실제값 부여 (FRED)
     print("\n[발표완료 결과 수집]")
