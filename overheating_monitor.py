@@ -131,7 +131,7 @@ def main():
         "danger_z": DANGER_Z,
         "indices": results,
         "method": "50일선 z-score(주축) + 60일 모멘텀 z + 200일 이격도 → heat 0~100",
-        "myth_note": "'1.9 고정 트리거' 설은 데이터로 반증됨. 실제 고점은 ~+3σ, 트리거는 변동성·극단 이격(고정 가격 아님).",
+        "myth_note": "실제 위험선은 +3σ 극단 과열(이번 고점대). '1.9 고정 트리거' 설은 반증됨(+1.9σ 돌파 후 오히려 +5.68%). 단 +3σ도 고정 스위치 아님 — 진짜 방아쇠는 변동성 급등+극단 이격.",
     }
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
