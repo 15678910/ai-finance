@@ -28,7 +28,7 @@ TARGETS = [
 ]
 
 
-def _rsi(series, n=7):
+def _rsi(series, n=14):  # HTS 표준과 동일(14)
     d = series.diff()
     up = d.clip(lower=0).rolling(n).mean()
     dn = (-d.clip(upper=0)).rolling(n).mean()
@@ -56,8 +56,8 @@ def analyze_tf(df, np):
         vwap = float(tclose.mean())
     vwap_dev = (price / vwap - 1) * 100 if vwap else 0.0
 
-    # RSI(7)
-    rsi = _rsi(close, 7)
+    # RSI(14) — HTS 표준
+    rsi = _rsi(close, 14)
     rsi_now = float(rsi.iloc[-1]) if not np.isnan(rsi.iloc[-1]) else None
 
     # z20
@@ -73,21 +73,21 @@ def analyze_tf(df, np):
         "price": round(price, 4 if price < 100 else 0),
         "vwap": round(vwap, 4 if vwap < 100 else 0),
         "vwap_dev": round(vwap_dev, 2),
-        "rsi7": round(rsi_now, 0) if rsi_now is not None else None,
+        "rsi14": round(rsi_now, 0) if rsi_now is not None else None,
         "z20": round(z20, 2),
         "day_pos": round(pos, 0),
         "last_bar": close.index[-1].tz_convert(KST).strftime("%m-%d %H:%M") if close.index[-1].tzinfo else close.index[-1].strftime("%m-%d %H:%M"),
     }
 
 
-def classify(tf5):
-    """5분봉 기준 단기 신호."""
-    if not tf5:
+def classify(tf3):
+    """3분봉 기준 단기 신호 (RSI14 표준 30/70)."""
+    if not tf3:
         return "데이터없음", "muted"
-    rsi = tf5.get("rsi7"); z = tf5.get("z20"); vd = tf5.get("vwap_dev")
-    if (rsi is not None and rsi <= 25) or (z is not None and z <= -2):
+    rsi = tf3.get("rsi14"); z = tf3.get("z20"); vd = tf3.get("vwap_dev")
+    if (rsi is not None and rsi <= 30) or (z is not None and z <= -2):
         return "🟢 단기 과매도 (반등 관심)", "green"
-    if (rsi is not None and rsi >= 75) or (z is not None and z >= 2):
+    if (rsi is not None and rsi >= 70) or (z is not None and z >= 2):
         return "🔴 단기 과매수 (차익 관심)", "red"
     if vd is not None and vd < -0.5:
         return "🔵 VWAP 하단 — 약세 흐름", "cyan"
@@ -132,7 +132,7 @@ def main():
             entry = {**t, "tf3": tf3, "tf15": tf15, "signal": signal, "color": color}
             results.append(entry)
             if tf3:
-                print(f"  {t['key']:10} {signal} | 3m RSI={tf3['rsi7']} z={tf3['z20']} VWAP이격={tf3['vwap_dev']}% (바 {tf3['last_bar']})")
+                print(f"  {t['key']:10} {signal} | 3m RSI14={tf3['rsi14']} z={tf3['z20']} VWAP이격={tf3['vwap_dev']}% (바 {tf3['last_bar']})")
             else:
                 print(f"  {t['key']:10} 데이터 부족")
         except Exception as e:
