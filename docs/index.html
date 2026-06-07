@@ -7549,7 +7549,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -8470,6 +8470,92 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  // ─── 😱 시장감정지수 (Fear & Greed) ─────────────────────
+  function renderSentiment(s) {
+    if (!s) return;
+    const COL = { red:'#f87171', orange:'#fb923c', amber:'#fbbf24', cyan:'#22d3ee', green:'#4ade80', muted:'#94a3b8' };
+    const classifyFG = (v) => {
+      if (v == null) return ['데이터없음', COL.muted, ''];
+      if (v >= 75) return ['극단적 탐욕', COL.red, '과열·차익 경계'];
+      if (v >= 55) return ['탐욕', COL.orange, '위험선호 강함'];
+      if (v >= 45) return ['중립', COL.amber, '방향성 모호'];
+      if (v >= 25) return ['공포', COL.cyan, '위험회피 — 분할매수 관심'];
+      return ['극단적 공포', COL.green, '투매 — 역발상 매수 유리'];
+    };
+    // 게이지: 좌(0,공포)=초록 ↔ 우(100,탐욕)=빨강 (역발상 컬러)
+    const gauge = (flag, title, score, label, color, hint, comps) => {
+      const c = COL[color] || COL.muted;
+      const pct = score == null ? 50 : Math.max(0, Math.min(100, score));
+      const compHtml = (comps || []).map(cp => `
+        <div style="display:flex;justify-content:space-between;font-size:0.58rem;color:var(--text-muted);padding:1px 0;">
+          <span>${h(cp.name)} <span style="opacity:0.6;">${h(String(cp.raw))}</span></span>
+          <span style="font-family:var(--font-mono);color:${cp.score>=55?COL.orange:cp.score<45?COL.cyan:'var(--text)'};">${cp.score==null?'—':cp.score}</span>
+        </div>`).join('');
+      return `<div class="glass-card anim-item" style="padding:14px 16px;border-top:3px solid ${c};">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <span style="font-size:0.78rem;font-weight:700;color:var(--text-bright);">${flag} ${h(title)}</span>
+          <span style="font-size:0.7rem;font-weight:800;color:${c};">${h(label)}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <span style="font-size:2rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${score==null?'—':score}</span>
+          <span style="font-size:0.6rem;color:var(--text-muted);">/ 100</span>
+        </div>
+        <div style="position:relative;height:16px;margin:8px 0 3px;">
+          <div style="position:absolute;top:6px;left:0;right:0;height:6px;border-radius:4px;background:linear-gradient(90deg,#4ade80,#22d3ee,#fbbf24,#fb923c,#f87171);opacity:0.7;"></div>
+          <div style="position:absolute;top:2px;left:${pct}%;transform:translateX(-50%);width:11px;height:11px;background:#fff;border:2px solid ${c};border-radius:50%;box-shadow:0 0 5px ${c};"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.5rem;color:var(--text-muted);margin-bottom:6px;">
+          <span style="color:#4ade80;">공포 0</span><span>중립 50</span><span style="color:#f87171;">탐욕 100</span>
+        </div>
+        ${hint ? `<div style="font-size:0.6rem;color:${c};margin-bottom:6px;">▸ ${h(hint)}</div>` : ''}
+        ${compHtml ? `<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:5px;">${compHtml}</div>` : ''}
+      </div>`;
+    };
+
+    const us = s.us || {}, kr = s.kr || {};
+    const usCard = gauge('🇺🇸', '미국 시장감정', us.score, us.label, us.color, us.hint, us.components);
+    const krCard = gauge('🇰🇷', '한국 시장감정', kr.score, kr.label, kr.color, kr.hint, kr.components);
+    // 암호화폐는 실시간 채움 (placeholder)
+    const cryptoCard = `<div id="sentiment-crypto-card">${gauge('🪙', '암호화폐 (실시간)', null, '연결 중…', 'muted', '', [])}</div>`;
+
+    const html = `<section class="section-wrap" id="sentiment-section">
+      <div class="section-label" style="color:#fb7185;">😱 시장감정지수 <span style="font-size:0.62rem;color:var(--text-muted);">(Fear &amp; Greed · 0=공포→100=탐욕 · 역발상 신호)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(s.generated_at||'')}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;">
+        ${usCard}${krCard}${cryptoCard}
+      </div>
+      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">
+        ※ 미국·한국은 자체 composite(변동성·모멘텀·외국인·레버리지·신용). 암호화폐는 alternative.me 실시간. ${h(s.note||'')}<br>
+        🚨 통계 추정 · 역발상 참고용. 투자 결정 단독 사용 금지.
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('sentiment-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
+
+    // 암호화폐 공포탐욕 실시간 (alternative.me)
+    const loadCrypto = async () => {
+      const card = document.getElementById('sentiment-crypto-card');
+      if (!card) return;
+      try {
+        const r = await fetch('https://api.alternative.me/fng/?limit=1', { cache:'no-store' });
+        const d = (await r.json()).data[0];
+        const v = +d.value;
+        const [label, color, hint] = classifyFG(v);
+        card.innerHTML = gauge('🪙', '암호화폐 (실시간)', v, label, color, hint,
+          [{ name:'출처', raw:'alternative.me', score:null }, { name:'원분류', raw:d.value_classification, score:null }]);
+      } catch (e) {
+        card.innerHTML = gauge('🪙', '암호화폐', null, '연결 실패', 'muted', '네트워크 차단', []);
+      }
+    };
+    loadCrypto();
+    if (window.__fgTimer) clearInterval(window.__fgTimer);
+    window.__fgTimer = setInterval(loadCrypto, 300000); // 5분
+  }
+
   // ─── ⏱️ 분봉 단타 보조지표 (SK하이닉스 · XRP) ───────────
   function renderIntraday(id) {
     if (!id || !id.targets || !id.targets.length) return;
@@ -9330,6 +9416,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(oh => { if (oh) renderOverheating(oh); });
+      // Load Market Sentiment Index (시장감정지수 Fear & Greed)
+      fetch('./sentiment.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(se => { if (se) renderSentiment(se); });
       // (분봉 단타 보조지표 섹션 삭제됨 — 사용자 요청)
     })
     .catch(err => {
