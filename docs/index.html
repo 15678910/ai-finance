@@ -7543,7 +7543,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -8358,6 +8358,77 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     compute();
   }
 
+  // ─── 🌡️ 과열·차익실현 위험 게이지 ──────────────────────
+  function renderOverheating(oh) {
+    if (!oh || !oh.indices || !oh.indices.length) return;
+    const COL = { red:'#f87171', orange:'#fb923c', amber:'#fbbf24', cyan:'#22d3ee', green:'#4ade80', muted:'#94a3b8' };
+    const avg = oh.avg_heat;
+    const avgColor = avg >= 85 ? COL.red : avg >= 72 ? COL.orange : avg >= 60 ? COL.amber : avg >= 45 ? COL.cyan : COL.green;
+    const dangerZ = oh.danger_z || 3.0;
+
+    const cards = oh.indices.map(it => {
+      const c = COL[it.color] || COL.muted;
+      const heatPct = Math.min(100, it.heat);
+      // z-score 게이지 (-1 ~ +3.5 범위 → 0~100%)
+      const zMin = -1, zMax = 3.5;
+      const zPct = Math.max(0, Math.min(100, (it.z50 - zMin) / (zMax - zMin) * 100));
+      const peakPct = Math.max(0, Math.min(100, (it.peak_z - zMin) / (zMax - zMin) * 100));
+      const dangerPct = Math.max(0, Math.min(100, (dangerZ - zMin) / (zMax - zMin) * 100));
+      const dispColor = it.disp200 >= 50 ? COL.red : it.disp200 >= 25 ? COL.amber : COL.green;
+      return `<div class="glass-card anim-item" style="padding:13px 15px;border-top:3px solid ${c};">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:0.74rem;font-weight:700;color:var(--text-bright);">${it.flag} ${h(it.name)}</span>
+          <span style="font-size:0.6rem;font-weight:700;color:${c};">${h(it.signal)}</span>
+        </div>
+        <!-- heat 0~100 -->
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <span style="font-size:1.7rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${it.heat}</span>
+          <span style="font-size:0.58rem;color:var(--text-muted);">/ 100 heat</span>
+        </div>
+        <div style="height:7px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;margin:5px 0 8px;">
+          <div style="height:100%;width:${heatPct}%;background:${c};border-radius:4px;"></div>
+        </div>
+        <!-- z-score 게이지 (고점·위험선 마커) -->
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-bottom:2px;">50일선 z-score (현재 <b style="color:${c};">+${it.z50}σ</b> · 고점 +${it.peak_z}σ)</div>
+        <div style="position:relative;height:14px;margin-bottom:7px;">
+          <div style="position:absolute;top:5px;left:0;right:0;height:5px;border-radius:3px;background:linear-gradient(90deg,#4ade80,#fbbf24,#f87171);opacity:0.5;"></div>
+          <div style="position:absolute;top:1px;left:${dangerPct}%;width:2px;height:13px;background:#f87171;"></div>
+          <div style="position:absolute;top:-3px;left:${dangerPct}%;transform:translateX(-50%);font-size:0.46rem;color:#f87171;font-weight:700;white-space:nowrap;">⚠️+${dangerZ}σ</div>
+          <div style="position:absolute;top:3px;left:${peakPct}%;transform:translateX(-50%);width:8px;height:8px;border:1px dashed ${c};border-radius:50%;opacity:0.7;"></div>
+          <div style="position:absolute;top:2px;left:${zPct}%;transform:translateX(-50%);width:10px;height:10px;background:#fff;border:2px solid ${c};border-radius:50%;box-shadow:0 0 4px ${c};"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.58rem;color:var(--text-muted);">
+          <span>200일이격 <b style="color:${dispColor};">${it.disp200>=0?'+':''}${it.disp200}%</b></span>
+          <span>모멘텀z <b style="color:var(--text);">${it.mom_z>=0?'+':''}${it.mom_z}</b></span>
+        </div>
+      </div>`;
+    }).join('');
+
+    const vix = oh.vix || {};
+    const html = `<section class="section-wrap" id="overheating-section">
+      <div class="section-label" style="color:#fb923c;">🌡️ 과열·차익실현 위험 게이지
+        <span style="font-size:0.62rem;color:var(--text-muted);">(z-score·200일이격·모멘텀 종합 — '1.9 트리거' 미신 검증)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">기준일 ${h(oh.asof||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:11px 16px;margin-bottom:12px;background:${avgColor}11;border-left:3px solid ${avgColor};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.68rem;color:var(--text);">종합 과열도 <b style="font-size:1.2rem;color:${avgColor};font-family:var(--font-mono);">${avg}</b> / 100
+          ${vix.current ? `<span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">VIX ${vix.current}</span>` : ''}</div>
+        <div style="font-size:0.58rem;color:var(--text-muted);max-width:560px;">❌ ${h(oh.myth_note||'')}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+        ${cards}
+      </div>
+      <div style="font-size:0.6rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">
+        ※ heat = 50 + 13·z50 + 5·모멘텀z + 0.25·200일이격(상한80). ⚠️+${dangerZ}σ = 이번 붕괴 직전 실제 고점대 · 흰점=현재 · 점선원=최근고점.<br>
+        🚨 통계 추정. 투자 결정 단독 사용 금지.
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('overheating-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+  }
+
   // ─── 📊 ETF 구성종목 비중 ───────────────────────────
   function renderEtfHoldings(ed) {
     if (!ed || !ed.etfs || !ed.etfs.length) return;
@@ -8987,6 +9058,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./kospi_scenario.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sc => { if (sc) renderKospiScenario(sc); });
+      // Load Overheating Risk Gauge (과열·차익실현 위험)
+      fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(oh => { if (oh) renderOverheating(oh); });
     })
     .catch(err => {
       $('#app').innerHTML = `
