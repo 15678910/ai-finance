@@ -8498,10 +8498,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const c = COL[t.color] || COL.muted;
       const px = t.tf3 ? `${t.tf3.price.toLocaleString()}${h(t.unit||'')}` : '—';
       const isXrp = t.key === 'XRP';
-      const liveBlock = isXrp ? `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(34,211,238,0.07);border-radius:6px;padding:4px 8px;margin:5px 0;">
-          <span style="font-size:0.56rem;color:#22d3ee;font-weight:700;">🔴 LIVE (업비트)</span>
-          <span style="font-family:var(--font-mono);"><b id="xrp-live-price" style="font-size:0.86rem;color:var(--text-bright);">…</b> <span id="xrp-live-chg" style="font-size:0.62rem;"></span></span>
-          <span id="xrp-live-ts" style="font-size:0.5rem;color:var(--text-muted);">연결중</span>
+      const liveBlock = isXrp ? `<div style="display:flex;justify-content:center;align-items:center;background:rgba(34,211,238,0.07);border-radius:6px;padding:4px 8px;margin:5px 0;">
+          <span style="font-size:0.56rem;color:#22d3ee;font-weight:700;">🔴 실시간 거래소 연결 중…</span>
         </div>` : '';
       const skNote = (t.ticker && t.ticker.endsWith('.KS')) ? `<div style="font-size:0.5rem;color:var(--text-muted);margin-top:2px;">⚠️ yfinance 지연·불완전 — 실측은 HTS 차트 기준</div>` : '';
       return `<div class="glass-card anim-item" ${isXrp?'id="intraday-xrp-card"':''} style="padding:13px 15px;border-top:3px solid ${c};">
@@ -8509,7 +8507,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);">${t.flag} ${h(t.key)}</span>
           <span style="font-size:0.8rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${px}</span>
         </div>
-        <div style="font-size:0.72rem;font-weight:700;color:${c};margin:4px 0 2px;">${isXrp?'⏳ 업비트 연결 중…':h(t.signal||'')}</div>
+        <div style="font-size:0.72rem;font-weight:700;color:${c};margin:4px 0 2px;">${isXrp?'⏳ 실시간 연결 중…':h(t.signal||'')}</div>
         ${liveBlock}
         ${t.tf3 ? `<div style="font-size:0.56rem;color:var(--text-muted);">VWAP ${t.tf3.vwap.toLocaleString()} 대비 <b style="color:${t.tf3.vwap_dev<0?COL.cyan:COL.amber};">${t.tf3.vwap_dev>=0?'+':''}${t.tf3.vwap_dev}%</b>${isXrp?'':' <span style="opacity:0.6;">(지표는 지연)</span>'}</div>`:''}
         ${tfBlock('3분봉', t.tf3)}
@@ -8530,7 +8528,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${cards}</div>
       <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">
         ※ VWAP=당일 거래량가중평균(단타 기준선) · RSI(14) 과매도30↓/과매수70↑ · z20=20봉 표준편차 · 당일위치 0%=저가 100%=고가.<br>
-        ※ XRP 가격은 업비트 실시간(7초 폴링) · 3분/15분봉 지표는 워크플로 갱신(지연). SK하이닉스는 정규장만.<br>
+        ※ XRP는 빗썸(KRW)/바이낸스(USD) 실시간 직접계산(10초) — RSI·z·VWAP이격은 통화 무관이라 HTS와 일치. SK하이닉스는 yfinance 정규장 지연.<br>
         🚨 매매 신호 아님. 체결·타이밍은 HTS 실시간 차트로.
       </div>
     </section>`;
@@ -8540,11 +8538,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
     scheduleNavRebuild();
 
-    // ── XRP: 업비트 캔들로 브라우저 직접 계산 (HTS와 동일 소스·KRW) ──
+    // ── XRP: 빗썸(KRW) 우선 + 바이낸스(USD) 폴백 — 둘 다 CORS 허용 ──
+    //   RSI·z·VWAP이격·당일위치는 통화 무관 → 어느 소스든 HTS와 일치, 가격만 통화 차이.
     if (id.targets.some(t => t.key === 'XRP')) {
       if (window.__xrpLiveTimer) clearInterval(window.__xrpLiveTimer);
       const COL2 = COL;
-      // Wilder RSI(14) — HTS 표준
+      const pad = n => String(n).padStart(2, '0');
       const rsiW = (cl, n) => {
         if (cl.length <= n) return null;
         let up = 0, dn = 0;
@@ -8554,24 +8553,24 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         if (dn === 0) return 100;
         return 100 - 100/(1 + up/dn);
       };
-      const calcTF = (candles) => {
-        const c = [...candles].reverse(); // 과거→현재
-        if (c.length < 25) return null;
-        const cl = c.map(x => x.trade_price);
+      const kstParts = (t) => { const k = new Date(t + 9*3600000); return { day:`${k.getUTCFullYear()}-${k.getUTCMonth()+1}-${k.getUTCDate()}`, lbl:`${pad(k.getUTCMonth()+1)}-${pad(k.getUTCDate())} ${pad(k.getUTCHours())}:${pad(k.getUTCMinutes())}` }; };
+      const resample = (cs, n) => { const out=[]; for (let i=0;i<cs.length;i+=n){ const g=cs.slice(i,i+n); if(!g.length)continue; out.push({ t:g[g.length-1].t, h:Math.max(...g.map(x=>x.h)), l:Math.min(...g.map(x=>x.l)), c:g[g.length-1].c, v:g.reduce((a,b)=>a+b.v,0) }); } return out; };
+      const calcTF = (cs) => {
+        if (!cs || cs.length < 25) return null;
+        const cl = cs.map(x => x.c);
         const price = cl[cl.length-1];
         const rsi = rsiW(cl, 14);
         const l20 = cl.slice(-20), m = l20.reduce((a,b)=>a+b,0)/20;
         const sd = Math.sqrt(l20.reduce((a,b)=>a+(b-m)**2,0)/19);
         const z = sd ? (price-m)/sd : 0;
-        const lastDate = c[c.length-1].candle_date_time_kst.slice(0,10);
-        const today = c.filter(x => x.candle_date_time_kst.slice(0,10) === lastDate);
+        const lastDay = kstParts(cs[cs.length-1].t).day;
         let pv=0, vv=0, hi=-Infinity, lo=Infinity;
-        today.forEach(x => { const tp=(x.high_price+x.low_price+x.trade_price)/3; pv+=tp*x.candle_acc_trade_volume; vv+=x.candle_acc_trade_volume; if(x.high_price>hi)hi=x.high_price; if(x.low_price<lo)lo=x.low_price; });
+        cs.forEach(x => { if (kstParts(x.t).day !== lastDay) return; const tp=(x.h+x.l+x.c)/3; pv+=tp*x.v; vv+=x.v; if(x.h>hi)hi=x.h; if(x.l<lo)lo=x.l; });
         const vwap = vv ? pv/vv : price;
-        return { price: Math.round(price), vwap: Math.round(vwap), vwap_dev:+((price/vwap-1)*100).toFixed(2),
+        return { price, vwap, vwap_dev:+((price/vwap-1)*100).toFixed(2),
                  rsi14: rsi!=null?Math.round(rsi):null, z20:+z.toFixed(2),
                  day_pos: hi>lo?Math.round((price-lo)/(hi-lo)*100):50,
-                 last_bar: c[c.length-1].candle_date_time_kst.slice(5,16).replace('T',' ') };
+                 last_bar: kstParts(cs[cs.length-1].t).lbl };
       };
       const sigOf = (tf) => {
         if (!tf) return ['데이터없음', COL2.muted];
@@ -8581,6 +8580,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         if (tf.vwap_dev > 0.5) return ['🟠 VWAP 상단 — 강세 흐름', COL2.amber];
         return ['⚪ 중립 (VWAP 부근)', COL2.muted];
       };
+      const fmtV = (v, rnd) => rnd ? v.toFixed(rnd) : Math.round(v).toLocaleString();
       const metric2 = (label, val, suf, good) => `<div style="text-align:center;flex:1;"><div style="font-size:0.52rem;color:var(--text-muted);">${label}</div><div style="font-size:0.82rem;font-weight:700;font-family:var(--font-mono);color:${good||'var(--text-bright)'};">${val==null?'—':val}${suf||''}</div></div>`;
       const tfb = (title, tf) => {
         if (!tf) return `<div style="font-size:0.58rem;color:var(--text-muted);">${title}: 데이터 없음</div>`;
@@ -8590,34 +8590,54 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         return `<div style="margin-top:6px;"><div style="font-size:0.55rem;color:var(--text-muted);margin-bottom:2px;">${title} <span style="opacity:0.7;">바 ${tf.last_bar}</span></div>
           <div style="display:flex;gap:4px;">${metric2('RSI(14)',tf.rsi14,'',rc)}${metric2('z20',(tf.z20>=0?'+':'')+tf.z20,'σ',zc)}${metric2('VWAP이격',(tf.vwap_dev>=0?'+':'')+tf.vwap_dev,'%',vc)}${metric2('당일위치',tf.day_pos,'%',tf.day_pos<=20?COL2.green:tf.day_pos>=80?COL2.red:'var(--text-bright)')}</div></div>`;
       };
+      const fetchBithumb = async () => {
+        const [tkR, cR] = await Promise.all([
+          fetch('https://api.bithumb.com/public/ticker/XRP_KRW', { cache:'no-store' }),
+          fetch('https://api.bithumb.com/public/candlestick/XRP_KRW/3m', { cache:'no-store' }),
+        ]);
+        const tk = (await tkR.json()).data, cj = await cR.json();
+        if (!tk || cj.status !== '0000') throw new Error('bithumb');
+        // 빗썸 캔들: [ts, open, close, high, low, volume]
+        const c3 = cj.data.map(r => ({ t:+r[0], o:+r[1], c:+r[2], h:+r[3], l:+r[4], v:+r[5] }));
+        const price = +tk.closing_price, prev = +tk.prev_closing_price;
+        const chg = prev ? (price-prev)/prev*100 : (+tk.fluctate_rate_24H || 0);
+        return { price, chg, c3, unit:'원', src:'빗썸 KRW', rnd:0 };
+      };
+      const fetchBinance = async () => {
+        const [tkR, kR] = await Promise.all([
+          fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=XRPUSDT', { cache:'no-store' }),
+          fetch('https://api.binance.com/api/v3/klines?symbol=XRPUSDT&interval=3m&limit=500', { cache:'no-store' }),
+        ]);
+        const tk = await tkR.json(), kl = await kR.json();
+        const c3 = kl.map(k => ({ t:+k[0], o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5] }));
+        return { price:+tk.lastPrice, chg:+tk.priceChangePercent, c3, unit:'$', src:'바이낸스 USD', rnd:4 };
+      };
       const updateXrp = async () => {
         const card = document.getElementById('intraday-xrp-card');
         if (!card) return;
-        try {
-          const [tkR, c3R, c15R] = await Promise.all([
-            fetch('https://api.upbit.com/v1/ticker?markets=KRW-XRP', { cache:'no-store' }),
-            fetch('https://api.upbit.com/v1/candles/minutes/3?market=KRW-XRP&count=120', { cache:'no-store' }),
-            fetch('https://api.upbit.com/v1/candles/minutes/15?market=KRW-XRP&count=120', { cache:'no-store' }),
-          ]);
-          const tk = (await tkR.json())[0], c3 = await c3R.json(), c15 = await c15R.json();
-          const tf3 = calcTF(c3), tf15 = calcTF(c15);
-          const price = tk.trade_price, chg = tk.signed_change_rate*100;
-          const [sig, sc] = sigOf(tf3);
-          card.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:baseline;">
-              <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);">⚪ XRP</span>
-              <span style="font-size:0.8rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${Math.round(price).toLocaleString()}원</span>
-            </div>
-            <div style="font-size:0.72rem;font-weight:700;color:${sc};margin:4px 0 2px;">${sig}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(34,211,238,0.07);border-radius:6px;padding:4px 8px;margin:5px 0;">
-              <span style="font-size:0.56rem;color:#22d3ee;font-weight:700;">🔴 LIVE 업비트</span>
-              <span style="font-size:0.62rem;font-weight:700;color:${chg>=0?'#22c55e':'#f87171'};">${chg>=0?'+':''}${chg.toFixed(2)}%</span>
-              <span style="font-size:0.5rem;color:var(--text-muted);">${new Date().toLocaleTimeString('ko-KR')}</span>
-            </div>
-            ${tf3?`<div style="font-size:0.56rem;color:var(--text-muted);">VWAP ${tf3.vwap.toLocaleString()}원 대비 <b style="color:${tf3.vwap_dev<0?COL2.cyan:COL2.amber};">${tf3.vwap_dev>=0?'+':''}${tf3.vwap_dev}%</b></div>`:''}
-            ${tfb('3분봉', tf3)}
-            ${tfb('15분봉', tf15)}`;
-        } catch (e) { /* 네트워크 실패 시 기존 표시 유지 */ }
+        let d;
+        try { d = await fetchBithumb(); }
+        catch (e) { try { d = await fetchBinance(); } catch (_) {
+          const sigEl = card.querySelector('[data-xrp-sig]'); if (sigEl) sigEl.textContent = '⚠️ 거래소 연결 실패 (재시도 중)';
+          return;
+        } }
+        const tf3 = calcTF(d.c3), tf15 = calcTF(resample(d.c3, 5));
+        const [sig, sc] = sigOf(tf3);
+        const pTxt = `${fmtV(d.price, d.rnd)}${d.unit}`;
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);">⚪ XRP</span>
+            <span style="font-size:0.8rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${pTxt}</span>
+          </div>
+          <div data-xrp-sig style="font-size:0.72rem;font-weight:700;color:${sc};margin:4px 0 2px;">${sig}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(34,211,238,0.07);border-radius:6px;padding:4px 8px;margin:5px 0;">
+            <span style="font-size:0.56rem;color:#22d3ee;font-weight:700;">🔴 LIVE ${d.src}</span>
+            <span style="font-size:0.62rem;font-weight:700;color:${d.chg>=0?'#22c55e':'#f87171'};">${d.chg>=0?'+':''}${(+d.chg).toFixed(2)}%</span>
+            <span style="font-size:0.5rem;color:var(--text-muted);">${new Date().toLocaleTimeString('ko-KR')}</span>
+          </div>
+          ${tf3?`<div style="font-size:0.56rem;color:var(--text-muted);">VWAP ${fmtV(tf3.vwap,d.rnd)}${d.unit} 대비 <b style="color:${tf3.vwap_dev<0?COL2.cyan:COL2.amber};">${tf3.vwap_dev>=0?'+':''}${tf3.vwap_dev}%</b></div>`:''}
+          ${tfb('3분봉', tf3)}
+          ${tfb('15분봉', tf15)}`;
       };
       updateXrp();
       window.__xrpLiveTimer = setInterval(updateXrp, 10000);
