@@ -59,6 +59,7 @@ MARKETS = {
         {"ticker": "YM=F", "name": "Dow 선물", "region": "🇺🇸", "is_futures": True},
     ],
     "아시아": [
+        {"ticker": "EWY", "name": "iShares MSCI 한국 ETF", "region": "🇰🇷", "is_korea_proxy": True},
         {"ticker": "^N225", "name": "Nikkei 225", "region": "🇯🇵"},
         {"ticker": "^HSI", "name": "Hang Seng", "region": "🇭🇰"},
         {"ticker": "000001.SS", "name": "Shanghai", "region": "🇨🇳"},
@@ -229,12 +230,22 @@ def should_alert(market: dict) -> tuple:
 
 
 def predict_kospi_open(markets: list) -> str:
-    """미국 선물 기반 KOSPI 시초가 예측."""
+    """미국 선물 + EWY(한국 ETF) 기반 KOSPI 시초가 예측.
+    EWY는 미국 거래시간에 거래되는 직접적 한국 프록시 → 선물보다 예측력 높아 60% 가중."""
     futures = [m for m in markets if m.get("is_futures")]
-    if not futures:
-        return ""
+    ewy = next((m for m in markets if m.get("is_korea_proxy") and m.get("change_pct") is not None), None)
 
-    avg_change = sum(m["change_pct"] for m in futures) / len(futures)
+    fut_change = (sum(m["change_pct"] for m in futures) / len(futures)) if futures else None
+    ewy_change = ewy["change_pct"] if ewy else None
+
+    if ewy_change is not None and fut_change is not None:
+        avg_change = 0.6 * ewy_change + 0.4 * fut_change  # EWY 가중
+    elif ewy_change is not None:
+        avg_change = ewy_change
+    elif fut_change is not None:
+        avg_change = fut_change
+    else:
+        return ""
     abs_avg = abs(avg_change)
 
     if abs_avg < 0.3:
