@@ -1,11 +1,15 @@
 {
-  "generated_at": "2026-06-07 21:39:59 KST",
+  "generated_at": "2026-06-07 21:48:01 KST",
   "asof": "2026-06-05",
   "vix": {
     "current": 21.51,
     "change_pct": 39.77
   },
   "avg_heat": 81.4,
+  "overall_stance": "🔴 과열 — 관망·차익 우선 (매수 대기)",
+  "overall_stance_color": "red",
+  "buy_count": 0,
+  "sell_count": 4,
   "danger_z": 3.0,
   "indices": [
     {
@@ -16,13 +20,24 @@
       "z50": 1.01,
       "mom_z": 2.63,
       "disp200": 56.3,
+      "rsi": 51.0,
       "heat": 90.4,
       "signal": "극단(차익실현 위험)",
       "color": "red",
+      "stance": "🔴 과열 — 관망/차익",
+      "stance_key": "sell",
+      "stance_color": "red",
+      "buy_backtest": {
+        "avg_pct": 4.1,
+        "win_rate": 57,
+        "n": 125,
+        "threshold": "z50<-1.5σ"
+      },
       "peak_z": 3.06,
       "peak_date": "2026-04-14",
       "danger_z": 3.0,
-      "z_to_danger": 1.99
+      "z_to_danger": 1.99,
+      "z_to_buy": -2.51
     },
     {
       "key": "NDX",
@@ -32,13 +47,24 @@
       "z50": 0.76,
       "mom_z": 1.19,
       "disp200": 14.0,
+      "rsi": 43.0,
       "heat": 69.4,
       "signal": "과열",
       "color": "amber",
+      "stance": "🟠 과열 주의",
+      "stance_key": "caution",
+      "stance_color": "amber",
+      "buy_backtest": {
+        "avg_pct": 1.8,
+        "win_rate": 55,
+        "n": 128,
+        "threshold": "z50<-1.5σ"
+      },
       "peak_z": 2.64,
       "peak_date": "2026-04-17",
       "danger_z": 3.0,
-      "z_to_danger": 2.24
+      "z_to_danger": 2.24,
+      "z_to_buy": -2.26
     },
     {
       "key": "KOSPI",
@@ -48,13 +74,24 @@
       "z50": 1.26,
       "mom_z": 1.7,
       "disp200": 67.8,
+      "rsi": 53.0,
       "heat": 91.9,
       "signal": "극단(차익실현 위험)",
       "color": "red",
+      "stance": "🔴 과열 — 관망/차익",
+      "stance_key": "sell",
+      "stance_color": "red",
+      "buy_backtest": {
+        "avg_pct": 1.3,
+        "win_rate": 58,
+        "n": 136,
+        "threshold": "z50<-1.5σ"
+      },
       "peak_z": 2.99,
       "peak_date": "2026-05-06",
       "danger_z": 3.0,
-      "z_to_danger": 1.74
+      "z_to_danger": 1.74,
+      "z_to_buy": -2.76
     },
     {
       "key": "EWY",
@@ -64,15 +101,26 @@
       "z50": 0.49,
       "mom_z": 0.78,
       "disp200": 54.5,
+      "rsi": 43.0,
       "heat": 73.8,
       "signal": "위험",
       "color": "orange",
+      "stance": "🔴 과열 — 관망/차익",
+      "stance_key": "sell",
+      "stance_color": "red",
+      "buy_backtest": {
+        "avg_pct": 1.1,
+        "win_rate": 58,
+        "n": 163,
+        "threshold": "z50<-1.5σ"
+      },
       "peak_z": 3.16,
       "peak_date": "2026-05-06",
       "danger_z": 3.0,
-      "z_to_danger": 2.51
+      "z_to_danger": 2.51,
+      "z_to_buy": -1.99
     }
   ],
-  "method": "50일선 z-score(주축) + 60일 모멘텀 z + 200일 이격도 → heat 0~100",
+  "method": "50일선 z-score(주축) + 60일 모멘텀 z + 200일 이격도 → heat 0~100 · 매수신호 z50<-1.5σ/RSI<30",
   "myth_note": "실제 위험선은 +3σ 극단 과열(이번 고점대). '1.9 고정 트리거' 설은 반증됨(+1.9σ 돌파 후 오히려 +5.68%). 단 +3σ도 고정 스위치 아님 — 진짜 방아쇠는 변동성 급등+극단 이격."
 }

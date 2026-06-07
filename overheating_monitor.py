@@ -48,6 +48,26 @@ def classify(heat: float) -> tuple:
     return "침체", "muted"
 
 
+def classify_stance(z50: float, rsi: float, heat: float) -> tuple:
+    """양방향 스탠스: 매수(과매도) ↔ 대기 ↔ 과열(차익)."""
+    if z50 <= -2.0 or (rsi is not None and rsi <= 25):
+        return "🟢 강한 매수구간", "buy_strong", "green"
+    if z50 <= -1.5 or (rsi is not None and rsi <= 30):
+        return "🟢 매수 검토", "buy", "green"
+    if heat >= 72:
+        return "🔴 과열 — 관망/차익", "sell", "red"
+    if heat >= 60:
+        return "🟠 과열 주의", "caution", "amber"
+    return "⚪ 중립 대기", "neutral", "muted"
+
+
+def _rsi(series, n: int = 14):
+    d = series.diff()
+    up = d.clip(lower=0).rolling(n).mean()
+    dn = (-d.clip(upper=0)).rolling(n).mean()
+    return 100 - 100 / (1 + up / dn)
+
+
 def get_vix() -> dict:
     try:
         with open(OVERSEAS_FILE, encoding="utf-8") as f:
@@ -79,7 +99,7 @@ def main():
     print("=" * 55)
 
     tickers = [x["ticker"] for x in INDICES]
-    raw = yf.download(tickers, period="2y", interval="1d", progress=False, auto_adjust=True)
+    raw = yf.download(tickers, period="5y", interval="1d", progress=False, auto_adjust=True)
     px = raw["Close"].dropna()
     asof = px.index[-1].strftime("%Y-%m-%d")
 
@@ -102,35 +122,71 @@ def main():
         peak_z = float(z.iloc[-60:].max())
         peak_date = z.iloc[-60:].idxmax().strftime("%Y-%m-%d")
 
+        # RSI
+        rsi_series = _rsi(s)
+        rsi_now = float(rsi_series.iloc[-1]) if not np.isnan(rsi_series.iloc[-1]) else None
+
         # 종합 heat (0~100): z50 주축 + 모멘텀 + 이격도
         heat = 50 + 13 * z50 + 5 * mom_z + 0.25 * min(max(disp200, 0), 80)
         heat = round(max(0, min(100, heat)), 1)
         signal, color = classify(heat)
+        stance, stance_key, stance_color = classify_stance(z50, rsi_now, heat)
+
+        # 매수 백테스트: z50<-1.5 도달 후 향후 20거래일 수익률 (가용 전체)
+        fwd = np.log(s).shift(-20) - np.log(s)
+        cond = fwd[z < -1.5].dropna()
+        if len(cond) >= 5:
+            buy_bt = {"avg_pct": round(float(cond.mean()) * 100, 1),
+                      "win_rate": round(float((cond > 0).mean()) * 100),
+                      "n": int(len(cond)), "threshold": "z50<-1.5σ"}
+        else:
+            buy_bt = None
 
         entry = {
             "key": idx["key"], "name": idx["name"], "flag": idx["flag"],
             "price": round(float(s.iloc[-1]), 2),
             "z50": round(z50, 2), "mom_z": round(mom_z, 2),
             "disp200": round(disp200, 1),
+            "rsi": round(rsi_now, 0) if rsi_now is not None else None,
             "heat": heat, "signal": signal, "color": color,
+            "stance": stance, "stance_key": stance_key, "stance_color": stance_color,
+            "buy_backtest": buy_bt,
             "peak_z": round(peak_z, 2), "peak_date": peak_date,
             "danger_z": DANGER_Z,
             "z_to_danger": round(DANGER_Z - z50, 2),
+            "z_to_buy": round(-1.5 - z50, 2),  # 매수구간(-1.5σ)까지 거리
         }
         results.append(entry)
-        print(f"  {idx['key']:6} heat={heat:5} {signal:14} | z50=+{z50:.2f}σ mom_z={mom_z:+.2f} 200이격={disp200:+.1f}% (고점 +{peak_z:.2f}σ {peak_date})")
+        print(f"  {idx['key']:6} heat={heat:5} {signal:10} | {stance} | z50={z50:+.2f}σ RSI={rsi_now:.0f} 200이격={disp200:+.1f}%")
 
     vix = get_vix()
     avg_heat = round(sum(r["heat"] for r in results) / len(results), 1) if results else None
+
+    # 종합 스탠스
+    buy_cnt = sum(1 for r in results if r["stance_key"] in ("buy", "buy_strong"))
+    sell_cnt = sum(1 for r in results if r["stance_key"] in ("sell", "caution"))
+    if buy_cnt >= 2:
+        overall_stance, overall_color = "🟢 매수 검토 구간 — 과매도 다수", "green"
+    elif sell_cnt >= 3:
+        overall_stance, overall_color = "🔴 과열 — 관망·차익 우선 (매수 대기)", "red"
+    elif sell_cnt >= 1:
+        overall_stance, overall_color = "🟠 과열 진정 중 — 매수는 시기상조", "amber"
+    else:
+        overall_stance, overall_color = "⚪ 중립 — 신호 대기", "muted"
+    print(f"\n[종합 스탠스] {overall_stance} (매수 {buy_cnt} / 과열 {sell_cnt})")
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "asof": asof,
         "vix": vix,
         "avg_heat": avg_heat,
+        "overall_stance": overall_stance,
+        "overall_stance_color": overall_color,
+        "buy_count": buy_cnt,
+        "sell_count": sell_cnt,
         "danger_z": DANGER_Z,
         "indices": results,
-        "method": "50일선 z-score(주축) + 60일 모멘텀 z + 200일 이격도 → heat 0~100",
+        "method": "50일선 z-score(주축) + 60일 모멘텀 z + 200일 이격도 → heat 0~100 · 매수신호 z50<-1.5σ/RSI<30",
         "myth_note": "실제 위험선은 +3σ 극단 과열(이번 고점대). '1.9 고정 트리거' 설은 반증됨(+1.9σ 돌파 후 오히려 +5.68%). 단 +3σ도 고정 스위치 아님 — 진짜 방아쇠는 변동성 급등+극단 이격.",
     }
 
