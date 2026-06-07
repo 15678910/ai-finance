@@ -3210,9 +3210,9 @@ body {
       </section>`;
     }
 
-    // ─── ⚡ 장중 매매 모멘텀 (Phase B — 시간별) ──────────
-    const intra = data.investor_flow_intraday;
-    if (intra && Array.isArray(intra.results) && intra.results.length > 0) {
+    // ─── ⚡ 장중 매매 모멘텀 — 삭제됨 (사용자 요청) ──────────
+    const intra = null;
+    if (intra) {
       const itop = intra.top_signals || {};
       const tl = intra.market_timeline || [];
       const firstSnap = intra.is_first_snapshot;
@@ -9330,10 +9330,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(oh => { if (oh) renderOverheating(oh); });
-      // Load Intraday Helper (분봉 단타 보조 — SK하이닉스·XRP)
-      fetch('./intraday.json?v=' + Date.now(), { cache: 'no-store' })
-        .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(id => { if (id) renderIntraday(id); });
+      // (분봉 단타 보조지표 섹션 삭제됨 — 사용자 요청)
     })
     .catch(err => {
       $('#app').innerHTML = `
