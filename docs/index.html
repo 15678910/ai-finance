@@ -7495,6 +7495,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     __sidebarObserver.observe(app, { childList: true, subtree: true });
   }
 
+  let __navRebuildDebounce = null;
+  function scheduleNavRebuild() {
+    clearTimeout(__navRebuildDebounce);
+    __navRebuildDebounce = setTimeout(() => buildSidebarNav(), 350);
+  }
+
   function buildSidebarNav() {
     const navEl = document.getElementById('sidebarNav');
     if (!navEl) return;
@@ -7581,6 +7587,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
     html += `</div>`;
 
+    // 변경 없으면 재빌드 스킵 (깜빡임·이벤트 재바인딩 방지)
+    if (navEl.__lastNavHtml === html) return;
+    navEl.__lastNavHtml = html;
     navEl.innerHTML = html;
 
     // SIGNALS 카드 클릭 → 인스펙터 패널 열기
@@ -7851,6 +7860,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('m2-chart-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
 
     // ── 마우스 오버 툴팁 설정 ──────────────────────────────────────
     const overlay   = document.getElementById('m2-overlay');
@@ -8057,6 +8067,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('leverage-vol-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── 🧠 퀀트 신호 (월드퀀트 전략 3종) ───────────────
@@ -8144,6 +8155,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('quant-signals-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── 🤖 AI 패러다임 모니터 (MV=PY · 휴머노이드 · CAPEX) ──────
@@ -8250,6 +8262,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('ai-paradigm-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── 🎯 KOSPI 시나리오 시뮬레이터 (실시간 베타 예측) ──────
@@ -8302,6 +8315,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('kospi-scenario-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
 
     // ── 실시간 계산 ──
     const elSox = document.getElementById('ksc-sox');
@@ -8453,6 +8467,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('overheating-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── ⏱️ 분봉 단타 보조지표 (SK하이닉스 · XRP) ───────────
@@ -8488,16 +8503,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="font-family:var(--font-mono);"><b id="xrp-live-price" style="font-size:0.86rem;color:var(--text-bright);">…</b> <span id="xrp-live-chg" style="font-size:0.62rem;"></span></span>
           <span id="xrp-live-ts" style="font-size:0.5rem;color:var(--text-muted);">연결중</span>
         </div>` : '';
-      return `<div class="glass-card anim-item" style="padding:13px 15px;border-top:3px solid ${c};">
+      const skNote = (t.ticker && t.ticker.endsWith('.KS')) ? `<div style="font-size:0.5rem;color:var(--text-muted);margin-top:2px;">⚠️ yfinance 지연·불완전 — 실측은 HTS 차트 기준</div>` : '';
+      return `<div class="glass-card anim-item" ${isXrp?'id="intraday-xrp-card"':''} style="padding:13px 15px;border-top:3px solid ${c};">
         <div style="display:flex;justify-content:space-between;align-items:baseline;">
           <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);">${t.flag} ${h(t.key)}</span>
           <span style="font-size:0.8rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${px}</span>
         </div>
-        <div style="font-size:0.72rem;font-weight:700;color:${c};margin:4px 0 2px;">${h(t.signal||'')}</div>
+        <div style="font-size:0.72rem;font-weight:700;color:${c};margin:4px 0 2px;">${isXrp?'⏳ 업비트 연결 중…':h(t.signal||'')}</div>
         ${liveBlock}
-        ${t.tf3 ? `<div style="font-size:0.56rem;color:var(--text-muted);">VWAP ${t.tf3.vwap.toLocaleString()} 대비 <b style="color:${t.tf3.vwap_dev<0?COL.cyan:COL.amber};">${t.tf3.vwap_dev>=0?'+':''}${t.tf3.vwap_dev}%</b> <span style="opacity:0.6;">(지표는 지연)</span></div>`:''}
+        ${t.tf3 ? `<div style="font-size:0.56rem;color:var(--text-muted);">VWAP ${t.tf3.vwap.toLocaleString()} 대비 <b style="color:${t.tf3.vwap_dev<0?COL.cyan:COL.amber};">${t.tf3.vwap_dev>=0?'+':''}${t.tf3.vwap_dev}%</b>${isXrp?'':' <span style="opacity:0.6;">(지표는 지연)</span>'}</div>`:''}
         ${tfBlock('3분봉', t.tf3)}
         ${tfBlock('15분봉', t.tf15)}
+        ${skNote}
       </div>`;
     }).join('');
 
@@ -8521,36 +8538,89 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('intraday-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
 
-    // ── XRP 실시간 폴링 (업비트 KRW → 실패 시 바이낸스 USDT) ──
+    // ── XRP: 업비트 캔들로 브라우저 직접 계산 (HTS와 동일 소스·KRW) ──
     if (id.targets.some(t => t.key === 'XRP')) {
       if (window.__xrpLiveTimer) clearInterval(window.__xrpLiveTimer);
-      const setLive = (priceTxt, pct) => {
-        const pe = document.getElementById('xrp-live-price');
-        const ce = document.getElementById('xrp-live-chg');
-        const te = document.getElementById('xrp-live-ts');
-        if (pe) pe.textContent = priceTxt;
-        if (ce && pct != null) { ce.textContent = (pct>=0?'+':'')+pct.toFixed(2)+'%'; ce.style.color = pct>=0?'#22c55e':'#f87171'; }
-        if (te) te.textContent = new Date().toLocaleTimeString('ko-KR');
+      const COL2 = COL;
+      // Wilder RSI(14) — HTS 표준
+      const rsiW = (cl, n) => {
+        if (cl.length <= n) return null;
+        let up = 0, dn = 0;
+        for (let i = 1; i <= n; i++) { const x = cl[i] - cl[i-1]; if (x > 0) up += x; else dn -= x; }
+        up /= n; dn /= n;
+        for (let i = n + 1; i < cl.length; i++) { const x = cl[i] - cl[i-1]; up = (up*(n-1)+(x>0?x:0))/n; dn = (dn*(n-1)+(x<0?-x:0))/n; }
+        if (dn === 0) return 100;
+        return 100 - 100/(1 + up/dn);
       };
-      const pollXrp = async () => {
+      const calcTF = (candles) => {
+        const c = [...candles].reverse(); // 과거→현재
+        if (c.length < 25) return null;
+        const cl = c.map(x => x.trade_price);
+        const price = cl[cl.length-1];
+        const rsi = rsiW(cl, 14);
+        const l20 = cl.slice(-20), m = l20.reduce((a,b)=>a+b,0)/20;
+        const sd = Math.sqrt(l20.reduce((a,b)=>a+(b-m)**2,0)/19);
+        const z = sd ? (price-m)/sd : 0;
+        const lastDate = c[c.length-1].candle_date_time_kst.slice(0,10);
+        const today = c.filter(x => x.candle_date_time_kst.slice(0,10) === lastDate);
+        let pv=0, vv=0, hi=-Infinity, lo=Infinity;
+        today.forEach(x => { const tp=(x.high_price+x.low_price+x.trade_price)/3; pv+=tp*x.candle_acc_trade_volume; vv+=x.candle_acc_trade_volume; if(x.high_price>hi)hi=x.high_price; if(x.low_price<lo)lo=x.low_price; });
+        const vwap = vv ? pv/vv : price;
+        return { price: Math.round(price), vwap: Math.round(vwap), vwap_dev:+((price/vwap-1)*100).toFixed(2),
+                 rsi14: rsi!=null?Math.round(rsi):null, z20:+z.toFixed(2),
+                 day_pos: hi>lo?Math.round((price-lo)/(hi-lo)*100):50,
+                 last_bar: c[c.length-1].candle_date_time_kst.slice(5,16).replace('T',' ') };
+      };
+      const sigOf = (tf) => {
+        if (!tf) return ['데이터없음', COL2.muted];
+        if ((tf.rsi14!=null && tf.rsi14<=30) || tf.z20<=-2) return ['🟢 단기 과매도 (반등 관심)', COL2.green];
+        if ((tf.rsi14!=null && tf.rsi14>=70) || tf.z20>=2) return ['🔴 단기 과매수 (차익 관심)', COL2.red];
+        if (tf.vwap_dev < -0.5) return ['🔵 VWAP 하단 — 약세 흐름', COL2.cyan];
+        if (tf.vwap_dev > 0.5) return ['🟠 VWAP 상단 — 강세 흐름', COL2.amber];
+        return ['⚪ 중립 (VWAP 부근)', COL2.muted];
+      };
+      const metric2 = (label, val, suf, good) => `<div style="text-align:center;flex:1;"><div style="font-size:0.52rem;color:var(--text-muted);">${label}</div><div style="font-size:0.82rem;font-weight:700;font-family:var(--font-mono);color:${good||'var(--text-bright)'};">${val==null?'—':val}${suf||''}</div></div>`;
+      const tfb = (title, tf) => {
+        if (!tf) return `<div style="font-size:0.58rem;color:var(--text-muted);">${title}: 데이터 없음</div>`;
+        const rc = tf.rsi14<=30?COL2.green:tf.rsi14>=70?COL2.red:'var(--text-bright)';
+        const zc = tf.z20<=-1.5?COL2.green:tf.z20>=1.5?COL2.red:'var(--text-bright)';
+        const vc = tf.vwap_dev<0?COL2.cyan:COL2.amber;
+        return `<div style="margin-top:6px;"><div style="font-size:0.55rem;color:var(--text-muted);margin-bottom:2px;">${title} <span style="opacity:0.7;">바 ${tf.last_bar}</span></div>
+          <div style="display:flex;gap:4px;">${metric2('RSI(14)',tf.rsi14,'',rc)}${metric2('z20',(tf.z20>=0?'+':'')+tf.z20,'σ',zc)}${metric2('VWAP이격',(tf.vwap_dev>=0?'+':'')+tf.vwap_dev,'%',vc)}${metric2('당일위치',tf.day_pos,'%',tf.day_pos<=20?COL2.green:tf.day_pos>=80?COL2.red:'var(--text-bright)')}</div></div>`;
+      };
+      const updateXrp = async () => {
+        const card = document.getElementById('intraday-xrp-card');
+        if (!card) return;
         try {
-          const r = await fetch('https://api.upbit.com/v1/ticker?markets=KRW-XRP', { cache:'no-store' });
-          if (!r.ok) throw new Error('upbit');
-          const d = (await r.json())[0];
-          setLive(Math.round(d.trade_price).toLocaleString()+'원', d.signed_change_rate*100);
-        } catch (e) {
-          try {
-            const r = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=XRPUSDT', { cache:'no-store' });
-            const d = await r.json();
-            setLive('$'+(+d.lastPrice).toFixed(4), +d.priceChangePercent);
-          } catch (_) {
-            const te = document.getElementById('xrp-live-ts'); if (te) te.textContent = '연결실패';
-          }
-        }
+          const [tkR, c3R, c15R] = await Promise.all([
+            fetch('https://api.upbit.com/v1/ticker?markets=KRW-XRP', { cache:'no-store' }),
+            fetch('https://api.upbit.com/v1/candles/minutes/3?market=KRW-XRP&count=120', { cache:'no-store' }),
+            fetch('https://api.upbit.com/v1/candles/minutes/15?market=KRW-XRP&count=120', { cache:'no-store' }),
+          ]);
+          const tk = (await tkR.json())[0], c3 = await c3R.json(), c15 = await c15R.json();
+          const tf3 = calcTF(c3), tf15 = calcTF(c15);
+          const price = tk.trade_price, chg = tk.signed_change_rate*100;
+          const [sig, sc] = sigOf(tf3);
+          card.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);">⚪ XRP</span>
+              <span style="font-size:0.8rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${Math.round(price).toLocaleString()}원</span>
+            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:${sc};margin:4px 0 2px;">${sig}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(34,211,238,0.07);border-radius:6px;padding:4px 8px;margin:5px 0;">
+              <span style="font-size:0.56rem;color:#22d3ee;font-weight:700;">🔴 LIVE 업비트</span>
+              <span style="font-size:0.62rem;font-weight:700;color:${chg>=0?'#22c55e':'#f87171'};">${chg>=0?'+':''}${chg.toFixed(2)}%</span>
+              <span style="font-size:0.5rem;color:var(--text-muted);">${new Date().toLocaleTimeString('ko-KR')}</span>
+            </div>
+            ${tf3?`<div style="font-size:0.56rem;color:var(--text-muted);">VWAP ${tf3.vwap.toLocaleString()}원 대비 <b style="color:${tf3.vwap_dev<0?COL2.cyan:COL2.amber};">${tf3.vwap_dev>=0?'+':''}${tf3.vwap_dev}%</b></div>`:''}
+            ${tfb('3분봉', tf3)}
+            ${tfb('15분봉', tf15)}`;
+        } catch (e) { /* 네트워크 실패 시 기존 표시 유지 */ }
       };
-      pollXrp();
-      window.__xrpLiveTimer = setInterval(pollXrp, 7000);
+      updateXrp();
+      window.__xrpLiveTimer = setInterval(updateXrp, 10000);
     }
   }
 
@@ -8645,6 +8715,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('etf-holdings-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
 
     // 탭 클릭 이벤트
     document.querySelectorAll('.etf-tab-btn').forEach(btn => {
@@ -8726,6 +8797,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('market-cap-rankings-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── 📦 수출입 동향 ──────────────────────────────────
@@ -8877,6 +8949,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('trade-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── ⚔️ Key Debates ──────────────────────────────────
@@ -8970,6 +9043,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('key-debates-section');
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
   }
 
   // ─── 📅 Economic Calendar ────────────────────────────
