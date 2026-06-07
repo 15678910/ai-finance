@@ -112,32 +112,38 @@ def main():
     print(f"  KST: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 55)
 
+    def _flatten(d):
+        if d is not None and hasattr(d.columns, "nlevels") and d.columns.nlevels > 1:
+            d.columns = d.columns.get_level_values(0)
+        return d
+
+    AGG = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+
     results = []
     for t in TARGETS:
         try:
-            df5 = yf.download(t["ticker"], interval="5m", period="5d", progress=False, auto_adjust=True)
-            df15 = yf.download(t["ticker"], interval="15m", period="1mo", progress=False, auto_adjust=True)
-            # 단일 티커 다운로드 시 멀티인덱스 컬럼 평탄화
-            if hasattr(df5.columns, "nlevels") and df5.columns.nlevels > 1:
-                df5.columns = df5.columns.get_level_values(0)
-                df15.columns = df15.columns.get_level_values(0)
-            tf5 = analyze_tf(df5, np)
+            # 3분봉: yfinance 미지원 → 1분봉을 3분으로 리샘플
+            df1 = _flatten(yf.download(t["ticker"], interval="1m", period="5d", progress=False, auto_adjust=True))
+            df3 = df1.resample("3min").agg(AGG).dropna() if df1 is not None and len(df1) else df1
+            df15 = _flatten(yf.download(t["ticker"], interval="15m", period="1mo", progress=False, auto_adjust=True))
+            tf3 = analyze_tf(df3, np)
             tf15 = analyze_tf(df15, np)
-            signal, color = classify(tf5)
-            entry = {**t, "tf5": tf5, "tf15": tf15, "signal": signal, "color": color}
+            signal, color = classify(tf3)
+            entry = {**t, "tf3": tf3, "tf15": tf15, "signal": signal, "color": color}
             results.append(entry)
-            if tf5:
-                print(f"  {t['key']:10} {signal} | 5m RSI={tf5['rsi7']} z={tf5['z20']} VWAP이격={tf5['vwap_dev']}% (바 {tf5['last_bar']})")
+            if tf3:
+                print(f"  {t['key']:10} {signal} | 3m RSI={tf3['rsi7']} z={tf3['z20']} VWAP이격={tf3['vwap_dev']}% (바 {tf3['last_bar']})")
             else:
                 print(f"  {t['key']:10} 데이터 부족")
         except Exception as e:
             print(f"  [WARN] {t['key']} 실패: {e}")
-            results.append({**t, "tf5": None, "tf15": None, "signal": "수집실패", "color": "muted"})
+            results.append({**t, "tf3": None, "tf15": None, "signal": "수집실패", "color": "muted"})
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "targets": results,
-        "disclaimer": "체결은 HTS/거래소로. 분봉 맥락 참고용 보조지표 · yfinance 15~20분 지연 가능 · 단타는 실시간 차트 필수.",
+        "disclaimer": "3분봉(1분봉 리샘플)·15분봉. 체결은 HTS/거래소로. yfinance 15~20분 지연 가능 · 단타는 실시간 차트 필수.",
+        "note_sk": "SK하이닉스는 yfinance가 정규장(09:00~15:30)만 제공 — 08:00 장전/시간외(~18:00)·20:00 데이터는 HTS에서만 확인. XRP는 24시간.",
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
