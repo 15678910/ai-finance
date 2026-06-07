@@ -40,6 +40,42 @@ STATIC_AUM = {
     "233740": 0.95, "251340": 0.48, "123320": 0.18,
 }
 
+# 해외(미국) 레버리지·인버스 ETF (USD, AUM 단위 $B)
+OVERSEAS_LEVERAGE_ETFS = [
+    {"ticker": "TQQQ", "name": "ProShares 3X 나스닥100",   "type": "leverage", "mult": 3.0,  "underlying": "나스닥100"},
+    {"ticker": "SQQQ", "name": "ProShares -3X 나스닥100",  "type": "inverse",  "mult": -3.0, "underlying": "나스닥100"},
+    {"ticker": "SOXL", "name": "Direxion 3X 반도체",       "type": "leverage", "mult": 3.0,  "underlying": "반도체(SOX)"},
+    {"ticker": "SOXS", "name": "Direxion -3X 반도체",      "type": "inverse",  "mult": -3.0, "underlying": "반도체(SOX)"},
+    {"ticker": "NVDL", "name": "GraniteShares 2X 엔비디아","type": "leverage", "mult": 2.0,  "underlying": "엔비디아"},
+    {"ticker": "TSLL", "name": "Direxion 2X 테슬라",       "type": "leverage", "mult": 2.0,  "underlying": "테슬라"},
+    {"ticker": "UPRO", "name": "ProShares 3X S&P500",      "type": "leverage", "mult": 3.0,  "underlying": "S&P500"},
+    {"ticker": "SPXU", "name": "ProShares -3X S&P500",     "type": "inverse",  "mult": -3.0, "underlying": "S&P500"},
+]
+
+# 정적 폴백 AUM ($B, 2026-06 기준 추정)
+STATIC_AUM_USD = {
+    "TQQQ": 26.0, "SQQQ": 3.5, "SOXL": 13.0, "SOXS": 1.2,
+    "NVDL": 6.0, "TSLL": 4.0, "UPRO": 4.0, "SPXU": 0.6,
+}
+
+
+def fetch_overseas_etf(ticker: str, name: str) -> dict:
+    """yfinance로 해외 ETF 가격·등락 수집 (AUM은 정적 폴백)."""
+    out = {"price": None, "change_pct": 0.0, "aum_b": STATIC_AUM_USD.get(ticker)}
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker)
+        fi = t.fast_info
+        price = getattr(fi, "last_price", None)
+        prev = getattr(fi, "previous_close", None)
+        if price:
+            out["price"] = round(float(price), 2)
+            if prev and float(prev) > 0:
+                out["change_pct"] = round((float(price) - float(prev)) / float(prev) * 100, 2)
+    except Exception as e:
+        print(f"  [WARN] {name} 가격 수집 실패: {e}")
+    return out
+
 
 def fetch_etf(ticker: str, name: str, today_str: str) -> dict:
     """yfinance + pykrx로 ETF 가격·등락·AUM 수집."""
@@ -158,6 +194,37 @@ def main():
             inv_aum += aum
         print(f"  {e['name']}: {d.get('price')} ({chg:+.2f}%) AUM {aum}조 리밸런싱 {rebal}조")
 
+    # ①-b 해외 레버리지·인버스 ETF
+    print("\n[①-b] 해외 레버리지·인버스 ETF 수집...")
+    overseas_etfs = []
+    o_lev, o_inv = 0.0, 0.0
+    for e in OVERSEAS_LEVERAGE_ETFS:
+        d = fetch_overseas_etf(e["ticker"], e["name"])
+        entry = {**e, **d}
+        aum = d.get("aum_b") or 0
+        chg = d.get("change_pct") or 0
+        rebal = round(aum * abs(e["mult"] - (1 if e["mult"] > 0 else -1)) * abs(chg) / 100, 3)
+        entry["rebal_pressure_b"] = rebal
+        entry["rebal_direction"] = ("매수" if (chg > 0 and e["mult"] > 0) or (chg < 0 and e["mult"] < 0)
+                                    else "매도") if chg != 0 else "—"
+        overseas_etfs.append(entry)
+        if e["type"] == "leverage":
+            o_lev += aum
+        else:
+            o_inv += aum
+        print(f"  {e['name']}: {d.get('price')} ({chg:+.2f}%) AUM ${aum}B 리밸런싱 ${rebal}B")
+    o_ratio = round(o_lev / o_inv, 2) if o_inv > 0 else None
+    if o_ratio is not None:
+        if o_ratio > 4:
+            o_signal = "레버리지(롱) 극단 쏠림 — 미국 과열·고점 경계 (역발상: 하락 대비)"
+        elif o_ratio < 1.5:
+            o_signal = "인버스 비중 확대 — 헤지·비관 심리 (역발상: 바닥 신호 가능)"
+        else:
+            o_signal = "레버리지 우위 — 정상 범위 (강세장 통상)"
+    else:
+        o_signal = "데이터 부족"
+    print(f"  해외 레버리지/인버스 비율: {o_ratio} → {o_signal}")
+
     # ② 레버리지/인버스 비율
     ratio = round(lev_aum / inv_aum, 2) if inv_aum > 0 else None
     if ratio is not None:
@@ -183,6 +250,11 @@ def main():
         "inverse_aum_tril": round(inv_aum, 2),
         "lev_inv_ratio": ratio,
         "ratio_signal": ratio_signal,
+        "overseas_etfs": overseas_etfs,
+        "overseas_leverage_aum_b": round(o_lev, 1),
+        "overseas_inverse_aum_b": round(o_inv, 1),
+        "overseas_ratio": o_ratio,
+        "overseas_ratio_signal": o_signal,
         "vix": vix,
         "vol_regime": regime,
         "mechanisms": [

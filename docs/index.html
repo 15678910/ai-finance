@@ -7929,6 +7929,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="font-size:0.64rem;color:var(--text-muted);line-height:1.5;">${h(m.desc)}</div>
       </div>`).join('');
 
+    // 해외 레버리지 ETF 행
+    const oEtfRows = (lv.overseas_etfs || []).map(e => {
+      const chg = e.change_pct || 0;
+      const cc = chg >= 0 ? '#22c55e' : '#f87171';
+      const typeColor = e.type === 'leverage' ? '#f59e0b' : '#a78bfa';
+      const typeLabel = e.type === 'leverage' ? `레버리지 ${e.mult}X` : `인버스 ${Math.abs(e.mult)}X`;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;" onclick="openStockDetail('${h(e.ticker)}')">
+        <td style="padding:5px 6px;font-size:0.72rem;font-weight:600;color:var(--text-bright);">🇺🇸 ${h(e.ticker)}<span style="font-size:0.55rem;color:var(--text-muted);margin-left:4px;">${h(e.underlying||'')}</span></td>
+        <td style="padding:5px 6px;"><span style="font-size:0.55rem;background:${typeColor}22;color:${typeColor};padding:1px 5px;border-radius:5px;white-space:nowrap;">${typeLabel}</span></td>
+        <td style="padding:5px 6px;font-size:0.72rem;color:var(--text);text-align:right;font-family:var(--font-mono);">${e.aum_b!=null?'$'+e.aum_b+'B':'—'}</td>
+        <td style="padding:5px 6px;font-size:0.72rem;font-weight:700;color:${cc};text-align:right;">${chg>=0?'+':''}${chg.toFixed(2)}%</td>
+        <td style="padding:5px 6px;font-size:0.66rem;color:var(--text-muted);text-align:right;font-family:var(--font-mono);">${e.rebal_pressure_b>0?'~$'+e.rebal_pressure_b+'B':'—'}</td>
+      </tr>`;
+    }).join('');
+    const oRatio = lv.overseas_ratio;
+    const oRatioColor = oRatio == null ? '#64748b' : oRatio > 4 ? '#f87171' : oRatio < 1.5 ? '#22c55e' : '#22d3ee';
+
     const ratio = lv.lev_inv_ratio;
     const ratioColor = ratio == null ? '#64748b' : ratio > 1.5 ? '#f87171' : ratio < 0.7 ? '#22c55e' : '#22d3ee';
 
@@ -8007,6 +8024,31 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${mechs}
         </div>
       </div>
+
+      <!-- 🇺🇸 해외(미국) 레버리지 ETF -->
+      ${oEtfRows ? `<div class="glass-card anim-item" style="padding:14px 16px;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div style="font-size:0.7rem;font-weight:700;color:#38bdf8;">🇺🇸 해외(미국) 레버리지·인버스 ETF</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:0.6rem;color:var(--text-muted);">레버리지 $${lv.overseas_leverage_aum_b||0}B / 인버스 $${lv.overseas_inverse_aum_b||0}B</span>
+            <span style="font-size:0.6rem;color:var(--text-muted);">비율</span>
+            <span style="font-size:1rem;font-weight:800;color:${oRatioColor};font-family:var(--font-mono);">${oRatio!=null?oRatio:'—'}</span>
+          </div>
+        </div>
+        <div style="font-size:0.62rem;color:${oRatioColor};margin-bottom:6px;">${h(lv.overseas_ratio_signal||'')}</div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            <th style="padding:4px 6px;text-align:left;font-size:0.6rem;color:var(--text-muted);font-weight:500;">ETF / 기초자산</th>
+            <th style="padding:4px 6px;text-align:left;font-size:0.6rem;color:var(--text-muted);font-weight:500;">유형</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">AUM</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">등락</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">마감 리밸런싱</th>
+          </tr></thead>
+          <tbody>${oEtfRows}</tbody>
+        </table>
+        <div style="font-size:0.58rem;color:var(--text-muted);margin-top:6px;">※ 3X ETF(TQQQ·SOXL)는 국내 2X보다 리밸런싱·음의복리 위험이 큼. SOX 급락 시 SOXL이 3배 증폭(예: SOX −10% → SOXL −30%).</div>
+      </div>` : ''}
+
       <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
         🚨 시뮬레이션·분석용. 투자 결정 단독 사용 금지.
       </div>
