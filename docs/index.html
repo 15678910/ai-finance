@@ -8366,22 +8366,22 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const avgColor = avg >= 85 ? COL.red : avg >= 72 ? COL.orange : avg >= 60 ? COL.amber : avg >= 45 ? COL.cyan : COL.green;
     const dangerZ = oh.danger_z || 3.0;
 
-    const cards = oh.indices.map(it => {
+    const zSign = v => (v >= 0 ? '+' : '') + v;
+    function makeCard(it) {
       const c = COL[it.color] || COL.muted;
       const sc = COL[it.stance_color] || COL.muted;
       const heatPct = Math.min(100, it.heat);
-      // z-score 게이지 (-1 ~ +3.5 범위 → 0~100%)
-      const zMin = -1, zMax = 3.5;
-      const zPct = Math.max(0, Math.min(100, (it.z50 - zMin) / (zMax - zMin) * 100));
-      const peakPct = Math.max(0, Math.min(100, (it.peak_z - zMin) / (zMax - zMin) * 100));
-      const dangerPct = Math.max(0, Math.min(100, (dangerZ - zMin) / (zMax - zMin) * 100));
-      const dispColor = it.disp200 >= 50 ? COL.red : it.disp200 >= 25 ? COL.amber : COL.green;
+      // z-score 게이지 (-3 ~ +3.5 범위 → 0~100%): 과매도(좌)~극단과열(우)
+      const zMin = -3, zMax = 3.5;
+      const pct = v => Math.max(0, Math.min(100, (v - zMin) / (zMax - zMin) * 100));
+      const zPct = pct(it.z50), peakPct = pct(it.peak_z), dangerPct = pct(dangerZ), buyPct = pct(-1.5);
+      const dispColor = it.disp200 >= 50 ? COL.red : it.disp200 >= 25 ? COL.amber : it.disp200 <= -15 ? COL.green : 'var(--text)';
+      const isBuy = (it.stance_key === 'buy' || it.stance_key === 'buy_strong');
       return `<div class="glass-card anim-item" style="padding:13px 15px;border-top:3px solid ${c};">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
           <span style="font-size:0.74rem;font-weight:700;color:var(--text-bright);">${it.flag} ${h(it.name)}</span>
           <span style="font-size:0.6rem;font-weight:700;color:${c};">${h(it.signal)}</span>
         </div>
-        <!-- heat 0~100 -->
         <div style="display:flex;align-items:baseline;gap:6px;">
           <span style="font-size:1.7rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${it.heat}</span>
           <span style="font-size:0.58rem;color:var(--text-muted);">/ 100 heat</span>
@@ -8389,10 +8389,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="height:7px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;margin:5px 0 8px;">
           <div style="height:100%;width:${heatPct}%;background:${c};border-radius:4px;"></div>
         </div>
-        <!-- z-score 게이지 (고점·위험선 마커) -->
-        <div style="font-size:0.56rem;color:var(--text-muted);margin-bottom:2px;">50일선 z-score (현재 <b style="color:${c};">+${it.z50}σ</b> · 고점 +${it.peak_z}σ)</div>
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-bottom:2px;">50일선 z-score (현재 <b style="color:${c};">${zSign(it.z50)}σ</b> · 고점 ${zSign(it.peak_z)}σ)</div>
         <div style="position:relative;height:14px;margin-bottom:7px;">
-          <div style="position:absolute;top:5px;left:0;right:0;height:5px;border-radius:3px;background:linear-gradient(90deg,#4ade80,#fbbf24,#f87171);opacity:0.5;"></div>
+          <div style="position:absolute;top:5px;left:0;right:0;height:5px;border-radius:3px;background:linear-gradient(90deg,#4ade80,#22d3ee,#fbbf24,#f87171);opacity:0.5;"></div>
+          <div style="position:absolute;top:1px;left:${buyPct}%;width:2px;height:13px;background:#4ade80;"></div>
+          <div style="position:absolute;top:-3px;left:${buyPct}%;transform:translateX(-50%);font-size:0.46rem;color:#4ade80;font-weight:700;white-space:nowrap;">매수-1.5σ</div>
           <div style="position:absolute;top:1px;left:${dangerPct}%;width:2px;height:13px;background:#f87171;"></div>
           <div style="position:absolute;top:-3px;left:${dangerPct}%;transform:translateX(-50%);font-size:0.46rem;color:#f87171;font-weight:700;white-space:nowrap;">⚠️+${dangerZ}σ</div>
           <div style="position:absolute;top:3px;left:${peakPct}%;transform:translateX(-50%);width:8px;height:8px;border:1px dashed ${c};border-radius:50%;opacity:0.7;"></div>
@@ -8403,17 +8404,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span>모멘텀z <b style="color:var(--text);">${it.mom_z>=0?'+':''}${it.mom_z}</b></span>
           <span>RSI <b style="color:${it.rsi<=30?COL.green:it.rsi>=70?COL.red:'var(--text)'};">${it.rsi!=null?it.rsi:'—'}</b></span>
         </div>
-        <!-- 매수/스탠스 -->
         <div style="padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
           <div style="font-size:0.66rem;font-weight:700;color:${sc};">${h(it.stance||'')}</div>
           <div style="font-size:0.54rem;color:var(--text-muted);margin-top:2px;line-height:1.4;">
-            ${(it.stance_key==='buy'||it.stance_key==='buy_strong')
+            ${isBuy
               ? (it.buy_backtest ? `과매도 진입 — 역사적 20일 <b style="color:${COL.green};">+${it.buy_backtest.avg_pct}%</b> · 승률 ${it.buy_backtest.win_rate}%` : '과매도 매수 구간')
               : `매수구간(z&lt;-1.5σ)까지 <b style="color:var(--text);">${Math.abs(it.z_to_buy).toFixed(1)}σ</b>${it.buy_backtest?` · 진입 시 역사 <b style="color:${COL.green};">+${it.buy_backtest.avg_pct}%</b>/승률${it.buy_backtest.win_rate}%`:''}`}
           </div>
         </div>
       </div>`;
-    }).join('');
+    }
+    const cards = oh.indices.map(makeCard).join('');
+    const cryptoCards = (oh.crypto || []).map(makeCard).join('');
 
     const vix = oh.vix || {};
     const html = `<section class="section-wrap" id="overheating-section">
@@ -8430,11 +8432,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${vix.current ? `<span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">VIX ${vix.current}</span>` : ''}</div>
         <div style="font-size:0.58rem;color:var(--text-muted);max-width:560px;">❌ ${h(oh.myth_note||'')}</div>
       </div>
+      <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:5px;">📈 주식·지수</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
         ${cards}
       </div>
+      ${cryptoCards ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:16px 0 5px;">
+        <span style="font-size:0.62rem;color:#fbbf24;font-weight:700;">🪙 암호화폐 (24시간·고변동)</span>
+        ${oh.crypto_stance ? `<span style="font-size:0.72rem;font-weight:800;color:${COL[oh.crypto_stance_color]||COL.muted};">${h(oh.crypto_stance)} <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">매수 ${oh.crypto_buy_count||0}/과열 ${oh.crypto_sell_count||0} · 평균heat ${oh.crypto_avg_heat}</span></span>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+        ${cryptoCards}
+      </div>` : ''}
       <div style="font-size:0.6rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">
-        ※ heat = 50 + 13·z50 + 5·모멘텀z + 0.25·200일이격(상한80). ⚠️+${dangerZ}σ = 이번 붕괴 직전 실제 고점대 · 흰점=현재 · 점선원=최근고점.<br>
+        ※ heat = 50 + 13·z50 + 5·모멘텀z + 0.25·200일이격(상한80). 🟢매수-1.5σ / ⚠️+${dangerZ}σ = 이번 붕괴 직전 실제 고점대 · 흰점=현재 · 점선원=최근고점.<br>
         🚨 통계 추정. 투자 결정 단독 사용 금지.
       </div>
     </section>`;
