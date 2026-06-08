@@ -500,6 +500,30 @@ def korean_derivative_events(start: str, end: str) -> list:
     return events
 
 
+# ── TSMC 월간 매출 (규칙 기반 — 매월 ~10일 전월 매출 공시) ─────────────
+def tsmc_revenue_events(start: str, end: str) -> list:
+    """TSMC는 매월 10일경 전월 매출을 공시 — 반도체/AI 수요 선행지표."""
+    events = []
+    today = date.today()
+    base_idx = (today.year * 12) + (today.month - 1)  # 0-indexed 월
+    for off in range(-1, 4):  # 지난달 ~ 향후 3개월
+        idx = base_idx + off
+        y, mm = idx // 12, idx % 12 + 1
+        ds = date(y, mm, 10).isoformat()
+        if not (start <= ds <= end):
+            continue
+        prev = mm - 1 if mm > 1 else 12
+        events.append({
+            "date": ds, "time": "",
+            "title": f"TSMC {prev}월 매출 발표", "category": "실적", "impact": "HIGH",
+            "region": "🇹🇼", "tags": ["TSMC", "반도체", "AI", "매출"],
+            "impact_analysis": "🏭 TSMC 월간 매출 = 반도체 수요 선행지표. AI칩(엔비디아·애플) 주문 강도 확인 → SOX·삼성전자·SK하이닉스 직결. YoY·MoM 급증 시 AI 슈퍼사이클 신호.",
+            "detail": "대만 TSMC 전월 매출 공시 (통상 매월 10일경). AI 파운드리 수요 풍향계.",
+            "source": "규칙생성",
+        })
+    return events
+
+
 # ── 발표 완료 실제값 수집 (FRED 시리즈) ───────────────────────────────
 # 태그 키워드 → (series_id, metric, 단위라벨, 소수자리)
 #   metric: yoy=전년동월비%, mom=전월대비변화, level=원시값
@@ -690,6 +714,11 @@ def main():
     kr_deriv = filter_window(korean_derivative_events(past_str, end_str))
     all_events.extend(kr_deriv)
     print(f"[한국 파생] {len(kr_deriv)}개 만기·리밸런싱 (윈도우 내)")
+
+    # TSMC 월간 매출 (규칙 생성)
+    tsmc = filter_window(tsmc_revenue_events(past_str, end_str))
+    all_events.extend(tsmc)
+    print(f"[TSMC] {len(tsmc)}개 월매출 일정 (윈도우 내)")
 
     # 수동 큐레이션 (IPO/지정학)
     curated = filter_upcoming(CURATED_EVENTS)
