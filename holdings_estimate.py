@@ -65,10 +65,12 @@ def main():
         data = json.load(f)
 
     # 현재가: yfinance 실시간 (60일/플로 데이터는 stale일 수 있음)
+    KOSDAQ = {"277810"}  # 코스닥 종목은 .KQ 우선 (.KS는 오값 반환)
     def live_price(tk):
+        sufs = (".KQ", ".KS") if tk in KOSDAQ else (".KS", ".KQ")
         try:
             import yfinance as yf
-            for suf in (".KS", ".KQ"):
+            for suf in sufs:
                 p = getattr(yf.Ticker(tk + suf).fast_info, "last_price", None)
                 if p:
                     return round(float(p))
