@@ -8315,7 +8315,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     const existing = document.getElementById('kospi-scenario-section');
     if (existing) { existing.outerHTML = html; }
-    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    else {
+      // 과열게이지 바로 아래에 배치 (없으면 append)
+      const oh = document.getElementById('overheating-section');
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      if (oh) oh.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
     scheduleNavRebuild();
 
     // ── 실시간 계산 ──
@@ -8469,6 +8476,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
     scheduleNavRebuild();
+    // KOSPI 시나리오를 과열게이지 바로 아래로 이동 (이미 로드된 경우)
+    const sc = document.getElementById('kospi-scenario-section');
+    const ohSec = document.getElementById('overheating-section');
+    if (sc && ohSec && ohSec.nextElementSibling !== sc) ohSec.insertAdjacentElement('afterend', sc);
   }
 
   // ─── 😱 시장감정지수 (Fear & Greed) ─────────────────────
