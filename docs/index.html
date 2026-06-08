@@ -8287,6 +8287,30 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const sRange = [Math.round(soxxNow * 0.6), Math.round(soxxNow * 1.15)];
     const qRange = [Math.round(qqqNow * 0.6), Math.round(qqqNow * 1.15)];
 
+    // 🔴 실시간 자동 예측 — 미국 지수 최근 변화(KOSPI 미반영분)를 베타로 환산
+    let autoBlock = '';
+    const soxChg = sc.change_pct ? sc.change_pct.SOX : null;
+    const ndxChg = sc.change_pct ? sc.change_pct.NDX : null;
+    if (soxChg != null && ndxChg != null) {
+      const aBl = b.sox_weekly * Math.log(1 + soxChg/100) + b.ndx_weekly * Math.log(1 + ndxChg/100);
+      const kAuto = kNow * Math.exp(aBl);
+      const aPct = (Math.exp(aBl) - 1) * 100;
+      const aCol = aPct >= 0 ? '#22c55e' : '#f87171';
+      autoBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:${aCol}11;border-left:3px solid ${aCol};">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:0.62rem;color:#f87171;font-weight:700;">🔴 실시간 자동 예측 <span style="color:var(--text-muted);font-weight:400;">(미국 야간 움직임 자동 반영)</span></div>
+            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">미국 최근: SOX <b style="color:${soxChg>=0?'#22c55e':'#f87171'};">${soxChg>=0?'+':''}${soxChg}%</b> · NDX <b style="color:${ndxChg>=0?'#22c55e':'#f87171'};">${ndxChg>=0?'+':''}${ndxChg}%</b></div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">KOSPI 예상(다음 거래일)</div>
+            <div style="font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:${aCol};line-height:1.1;">${fmtN(kAuto)} <span style="font-size:0.7rem;">${aPct>=0?'+':''}${aPct.toFixed(1)}%</span></div>
+          </div>
+        </div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;">※ 한국이 미국보다 먼저 마감 → 미국 움직임을 다음 거래일에 따라가는 '캐치업' 기대값 (β 환산). 아래 슬라이더로 직접 가정도 가능.</div>
+      </div>`;
+    }
+
     const html = `<section class="section-wrap" id="kospi-scenario-section">
       <div class="section-label" style="color:#34d399;">🎯 KOSPI 시나리오 시뮬레이터
         <span style="font-size:0.62rem;color:var(--text-muted);">(가정 도구 — SOX·나스닥100이 변하면 KOSPI는?)</span>
@@ -8295,6 +8319,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div class="glass-card" style="padding:6px 14px;margin-bottom:10px;background:rgba(52,211,153,0.06);border-left:3px solid #34d399;">
         <div style="font-size:0.6rem;color:var(--text);">💡 <b>예보가 아니라 '만약' 계산기</b>입니다. 슬라이더를 <b style="color:#f87171;">내리면(하락 가정)</b> KOSPI 하락 예측, <b style="color:#22c55e;">올리면(상승)</b> 상승 예측. 기본값은 현재가(변화 0).</div>
       </div>
+      ${autoBlock}
       <div class="glass-card" style="padding:16px 18px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
           <div>

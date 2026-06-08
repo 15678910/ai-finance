@@ -101,10 +101,19 @@ def main():
     print(f"β_SOX={bS:.3f}(r={rS:.2f}) β_NDX={bN:.3f}(r={rN:.2f})")
     print(f"stress β_SOX={bS_stress:.3f} β_NDX={bN_stress:.3f}")
 
+    # 미국 지수 최근 1일 변화율 (KOSPI가 아직 반영 못한 야간 움직임 → 실시간 자동예측용)
+    def _chg(col):
+        s = close_raw[col].dropna()
+        return round((float(s.iloc[-1]) / float(s.iloc[-2]) - 1) * 100, 2) if len(s) >= 2 else None
+    change_pct = {"SOX": _chg("SOX"), "NDX": _chg("NDX"),
+                  "SOXX": _chg("SOXX"), "QQQ": _chg("QQQ")}
+    print(f"미국 1일 변화: SOX {change_pct['SOX']}% NDX {change_pct['NDX']}%")
+
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "asof": asof,
         "current": now,
+        "change_pct": change_pct,
         "beta": {
             "sox_weekly": round(bS, 3), "ndx_weekly": round(bN, 3),
             "sox_stress": round(bS_stress, 3), "ndx_stress": round(bN_stress, 3),
