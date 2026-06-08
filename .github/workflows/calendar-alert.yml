@@ -1,0 +1,35 @@
+name: Calendar Alert
+
+on:
+  schedule:
+    # 매일 아침 KST 08:00 (오늘·내일 주요 일정 다이제스트)
+    - cron: '0 23 * * *'   # UTC 23:00 = KST 08:00
+    # 평일 저녁 KST 20:00 (다음날 일정 미리보기)
+    - cron: '0 11 * * 0-4' # UTC 11:00 = KST 20:00 (일~목 → 월~금 대비)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run calendar alert
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python calendar_alert.py
