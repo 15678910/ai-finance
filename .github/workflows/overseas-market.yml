@@ -90,13 +90,20 @@ jobs:
         run: |
           python generate_dashboard_data.py || echo "Dashboard regeneration had errors, continuing..."
 
+      # 외국인 보유 + 개미 추정 평단가 (data.json 읽음 → regenerate 이후 실행)
+      - name: Run holdings estimate
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python holdings_estimate.py || echo "Holdings estimate had errors, continuing..."
+
       - name: Commit results
         if: always()
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"

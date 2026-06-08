@@ -7546,7 +7546,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const l = item.label;
       if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트/.test(l)) {
         groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역/.test(l)) {
+      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가/.test(l)) {
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
@@ -8557,6 +8557,61 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     window.__fgTimer = setInterval(loadCrypto, 300000); // 5분
   }
 
+  // ─── 🌍 외국인 보유 + 개미 추정 평단가 ──────────────────
+  function renderHoldings(hd) {
+    if (!hd || !hd.stocks || !hd.stocks.length) return;
+    const fmtSh = v => v == null ? '—' : (v >= 1e8 ? (v/1e8).toFixed(1)+'억주' : (v/1e4).toFixed(0)+'만주');
+    const won = v => v == null ? '—' : Math.round(v).toLocaleString()+'원';
+    const rows = hd.stocks.map(s => {
+      const pnl = s.indiv_pnl_pct;
+      const pc = pnl == null ? 'var(--text-muted)' : pnl >= 0 ? '#22c55e' : '#f87171';
+      const f5 = s.foreign_pct_5d_change;
+      const f5c = f5 == null ? 'var(--text-muted)' : f5 >= 0 ? '#22c55e' : '#f87171';
+      const streak = (s.foreign_streak_days && s.foreign_streak_dir)
+        ? `<span style="font-size:0.54rem;color:${s.foreign_streak_dir==='sell'?'#f87171':'#22c55e'};">${s.foreign_streak_dir==='sell'?'🩸':'🟢'}${s.foreign_streak_days}일</span>` : '';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;" onclick="openStockDetail('${h(s.ticker)}')">
+        <td style="padding:6px 8px;font-size:0.74rem;font-weight:600;color:var(--text-bright);">${h(s.name)}</td>
+        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);">
+          <span style="font-size:0.76rem;font-weight:700;color:var(--text-bright);">${s.foreign_pct!=null?s.foreign_pct+'%':'—'}</span>
+          ${f5!=null?`<span style="font-size:0.54rem;color:${f5c};"> ${f5>=0?'+':''}${f5}%p</span>`:''}<br>
+          <span style="font-size:0.54rem;color:var(--text-muted);">${fmtSh(s.foreign_shares)} ${streak}</span>
+        </td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.74rem;font-family:var(--font-mono);color:var(--text);">${won(s.indiv_avg_est)}<br><span style="font-size:0.5rem;color:var(--text-muted);">${h(s.window||'')}·순매수${s.indiv_buy_days||0}일</span></td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.74rem;font-family:var(--font-mono);color:var(--text-bright);">${won(s.current)}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.82rem;font-weight:800;font-family:var(--font-mono);color:${pc};">${pnl==null?'—':(pnl>=0?'+':'')+pnl+'%'}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<section class="section-wrap" id="holdings-section">
+      <div class="section-label" style="color:#60a5fa;">🌍 외국인 보유 + 개미 추정 평단가
+        <span style="font-size:0.62rem;color:var(--text-muted);">(보유율=공시 · 평단가=순매수 가중 추정)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(hd.generated_at||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:8px 14px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 8px;text-align:left;font-size:0.6rem;color:var(--text-muted);font-weight:500;">종목</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">외국인 보유율·보유량</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">개미 추정 평단</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">현재가</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">개미 평가손익</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">
+        ※ 외국인 보유율·보유량 = KRX/네이버 공시(정확). 🩸N일 = 외인 연속 순매도.<br>
+        ※ <b>개미 평단가는 추정치</b> — 실제 공시 없음. "최근 순매수 가중평균"으로, 장기보유분 아닌 최근 매집 단가. 개미 = −(외국인+기관) 근사.<br>
+        🚨 추정·참고용. 투자 결정 단독 사용 금지.
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('holdings-section');
+    if (existing) { existing.outerHTML = html; }
+    else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
+    scheduleNavRebuild();
+  }
+
   // ─── ⏱️ 분봉 단타 보조지표 (SK하이닉스 · XRP) ───────────
   function renderIntraday(id) {
     if (!id || !id.targets || !id.targets.length) return;
@@ -9422,6 +9477,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./sentiment.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(se => { if (se) renderSentiment(se); });
+      // Load Holdings + Retail Avg Price (외국인 보유 + 개미 평단가)
+      fetch('./holdings_estimate.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(hd => { if (hd) renderHoldings(hd); });
       // (분봉 단타 보조지표 섹션 삭제됨 — 사용자 요청)
     })
     .catch(err => {
