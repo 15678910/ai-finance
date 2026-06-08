@@ -8559,10 +8559,29 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // ─── 🌍 외국인 보유 + 개미 추정 평단가 ──────────────────
   function renderHoldings(hd) {
+    if (hd && hd.stocks) window.__holdingsData = hd;
+    hd = window.__holdingsData;
     if (!hd || !hd.stocks || !hd.stocks.length) return;
     const fmtSh = v => v == null ? '—' : (v >= 1e8 ? (v/1e8).toFixed(1)+'억주' : (v/1e4).toFixed(0)+'만주');
     const won = v => v == null ? '—' : Math.round(v).toLocaleString()+'원';
-    const rows = hd.stocks.map(s => {
+
+    // 정렬 (헤더 클릭) — null은 항상 맨 뒤
+    const sort = window.__holdingsSort || { key: null, dir: -1 };
+    let stocks = hd.stocks.slice();
+    if (sort.key) {
+      stocks.sort((a, b) => {
+        const va = a[sort.key], vb = b[sort.key];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (typeof va === 'string') return sort.dir * va.localeCompare(vb);
+        return sort.dir * (va - vb);
+      });
+    }
+    const arrow = k => sort.key === k ? (sort.dir < 0 ? ' ▼' : ' ▲') : '';
+    const thBtn = (k, label, align) => `<th onclick="sortHoldings('${k}')" style="padding:5px 8px;text-align:${align};font-size:0.6rem;color:${sort.key===k?'#60a5fa':'var(--text-muted)'};font-weight:500;cursor:pointer;user-select:none;white-space:nowrap;">${label}${arrow(k)}</th>`;
+
+    const rows = stocks.map(s => {
       const pnl = s.indiv_pnl_pct;
       const pc = pnl == null ? 'var(--text-muted)' : pnl >= 0 ? '#22c55e' : '#f87171';
       const f5 = s.foreign_pct_5d_change;
@@ -8593,16 +8612,17 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div class="glass-card" style="padding:8px 14px;overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;min-width:520px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
-            <th style="padding:5px 8px;text-align:left;font-size:0.6rem;color:var(--text-muted);font-weight:500;">종목</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">외국인 보유율·보유량</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">개미 추정 평단</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">현재가</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.6rem;color:var(--text-muted);font-weight:500;">개미 평가손익</th>
+            ${thBtn('sector','종목·분야','left')}
+            ${thBtn('foreign_pct','외국인 보유율','right')}
+            ${thBtn('indiv_avg_est','개미 추정 평단','right')}
+            ${thBtn('current','현재가','right')}
+            ${thBtn('indiv_pnl_pct','개미 평가손익','right')}
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">
+        🔀 <b style="color:#60a5fa;">표 헤더(외국인 보유율·평단·현재가·평가손익)를 클릭</b>하면 해당 순으로 정렬됩니다 (재클릭 시 오름/내림 전환).<br>
         ※ 외국인 보유율·보유량 = KRX/네이버 공시(정확). 🩸N일 = 외인 연속 순매도.<br>
         ※ <b>개미 평단가는 추정치</b> — 실제 공시 없음. "최근 순매수 가중평균"으로, 장기보유분 아닌 최근 매집 단가. 개미 = −(외국인+기관) 근사.<br>
         🚨 추정·참고용. 투자 결정 단독 사용 금지.
@@ -8614,6 +8634,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
     scheduleNavRebuild();
   }
+  // 헤더 클릭 정렬 (같은 열 재클릭 시 방향 토글)
+  window.sortHoldings = function (key) {
+    const cur = window.__holdingsSort || {};
+    window.__holdingsSort = { key, dir: (cur.key === key && cur.dir < 0) ? 1 : -1 };
+    renderHoldings();
+  };
 
   // ─── ⏱️ 분봉 단타 보조지표 (SK하이닉스 · XRP) ───────────
   function renderIntraday(id) {
