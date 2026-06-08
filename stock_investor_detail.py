@@ -77,6 +77,8 @@ TARGET_STOCKS = [
      "context": "AI/메신저"},
     {"ticker": "277810", "name": "레인보우로보틱스", "category": "로봇",
      "context": "휴머노이드 로봇 대장주 (삼성전자 인수)"},
+    {"ticker": "047810", "name": "한국항공우주", "category": "우주항공",
+     "context": "우주항공 대장주 (KAI·KF-21·누리호 발사체·위성)"},
 ]
 
 
