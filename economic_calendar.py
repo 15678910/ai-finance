@@ -340,6 +340,18 @@ NASDAQ_INDICATORS = [
     {"key": "FOMC",   "names": ["fed interest rate decision", "federal funds rate", "fed press conference"],
      "title": "미국 FOMC 금리결정", "impact": "HIGH", "tags": ["Fed", "FOMC", "금리"],
      "analysis": "🏦 연준 기준금리 결정·점도표·기자회견. 시장 최대 이벤트 — 금리 경로와 위험자산 방향 결정."},
+    {"key": "UMICH",  "names": ["michigan consumer sentiment"],
+     "title": "미국 소비자심리(미시간)", "impact": "MEDIUM", "tags": ["심리", "소비심리", "인플레기대"],
+     "analysis": "🛍️ 소비심리 + 기대인플레이션. 기대인플레 상승 시 Fed 매파 우려·금리↑. 미시간大 예비치."},
+    {"key": "AUC3",   "names": ["3-year note auction"], "category": "국채입찰",
+     "title": "미국 3년물 국채입찰", "impact": "LOW", "tags": ["국채", "금리", "입찰"],
+     "analysis": "🏦 단기물 수요 확인. 응찰률(bid-to-cover) 약하면 단기금리↑·위험자산 부담. Fed 정책기대 반영."},
+    {"key": "AUC10",  "names": ["10-year note auction"], "category": "국채입찰",
+     "title": "미국 10년물 국채입찰", "impact": "MEDIUM", "tags": ["국채", "금리", "입찰"],
+     "analysis": "🏦 벤치마크 10년물 수요. 약한 입찰 → 장기금리↑ → 성장주·나스닥 부담."},
+    {"key": "AUC30",  "names": ["30-year bond auction"], "category": "국채입찰",
+     "title": "미국 30년물 국채입찰", "impact": "MEDIUM", "tags": ["국채", "금리", "입찰"],
+     "analysis": "🏦 초장기물. 약한 입찰 → 장기금리 급등 → 성장주 직격·재정적자 우려(bond vigilante)."},
 ]
 
 
@@ -383,7 +395,7 @@ def fetch_nasdaq_calendar(days_back: int = 10, days_ahead: int = 50) -> list:
             ev = {
                 "date": ds,
                 "time": f"{gmt} ET" if gmt else "08:30 ET",
-                "title": ind["title"], "category": "경제지표", "impact": ind["impact"],
+                "title": ind["title"], "category": ind.get("category", "경제지표"), "impact": ind["impact"],
                 "region": "🇺🇸", "tags": ind["tags"][:],
                 "impact_analysis": ind["analysis"],
                 "detail": "Nasdaq 경제캘린더 자동수집. 컨센서스 대비 서프라이즈 시 변동성 확대.",
@@ -401,6 +413,90 @@ def fetch_nasdaq_calendar(days_back: int = 10, days_ahead: int = 50) -> list:
             events.append(ev)
         _time.sleep(0.12)
     print(f"  [Nasdaq] {ok_days}일 조회, {len(events)}개 미국 지표 이벤트 수집")
+    return events
+
+
+# ── 주요 실적 발표 (Nasdaq earnings, AI·반도체 워치리스트) ─────────────
+EARNINGS_WATCH = {
+    "ORCL": ("오라클",   "HIGH",   "☁️ AI 클라우드(OCI)·RPO(잔여수주) 가이던스 = AI 데이터센터 수요 바로미터. 강하면 엔비디아·SK하이닉스 HBM 동반 강세."),
+    "TSM":  ("TSMC",     "HIGH",   "🏭 파운드리 1위. AI칩 수요·가이던스 → SOX·삼성전자·SK하이닉스 직결."),
+    "NVDA": ("엔비디아",  "HIGH",   "🚀 AI 가속기 대장. 데이터센터 매출·가이던스가 전체 AI 테마 좌우."),
+    "AVGO": ("브로드컴",  "HIGH",   "🔌 커스텀 AI칩·네트워킹. 하이퍼스케일러 수요 지표."),
+    "MU":   ("마이크론",  "MEDIUM", "💾 HBM·D램. AI 메모리 사이클 — 삼성·SK하이닉스 동조."),
+    "AMD":  ("AMD",      "MEDIUM", "⚙️ MI 가속기·CPU. 엔비디아 대항 점유율."),
+    "ADBE": ("어도비",    "MEDIUM", "🎨 크리에이티브 SaaS·AI(Firefly) 수익화."),
+}
+
+
+def fetch_nasdaq_earnings(start: str, end: str) -> list:
+    """Nasdaq earnings 캘린더에서 워치리스트 종목 실적일 수집 (무료·키 불필요)."""
+    events = []
+    d = date.fromisoformat(start)
+    end_d = date.fromisoformat(end)
+    cnt = 0
+    while d <= end_d:
+        if d.weekday() < 5:
+            try:
+                url = f"https://api.nasdaq.com/api/calendar/earnings?date={d.isoformat()}"
+                req = urllib.request.Request(url, headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; ai-finance/1.0)", "Accept": "application/json"})
+                with urllib.request.urlopen(req, timeout=12) as r:
+                    rows = (json.loads(r.read()).get("data") or {}).get("rows") or []
+                for row in rows:
+                    sym = row.get("symbol")
+                    if sym in EARNINGS_WATCH:
+                        name, impact, analysis = EARNINGS_WATCH[sym]
+                        when = (row.get("time") or "")
+                        tlabel = "장마감 후" if "after" in when else "장전" if "before" in when else ""
+                        eps = _clean_cell(row.get("epsForecast"))
+                        events.append({
+                            "date": d.isoformat(), "time": "",
+                            "title": f"{name} 실적발표", "category": "실적", "impact": impact,
+                            "region": "🇺🇸", "tags": ["실적", sym, "AI"],
+                            "impact_analysis": analysis,
+                            "detail": f"{sym} 분기 실적{(' (' + tlabel + ')') if tlabel else ''}." + (f" EPS 컨센 {eps}." if eps else ""),
+                            "consensus": (f"EPS {eps}" if eps else None),
+                            "source": "Nasdaq",
+                        })
+                        cnt += 1
+                _time.sleep(0.12)
+            except Exception:
+                pass
+        d += timedelta(days=1)
+    print(f"  [실적] 워치리스트 {cnt}건 수집")
+    return events
+
+
+# ── 한국 파생 만기·지수 정기변경 (규칙 기반 자동생성) ─────────────────
+def korean_derivative_events(start: str, end: str) -> list:
+    """분기(3·6·9·12월) 둘째 목요일 = 동시만기 + (6·12월) 지수 정기변경."""
+    events = []
+    today = date.today()
+    for year in (today.year, today.year + 1):
+        for month in (3, 6, 9, 12):
+            first = date(year, month, 1)
+            offset = (3 - first.weekday()) % 7  # 목요일=3
+            second_thu = first + timedelta(days=offset + 7)
+            ds = second_thu.isoformat()
+            if not (start <= ds <= end):
+                continue
+            events.append({
+                "date": ds, "time": "15:20 KST",
+                "title": "한국 선물·옵션 동시만기 (네 마녀의 날)", "category": "파생만기", "impact": "HIGH",
+                "region": "🇰🇷", "tags": ["만기", "파생", "수급", "변동성"],
+                "impact_analysis": "🎭 분기 동시만기 → 프로그램 매물·수급 왜곡·변동성 급증. 외국인 선물청산 시 현물 충격. 만기 당일 장마감 동시호가(15:20~) 주의.",
+                "detail": "주가지수·개별주식 선물/옵션 동시 만기 (분기 둘째 목요일).",
+                "source": "규칙생성",
+            })
+            if month in (6, 12):
+                events.append({
+                    "date": ds, "time": "",
+                    "title": "코스피200·코스닥150 정기변경", "category": "파생만기", "impact": "MEDIUM",
+                    "region": "🇰🇷", "tags": ["리밸런싱", "패시브", "수급"],
+                    "impact_analysis": "📊 지수 편입/편출 → 패시브 펀드 기계적 매매(편입 매수·편출 매도). 동시만기일과 겹쳐 수급 변동 증폭.",
+                    "detail": "한국거래소 반기 정기변경 적용일(둘째 목요일).",
+                    "source": "규칙생성",
+                })
     return events
 
 
@@ -575,12 +671,25 @@ def main():
     all_events.extend(cb_upcoming)
     print(f"[중앙은행] {len(cb_upcoming)}개 일정 로드")
 
-    # 미국 경제지표 발표일 (Nasdaq 캘린더 자동 수집 — 무료·키 불필요)
-    print("[Nasdaq] 미국 경제지표 발표일 자동 수집 중...")
+    # 미국 경제지표·국채입찰 (Nasdaq 캘린더 자동 수집 — 무료·키 불필요)
+    print("[Nasdaq] 미국 경제지표·국채입찰 자동 수집 중...")
     nasdaq_events = fetch_nasdaq_calendar(days_back=10, days_ahead=50)
     nasdaq_win = filter_window(nasdaq_events)
     all_events.extend(nasdaq_win)
-    print(f"[Nasdaq] {len(nasdaq_win)}개 경제지표 발표일 (윈도우 내)")
+    print(f"[Nasdaq] {len(nasdaq_win)}개 경제지표·입찰 (윈도우 내)")
+
+    # 주요 실적 (Nasdaq earnings — AI·반도체 워치리스트, 향후 28일)
+    print("[실적] 주요 종목 실적일 수집 중...")
+    earn_start = today.strftime("%Y-%m-%d")
+    earn_end = (today + timedelta(days=28)).strftime("%Y-%m-%d")
+    earnings_events = fetch_nasdaq_earnings(earn_start, earn_end)
+    all_events.extend(filter_window(earnings_events))
+
+    # 한국 파생 만기·지수 정기변경 (규칙 생성)
+    past_str = (today - timedelta(days=14)).strftime("%Y-%m-%d")
+    kr_deriv = filter_window(korean_derivative_events(past_str, end_str))
+    all_events.extend(kr_deriv)
+    print(f"[한국 파생] {len(kr_deriv)}개 만기·리밸런싱 (윈도우 내)")
 
     # 수동 큐레이션 (IPO/지정학)
     curated = filter_upcoming(CURATED_EVENTS)
