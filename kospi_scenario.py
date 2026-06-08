@@ -46,9 +46,12 @@ def main():
         print("[ERROR] 데이터 부족")
         return 1
 
-    now = {c: round(float(px[c].iloc[-1]), 2) for c in px.columns}
-    asof = px.index[-1].strftime("%Y-%m-%d")
-    print(f"기준일 {asof} | 현재가: {now}")
+    # 현재가는 각 지수의 '개별 최신 종가' (정렬 dropna는 미국 미마감 시 KOSPI 최신값을 버림)
+    close_raw = raw["Close"].rename(columns={"^KS11": "KOSPI", "^SOX": "SOX", "^NDX": "NDX"})
+    now = {c: round(float(close_raw[c].dropna().iloc[-1]), 2) for c in px.columns}
+    kospi_asof = close_raw["KOSPI"].dropna().index[-1].strftime("%Y-%m-%d")
+    asof = kospi_asof  # KOSPI 기준일 표시 (베타는 정렬 데이터로 계산)
+    print(f"기준일(KOSPI) {asof} | 현재가: {now}")
 
     # 주간 리샘플 + 로그수익률
     wk = px.resample("W-FRI").last().dropna()

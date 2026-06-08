@@ -154,10 +154,11 @@ def main():
     # 주식·지수
     tickers = [x["ticker"] for x in INDICES]
     raw = yf.download(tickers, period="5y", interval="1d", progress=False, auto_adjust=True)
-    px = raw["Close"].dropna()
-    asof = px.index[-1].strftime("%Y-%m-%d")
+    # 각 지수는 개별 시계열 사용 (정렬 dropna는 미국 미마감 시 KOSPI 최신값을 버림)
+    px = raw["Close"]
+    asof = px["^KS11"].dropna().index[-1].strftime("%Y-%m-%d") if "^KS11" in px.columns else px.dropna().index[-1].strftime("%Y-%m-%d")
     print("\n[주식·지수]")
-    results = [e for e in (analyze(px[idx["ticker"]], idx) for idx in INDICES) if e]
+    results = [e for e in (analyze(px[idx["ticker"]].dropna(), idx) for idx in INDICES) if e]
 
     # 암호화폐 (24시간·주말 포함 → 별도 다운로드)
     print("\n[암호화폐]")
