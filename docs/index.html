@@ -8270,9 +8270,16 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderKospiScenario(sc) {
     if (!sc || !sc.current || !sc.beta) return;
     const cur = sc.current, b = sc.beta;
-    const kNow = cur.KOSPI, soxxNow = cur.SOXX, qqqNow = cur.QQQ;
+    const kNow = cur.KOSPI;
+    // 지수(SOX/NDX) 기준 표시 — 화면 가격과 일치 (ETF와 % 동일, 예측 동일)
+    const soxxNow = cur.SOX || cur.SOXX, qqqNow = cur.NDX || cur.QQQ;
     const tailMul = sc.tail_multiplier || 1.8;
-    const dft = sc.default_targets || { soxx: 460, qqq: 650 };
+    const dftEtf = sc.default_targets || { soxx: 460, qqq: 650 };
+    // ETF 기본목표(460/650)를 지수 등가로 환산 (같은 % 하락폭 유지)
+    const dft = {
+      soxx: (cur.SOX && cur.SOXX) ? Math.round(cur.SOX * dftEtf.soxx / cur.SOXX / 10) * 10 : dftEtf.soxx,
+      qqq:  (cur.NDX && cur.QQQ)  ? Math.round(cur.NDX * dftEtf.qqq  / cur.QQQ  / 10) * 10 : dftEtf.qqq,
+    };
     if (!kNow || !soxxNow || !qqqNow) return;
 
     const fmtN = n => Math.round(n).toLocaleString();
@@ -8289,21 +8296,21 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
           <div>
             <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#22d3ee;margin-bottom:4px;">
-              <span>📉 SOXX ETF (필라델피아 반도체 추종)</span>
+              <span>📉 필라델피아 반도체 (SOX 지수)</span>
               <span id="ksc-sox-val" style="font-family:var(--font-mono);"></span>
             </div>
-            <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="1" value="${dft.soxx}"
+            <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="10" value="${dft.soxx}"
               style="width:100%;accent-color:#22d3ee;cursor:pointer;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">ETF 현재 ${soxxNow}${cur.SOX?` (SOX지수 ${Math.round(cur.SOX).toLocaleString()})`:''} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(soxxNow)} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#a78bfa;margin-bottom:4px;">
-              <span>📉 QQQ ETF (나스닥100 추종)</span>
+              <span>📉 나스닥100 (NDX 지수)</span>
               <span id="ksc-qqq-val" style="font-family:var(--font-mono);"></span>
             </div>
-            <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="1" value="${dft.qqq}"
+            <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="10" value="${dft.qqq}"
               style="width:100%;accent-color:#a78bfa;cursor:pointer;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">ETF 현재 ${qqqNow}${cur.NDX?` (NDX지수 ${Math.round(cur.NDX).toLocaleString()})`:''} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(qqqNow)} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
           </div>
         </div>
         <div id="ksc-result"></div>
@@ -8349,8 +8356,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const cPct = (kCentral / kNow - 1) * 100, tPct = (kTail / kNow - 1) * 100;
       const cColor = cPct >= 0 ? '#4ade80' : cPct >= -8 ? '#fbbf24' : '#f87171';
 
-      elSoxV.textContent = `${sT} (${soxPct >= 0 ? '+' : ''}${soxPct.toFixed(1)}%)`;
-      elQqqV.textContent = `${qT} (${qqqPct >= 0 ? '+' : ''}${qqqPct.toFixed(1)}%)`;
+      elSoxV.textContent = `${sT.toLocaleString()} (${soxPct >= 0 ? '+' : ''}${soxPct.toFixed(1)}%)`;
+      elQqqV.textContent = `${qT.toLocaleString()} (${qqqPct >= 0 ? '+' : ''}${qqqPct.toFixed(1)}%)`;
       elSoxV.style.color = soxPct < 0 ? '#f87171' : '#4ade80';
       elQqqV.style.color = qqqPct < 0 ? '#f87171' : '#4ade80';
 
