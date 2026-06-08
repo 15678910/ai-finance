@@ -1,29 +1,74 @@
 """
 주요 이벤트 캘린더 — 텔레그램 알람
 ==================================
-매일 아침(KST) 오늘·내일의 HIGH/MEDIUM 경제 일정을 텔레그램으로 발송.
-- docs/economic_calendar.json 읽음
-- 하루 1회 다이제스트 (중복 방지: 날짜 키)
+① 아침 다이제스트 (KST 07:00 실행분): 오늘 HIGH 일정 요약
+② 임박 알람: HIGH 이벤트 발표 ~1시간 전 (시간별 실행, 이벤트당 1회)
+- docs/economic_calendar.json 읽음, 상태는 docs/calendar_alert_state.json (영속)
 - 봇: TELEGRAM_FINANCE_BOT_TOKEN / CHAT_ID (환경변수)
 """
 
 import json
 import os
+import re
 import sys
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CAL_FILE = os.path.join(BASE_DIR, "docs", "economic_calendar.json")
+STATE_FILE = os.path.join(BASE_DIR, "docs", "calendar_alert_state.json")
 
 sys.path.insert(0, BASE_DIR)
-from core import send_message, load_state, save_state, is_recent_alert, mark_alert_sent  # noqa: E402
+from core import send_message  # noqa: E402
 
-IMPACT_EMOJI = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}
 CAT_EMOJI = {
     "경제지표": "📊", "중앙은행": "🏦", "국채입찰": "🏦", "실적": "📈",
     "파생만기": "🎭", "IPO": "🚀", "지정학": "🌍", "VIP방한": "✈️", "FX/금리": "💱",
 }
+IMMINENT_MIN = 75  # 이 분 이내면 '임박'으로 발송
+
+
+def _load_state():
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"sent": {}}
+
+
+def _save_state(state):
+    try:
+        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] 상태 저장 실패: {e}")
+
+
+def _event_dt(ev):
+    """이벤트 발표 시각 → KST datetime (시간 없으면 None)."""
+    d = ev.get("date", "")
+    m = re.search(r"(\d{1,2}):(\d{2})", ev.get("time", "") or "")
+    if not d or not m:
+        return None
+    hh, mm = m.group(1).zfill(2), m.group(2)
+    tz = "-04:00" if re.search(r"ET|EST|EDT", ev.get("time", ""), re.I) else "+09:00"
+    try:
+        dt = datetime.fromisoformat(f"{d}T{hh}:{mm}:00{tz}")
+        return dt.astimezone(KST)
+    except Exception:
+        return None
+
+
+def _fmt_event(ev, with_emoji=True):
+    ce = CAT_EMOJI.get(ev.get("category"), "•") if with_emoji else ""
+    extra = []
+    if ev.get("time"):
+        extra.append(ev["time"])
+    if ev.get("consensus"):
+        extra.append(f"컨센 {ev['consensus']}")
+    suf = f" ({' · '.join(extra)})" if extra else ""
+    return f"🔴{ce} {ev.get('title','')}{suf}"
 
 
 def main():
@@ -34,8 +79,7 @@ def main():
             pass
 
     now = datetime.now(KST)
-    today = now.date()
-    tomorrow = today + timedelta(days=1)
+    today = now.date().isoformat()
     print(f"[캘린더 알람] {now:%Y-%m-%d %H:%M} KST")
 
     try:
@@ -45,69 +89,61 @@ def main():
         print(f"[ERROR] 캘린더 로드 실패: {e}")
         return 1
 
-    # 오늘·내일, HIGH/MEDIUM 이벤트
-    targets = []
-    for ev in cal.get("events", []):
-        d = ev.get("date", "")
-        if d not in (today.isoformat(), tomorrow.isoformat()):
+    # 오늘 HIGH (발표완료 제외)
+    high_today = [e for e in cal.get("events", [])
+                  if e.get("date") == today and e.get("impact") == "HIGH"
+                  and e.get("status") != "released"]
+
+    state = _load_state()
+    sent = state.setdefault("sent", {})
+    changed = False
+
+    # ── ① 아침 다이제스트 (07시 실행분) ──
+    if now.hour == 7:
+        dkey = f"digest:{today}"
+        if dkey not in sent and high_today:
+            ordered = sorted(high_today, key=lambda e: (e.get("time", "")))
+            lines = [f"☀️ 오늘({now.month}/{now.day}) 주요 일정 (HIGH)", ""]
+            lines += [f"  {_fmt_event(e)}" for e in ordered]
+            lines += ["", "📊 실시간 카운트다운: 대시보드 캘린더", "⚠️ 시뮬레이션·분석용."]
+            if send_message("\n".join(lines)):
+                sent[dkey] = now.isoformat()
+                changed = True
+                print(f"[OK] 아침 다이제스트 발송 ({len(ordered)}건)")
+            else:
+                print("[WARN] 다이제스트 발송 실패")
+
+    # ── ② 임박 알람 (발표 ~1시간 전) ──
+    for e in high_today:
+        dt = _event_dt(e)
+        if not dt:
             continue
-        if ev.get("impact") not in ("HIGH", "MEDIUM"):
-            continue
-        if ev.get("status") == "released":
-            continue
-        targets.append(ev)
+        mins = (dt - now).total_seconds() / 60
+        if 0 < mins <= IMMINENT_MIN:
+            ikey = f"imminent:{today}:{e.get('title','')}"
+            if ikey in sent:
+                continue
+            lines = [f"⏰ {int(round(mins))}분 후 발표 임박!", "", _fmt_event(e)]
+            if e.get("impact_analysis"):
+                lines += ["", e["impact_analysis"][:300]]
+            lines += ["", "⚠️ 시뮬레이션·분석용."]
+            if send_message("\n".join(lines)):
+                sent[ikey] = now.isoformat()
+                changed = True
+                print(f"[OK] 임박 알람 발송: {e.get('title')} ({int(mins)}분 전)")
+            else:
+                print(f"[WARN] 임박 알람 발송 실패: {e.get('title')}")
 
-    if not targets:
-        print("발송할 오늘·내일 HIGH/MEDIUM 일정 없음")
-        return 0
+    # 오래된 상태 정리 (7일 경과)
+    cutoff = (now - timedelta(days=7)).isoformat()
+    for k in [k for k, v in sent.items() if v < cutoff]:
+        del sent[k]
+        changed = True
 
-    # 중복 방지 — 하루 1회
-    state = load_state("calendar_alert", {})
-    digest_key = f"digest:{today.isoformat()}"
-    if is_recent_alert(state, digest_key, hours=18):
-        print("오늘 이미 발송함 — 스킵")
-        return 0
-
-    targets.sort(key=lambda e: (e.get("date", ""), e.get("time", "")))
-
-    def fmt_day(d):
-        return "🗓️ 오늘" if d == today.isoformat() else "🌅 내일"
-
-    lines = [f"📅 주요 경제 일정 알림 ({today.month}/{today.day} 기준)", ""]
-    cur_day = None
-    for ev in targets:
-        d = ev.get("date", "")
-        if d != cur_day:
-            cur_day = d
-            md = d[5:].replace("-", "/")
-            lines.append(f"{fmt_day(d)} ({md})")
-        ie = IMPACT_EMOJI.get(ev.get("impact"), "")
-        ce = CAT_EMOJI.get(ev.get("category"), "•")
-        tm = ev.get("time", "")
-        cons = ev.get("consensus", "")
-        title = ev.get("title", "")
-        extra = []
-        if tm:
-            extra.append(tm)
-        if cons:
-            extra.append(f"컨센 {cons}")
-        suffix = f" ({' · '.join(extra)})" if extra else ""
-        lines.append(f"  {ie}{ce} {title}{suffix}")
-    lines.append("")
-    lines.append("📊 상세·실시간 카운트다운: 대시보드 캘린더 참고")
-    lines.append("⚠️ 시뮬레이션·분석용. 투자 결정 단독 사용 금지.")
-
-    text = "\n".join(lines)
-    print("--- 발송 내용 ---")
-    print(text)
-
-    ok = send_message(text)
-    if ok:
-        state = mark_alert_sent(state, digest_key)
-        save_state("calendar_alert", state)
-        print(f"\n[OK] 텔레그램 발송 완료 ({len(targets)}건)")
+    if changed:
+        _save_state(state)
     else:
-        print("\n[WARN] 텔레그램 발송 실패 (토큰/chat_id 확인)")
+        print("발송할 알람 없음")
     return 0
 
 

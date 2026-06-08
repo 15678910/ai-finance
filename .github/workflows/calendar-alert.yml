@@ -2,14 +2,16 @@ name: Calendar Alert
 
 on:
   schedule:
-    # 매일 아침 KST 08:00 (오늘·내일 주요 일정 다이제스트)
-    - cron: '0 23 * * *'   # UTC 23:00 = KST 08:00
-    # 평일 저녁 KST 20:00 (다음날 일정 미리보기)
-    - cron: '0 11 * * 0-4' # UTC 11:00 = KST 20:00 (일~목 → 월~금 대비)
+    # 30분 간격 — 07시 아침 다이제스트 + HIGH 이벤트 발표 ~1시간 전 임박 알람
+    - cron: '0,30 * * * *'
   workflow_dispatch:
 
+concurrency:
+  group: calendar-alert
+  cancel-in-progress: false
+
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   alert:
@@ -33,3 +35,20 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: |
           python calendar_alert.py
+
+      - name: Commit alert state
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add docs/calendar_alert_state.json 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No state change"
+            exit 0
+          fi
+          git commit -m "Update calendar alert state [automated]"
+          for i in 1 2 3; do
+            git push 2>/dev/null && exit 0
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep 2
+          done
