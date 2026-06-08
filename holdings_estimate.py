@@ -31,6 +31,24 @@ SECTOR = {
 TARGETS = list(SECTOR.keys())
 
 
+def _foreign_streak(rows_desc):
+    """최신순 rows → 외인 연속 같은 방향(매수/매도) 일수. (days, 'buy'/'sell')."""
+    if not rows_desc:
+        return (None, None)
+    first = rows_desc[0].get("foreign_net_shares", 0) or 0
+    if first == 0:
+        return (0, None)
+    direction = "buy" if first > 0 else "sell"
+    days = 0
+    for r in rows_desc:
+        n = r.get("foreign_net_shares", 0) or 0
+        if (n > 0 and direction == "buy") or (n < 0 and direction == "sell"):
+            days += 1
+        else:
+            break
+    return (days, direction)
+
+
 def _weighted_avg(rows, net_key, close_key="close"):
     """순매수일(net>0)만 가중평균단가 + 순매수일수 + 누적순매수."""
     num = den = 0.0
@@ -92,10 +110,12 @@ def main():
             continue
 
         WIN = 20  # 최근 20거래일(~1개월) 순매수 기준 — 현재 평가손익에 적합
+        rows_desc = None  # 최신순 전체 (외인 연속·5일변화 계산용)
         # 60일 데이터 우선 (개인 순매수 직접 추정값 보유)
         if s60 and s60.get("rows"):
             asc = s60["rows"] if s60["rows"][0].get("date", "") < s60["rows"][-1].get("date", "") else list(reversed(s60["rows"]))
             rows = asc[-WIN:]  # 최근 WIN일
+            rows_desc = list(reversed(asc))  # 최신순 전체
             avg, buy_days, cum = _weighted_avg(rows, "individual_net_shares_est")
             src = f"최근{len(rows)}일"
             last = rows[-1]
@@ -119,8 +139,20 @@ def main():
         if fpct is None and sf:
             fpct = sf.get("foreign_holding_pct_now")
         pnl = round((cur / avg - 1) * 100, 1) if (avg and cur) else None
-        f5d = sf.get("foreign_holding_pct_5d_change") if sf else None
-        streak = (sf.get("foreign_streak_days"), sf.get("foreign_streak_direction")) if sf else (None, None)
+
+        # 외인 연속 매수/매도일 + 5일 보유율 변화
+        if sf:
+            f5d = sf.get("foreign_holding_pct_5d_change")
+            streak = (sf.get("foreign_streak_days"), sf.get("foreign_streak_direction"))
+        elif rows_desc:  # 60일 전용 종목 → 직접 계산
+            streak = _foreign_streak(rows_desc)
+            if len(rows_desc) >= 6 and rows_desc[0].get("foreign_holding_pct") is not None \
+               and rows_desc[5].get("foreign_holding_pct") is not None:
+                f5d = round(rows_desc[0]["foreign_holding_pct"] - rows_desc[5]["foreign_holding_pct"], 2)
+            else:
+                f5d = None
+        else:
+            f5d, streak = None, (None, None)
 
         entry = {
             "ticker": tk, "name": name, "sector": SECTOR.get(tk, ""),
