@@ -58,6 +58,18 @@ def main():
     with open(DATA_FILE, encoding="utf-8") as f:
         data = json.load(f)
 
+    # 현재가: yfinance 실시간 (60일/플로 데이터는 stale일 수 있음)
+    def live_price(tk):
+        try:
+            import yfinance as yf
+            for suf in (".KS", ".KQ"):
+                p = getattr(yf.Ticker(tk + suf).fast_info, "last_price", None)
+                if p:
+                    return round(float(p))
+        except Exception:
+            pass
+        return None
+
     # 60일 소스 (stock_investor_details) — individual_net_shares_est 보유
     sid = {s["ticker"]: s for s in (data.get("stock_investor_details", {}) or {}).get("stocks", [])}
     # 10일 소스 (investor_flow) — 전 종목, 개인 ≈ -(외인+기관)
@@ -92,7 +104,8 @@ def main():
         else:
             continue
 
-        cur = last.get("close")
+        # 현재가: yfinance 실시간 우선, 실패 시 가장 신선한 embedded close
+        cur = live_price(tk) or (sf or {}).get("latest_close") or last.get("close")
         fpct = last.get("foreign_holding_pct")
         fsh = last.get("foreign_holding_shares")
         if fpct is None and sf:
