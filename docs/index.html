@@ -8382,10 +8382,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // 종합 stress 중앙값
       const blended = 0.5 * (b.sox_stress * dSox + b.ndx_stress * dQqq);
       const kCentral = kNow * Math.exp(blended);
-      // 정상 밴드 / 패닉 꼬리
+      // 정상 밴드 / 꼬리(β×1.8 오버슈팅) — 하락이면 패닉(아래), 상승이면 강세오버슈팅(위)
       const lo = Math.min(kSox, kQqq, kCentral), hi = Math.max(kSox, kQqq, kCentral);
       const kTail = kNow * Math.exp(tailMul * blended);
       const cPct = (kCentral / kNow - 1) * 100, tPct = (kTail / kNow - 1) * 100;
+      const tailUp = blended >= 0;
+      const tailLabel = tailUp ? `강세 오버슈팅 (β×${tailMul})` : `패닉 꼬리위험 (β×${tailMul})`;
+      const tailCol = tailUp ? '#22c55e' : '#f87171';
+      const tailBg = tailUp ? 'rgba(34,197,94,0.06)' : 'rgba(248,113,113,0.06)';
       const cColor = cPct >= 0 ? '#4ade80' : cPct >= -8 ? '#fbbf24' : '#f87171';
 
       elSoxV.textContent = `${sT.toLocaleString()} (${soxPct >= 0 ? '+' : ''}${soxPct.toFixed(1)}%)`;
@@ -8404,9 +8408,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <div style="font-size:0.6rem;color:var(--text-muted);">정상 밴드</div>
             <div style="font-size:0.95rem;font-weight:700;font-family:var(--font-mono);color:#fbbf24;">${fmtN(lo)} ~ ${fmtN(hi)}</div>
           </div>
-          <div style="text-align:center;padding:8px;background:rgba(248,113,113,0.06);border-radius:8px;">
-            <div style="font-size:0.6rem;color:var(--text-muted);">패닉 꼬리위험 (β×${tailMul})</div>
-            <div style="font-size:0.95rem;font-weight:700;font-family:var(--font-mono);color:#f87171;">${fmtN(kTail)} <span style="font-size:0.62rem;">(${tPct.toFixed(1)}%)</span></div>
+          <div style="text-align:center;padding:8px;background:${tailBg};border-radius:8px;">
+            <div style="font-size:0.6rem;color:var(--text-muted);">${tailLabel}</div>
+            <div style="font-size:0.95rem;font-weight:700;font-family:var(--font-mono);color:${tailCol};">${fmtN(kTail)} <span style="font-size:0.62rem;">(${tPct >= 0 ? '+' : ''}${tPct.toFixed(1)}%)</span></div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-around;margin-top:10px;font-size:0.62rem;color:var(--text-muted);">
