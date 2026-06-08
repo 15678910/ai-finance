@@ -8292,7 +8292,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const soxChg = sc.change_pct ? sc.change_pct.SOX : null;
     const ndxChg = sc.change_pct ? sc.change_pct.NDX : null;
     if (soxChg != null && ndxChg != null) {
-      const aBl = b.sox_weekly * Math.log(1 + soxChg/100) + b.ndx_weekly * Math.log(1 + ndxChg/100);
+      // 하단 중심값과 동일 공식(0.5×stress β 블렌드 — 상관 이중계산 방지)
+      const aBl = 0.5 * (b.sox_stress * Math.log(1 + soxChg/100) + b.ndx_stress * Math.log(1 + ndxChg/100));
       const kAuto = kNow * Math.exp(aBl);
       const aPct = (Math.exp(aBl) - 1) * 100;
       const aCol = aPct >= 0 ? '#22c55e' : '#f87171';
@@ -8317,7 +8318,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">기준일 ${h(sc.asof||'')}</span>
       </div>
       <div class="glass-card" style="padding:6px 14px;margin-bottom:10px;background:rgba(52,211,153,0.06);border-left:3px solid #34d399;">
-        <div style="font-size:0.6rem;color:var(--text);">💡 <b>예보가 아니라 '만약' 계산기</b>입니다. 슬라이더를 <b style="color:#f87171;">내리면(하락 가정)</b> KOSPI 하락 예측, <b style="color:#22c55e;">올리면(상승)</b> 상승 예측. 기본값은 현재가(변화 0).</div>
+        <div style="font-size:0.6rem;color:var(--text);">💡 <b>오늘 미국 변화가 기본 반영</b>됩니다(슬라이더=전일 대비). 더 <b style="color:#f87171;">내리면</b> 추가 하락, 더 <b style="color:#22c55e;">올리면</b> 추가 상승 가정. 예상 KOSPI는 미국 움직임의 다음날 캐치업 기대값.</div>
       </div>
       ${autoBlock}
       <div class="glass-card" style="padding:16px 18px;">
@@ -8368,10 +8369,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const elRes = document.getElementById('ksc-result');
     if (!elSox || !elRes) return;
 
+    // 슬라이더 기준점 = 전일 종가 → 오늘 미국 변화가 기본 반영(현재값 슬라이더 = 오늘 변화%)
+    const soxBase = (soxChg != null && soxChg !== 0) ? soxxNow / (1 + soxChg/100) : soxxNow;
+    const ndxBase = (ndxChg != null && ndxChg !== 0) ? qqqNow / (1 + ndxChg/100) : qqqNow;
     function compute() {
       const sT = +elSox.value, qT = +elQqq.value;
-      const dSox = Math.log(sT / soxxNow), dQqq = Math.log(qT / qqqNow);
-      const soxPct = (sT / soxxNow - 1) * 100, qqqPct = (qT / qqqNow - 1) * 100;
+      const dSox = Math.log(sT / soxBase), dQqq = Math.log(qT / ndxBase);
+      const soxPct = (sT / soxBase - 1) * 100, qqqPct = (qT / ndxBase - 1) * 100;
       // 단일 요인
       const kSox = kNow * Math.exp(b.sox_weekly * dSox);
       const kQqq = kNow * Math.exp(b.ndx_weekly * dQqq);
