@@ -20,9 +20,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "docs", "data.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "holdings_estimate.json")
 
-# 주요 종목 (반도체·테크·유통)
-TARGETS = ["005930", "000660", "066570", "005380", "042700",
-           "035420", "035720", "139480", "004170", "023530"]
+# 분야별 대장주 1종목씩 (티커 → 분야 라벨)
+SECTOR = {
+    "005930": "반도체",      "000660": "메모리·HBM",  "042700": "반도체 장비",
+    "005380": "자동차",      "066570": "전자·가전",   "373220": "2차전지",
+    "207940": "바이오",      "012450": "방산",        "009540": "조선",
+    "034020": "원전·전력",   "105560": "금융",        "005490": "철강",
+}
+TARGETS = list(SECTOR.keys())
 
 
 def _weighted_avg(rows, net_key, close_key="close"):
@@ -115,7 +120,7 @@ def main():
         streak = (sf.get("foreign_streak_days"), sf.get("foreign_streak_direction")) if sf else (None, None)
 
         entry = {
-            "ticker": tk, "name": name,
+            "ticker": tk, "name": name, "sector": SECTOR.get(tk, ""),
             "current": cur,
             "foreign_pct": fpct,
             "foreign_shares": fsh,

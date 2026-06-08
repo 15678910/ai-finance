@@ -8570,7 +8570,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const streak = (s.foreign_streak_days && s.foreign_streak_dir)
         ? `<span style="font-size:0.54rem;color:${s.foreign_streak_dir==='sell'?'#f87171':'#22c55e'};">${s.foreign_streak_dir==='sell'?'🩸':'🟢'}${s.foreign_streak_days}일</span>` : '';
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;" onclick="openStockDetail('${h(s.ticker)}')">
-        <td style="padding:6px 8px;font-size:0.74rem;font-weight:600;color:var(--text-bright);">${h(s.name)}</td>
+        <td style="padding:6px 8px;">
+          ${s.sector?`<span style="font-size:0.52rem;color:#60a5fa;background:rgba(96,165,250,0.12);padding:0 5px;border-radius:6px;">${h(s.sector)}</span><br>`:''}
+          <span style="font-size:0.74rem;font-weight:600;color:var(--text-bright);">${h(s.name)}</span>
+        </td>
         <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);">
           <span style="font-size:0.76rem;font-weight:700;color:var(--text-bright);">${s.foreign_pct!=null?s.foreign_pct+'%':'—'}</span>
           ${f5!=null?`<span style="font-size:0.54rem;color:${f5c};"> ${f5>=0?'+':''}${f5}%p</span>`:''}<br>
