@@ -8289,8 +8289,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     const html = `<section class="section-wrap" id="kospi-scenario-section">
       <div class="section-label" style="color:#34d399;">🎯 KOSPI 시나리오 시뮬레이터
-        <span style="font-size:0.62rem;color:var(--text-muted);">(SOX·나스닥100 → KOSPI 실시간 베타 예측)</span>
+        <span style="font-size:0.62rem;color:var(--text-muted);">(가정 도구 — SOX·나스닥100이 변하면 KOSPI는?)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">기준일 ${h(sc.asof||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:6px 14px;margin-bottom:10px;background:rgba(52,211,153,0.06);border-left:3px solid #34d399;">
+        <div style="font-size:0.6rem;color:var(--text);">💡 <b>예보가 아니라 '만약' 계산기</b>입니다. 슬라이더를 <b style="color:#f87171;">내리면(하락 가정)</b> KOSPI 하락 예측, <b style="color:#22c55e;">올리면(상승)</b> 상승 예측. 기본값은 현재가(변화 0).</div>
       </div>
       <div class="glass-card" style="padding:16px 18px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
@@ -8299,7 +8302,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
               <span>📉 필라델피아 반도체 (SOX 지수)</span>
               <span id="ksc-sox-val" style="font-family:var(--font-mono);"></span>
             </div>
-            <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="10" value="${dft.soxx}"
+            <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="10" value="${Math.round(soxxNow/10)*10}"
               style="width:100%;accent-color:#22d3ee;cursor:pointer;">
             <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(soxxNow)} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
           </div>
@@ -8308,7 +8311,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
               <span>📉 나스닥100 (NDX 지수)</span>
               <span id="ksc-qqq-val" style="font-family:var(--font-mono);"></span>
             </div>
-            <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="10" value="${dft.qqq}"
+            <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="10" value="${Math.round(qqqNow/10)*10}"
               style="width:100%;accent-color:#a78bfa;cursor:pointer;">
             <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(qqqNow)} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
           </div>
