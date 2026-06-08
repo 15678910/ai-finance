@@ -75,6 +75,8 @@ TARGET_STOCKS = [
      "context": "AI/검색"},
     {"ticker": "035720", "name": "카카오",      "category": "IT/플랫폼",
      "context": "AI/메신저"},
+    {"ticker": "277810", "name": "레인보우로보틱스", "category": "로봇",
+     "context": "휴머노이드 로봇 대장주 (삼성전자 인수)"},
 ]
 
 
