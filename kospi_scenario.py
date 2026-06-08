@@ -21,6 +21,28 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "kospi_scenario.json")
 
 
+def naver_kospi_latest():
+    """네이버 일별시세 KOSPI 최신 (date, close) — yfinance ^KS11 stale 보정용."""
+    import urllib.request
+    import re
+    from datetime import date, timedelta
+    try:
+        end = date.today().strftime("%Y%m%d")
+        start = (date.today() - timedelta(days=12)).strftime("%Y%m%d")
+        url = (f"https://api.finance.naver.com/siseJson.naver?symbol=KOSPI"
+               f"&requestType=1&startTime={start}&endTime={end}&timeframe=day")
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"})
+        txt = urllib.request.urlopen(req, timeout=10).read().decode("utf-8")
+        rows = re.findall(r'\["(\d{8})",\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)', txt)
+        if rows:
+            d, c = rows[-1]
+            return f"{d[:4]}-{d[4:6]}-{d[6:]}", float(c)
+    except Exception as e:
+        print(f"  [WARN] 네이버 KOSPI 실패: {e}")
+    return None, None
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -50,6 +72,12 @@ def main():
     close_raw = raw["Close"].rename(columns={"^KS11": "KOSPI", "^SOX": "SOX", "^NDX": "NDX"})
     now = {c: round(float(close_raw[c].dropna().iloc[-1]), 2) for c in px.columns}
     kospi_asof = close_raw["KOSPI"].dropna().index[-1].strftime("%Y-%m-%d")
+    # KOSPI yfinance stale 보정 (네이버 최신 종가)
+    nk_date, nk_close = naver_kospi_latest()
+    if nk_close and nk_date > kospi_asof:
+        print(f"  [KOSPI 보정] yfinance {kospi_asof} → 네이버 {nk_date} {nk_close}")
+        now["KOSPI"] = round(nk_close, 2)
+        kospi_asof = nk_date
     asof = kospi_asof  # KOSPI 기준일 표시 (베타는 정렬 데이터로 계산)
     print(f"기준일(KOSPI) {asof} | 현재가: {now}")
 

@@ -42,6 +42,28 @@ CRYPTO = [
 DANGER_Z = 3.0  # 이번 붕괴 직전 고점대 (~+3σ)
 
 
+def naver_kospi_latest():
+    """네이버 일별시세에서 KOSPI 최신 (date, close) — yfinance ^KS11 stale 보정용."""
+    import urllib.request
+    import re
+    from datetime import date, timedelta
+    try:
+        end = date.today().strftime("%Y%m%d")
+        start = (date.today() - timedelta(days=12)).strftime("%Y%m%d")
+        url = (f"https://api.finance.naver.com/siseJson.naver?symbol=KOSPI"
+               f"&requestType=1&startTime={start}&endTime={end}&timeframe=day")
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"})
+        txt = urllib.request.urlopen(req, timeout=10).read().decode("utf-8")
+        rows = re.findall(r'\["(\d{8})",\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)', txt)
+        if rows:
+            d, c = rows[-1]
+            return f"{d[:4]}-{d[4:6]}-{d[6:]}", float(c)
+    except Exception as e:
+        print(f"  [WARN] 네이버 KOSPI 실패: {e}")
+    return None, None
+
+
 def classify(heat: float) -> tuple:
     if heat >= 85:
         return "극단(차익실현 위험)", "red"
@@ -156,9 +178,23 @@ def main():
     raw = yf.download(tickers, period="5y", interval="1d", progress=False, auto_adjust=True)
     # 각 지수는 개별 시계열 사용 (정렬 dropna는 미국 미마감 시 KOSPI 최신값을 버림)
     px = raw["Close"]
+    nk_date, nk_close = naver_kospi_latest()  # KOSPI yfinance stale 보정
+
+    def get_series(idx):
+        s = px[idx["ticker"]].dropna()
+        if idx["ticker"] == "^KS11" and nk_close and len(s):
+            last_d = s.index[-1].strftime("%Y-%m-%d")
+            if nk_date > last_d:
+                s = s.copy()
+                s.loc[pd.Timestamp(nk_date)] = nk_close
+                print(f"  [KOSPI 보정] yfinance {last_d} → 네이버 {nk_date} {nk_close}")
+        return s
+
     asof = px["^KS11"].dropna().index[-1].strftime("%Y-%m-%d") if "^KS11" in px.columns else px.dropna().index[-1].strftime("%Y-%m-%d")
+    if nk_date and nk_date > asof:
+        asof = nk_date
     print("\n[주식·지수]")
-    results = [e for e in (analyze(px[idx["ticker"]].dropna(), idx) for idx in INDICES) if e]
+    results = [e for e in (analyze(get_series(idx), idx) for idx in INDICES) if e]
 
     # 암호화폐 (24시간·주말 포함 → 별도 다운로드)
     print("\n[암호화폐]")
