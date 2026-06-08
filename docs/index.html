@@ -8289,21 +8289,21 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
           <div>
             <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#22d3ee;margin-bottom:4px;">
-              <span>📉 SOXX (필라델피아 반도체)</span>
+              <span>📉 SOXX ETF (필라델피아 반도체 추종)</span>
               <span id="ksc-sox-val" style="font-family:var(--font-mono);"></span>
             </div>
             <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="1" value="${dft.soxx}"
               style="width:100%;accent-color:#22d3ee;cursor:pointer;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${soxxNow} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">ETF 현재 ${soxxNow}${cur.SOX?` (SOX지수 ${Math.round(cur.SOX).toLocaleString()})`:''} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#a78bfa;margin-bottom:4px;">
-              <span>📉 QQQ (나스닥100)</span>
+              <span>📉 QQQ ETF (나스닥100 추종)</span>
               <span id="ksc-qqq-val" style="font-family:var(--font-mono);"></span>
             </div>
             <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="1" value="${dft.qqq}"
               style="width:100%;accent-color:#a78bfa;cursor:pointer;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${qqqNow} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">ETF 현재 ${qqqNow}${cur.NDX?` (NDX지수 ${Math.round(cur.NDX).toLocaleString()})`:''} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
           </div>
         </div>
         <div id="ksc-result"></div>
