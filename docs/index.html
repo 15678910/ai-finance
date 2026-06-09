@@ -8424,6 +8424,60 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
 
   // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
+  // ─── 📰 시장 뉴스 (급변 원인) ──────────────────────
+  function renderMarketNews(mn) {
+    if (!mn || !mn.items || !mn.items.length) return;
+    const CAT = {
+      '지정학':   '#f87171',
+      'Fed·물가': '#fbbf24',
+      'AI·반도체':'#38bdf8',
+      '실적':     '#a78bfa',
+      '암호화폐': '#fb923c',
+      '기타':     '#94a3b8',
+    };
+    const cnt = mn.category_counts || {};
+    const chips = Object.keys(CAT).filter(k => cnt[k]).map(k =>
+      `<span style="font-size:0.58rem;padding:2px 8px;border-radius:10px;background:${CAT[k]}22;color:${CAT[k]};font-weight:700;">${k} ${cnt[k]}</span>`
+    ).join(' ');
+
+    const rows = mn.items.map(it => {
+      const c = CAT[it.category] || CAT['기타'];
+      const link = it.link ? h(it.link) : '#';
+      const pub = it.pub ? `<span style="font-size:0.52rem;color:var(--text-muted);white-space:nowrap;">${h(it.pub.replace(/\s*\+0000.*$/, '').replace(/^\w{3},\s*/, ''))}</span>` : '';
+      return `<a href="${link}" target="_blank" rel="noopener" style="display:flex;gap:9px;align-items:flex-start;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05);text-decoration:none;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+        <span style="flex-shrink:0;font-size:0.55rem;font-weight:700;color:${c};background:${c}1a;padding:2px 6px;border-radius:5px;white-space:nowrap;min-width:62px;text-align:center;">${it.cat_emoji||''} ${h(it.category)}</span>
+        <span style="flex:1;font-size:0.72rem;color:var(--text-bright);line-height:1.35;">${h(it.region||'')} ${h(it.title)}</span>
+        ${pub}
+      </a>`;
+    }).join('');
+
+    const html = `<section class="section-wrap" id="market-news-section">
+      <div class="section-label" style="color:#fb923c;">📰 시장 뉴스 — 급변 원인
+        <span style="font-size:0.62rem;color:var(--text-muted);">(왜 올랐나/빠졌나 · Yahoo·네이버 자동 수집)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(mn.generated_at||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:8px 12px;margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:0.6rem;color:var(--text-muted);">카테고리:</span> ${chips}
+      </div>
+      <div class="glass-card" style="padding:2px 4px;max-height:440px;overflow-y:auto;">
+        ${rows}
+      </div>
+      <div style="font-size:0.56rem;color:var(--text-muted);margin-top:8px;">※ ${h(mn.note||'')}</div>
+    </section>`;
+
+    const existing = document.getElementById('market-news-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('kospi-scenario-section')
+                  || document.getElementById('overheating-section');
+      if (anchor) anchor.insertAdjacentElement('beforebegin', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   function renderPredictionLog(pl) {
     if (!pl || !pl.entries || !pl.entries.length) return;
     const acc = pl.accuracy || {};
@@ -9613,6 +9667,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./prediction_log.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(pl => { if (pl) renderPredictionLog(pl); });
+      // Load Market News (시장 뉴스 — 급변 원인)
+      fetch('./market_news.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(mn => { if (mn) renderMarketNews(mn); });
       // Load Overheating Risk Gauge (과열·차익실현 위험)
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
