@@ -7550,7 +7550,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측 적중|적중 기록/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -8421,6 +8421,63 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     elSox.addEventListener('input', compute);
     elQqq.addEventListener('input', compute);
     compute();
+  }
+
+  // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
+  function renderPredictionLog(pl) {
+    if (!pl || !pl.entries || !pl.entries.length) return;
+    const acc = pl.accuracy || {};
+    const rows = pl.entries.slice().reverse().map(e => {
+      const errC = e.abs_error <= 1 ? '#22c55e' : e.abs_error <= 3 ? '#fbbf24' : '#f87171';
+      const dir = e.dir_correct ? '<span style="color:#22c55e;">✓</span>' : '<span style="color:#f87171;">✗</span>';
+      const usC = (e.sox_ret >= 0) ? '#22c55e' : '#f87171';
+      const md = e.date.slice(5).replace('-', '/');
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:5px 8px;font-size:0.7rem;color:var(--text-bright);font-family:var(--font-mono);">${md}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:0.6rem;color:${usC};font-family:var(--font-mono);">SOX ${e.sox_ret>=0?'+':''}${e.sox_ret}%<br>NDX ${e.ndx_ret>=0?'+':''}${e.ndx_ret}%</td>
+        <td style="padding:5px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);color:var(--text);">${Math.round(e.predicted).toLocaleString()}<br><span style="font-size:0.54rem;color:var(--text-muted);">${e.pred_pct>=0?'+':''}${e.pred_pct}%</span></td>
+        <td style="padding:5px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);color:var(--text-bright);">${Math.round(e.actual).toLocaleString()}<br><span style="font-size:0.54rem;color:${e.actual_pct>=0?'#22c55e':'#f87171'};">${e.actual_pct>=0?'+':''}${e.actual_pct}%</span></td>
+        <td style="padding:5px 8px;text-align:right;font-size:0.72rem;font-weight:700;font-family:var(--font-mono);color:${errC};">${e.error_pct>=0?'+':''}${e.error_pct}%</td>
+        <td style="padding:5px 8px;text-align:center;font-size:0.8rem;">${dir}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<section class="section-wrap" id="prediction-log-section">
+      <div class="section-label" style="color:#a78bfa;">📋 KOSPI 예측 적중 기록
+        <span style="font-size:0.62rem;color:var(--text-muted);">(매일 '전일종가×미국 야간움직임' 예측 vs 실제)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(pl.generated_at||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:10px 14px;margin-bottom:10px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+        <div><span style="font-size:0.62rem;color:var(--text-muted);">방향 적중률</span> <b style="font-size:1.2rem;color:${acc.dir_hit_rate>=70?'#22c55e':'#fbbf24'};font-family:var(--font-mono);">${acc.dir_hit_rate}%</b></div>
+        <div><span style="font-size:0.62rem;color:var(--text-muted);">평균오차(MAE)</span> <b style="font-size:1.2rem;color:${acc.mae_pct<=2?'#22c55e':acc.mae_pct<=4?'#fbbf24':'#f87171'};font-family:var(--font-mono);">±${acc.mae_pct}%</b></div>
+        <div style="font-size:0.58rem;color:var(--text-muted);max-width:420px;">최근 ${acc.n}거래일 기준. 방향은 잘 맞히나 급락·급반등 규모는 과소예측 경향(꼬리위험·오버슈팅 밴드가 보완).</div>
+      </div>
+      <div class="glass-card" style="padding:6px 12px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:480px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 8px;text-align:left;font-size:0.58rem;color:var(--text-muted);font-weight:500;">날짜</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">미국 야간</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">예측</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">실제</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">오차</th>
+            <th style="padding:5px 8px;text-align:center;font-size:0.58rem;color:var(--text-muted);font-weight:500;">방향</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;">※ ${h(pl.note||'')}<br>🚨 통계 추정. 투자 결정 단독 사용 금지.</div>
+    </section>`;
+
+    const existing = document.getElementById('prediction-log-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const sc = document.getElementById('kospi-scenario-section');
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      if (sc) sc.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
   }
 
   // ─── 🌡️ 과열·차익실현 위험 게이지 ──────────────────────
@@ -9552,6 +9609,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./kospi_scenario.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sc => { if (sc) renderKospiScenario(sc); });
+      // Load Prediction Log (예측 적중 기록)
+      fetch('./prediction_log.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(pl => { if (pl) renderPredictionLog(pl); });
       // Load Overheating Risk Gauge (과열·차익실현 위험)
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
