@@ -78,8 +78,22 @@ GLOBAL_TICKERS = [
 ]
 
 
+def _naver_kr(ticker: str):
+    """네이버 실시간으로 한국주 (현재가, 등락률%) — yfinance .KS 장중 stale 회피."""
+    import urllib.request
+    try:
+        url = f"https://polling.finance.naver.com/api/realtime/domestic/stock/{ticker}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        d = json.loads(urllib.request.urlopen(req, timeout=10).read())["datas"][0]
+        price = float(str(d.get("closePrice", "")).replace(",", ""))
+        chg = float(str(d.get("fluctuationsRatio", "")).replace(",", ""))
+        return price, chg
+    except Exception:
+        return None, None
+
+
 def fetch_stock(ticker_id: str, name: str, flag: str, sector: str, is_krw: bool = False) -> dict | None:
-    """yfinance로 단일 종목 시총·가격 수집."""
+    """yfinance로 단일 종목 시총·가격 수집 (한국주는 네이버로 가격·등락 보정)."""
     try:
         import yfinance as yf
         yt = ticker_id + ".KS" if (is_krw and not ticker_id.endswith(".KS")) else ticker_id
@@ -100,9 +114,19 @@ def fetch_stock(ticker_id: str, name: str, flag: str, sector: str, is_krw: bool 
             return None
 
         mc_f = float(mc)
+        chg = round((float(price) - float(prev)) / float(prev) * 100, 2) if prev and float(prev) > 0 else 0.0
+
+        # 한국주: 네이버로 가격·등락 보정 (yfinance .KS 장중 stale → 부호 반대 회피)
+        if is_krw:
+            n_price, n_chg = _naver_kr(ticker_id)
+            if n_price and float(price) > 0:
+                mc_f = mc_f * (n_price / float(price))  # 시총 비례 보정
+                price = n_price
+            if n_chg is not None:
+                chg = round(n_chg, 2)
+
         # 국내: 원화 → 조원, 해외: 달러 → 조달러
         mc_display = round(mc_f / 1e12, 2) if is_krw else round(mc_f / 1e12, 3)
-        chg = round((float(price) - float(prev)) / float(prev) * 100, 2) if prev and float(prev) > 0 else 0.0
 
         return {
             "ticker":   ticker_id,
