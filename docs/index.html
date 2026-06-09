@@ -8752,7 +8752,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const f5 = s.foreign_pct_5d_change;
       const f5c = f5 == null ? 'var(--text-muted)' : f5 >= 0 ? '#22c55e' : '#f87171';
       const streak = (s.foreign_streak_days && s.foreign_streak_dir)
-        ? `<span style="font-size:0.54rem;color:${s.foreign_streak_dir==='sell'?'#f87171':'#22c55e'};">${s.foreign_streak_dir==='sell'?'🩸':'🟢'}${s.foreign_streak_days}일</span>` : '';
+        ? `<span style="font-size:0.54rem;color:${s.foreign_streak_dir==='sell'?'#f87171':'#22c55e'};">${s.foreign_streak_dir==='sell'?'🩸':'🟢'}${s.foreign_streak_days}${s.foreign_streak_capped?'일+':'일'}</span>` : '';
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;" onclick="openStockDetail('${h(s.ticker)}')">
         <td style="padding:6px 8px;">
           ${s.sector?`<span style="font-size:0.52rem;color:#60a5fa;background:rgba(96,165,250,0.12);padding:0 5px;border-radius:6px;">${h(s.sector)}</span><br>`:''}

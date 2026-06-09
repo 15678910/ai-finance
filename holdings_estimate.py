@@ -141,18 +141,20 @@ def main():
         pnl = round((cur / avg - 1) * 100, 1) if (avg and cur) else None
 
         # 외인 연속 매수/매도일 + 5일 보유율 변화
-        if sf:
-            f5d = sf.get("foreign_holding_pct_5d_change")
-            streak = (sf.get("foreign_streak_days"), sf.get("foreign_streak_direction"))
-        elif rows_desc:  # 60일 전용 종목 → 직접 계산
+        # 60일 데이터 우선 (긴 연속도 포착) — investor_flow는 10일치라 연속일이 캡됨
+        streak = (None, None)
+        streak_capped = False
+        f5d = None
+        if rows_desc:  # 60일 전용 데이터 → 직접 계산
             streak = _foreign_streak(rows_desc)
+            streak_capped = bool(streak[0]) and streak[0] >= len(rows_desc)  # 창 전체가 동일방향 → 더 길 수 있음
             if len(rows_desc) >= 6 and rows_desc[0].get("foreign_holding_pct") is not None \
                and rows_desc[5].get("foreign_holding_pct") is not None:
                 f5d = round(rows_desc[0]["foreign_holding_pct"] - rows_desc[5]["foreign_holding_pct"], 2)
-            else:
-                f5d = None
-        else:
-            f5d, streak = None, (None, None)
+        if not streak[0] and sf:  # 60일 없음/0 → investor_flow 폴백
+            streak = (sf.get("foreign_streak_days"), sf.get("foreign_streak_direction"))
+        if f5d is None and sf:
+            f5d = sf.get("foreign_holding_pct_5d_change")
 
         entry = {
             "ticker": tk, "name": name, "sector": SECTOR.get(tk, ""),
@@ -162,6 +164,7 @@ def main():
             "foreign_pct_5d_change": f5d,
             "foreign_streak_days": streak[0],
             "foreign_streak_dir": streak[1],
+            "foreign_streak_capped": streak_capped,
             "indiv_avg_est": avg,
             "indiv_pnl_pct": pnl,
             "indiv_buy_days": buy_days,
