@@ -305,6 +305,65 @@ def empirical_lag_betas(close_raw, np, window=20, backtest_n=12):
     }
 
 
+def nikkei_divergence(np, window=40):
+    """한일 동행/괴리 진단(예측 아님). 같은 시간대(09:00 개장) → 당일 동시 비교.
+    KOSPI 실측(같은 날 니케이) 베타로 기대치 산출 → 실제와의 괴리로 '한국 고유' 판별:
+      괴리<0 = 한국이 일본보다 약함(외인 투매·환율 등 한국 악재)
+      괴리>0 = 한국이 일본보다 강함(한국 호재)."""
+    import yfinance as yf
+    try:
+        n = yf.download("^N225", period="4mo", interval="1d", progress=False, auto_adjust=True)["Close"]
+        if hasattr(n, "columns"):  # DataFrame → Series
+            n = n.iloc[:, 0]
+        n = n.dropna()
+    except Exception as e:
+        print(f"  [WARN] 니케이 다운로드 실패: {e}")
+        return None
+    if len(n) < 15:
+        return None
+    kmap = naver_kospi_daily(80)
+    nret = {d.strftime("%Y-%m-%d"): float(v) for d, v in n.pct_change().items() if not np.isnan(v)}
+    nlvl = {d.strftime("%Y-%m-%d"): float(v) for d, v in n.items()}
+    kd = sorted(kmap.keys())
+    pairs = []  # (date, kospi_ret, nikkei_ret)
+    for i in range(1, len(kd)):
+        D, P = kd[i], kd[i - 1]
+        if D in nret:
+            pairs.append((D, kmap[D] / kmap[P] - 1, nret[D]))
+    if len(pairs) < 12:
+        return None
+    win = pairs[-window:]
+    K = np.array([p[1] for p in win])
+    J = np.array([p[2] for p in win])
+    denom = float(J @ J) or 1e-9
+    beta_jp = float((J @ K) / denom)  # 무절편 동시간대 베타
+    r = float(np.corrcoef(K, J)[0, 1])
+
+    last = pairs[-1]
+    ld, k_chg, j_chg = last
+    expected = beta_jp * j_chg
+    gap = k_chg - expected  # 한국 고유 성분
+    if abs(gap) < 0.006:
+        verdict, vkey = "한일 동행 (아시아 동반)", "sync"
+    elif gap < 0:
+        verdict, vkey = "한국 고유 약세 (외인·환율 등)", "kr_weak"
+    else:
+        verdict, vkey = "한국 고유 강세", "kr_strong"
+    return {
+        "date": ld,
+        "kospi_chg": round(k_chg * 100, 2),
+        "nikkei_chg": round(j_chg * 100, 2),
+        "nikkei_level": round(nlvl.get(ld, 0), 2),
+        "beta_jp": round(beta_jp, 2),
+        "corr": round(r, 2),
+        "expected_kospi_chg": round(expected * 100, 2),
+        "gap_pct": round(gap * 100, 2),
+        "verdict": verdict,
+        "vkey": vkey,
+        "n": len(pairs),
+    }
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -370,7 +429,7 @@ def main():
     soxx_chg, _ = cache_change(us_cache, "SOXX")
     qqq_chg, _ = cache_change(us_cache, "QQQ")
     # 미국 마감일이 KOSPI 기준일보다 같거나 이전이면 → 이미 KOSPI에 반영됨(다음 예측 신호 아님)
-    absorbed = bool(us_asof and us_asof <= asof)
+    absorbed = bool(us_asof and us_asof < asof)  # US 같은날=KOSPI 마감 후 거래 → 미반영
     change_pct = {"SOX": sox_chg, "NDX": ndx_chg, "SOXX": soxx_chg, "QQQ": qqq_chg,
                   "asof": us_asof, "kospi_asof": asof, "absorbed": absorbed}
     print(f"미국 최근({us_asof}): SOX {sox_chg}% NDX {ndx_chg}% "
@@ -392,6 +451,12 @@ def main():
     else:
         print("  [WARN] 선물 신호 실패")
 
+    # 한일 동행/괴리 진단 (예측 아님 — 원인 해석용)
+    nikkei = nikkei_divergence(np, window=40)
+    if nikkei:
+        print(f"한일 진단({nikkei['date']}): KOSPI {nikkei['kospi_chg']:+.2f}% vs 니케이 {nikkei['nikkei_chg']:+.2f}% "
+              f"(기대 {nikkei['expected_kospi_chg']:+.2f}%, 괴리 {nikkei['gap_pct']:+.2f}%) → {nikkei['verdict']}")
+
     # 장중 보정 (개장 시가갭 → 종가) — 가장 큰 정확도 지렛대
     intraday = intraday_open_revision(np, window=30)
     if intraday:
@@ -411,6 +476,7 @@ def main():
         },
         "empirical": emp,  # 일별 실증 회귀(최근 레짐) — 슬라이더 가정도구·밴드
         "futures": futures,  # 선물 야간(NQ=F) 기반 장전 예측 — 최고의 선행신호(R²0.53)
+        "nikkei_div": nikkei,  # 한일 동행/괴리 진단(예측 아님 — 원인 해석용)
         "intraday": intraday,  # 장중 보정(개장 시가갭 → 종가) — 개장 후 추가 정확도
         "default_targets": {"soxx": 460, "qqq": 650},
         "tail_multiplier": 1.8,

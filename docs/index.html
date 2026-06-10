@@ -8405,6 +8405,29 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </div>`;
     }
 
+    // 🇰🇷vs🇯🇵 한일 동행/괴리 진단 (예측 아님 — 원인 해석)
+    let nikkeiBlock = '';
+    const nd = sc.nikkei_div;
+    if (nd && nd.vkey) {
+      const vc = nd.vkey === 'sync' ? '#94a3b8' : (nd.vkey === 'kr_weak' ? '#f87171' : '#22c55e');
+      const kc = nd.kospi_chg >= 0 ? '#22c55e' : '#f87171';
+      const jc = nd.nikkei_chg >= 0 ? '#22c55e' : '#f87171';
+      const md = nd.date ? nd.date.slice(5).replace('-', '/') : '';
+      nikkeiBlock = `<div class="glass-card" style="padding:10px 14px;margin-bottom:12px;background:${vc}11;border-left:3px solid ${vc};">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:0.62rem;color:${vc};font-weight:700;">🇰🇷vs🇯🇵 한일 동행 진단 <span style="color:var(--text-muted);font-weight:400;">(${md} · 원인 해석용, 예측 아님)</span></div>
+          <div style="font-size:0.7rem;font-weight:700;color:${vc};">${h(nd.verdict)}</div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:5px;font-size:0.62rem;color:var(--text-muted);">
+          <span>🇰🇷 KOSPI <b style="color:${kc};font-family:var(--font-mono);">${nd.kospi_chg>=0?'+':''}${nd.kospi_chg}%</b></span>
+          <span>🇯🇵 니케이 <b style="color:${jc};font-family:var(--font-mono);">${nd.nikkei_chg>=0?'+':''}${nd.nikkei_chg}%</b></span>
+          <span>니케이 기준 기대 <b style="font-family:var(--font-mono);color:var(--text);">${nd.expected_kospi_chg>=0?'+':''}${nd.expected_kospi_chg}%</b></span>
+          <span>괴리 <b style="font-family:var(--font-mono);color:${vc};">${nd.gap_pct>=0?'+':''}${nd.gap_pct}%p</b></span>
+        </div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 한일은 같은 시간대(동조 ${nd.corr}). 일본과 함께 움직이면 '아시아 동반', KOSPI만 따로면 '한국 고유 요인(외인 투매·환율·지정학)'. 예측이 아닌 원인 진단입니다.</div>
+      </div>`;
+    }
+
     const html = `<section class="section-wrap" id="kospi-scenario-section">
       <div class="section-label" style="color:#34d399;">🎯 KOSPI 시나리오 시뮬레이터
         <span style="font-size:0.62rem;color:var(--text-muted);">(가정 도구 — SOX·나스닥100이 변하면 KOSPI는?)</span>
@@ -8415,6 +8438,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </div>
       ${autoBlock}
       ${intradayBlock}
+      ${nikkeiBlock}
       <div class="glass-card" style="padding:16px 18px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
           <div>
