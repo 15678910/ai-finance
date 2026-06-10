@@ -8271,6 +8271,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!sc || !sc.current || !sc.beta) return;
     const cur = sc.current, b = sc.beta;
     const kNow = cur.KOSPI;
+    // 실증 회귀 베타(최근 레짐, 단순수익률) — 1차 소스. 없으면 주간 stress β로 폴백.
+    const emp = sc.empirical || null;
+    const bSe = emp ? emp.sox : (b.sox_stress * 0.5);   // SOX 일별 베타
+    const bNe = emp ? emp.ndx : (b.ndx_stress * 0.5);   // NDX 일별 베타
+    const sigma = emp && emp.resid_std ? emp.resid_std : 0.025;  // 잔차 1σ(예측 불확실성)
+    const maeBt = emp ? emp.mae_bt : null, r2 = emp ? emp.r2 : null;
     // 지수(SOX/NDX) 기준 표시 — 화면 가격과 일치 (ETF와 % 동일, 예측 동일)
     const soxxNow = cur.SOX || cur.SOXX, qqqNow = cur.NDX || cur.QQQ;
     const tailMul = sc.tail_multiplier || 1.8;
@@ -8292,23 +8298,27 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const soxChg = sc.change_pct ? sc.change_pct.SOX : null;
     const ndxChg = sc.change_pct ? sc.change_pct.NDX : null;
     if (soxChg != null && ndxChg != null) {
-      // 하단 중심값과 동일 공식(0.5×stress β 블렌드 — 상관 이중계산 방지)
-      const aBl = 0.5 * (b.sox_stress * Math.log(1 + soxChg/100) + b.ndx_stress * Math.log(1 + ndxChg/100));
-      const kAuto = kNow * Math.exp(aBl);
-      const aPct = (Math.exp(aBl) - 1) * 100;
+      // 실증 일별 베타(단순수익률) — 현재 변동성 레짐 반영
+      const aMove = bSe * (soxChg/100) + bNe * (ndxChg/100);
+      const kAuto = kNow * (1 + aMove);
+      const aPct = aMove * 100;
       const aCol = aPct >= 0 ? '#22c55e' : '#f87171';
+      const aLo = kAuto * (1 - sigma), aHi = kAuto * (1 + sigma);
+      const accBadge = (maeBt != null)
+        ? `<span style="font-size:0.5rem;color:var(--text-muted);">검증 MAE ±${maeBt}% · R²${r2}</span>` : '';
       autoBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:${aCol}11;border-left:3px solid ${aCol};">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div>
             <div style="font-size:0.62rem;color:#f87171;font-weight:700;">🔴 실시간 자동 예측 <span style="color:var(--text-muted);font-weight:400;">(미국 야간 움직임 자동 반영)</span></div>
-            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">미국 최근: SOX <b style="color:${soxChg>=0?'#22c55e':'#f87171'};">${soxChg>=0?'+':''}${soxChg}%</b> · NDX <b style="color:${ndxChg>=0?'#22c55e':'#f87171'};">${ndxChg>=0?'+':''}${ndxChg}%</b></div>
+            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">미국 최근: SOX <b style="color:${soxChg>=0?'#22c55e':'#f87171'};">${soxChg>=0?'+':''}${soxChg}%</b> · NDX <b style="color:${ndxChg>=0?'#22c55e':'#f87171'};">${ndxChg>=0?'+':''}${ndxChg}%</b> ${accBadge}</div>
           </div>
           <div style="text-align:right;">
             <div style="font-size:0.58rem;color:var(--text-muted);">KOSPI 예상(다음 거래일)</div>
             <div style="font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:${aCol};line-height:1.1;">${fmtN(kAuto)} <span style="font-size:0.7rem;">${aPct>=0?'+':''}${aPct.toFixed(1)}%</span></div>
+            <div style="font-size:0.54rem;color:var(--text-muted);">±1σ ${fmtN(aLo)}~${fmtN(aHi)}</div>
           </div>
         </div>
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;">※ 한국이 미국보다 먼저 마감 → 미국 움직임을 다음 거래일에 따라가는 '캐치업' 기대값 (β 환산). 아래 슬라이더로 직접 가정도 가능.</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;">※ 한국이 미국보다 먼저 마감 → 미국 움직임을 다음 거래일에 따라가는 '캐치업' 기대값 (최근 ${emp?emp.window:20}일 실증 β). 밴드=과거 잔차 1σ. 슬라이더로 직접 가정도 가능.</div>
       </div>`;
     }
 
@@ -8330,7 +8340,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             </div>
             <input type="range" id="ksc-sox" min="${sRange[0]}" max="${sRange[1]}" step="10" value="${Math.round(soxxNow/10)*10}"
               style="width:100%;accent-color:#22d3ee;cursor:pointer;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(soxxNow)} · β=${b.sox_weekly} (stress ${b.sox_stress}, r=${b.r_sox})</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(soxxNow)} · 실증 β=${bSe.toFixed(2)} <span style="opacity:0.7;">(주간 ${b.sox_weekly})</span></div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;color:#a78bfa;margin-bottom:4px;">
@@ -8339,7 +8349,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             </div>
             <input type="range" id="ksc-qqq" min="${qRange[0]}" max="${qRange[1]}" step="10" value="${Math.round(qqqNow/10)*10}"
               style="width:100%;accent-color:#a78bfa;cursor:pointer;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(qqqNow)} · β=${b.ndx_weekly} (stress ${b.ndx_stress}, r=${b.r_ndx})</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">현재 ${fmtN(qqqNow)} · 실증 β=${bNe.toFixed(2)} <span style="opacity:0.7;">(주간 ${b.ndx_weekly})</span></div>
           </div>
         </div>
         <div id="ksc-result"></div>
@@ -8374,22 +8384,25 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const ndxBase = (ndxChg != null && ndxChg !== 0) ? qqqNow / (1 + ndxChg/100) : qqqNow;
     function compute() {
       const sT = +elSox.value, qT = +elQqq.value;
-      const dSox = Math.log(sT / soxBase), dQqq = Math.log(qT / ndxBase);
-      const soxPct = (sT / soxBase - 1) * 100, qqqPct = (qT / ndxBase - 1) * 100;
-      // 단일 요인
-      const kSox = kNow * Math.exp(b.sox_weekly * dSox);
-      const kQqq = kNow * Math.exp(b.ndx_weekly * dQqq);
-      // 종합 stress 중앙값
-      const blended = 0.5 * (b.sox_stress * dSox + b.ndx_stress * dQqq);
-      const kCentral = kNow * Math.exp(blended);
-      // 정상 밴드 / 꼬리(β×1.8 오버슈팅) — 하락이면 패닉(아래), 상승이면 강세오버슈팅(위)
-      const lo = Math.min(kSox, kQqq, kCentral), hi = Math.max(kSox, kQqq, kCentral);
-      const kTail = kNow * Math.exp(tailMul * blended);
-      const cPct = (kCentral / kNow - 1) * 100, tPct = (kTail / kNow - 1) * 100;
-      const tailUp = blended >= 0;
-      const tailLabel = tailUp ? `강세 오버슈팅 (β×${tailMul})` : `패닉 꼬리위험 (β×${tailMul})`;
-      const tailCol = tailUp ? '#22c55e' : '#f87171';
-      const tailBg = tailUp ? 'rgba(34,197,94,0.06)' : 'rgba(248,113,113,0.06)';
+      // 단순수익률(실증 베타가 단순수익률 기준으로 적합됨)
+      const soxR = sT / soxBase - 1, qqqR = qT / ndxBase - 1;
+      const soxPct = soxR * 100, qqqPct = qqqR * 100;
+      // 단일 요인 (실증 베타)
+      const kSox = kNow * (1 + bSe * soxR);
+      const kQqq = kNow * (1 + bNe * qqqR);
+      // 종합 중심값 = 실증 베타 선형결합 (NDX 주도)
+      const move = bSe * soxR + bNe * qqqR;
+      const kCentral = kNow * (1 + move);
+      const cPct = move * 100;
+      // 정상 밴드 = 중심값 ± 잔차 1σ (실제 예측 불확실성, 약 ±${(sigma*100).toFixed(1)}%)
+      const lo = kCentral * (1 - sigma), hi = kCentral * (1 + sigma);
+      // 꼬리 = 진행 방향으로 1.5σ 추가 (하락→패닉 하방 / 상승→강세 상방)
+      const down = move < 0;
+      const kTail = kCentral * (1 + (down ? -1.5 : 1.5) * sigma);
+      const tPct = (kTail / kNow - 1) * 100;
+      const tailLabel = down ? '패닉 꼬리위험 (−1.5σ)' : '강세 오버슈팅 (+1.5σ)';
+      const tailCol = down ? '#f87171' : '#22c55e';
+      const tailBg = down ? 'rgba(248,113,113,0.06)' : 'rgba(34,197,94,0.06)';
       const cColor = cPct >= 0 ? '#4ade80' : cPct >= -8 ? '#fbbf24' : '#f87171';
 
       elSoxV.textContent = `${sT.toLocaleString()} (${soxPct >= 0 ? '+' : ''}${soxPct.toFixed(1)}%)`;
@@ -8405,7 +8418,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
           <div style="text-align:center;padding:8px;background:rgba(251,191,36,0.06);border-radius:8px;">
-            <div style="font-size:0.6rem;color:var(--text-muted);">정상 밴드</div>
+            <div style="font-size:0.6rem;color:var(--text-muted);">정상 밴드 (±1σ)</div>
             <div style="font-size:0.95rem;font-weight:700;font-family:var(--font-mono);color:#fbbf24;">${fmtN(lo)} ~ ${fmtN(hi)}</div>
           </div>
           <div style="text-align:center;padding:8px;background:${tailBg};border-radius:8px;">

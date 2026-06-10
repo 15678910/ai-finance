@@ -23,24 +23,87 @@ OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "kospi_scenario.json")
 
 def naver_kospi_latest():
     """네이버 일별시세 KOSPI 최신 (date, close) — yfinance ^KS11 stale 보정용."""
+    d = naver_kospi_daily(12)
+    if d:
+        k = sorted(d.keys())[-1]
+        return k, d[k]
+    return None, None
+
+
+def naver_kospi_daily(days=90):
+    """네이버 KOSPI 일별 종가 dict {YYYY-MM-DD: close} — 실증 회귀·보정용(신뢰 소스)."""
     import urllib.request
     import re
     from datetime import date, timedelta
     try:
         end = date.today().strftime("%Y%m%d")
-        start = (date.today() - timedelta(days=12)).strftime("%Y%m%d")
+        start = (date.today() - timedelta(days=days)).strftime("%Y%m%d")
         url = (f"https://api.finance.naver.com/siseJson.naver?symbol=KOSPI"
                f"&requestType=1&startTime={start}&endTime={end}&timeframe=day")
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"})
         txt = urllib.request.urlopen(req, timeout=10).read().decode("utf-8")
         rows = re.findall(r'\["(\d{8})",\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)', txt)
-        if rows:
-            d, c = rows[-1]
-            return f"{d[:4]}-{d[4:6]}-{d[6:]}", float(c)
+        return {f"{d[:4]}-{d[4:6]}-{d[6:]}": float(c) for d, c in rows}
     except Exception as e:
-        print(f"  [WARN] 네이버 KOSPI 실패: {e}")
-    return None, None
+        print(f"  [WARN] 네이버 KOSPI 일별 실패: {e}")
+        return {}
+
+
+def empirical_lag_betas(close_raw, np, window=20, backtest_n=12):
+    """일별 실증 회귀: KOSPI(D) ~ SOX(P) + NDX(P) 무절편 (한국=미국 1일 시차 캐치업).
+    현재 변동성 레짐을 반영해 베타를 재보정 → 진폭 과소예측 완화.
+    반환: dict(sox, ndx, r2, resid_std, mae_bt, window, n) 또는 None."""
+    kd_map = naver_kospi_daily(95)
+    if len(kd_map) < window + 4:
+        return None
+    sret = close_raw["SOX"].dropna().pct_change()
+    nret = close_raw["NDX"].dropna().pct_change()
+    sr = {d.strftime("%Y-%m-%d"): float(v) for d, v in sret.items() if not np.isnan(v)}
+    nr = {d.strftime("%Y-%m-%d"): float(v) for d, v in nret.items() if not np.isnan(v)}
+    kdays = sorted(kd_map.keys())
+    recs = []  # (y_kospi_D, s_prev, n_prev)
+    for i in range(1, len(kdays)):
+        D, P = kdays[i], kdays[i - 1]
+        if P in sr and P in nr:
+            recs.append((kd_map[D] / kd_map[P] - 1, sr[P], nr[P]))
+    if len(recs) < window + 2:
+        return None
+
+    def fit(rows):
+        Y = np.array([r[0] for r in rows])
+        A = np.column_stack([[r[1] for r in rows], [r[2] for r in rows]])
+        c, _, _, _ = np.linalg.lstsq(A, Y, rcond=None)
+        return c, A, Y
+
+    win = recs[-window:]
+    coef, A, Y = fit(win)
+    pred = A @ coef
+    resid = Y - pred
+    ss_res = float((resid ** 2).sum())
+    ss_tot = float(((Y - Y.mean()) ** 2).sum()) or 1e-9
+    r2 = 1 - ss_res / ss_tot
+    resid_std = float(resid.std(ddof=1)) if len(resid) > 2 else float(resid.std())
+
+    # 워크포워드 백테스트 MAE (직전 window일로 적합 → 다음날 예측)
+    errs = []
+    N = len(recs)
+    for j in range(max(window, N - backtest_n), N):
+        c2, _, _ = fit(recs[max(0, j - window):j])
+        y = recs[j][0]
+        p = c2[0] * recs[j][1] + c2[1] * recs[j][2]
+        errs.append(abs((p - y) * 100))
+    mae_bt = float(np.mean(errs)) if errs else None
+
+    return {
+        "sox": round(float(coef[0]), 3),
+        "ndx": round(float(coef[1]), 3),
+        "r2": round(r2, 3),
+        "resid_std": round(resid_std, 4),
+        "mae_bt": round(mae_bt, 2) if mae_bt is not None else None,
+        "window": window,
+        "n": len(recs),
+    }
 
 
 def main():
@@ -109,6 +172,14 @@ def main():
                   "SOXX": _chg("SOXX"), "QQQ": _chg("QQQ")}
     print(f"미국 1일 변화: SOX {change_pct['SOX']}% NDX {change_pct['NDX']}%")
 
+    # 일별 실증 회귀 (현재 변동성 레짐 반영 → 진폭 과소예측 완화)
+    emp = empirical_lag_betas(close_raw, np, window=20, backtest_n=12)
+    if emp:
+        print(f"실증 β(최근{emp['window']}일): SOX={emp['sox']} NDX={emp['ndx']} "
+              f"R²={emp['r2']} 잔차σ={emp['resid_std']*100:.2f}% 백테스트MAE={emp['mae_bt']}%")
+    else:
+        print("  [WARN] 실증 회귀 실패 → 주간 stress β 폴백")
+
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "asof": asof,
@@ -119,10 +190,12 @@ def main():
             "sox_stress": round(bS_stress, 3), "ndx_stress": round(bN_stress, 3),
             "r_sox": round(rS, 2), "r_ndx": round(rN, 2),
         },
+        "empirical": emp,  # 일별 실증 회귀(최근 레짐) — 프론트 중심예측·밴드의 1차 소스
         "default_targets": {"soxx": 460, "qqq": 650},
         "tail_multiplier": 1.8,
         "window_years": 3,
-        "note": "주간 로그수익률 회귀 · 하락장(-2% 이하) 조건부 stress β · 패닉 시 β×1.8 오버슈팅 가정",
+        "note": ("일별 실증 회귀(최근 20거래일, 무절편) β로 중심값 산출 — 현재 변동성 레짐 반영. "
+                 "밴드=잔차 1σ, 꼬리=−1.5σ. 주간 stress β는 폴백."),
     }
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)

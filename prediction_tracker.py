@@ -15,7 +15,6 @@ import os
 import re
 import sys
 import urllib.request
-import math
 from datetime import datetime, date, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
@@ -57,52 +56,55 @@ def main():
     print(f"  KST: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 55)
 
-    # 베타 (대시보드와 동일 — 0.5×stress 블렌드)
-    try:
-        with open(os.path.join(DOCS, "kospi_scenario.json"), encoding="utf-8") as f:
-            beta = json.load(f)["beta"]
-        bSs, bNs = beta["sox_stress"], beta["ndx_stress"]
-    except Exception:
-        bSs, bNs = 0.337, 0.502
-    print(f"베타: SOX stress {bSs} · NDX stress {bNs}")
+    # 실증 베타: 각 예측일 직전 WIN일로 회귀(워크포워드) → 현재 모델과 동일 방식
+    WIN = 20
 
-    kospi = naver_kospi_daily(30)
-    if len(kospi) < 3:
+    kospi = naver_kospi_daily(95)
+    if len(kospi) < WIN + 4:
         print("[ERROR] KOSPI 데이터 부족")
         return 1
 
     # 미국 SOX/NDX 일별 수익률
-    raw = yf.download(["^SOX", "^NDX"], period="2mo", interval="1d", progress=False, auto_adjust=True)
+    raw = yf.download(["^SOX", "^NDX"], period="5mo", interval="1d", progress=False, auto_adjust=True)
     cl = raw["Close"].dropna()
-    sox_ret = cl["^SOX"].pct_change()
-    ndx_ret = cl["^NDX"].pct_change()
-    sr = {d.strftime("%Y-%m-%d"): float(v) for d, v in sox_ret.items() if not np.isnan(v)}
-    nr = {d.strftime("%Y-%m-%d"): float(v) for d, v in ndx_ret.items() if not np.isnan(v)}
+    sr = {d.strftime("%Y-%m-%d"): float(v) for d, v in cl["^SOX"].pct_change().items() if not np.isnan(v)}
+    nr = {d.strftime("%Y-%m-%d"): float(v) for d, v in cl["^NDX"].pct_change().items() if not np.isnan(v)}
 
     kdays = sorted(kospi.keys())
-    entries = []
+    # 정렬된 표본 (D, base=KOSPI[P], y=당일수익률, s=전일SOX, n=전일NDX)
+    recs = []
     for i in range(1, len(kdays)):
         D, P = kdays[i], kdays[i - 1]
-        if P not in sr or P not in nr:
-            continue  # 미국 휴장 등
-        blend = 0.5 * (bSs * math.log(1 + sr[P]) + bNs * math.log(1 + nr[P]))
-        pred = kospi[P] * math.exp(blend)
-        actual = kospi[D]
+        if P in sr and P in nr:
+            recs.append((D, kospi[P], kospi[D] / kospi[P] - 1, sr[P], nr[P]))
+
+    def fit_beta(rows):
+        Y = np.array([r[2] for r in rows])
+        A = np.column_stack([[r[3] for r in rows], [r[4] for r in rows]])
+        c, _, _, _ = np.linalg.lstsq(A, Y, rcond=None)
+        return float(c[0]), float(c[1])
+
+    entries = []
+    for j in range(WIN, len(recs)):
+        D, base, y, s, n = recs[j]
+        bS, bN = fit_beta(recs[j - WIN:j])  # 직전 WIN일 (해당일 제외 — 워크포워드)
+        move = bS * s + bN * n
+        pred = base * (1 + move)
+        actual = base * (1 + y)
         err = (actual / pred - 1) * 100
-        pred_dir = pred >= kospi[P]
-        act_dir = actual >= kospi[P]
         entries.append({
             "date": D,
-            "base": round(kospi[P], 2),
-            "sox_ret": round(sr[P] * 100, 2),
-            "ndx_ret": round(nr[P] * 100, 2),
+            "base": round(base, 2),
+            "sox_ret": round(s * 100, 2),
+            "ndx_ret": round(n * 100, 2),
             "predicted": round(pred, 0),
-            "pred_pct": round((pred / kospi[P] - 1) * 100, 2),
+            "pred_pct": round(move * 100, 2),
             "actual": round(actual, 2),
-            "actual_pct": round((actual / kospi[P] - 1) * 100, 2),
+            "actual_pct": round(y * 100, 2),
             "error_pct": round(err, 2),
             "abs_error": round(abs(err), 2),
-            "dir_correct": (pred_dir == act_dir),
+            "dir_correct": ((pred >= base) == (actual >= base)),
+            "beta": {"sox": round(bS, 2), "ndx": round(bN, 2)},
         })
 
     recent = entries[-12:]
@@ -116,11 +118,11 @@ def main():
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
-        "model": "KOSPI(D) = 전일종가 × exp(0.5×(βs·SOX + βn·NDX)) — 미국 1일 시차 캐치업",
-        "beta": {"sox_stress": bSs, "ndx_stress": bNs},
+        "model": f"KOSPI(D) = 전일종가 × (1 + βs·SOX + βn·NDX) — 실증 회귀(직전 {WIN}일 워크포워드), 미국 1일 시차",
+        "window": WIN,
         "entries": recent,
         "accuracy": {"mae_pct": mae, "dir_hit_rate": dir_hit, "n": n},
-        "note": "예측=전일 KOSPI 종가에 미국 야간 움직임을 베타 환산. 실제=당일 종가. 통계 추정.",
+        "note": f"예측=전일 KOSPI 종가에 미국 야간 움직임을 직전 {WIN}거래일 실증 베타로 환산. 실제=당일 종가. 통계 추정.",
     }
     os.makedirs(DOCS, exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
