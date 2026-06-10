@@ -19,6 +19,41 @@ from datetime import datetime, timezone, timedelta
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "kospi_scenario.json")
+US_CACHE = os.path.join(BASE_DIR, "docs", "us_index_cache.json")
+
+
+def merge_us_cache(close_raw):
+    """US 지수 일별종가를 캐시에 누적 병합 → yfinance 플립플롭(최신 바 유실) 방지.
+    한 번 본 날짜는 영구 보존, 최신 날짜가 절대 stale로 되돌아가지 않음."""
+    try:
+        with open(US_CACHE, encoding="utf-8") as f:
+            cache = json.load(f)
+    except Exception:
+        cache = {}
+    for c in ("SOX", "NDX", "SOXX", "QQQ"):
+        if c not in close_raw.columns:
+            continue
+        cache.setdefault(c, {})
+        s = close_raw[c].dropna()
+        for d, v in s.items():
+            cache[c][d.strftime("%Y-%m-%d")] = round(float(v), 4)
+    try:
+        with open(US_CACHE, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=1)
+    except Exception as e:
+        print(f"  [WARN] US 캐시 저장 실패: {e}")
+    return cache
+
+
+def cache_change(cache, col):
+    """캐시의 최신 2거래일로 (변화율%, 최신날짜). yfinance보다 신뢰."""
+    dd = sorted(cache.get(col, {}).keys())
+    if len(dd) >= 2:
+        latest, prev = dd[-1], dd[-2]
+        p1, p0 = cache[col][latest], cache[col][prev]
+        if p0:
+            return round((p1 / p0 - 1) * 100, 2), latest
+    return None, None
 
 
 def naver_kospi_latest():
@@ -250,13 +285,18 @@ def main():
     print(f"β_SOX={bS:.3f}(r={rS:.2f}) β_NDX={bN:.3f}(r={rN:.2f})")
     print(f"stress β_SOX={bS_stress:.3f} β_NDX={bN_stress:.3f}")
 
-    # 미국 지수 최근 1일 변화율 (KOSPI가 아직 반영 못한 야간 움직임 → 실시간 자동예측용)
-    def _chg(col):
-        s = close_raw[col].dropna()
-        return round((float(s.iloc[-1]) / float(s.iloc[-2]) - 1) * 100, 2) if len(s) >= 2 else None
-    change_pct = {"SOX": _chg("SOX"), "NDX": _chg("NDX"),
-                  "SOXX": _chg("SOXX"), "QQQ": _chg("QQQ")}
-    print(f"미국 1일 변화: SOX {change_pct['SOX']}% NDX {change_pct['NDX']}%")
+    # 미국 지수 최근 1일 변화율 — 캐시 사용(yfinance 플립플롭으로 최신 바 유실 방지)
+    us_cache = merge_us_cache(close_raw)
+    sox_chg, us_asof = cache_change(us_cache, "SOX")
+    ndx_chg, _ = cache_change(us_cache, "NDX")
+    soxx_chg, _ = cache_change(us_cache, "SOXX")
+    qqq_chg, _ = cache_change(us_cache, "QQQ")
+    # 미국 마감일이 KOSPI 기준일보다 같거나 이전이면 → 이미 KOSPI에 반영됨(다음 예측 신호 아님)
+    absorbed = bool(us_asof and us_asof <= asof)
+    change_pct = {"SOX": sox_chg, "NDX": ndx_chg, "SOXX": soxx_chg, "QQQ": qqq_chg,
+                  "asof": us_asof, "kospi_asof": asof, "absorbed": absorbed}
+    print(f"미국 최근({us_asof}): SOX {sox_chg}% NDX {ndx_chg}% "
+          f"{'[KOSPI '+asof+' 이미 반영]' if absorbed else '[다음 거래일 미반영]'}")
 
     # 일별 실증 회귀 (현재 변동성 레짐 반영 → 진폭 과소예측 완화)
     emp = empirical_lag_betas(close_raw, np, window=20, backtest_n=12)

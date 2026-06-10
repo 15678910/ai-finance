@@ -8298,6 +8298,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const soxChg = sc.change_pct ? sc.change_pct.SOX : null;
     const ndxChg = sc.change_pct ? sc.change_pct.NDX : null;
     if (soxChg != null && ndxChg != null) {
+      const cp = sc.change_pct || {};
+      const usDate = cp.asof ? cp.asof.slice(5).replace('-','/') : '최근';
+      const kDate = cp.kospi_asof ? cp.kospi_asof.slice(5).replace('-','/') : '';
+      const absorbed = !!cp.absorbed;  // 미국 마감일이 KOSPI 기준일에 이미 반영됨
       // 실증 일별 베타(단순수익률) — 현재 변동성 레짐 반영
       const aMove = bSe * (soxChg/100) + bNe * (ndxChg/100);
       const kAuto = kNow * (1 + aMove);
@@ -8306,11 +8310,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const aLo = kAuto * (1 - sigma), aHi = kAuto * (1 + sigma);
       const accBadge = (maeBt != null)
         ? `<span style="font-size:0.5rem;color:var(--text-muted);">검증 MAE ±${maeBt}% · R²${r2}</span>` : '';
-      autoBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:${aCol}11;border-left:3px solid ${aCol};">
+      const usLine = `미국 ${usDate} 마감: 필라델피아반도체 <b style="color:${soxChg>=0?'#22c55e':'#f87171'};">${soxChg>=0?'+':''}${soxChg}%</b> · 나스닥100 <b style="color:${ndxChg>=0?'#22c55e':'#f87171'};">${ndxChg>=0?'+':''}${ndxChg}%</b> ${accBadge}`;
+      if (absorbed) {
+        // 미국 세션이 이미 KOSPI에 반영됨 → 다음 예측 신호 아님(이중계산 방지)
+        autoBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:rgba(148,163,184,0.08);border-left:3px solid #94a3b8;">
+          <div style="font-size:0.62rem;color:#cbd5e1;font-weight:700;">⏸️ 새 미국 신호 대기 중</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">${usLine}</div>
+          <div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;line-height:1.5;">※ <b>미국 ${usDate} 마감은 KOSPI ${kDate} 종가(${fmtN(kNow)})에 이미 반영</b>됐습니다. 다음 예측은 <b>미국 ${usDate} 다음 장 마감 후</b> 자동 갱신됩니다(오늘 밤 미국장 → 내일 KOSPI). 지금 미국장이 열리면 위 슬라이더로 가정해 볼 수 있습니다.</div>
+        </div>`;
+      } else {
+        autoBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:${aCol}11;border-left:3px solid ${aCol};">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div>
             <div style="font-size:0.62rem;color:#f87171;font-weight:700;">🔴 실시간 자동 예측 <span style="color:var(--text-muted);font-weight:400;">(미국 야간 움직임 자동 반영)</span></div>
-            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">미국 최근: SOX <b style="color:${soxChg>=0?'#22c55e':'#f87171'};">${soxChg>=0?'+':''}${soxChg}%</b> · NDX <b style="color:${ndxChg>=0?'#22c55e':'#f87171'};">${ndxChg>=0?'+':''}${ndxChg}%</b> ${accBadge}</div>
+            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${usLine}</div>
           </div>
           <div style="text-align:right;">
             <div style="font-size:0.58rem;color:var(--text-muted);">KOSPI 예상(다음 거래일)</div>
@@ -8320,6 +8333,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </div>
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;">※ 한국이 미국보다 먼저 마감 → 미국 움직임을 다음 거래일에 따라가는 '캐치업' 기대값 (최근 ${emp?emp.window:20}일 실증 β). 밴드=과거 잔차 1σ. 슬라이더로 직접 가정도 가능.</div>
       </div>`;
+      }
     }
 
     // 🟢 장중 보정 — 개장 시가갭이 종일 변동의 ~59% 결정 → 장전보다 정확
