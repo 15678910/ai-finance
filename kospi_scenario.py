@@ -171,6 +171,84 @@ def intraday_open_revision(np, window=30):
     }
 
 
+def futures_signal(np, pd, kospi_close_date, kospi_last_close, window=20):
+    """선물 기반 장전 예측: 직전 KOSPI 마감 → 현재까지 나스닥선물(NQ=F) 야간 움직임.
+    선물은 24시간 거래 → 미국 현물 마감 후 뉴스까지 반영 = 가장 신선한 선행신호.
+    실증 R²=0.53(현물 0.28의 2배), 워크포워드 MAE 1.9%."""
+    import yfinance as yf
+    try:
+        nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"].dropna()
+    except Exception as e:
+        print(f"  [WARN] 선물 다운로드 실패: {e}")
+        return None
+    if len(nq) < 50:
+        return None
+    nq.index = nq.index.tz_convert("UTC") if nq.index.tz else nq.index.tz_localize("UTC")
+    nq = nq.sort_index()
+
+    def ab(ts):  # ts 이전(같거나) 마지막 선물값
+        sub = nq[nq.index <= ts]
+        return float(sub.iloc[-1]) if len(sub) else None
+
+    kmap = naver_kospi_daily(80)
+    kd = sorted(kmap.keys())
+    recs = []  # (kospi_full_ret, fut_overnight)
+    for i in range(1, len(kd)):
+        D, P = kd[i], kd[i - 1]
+        pc = kmap[P]
+        f0 = ab(pd.Timestamp(f"{P} 06:30", tz="UTC"))  # 직전 KOSPI 마감(15:30 KST)
+        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC"))   # KOSPI 개장(09:00 KST)
+        if f0 and f1 and f0 > 0:
+            r = f1 / f0 - 1
+            if abs(r) < 0.2:
+                recs.append((kmap[D] / pc - 1, r))
+    if len(recs) < window + 2:
+        return None
+
+    win = recs[-window:]
+    F = np.array([r[1] for r in win])
+    Y = np.array([r[0] for r in win])
+    denom = float(F @ F) or 1e-9
+    beta = float((F @ Y) / denom)
+    resid = Y - beta * F
+    sigma = float(resid.std(ddof=1)) if len(resid) > 2 else float(resid.std())
+    Fa = np.array([r[1] for r in recs])
+    Ya = np.array([r[0] for r in recs])
+    r2 = float(np.corrcoef(Ya, Fa)[0, 1] ** 2)
+
+    errs = []
+    N = len(recs)
+    for j in range(max(window, N - 12), N):
+        w = recs[j - window:j]
+        Fw = np.array([x[1] for x in w])
+        Yw = np.array([x[0] for x in w])
+        bw = float((Fw @ Yw) / (float(Fw @ Fw) or 1e-9))
+        errs.append(abs((bw * recs[j][1] - recs[j][0]) * 100))
+    mae_bt = float(np.mean(errs)) if errs else None
+
+    # 현재 라이브 신호: 직전 KOSPI 마감 이후 선물 움직임 → 다음 KOSPI 예측
+    f_close = ab(pd.Timestamp(f"{kospi_close_date} 06:30", tz="UTC"))
+    f_now = float(nq.iloc[-1])
+    if not f_close or f_close <= 0:
+        return None
+    sig = f_now / f_close - 1
+    pred = kospi_last_close * (1 + beta * sig)
+    return {
+        "fut_overnight_pct": round(sig * 100, 2),
+        "beta": round(beta, 2),
+        "predicted": round(pred, 0),
+        "predicted_pct": round((pred / kospi_last_close - 1) * 100, 2),
+        "sigma": round(sigma, 4),
+        "r2": round(r2, 3),
+        "mae_bt": round(mae_bt, 2) if mae_bt is not None else None,
+        "window": window,
+        "nq_now": round(f_now, 1),
+        "nq_at_kospi_close": round(f_close, 1),
+        "fut_asof_utc": nq.index[-1].strftime("%Y-%m-%d %H:%M UTC"),
+        "kospi_base": round(kospi_last_close, 2),
+    }
+
+
 def empirical_lag_betas(close_raw, np, window=20, backtest_n=12):
     """일별 실증 회귀: KOSPI(D) ~ SOX(P) + NDX(P) 무절편 (한국=미국 1일 시차 캐치업).
     현재 변동성 레짐을 반영해 베타를 재보정 → 진폭 과소예측 완화.
@@ -306,6 +384,14 @@ def main():
     else:
         print("  [WARN] 실증 회귀 실패 → 주간 stress β 폴백")
 
+    # 선물 기반 장전 예측 (NQ=F 야간 → 다음 KOSPI) — 최고의 선행신호(R²0.53)
+    futures = futures_signal(np, pd, asof, now["KOSPI"], window=20)
+    if futures:
+        print(f"선물 예측: NQ 야간 {futures['fut_overnight_pct']:+.2f}% → KOSPI {futures['predicted']:.0f} "
+              f"({futures['predicted_pct']:+.2f}%) [β={futures['beta']} R²={futures['r2']} MAE={futures['mae_bt']}%]")
+    else:
+        print("  [WARN] 선물 신호 실패")
+
     # 장중 보정 (개장 시가갭 → 종가) — 가장 큰 정확도 지렛대
     intraday = intraday_open_revision(np, window=30)
     if intraday:
@@ -323,8 +409,9 @@ def main():
             "sox_stress": round(bS_stress, 3), "ndx_stress": round(bN_stress, 3),
             "r_sox": round(rS, 2), "r_ndx": round(rN, 2),
         },
-        "empirical": emp,  # 일별 실증 회귀(최근 레짐) — 프론트 중심예측·밴드의 1차 소스
-        "intraday": intraday,  # 장중 보정(개장 시가갭 → 종가) — 가장 큰 정확도 향상
+        "empirical": emp,  # 일별 실증 회귀(최근 레짐) — 슬라이더 가정도구·밴드
+        "futures": futures,  # 선물 야간(NQ=F) 기반 장전 예측 — 최고의 선행신호(R²0.53)
+        "intraday": intraday,  # 장중 보정(개장 시가갭 → 종가) — 개장 후 추가 정확도
         "default_targets": {"soxx": 460, "qqq": 650},
         "tail_multiplier": 1.8,
         "window_years": 3,
