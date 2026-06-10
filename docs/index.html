@@ -8322,6 +8322,35 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </div>`;
     }
 
+    // 🟢 장중 보정 — 개장 시가갭이 종일 변동의 ~59% 결정 → 장전보다 정확
+    let intradayBlock = '';
+    const intra = sc.intraday;
+    if (intra && (intra.state === 'open' || intra.state === 'closed') && intra.open) {
+      const gp = intra.open_gap_pct, rp = intra.revised_pct;
+      const isOpen = intra.state === 'open';
+      const rCol = rp >= 0 ? '#22c55e' : '#f87171';
+      const rev = intra.revised_close, sig = (intra.sigma || 0.026);
+      const rLo = rev * (1 - sig), rHi = rev * (1 + sig);
+      const title = isOpen ? '🟢 장중 보정 예측' : '✅ 오늘 종가 (보정모델 사후검증)';
+      const sub = isOpen
+        ? `개장 시가갭 <b style="color:${gp>=0?'#22c55e':'#f87171'};">${gp>=0?'+':''}${gp}%</b> 반영 — 장전보다 정확(검증 MAE ±${intra.mae_bt}%)`
+        : `시가갭 <b style="color:${gp>=0?'#22c55e':'#f87171'};">${gp>=0?'+':''}${gp}%</b> → 보정예측 ${fmtN(rev)} vs 실제 ${fmtN(intra.current)}`;
+      intradayBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:${rCol}11;border-left:3px solid ${rCol};">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:0.62rem;color:${rCol};font-weight:700;">${title} <span style="color:var(--text-muted);font-weight:400;">(개장 시가 → 종가, R²${intra.r2})</span></div>
+            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${sub}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">${isOpen ? '오늘 종가 보정예측' : '보정모델 추정'}</div>
+            <div style="font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:${rCol};line-height:1.1;">${fmtN(rev)} <span style="font-size:0.7rem;">${rp>=0?'+':''}${rp}%</span></div>
+            ${isOpen ? `<div style="font-size:0.54rem;color:var(--text-muted);">±1σ ${fmtN(rLo)}~${fmtN(rHi)} · 현재 ${fmtN(intra.current)}</div>` : ''}
+          </div>
+        </div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;">※ 시가갭(전일종가→개장가)은 종일 변동의 약 59%를 결정. 장중일수록 현재가가 종가에 수렴 → 가장 정확한 보정 단계.</div>
+      </div>`;
+    }
+
     const html = `<section class="section-wrap" id="kospi-scenario-section">
       <div class="section-label" style="color:#34d399;">🎯 KOSPI 시나리오 시뮬레이터
         <span style="font-size:0.62rem;color:var(--text-muted);">(가정 도구 — SOX·나스닥100이 변하면 KOSPI는?)</span>
@@ -8331,6 +8360,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="font-size:0.6rem;color:var(--text);">💡 <b>오늘 미국 변화가 기본 반영</b>됩니다(슬라이더=전일 대비). 더 <b style="color:#f87171;">내리면</b> 추가 하락, 더 <b style="color:#22c55e;">올리면</b> 추가 상승 가정. 예상 KOSPI는 미국 움직임의 다음날 캐치업 기대값.</div>
       </div>
       ${autoBlock}
+      ${intradayBlock}
       <div class="glass-card" style="padding:16px 18px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
           <div>
