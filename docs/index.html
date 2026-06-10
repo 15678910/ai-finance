@@ -8521,6 +8521,59 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
 
   // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
+  // ─── 🔮 SK하이닉스 OHLC 예측 ──────────────────────
+  function renderSkForecast(sf) {
+    if (!sf || !sf.forecast) return;
+    const f = sf.forecast, m = sf.model || {}, p = sf.peers || {};
+    const base = sf.base_close;
+    const fmt = n => Math.round(n).toLocaleString();
+    const sigCol = (sf.fut_overnight_pct >= 0) ? '#22c55e' : '#f87171';
+    const peerChips = Object.entries(p).map(([k, v]) => {
+      const c = v >= 0 ? '#22c55e' : '#f87171';
+      return `<span style="font-size:0.58rem;padding:2px 8px;border-radius:10px;background:${c}1a;color:${c};font-weight:700;">${h(k)} ${v >= 0 ? '+' : ''}${v}%</span>`;
+    }).join(' ');
+    const box = (label, val, pct, col) => `<div style="text-align:center;padding:10px 6px;background:rgba(255,255,255,0.03);border-radius:8px;border-top:2px solid ${col};">
+      <div style="font-size:0.58rem;color:var(--text-muted);">${label}</div>
+      <div style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${col};line-height:1.2;">${fmt(val)}</div>
+      ${pct != null ? `<div style="font-size:0.54rem;color:${pct >= 0 ? '#22c55e' : '#f87171'};">${pct >= 0 ? '+' : ''}${pct}%</div>` : '<div style="font-size:0.54rem;color:transparent;">.</div>'}</div>`;
+    const oC = f.open_pct >= 0 ? '#22c55e' : '#f87171';
+    const cC = f.close_pct >= 0 ? '#22c55e' : '#f87171';
+
+    const html = `<section class="section-wrap" id="sk-forecast-section">
+      <div class="section-label" style="color:#818cf8;">🔮 SK하이닉스 OHLC 예측 <span style="font-size:0.62rem;color:var(--text-muted);">(다음 거래일 시·고·저·종 — 나스닥 선물 24H 기반)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(sf.generated_at || '')}</span>
+      </div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          <div style="font-size:0.62rem;color:var(--text-muted);">기준 ${h(sf.base_date || '')} 종가 <b style="color:var(--text-bright);font-family:var(--font-mono);">${fmt(base)}</b>원 · 직전마감 이후 나스닥선물 <b style="color:${sigCol};">${sf.fut_overnight_pct >= 0 ? '+' : ''}${sf.fut_overnight_pct}%</b></div>
+          <span style="font-size:0.52rem;color:var(--text-muted);">검증 MAE ±${m.mae_bt}% · R²${m.r2} · β${m.beta_close}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+          ${box('예상 시가', f.open, f.open_pct, oC)}
+          ${box('예상 고가', f.high, null, '#22d3ee')}
+          ${box('예상 저가', f.low, null, '#fb923c')}
+          ${box('예상 종가', f.close, f.close_pct, cC)}
+        </div>
+        ${peerChips ? `<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:0.6rem;color:var(--text-muted);">미국 반도체 동료(직전 거래일):</span> ${peerChips}
+          <span style="font-size:0.52rem;color:var(--text-muted);">← 마이크론(메모리 경쟁사)이 가장 밀접</span></div>` : ''}
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ ${h(sf.note || '')}<br>🚨 통계 추정 · 개별종목은 지수보다 변동 큼(종가 MAE ±${m.mae_bt}%). 개장 후 실제 시가가 나오면 종가 정확도 상승. 투자 결정 단독 사용 금지.</div>
+      </div>
+    </section>`;
+
+    const existing = document.getElementById('sk-forecast-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('prediction-log-section')
+                  || document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   // ─── 📰 시장 뉴스 (급변 원인) ──────────────────────
   function renderMarketNews(mn) {
     if (!mn || !mn.items || !mn.items.length) return;
@@ -9768,6 +9821,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./market_news.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(mn => { if (mn) renderMarketNews(mn); });
+      // Load SK Hynix OHLC Forecast (SK하이닉스 OHLC 예측)
+      fetch('./sk_hynix_forecast.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(sf => { if (sf) renderSkForecast(sf); });
       // Load Overheating Risk Gauge (과열·차익실현 위험)
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
