@@ -2471,7 +2471,7 @@ body {
 
       // ── 필라델피아 반도체(SOXX) + 나스닥 선물(24H) 탭 전환 ──────────────
       // NASDAQ:SOX 는 외부 임베드 제한 → SOX 추종 ETF(SOXX). 선물은 OANDA CFD(24H).
-      const tvBaseSox = 'https://s.tradingview.com/widgetembed/?interval=D&theme=dark&locale=kr&toolbar_bg=%230d1117&hide_top_toolbar=0&hide_legend=0&save_image=0&style=1&studies=[]&backgroundColor=rgba(13%2C17%2C23%2C1)&gridColor=rgba(255%2C255%2C255%2C0.05)&symbol=';
+      const tvBaseSox = 'https://s.tradingview.com/widgetembed/?interval=3&theme=dark&locale=kr&toolbar_bg=%230d1117&hide_top_toolbar=0&hide_legend=0&save_image=0&style=1&studies=%5B%22STD%3BRSI%22%2C%22STD%3BStochastic%22%5D&backgroundColor=rgba(13%2C17%2C23%2C1)&gridColor=rgba(255%2C255%2C255%2C0.05)&symbol=';
       const soxTabs = [
         { key: 'soxx', label: '🇺🇸 필라델피아 반도체(SOXX)', sym: 'NASDAQ%3ASOXX', note: 'SOXX: iShares PHLX Semiconductor ETF — SOX 지수 추종, 삼성전자·SK하이닉스·인텔·엔비디아 등 30개 반도체 기업 편입. 실시간 SOX 지수 수치는 위 해외 시장 카드(필라델피아 반도체)에서 확인.' },
         { key: 'nqf',  label: '🇺🇸 나스닥 선물(24H)', sym: 'OANDA%3ANAS100USD', note: 'OANDA:NAS100USD — 나스닥100 CFD(선물 대용). 거의 24시간 거래되어 미국 현물 마감 후~KOSPI 개장 직전까지 계속 움직임 → KOSPI 개장 직전 가장 신선한 선행 신호. 예측 모델의 1순위 입력값(검증 MAE ±1.9%). ※ 실제 NQ 선물(CME:NQ1!)은 무료 임베드 차단으로 동일 움직임의 CFD로 대체.' },
@@ -2498,7 +2498,7 @@ body {
       // ── 나스닥 100 + 닛케이 225 지수 (탭 전환) ──────────────
       // 지수 심볼(NASDAQ:NDX, TVC:NI225)은 SOX처럼 외부 임베드 차단 →
       // 추종 ETF(QQQ) / 선물(NK225)로 대체
-      const tvBase = 'https://s.tradingview.com/widgetembed/?interval=D&theme=dark&locale=kr&toolbar_bg=%230d1117&hide_top_toolbar=0&hide_legend=0&save_image=0&style=1&studies=[]&backgroundColor=rgba(13%2C17%2C23%2C1)&gridColor=rgba(255%2C255%2C255%2C0.05)&symbol=';
+      const tvBase = 'https://s.tradingview.com/widgetembed/?interval=3&theme=dark&locale=kr&toolbar_bg=%230d1117&hide_top_toolbar=0&hide_legend=0&save_image=0&style=1&studies=%5B%22STD%3BRSI%22%2C%22STD%3BStochastic%22%5D&backgroundColor=rgba(13%2C17%2C23%2C1)&gridColor=rgba(255%2C255%2C255%2C0.05)&symbol=';
       const tvIndices = [
         { key: 'ndx',  label: '🇺🇸 나스닥 100', sym: 'NASDAQ%3AQQQ',   note: 'QQQ ETF — 나스닥 100 지수 추종. 애플·MS·엔비디아·아마존 등 시총 상위 100개 비금융 기업 편입 (NASDAQ:NDX 지수는 임베드 제한)' },
         { key: 'n225', label: '🇯🇵 닛케이225(CFD)', sym: 'OANDA%3AJP225USD', note: 'OANDA:JP225USD — 닛케이225 CFD. 거의 24시간 거래(일~금)되어 도쿄 휴장·야간에도 움직임 → 가장 활발. ※ 지수 원본(TVC:NI225)·선물은 무료 임베드 차단으로 CFD 대체. 차트 미표시 시 EWJ 사용.' },
