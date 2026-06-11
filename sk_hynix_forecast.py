@@ -78,7 +78,10 @@ def main():
     print(f"SK하이닉스 최근 {last_date}: 시{lo_o:.0f} 고{lo_h:.0f} 저{lo_l:.0f} 종{last_close:.0f}")
 
     # 나스닥 선물 1시간봉 (24H 야간 신호)
-    nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"].dropna()
+    nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"]
+    if hasattr(nq, "columns"):  # CI yfinance는 단일종목도 DataFrame 반환 → Series로
+        nq = nq.iloc[:, 0]
+    nq = nq.dropna()
     nq.index = nq.index.tz_convert("UTC") if nq.index.tz else nq.index.tz_localize("UTC")
     nq = nq.sort_index()
 

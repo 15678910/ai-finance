@@ -177,7 +177,10 @@ def futures_signal(np, pd, kospi_close_date, kospi_last_close, window=20):
     실증 R²=0.53(현물 0.28의 2배), 워크포워드 MAE 1.9%."""
     import yfinance as yf
     try:
-        nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"].dropna()
+        nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"]
+        if hasattr(nq, "columns"):  # CI yfinance는 단일종목도 DataFrame 반환 → Series로
+            nq = nq.iloc[:, 0]
+        nq = nq.dropna()
     except Exception as e:
         print(f"  [WARN] 선물 다운로드 실패: {e}")
         return None
