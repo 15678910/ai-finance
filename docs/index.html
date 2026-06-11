@@ -2471,10 +2471,20 @@ body {
 
       // ── 필라델피아 반도체(SOXX) + 나스닥 선물(24H) 탭 전환 ──────────────
       // NASDAQ:SOX 는 외부 임베드 제한 → SOX 추종 ETF(SOXX). 선물은 OANDA CFD(24H).
-      // 탭별 시간대(iv)·지표(st) 고정 — iframe 리로드돼도 항상 동일 세팅 유지
-      const TV_MOM = '%5B%22STD%3BRSI%22%2C%22STD%3BStochastic%22%2C%22STD%3BBollinger_Bands%22%5D';  // RSI + 스토캐스틱 + 볼린저밴드
-      const tvCore = 'https://s.tradingview.com/widgetembed/?theme=dark&locale=kr&toolbar_bg=%230d1117&hide_top_toolbar=0&hide_legend=0&save_image=0&style=1&backgroundColor=rgba(13%2C17%2C23%2C1)&gridColor=rgba(255%2C255%2C255%2C0.05)';
-      const tvSrc = idx => `${tvCore}&interval=${idx.iv || 'D'}&studies=${idx.st || '%5B%5D'}&symbol=${idx.sym}`;
+      // 탭별 시간대(iv)·지표(st) 고정 — 최신 Advanced Chart 위젯(studies 확실 지원)
+      // 구형 widgetembed는 URL studies를 무시하므로 embed-widget/advanced-chart 사용
+      const TV_MOM = ['STD;RSI', 'STD;Stochastic', 'STD;Bollinger_Bands'];  // RSI·스토캐스틱·볼린저밴드
+      const tvSrc = idx => {
+        const cfg = {
+          symbol: decodeURIComponent(idx.sym),
+          interval: idx.iv || 'D',
+          theme: 'dark', style: '1', locale: 'kr', timezone: 'Asia/Seoul',
+          studies: idx.st || [],
+          hide_side_toolbar: true, allow_symbol_change: false, save_image: false,
+          backgroundColor: 'rgba(13, 17, 23, 1)', gridColor: 'rgba(255, 255, 255, 0.05)'
+        };
+        return 'https://www.tradingview.com/embed-widget/advanced-chart/?locale=kr#' + encodeURIComponent(JSON.stringify(cfg));
+      };
       const soxTabs = [
         { key: 'soxx', label: '🇺🇸 필라델피아 반도체(SOXX)', sym: 'NASDAQ%3ASOXX', iv: 'D', st: TV_MOM, note: 'SOXX: iShares PHLX Semiconductor ETF — SOX 지수 추종, 삼성전자·SK하이닉스·인텔·엔비디아 등 30개 반도체 기업 편입. 일봉 + 스토캐스틱·RSI·볼린저밴드. 실시간 SOX 지수 수치는 위 해외 시장 카드(필라델피아 반도체)에서 확인.' },
         { key: 'nqf',  label: '🇺🇸 나스닥 선물(24H)', sym: 'OANDA%3ANAS100USD', iv: '3', st: TV_MOM, note: 'OANDA:NAS100USD — 나스닥100 CFD(선물 대용). 거의 24시간 거래되어 미국 현물 마감 후~KOSPI 개장 직전까지 계속 움직임 → KOSPI 개장 직전 가장 신선한 선행 신호. 3분봉 + 스토캐스틱·RSI 고정. 예측 모델의 1순위 입력값(검증 MAE ±1.9%). ※ 실제 NQ 선물(CME:NQ1!)은 무료 임베드 차단으로 동일 움직임의 CFD로 대체.' },
