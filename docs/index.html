@@ -2472,7 +2472,7 @@ body {
       // ── 필라델피아 반도체(SOXX) + 나스닥 선물(24H) 탭 전환 ──────────────
       // NASDAQ:SOX 는 외부 임베드 제한 → SOX 추종 ETF(SOXX). 선물은 OANDA CFD(24H).
       // 탭별 시간대(iv)·지표(st) 고정 — iframe 리로드돼도 항상 동일 세팅 유지
-      const TV_MOM = '%5B%22STD%3BRSI%22%2C%22STD%3BStochastic%22%5D';  // RSI + 스토캐스틱
+      const TV_MOM = '%5B%22STD%3BRSI%22%2C%22STD%3BStochastic%22%2C%22STD%3BBollinger_Bands%22%5D';  // RSI + 스토캐스틱 + 볼린저밴드
       const tvCore = 'https://s.tradingview.com/widgetembed/?theme=dark&locale=kr&toolbar_bg=%230d1117&hide_top_toolbar=0&hide_legend=0&save_image=0&style=1&backgroundColor=rgba(13%2C17%2C23%2C1)&gridColor=rgba(255%2C255%2C255%2C0.05)';
       const tvSrc = idx => `${tvCore}&interval=${idx.iv || 'D'}&studies=${idx.st || '%5B%5D'}&symbol=${idx.sym}`;
       const soxTabs = [
