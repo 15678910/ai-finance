@@ -489,6 +489,36 @@ def main():
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
     print(f"\n[OK] {OUTPUT_FILE} 저장 완료")
+
+    # 코스피 종합주가지수 자체 차트 데이터 (네이버 OHLC — TradingView 임베드 차단 회피)
+    try:
+        import urllib.request
+        import re
+        from datetime import date
+        chart_file = os.path.join(BASE_DIR, "docs", "kospi_chart.json")
+        end = date.today().strftime("%Y%m%d")
+        start = (date.today() - timedelta(days=160)).strftime("%Y%m%d")
+        url = (f"https://api.finance.naver.com/siseJson.naver?symbol=KOSPI"
+               f"&requestType=1&startTime={start}&endTime={end}&timeframe=day")
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"})
+        txt = urllib.request.urlopen(req, timeout=12).read().decode("utf-8")
+        rows = re.findall(r'\["(\d{8})",\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)', txt)
+        bars = [{"d": f"{d[:4]}-{d[4:6]}-{d[6:]}", "o": float(o), "h": float(hh),
+                 "l": float(ll), "c": float(c)} for d, o, hh, ll, c in rows]
+        if len(bars) >= 2:
+            chg = round((bars[-1]["c"] / bars[-2]["c"] - 1) * 100, 2)
+            chart = {
+                "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
+                "name": "코스피 종합주가지수", "asof": bars[-1]["d"],
+                "last": round(bars[-1]["c"], 2), "change_pct": chg,
+                "bars": bars[-90:],
+            }
+            with open(chart_file, "w", encoding="utf-8") as f:
+                json.dump(chart, f, ensure_ascii=False, indent=2)
+            print(f"[OK] {chart_file} ({len(chart['bars'])}봉, 최근 {chart['last']} {chg:+.2f}%)")
+    except Exception as e:
+        print(f"  [WARN] 코스피 차트 데이터 실패: {e}")
     return 0
 
 
