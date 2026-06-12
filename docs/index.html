@@ -8731,8 +8731,83 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </tbody></table>`;
   };
 
+  // ── ③ 포지션·포트폴리오 트래커 ──
+  const POS_KEY = 'omc_positions_v1';
+  function posLoad() { try { return JSON.parse(localStorage.getItem(POS_KEY) || '[]'); } catch (e) { return []; } }
+  function posSave(a) { try { localStorage.setItem(POS_KEY, JSON.stringify(a)); } catch (e) {} }
+  window.__posAdd = function () {
+    const g = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    const sym = g('po-symbol'), entry = parseFloat(g('po-entry').replace(/,/g, '')), qty = parseFloat(g('po-qty').replace(/,/g, ''));
+    const stop = parseFloat(g('po-stop').replace(/,/g, '')), cur = parseFloat(g('po-cur').replace(/,/g, '')) || entry;
+    if (!sym || !(entry > 0) || !(qty > 0)) { alert('종목 · 진입가 · 수량을 입력하세요.'); return; }
+    const a = posLoad();
+    a.unshift({ sym, dir: g('po-dir') || 'long', entry, qty, stop: stop > 0 ? stop : null, cur });
+    posSave(a);
+    ['po-symbol', 'po-entry', 'po-qty', 'po-stop', 'po-cur'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    window.__posRender();
+  };
+  window.__posDel = function (i) { const a = posLoad(); a.splice(i, 1); posSave(a); window.__posRender(); };
+  window.__posSetCur = function (i, v) { const a = posLoad(); if (a[i]) { a[i].cur = parseFloat(String(v).replace(/,/g, '')) || a[i].cur; posSave(a); window.__posRender(); } };
+  window.__posLiquidate = function (i) {
+    const a = posLoad(); const p = a[i]; if (!p) return;
+    const exit = parseFloat(prompt('청산가(매도 체결가)를 입력하세요:', p.cur) || '');
+    if (!(exit > 0)) return;
+    const pnl = (p.dir === 'long' ? (exit - p.entry) : (p.entry - exit)) * p.qty;
+    const pnlPct = (p.dir === 'long' ? (exit / p.entry - 1) : (1 - exit / p.entry)) * 100;
+    const j = tjLoad();
+    j.unshift({ date: new Date().toISOString().slice(0, 10), sym: p.sym, dir: p.dir, entry: p.entry, exit, qty: p.qty, reason: '포지션 청산', emotion: '😐', memo: '', pnl, pnlPct });
+    tjSave(j);
+    a.splice(i, 1); posSave(a); window.__posRender(); window.__journalRender();
+    alert('청산 완료 → 매매일지에 자동 기록됐습니다.');
+  };
+  window.__posRender = function () {
+    const box = document.getElementById('po-table'); if (!box) return;
+    const a = posLoad();
+    const cap = _numv('rc-cap');
+    let totVal = 0, totPnl = 0;
+    a.forEach(p => { totVal += p.cur * p.qty; totPnl += (p.dir === 'long' ? (p.cur - p.entry) : (p.entry - p.cur)) * p.qty; });
+    const expo = (cap > 0) ? totVal / cap * 100 : null;
+    const sumEl = document.getElementById('po-summary');
+    if (sumEl) sumEl.innerHTML = a.length ? `보유 <b style="color:var(--text-bright);">${a.length}</b>종목 · 평가금액 <b style="font-family:var(--font-mono);">${_won(totVal)}</b> · 미실현손익 <b style="color:${totPnl >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${totPnl >= 0 ? '+' : ''}${_won(totPnl)}</b>${expo != null ? ` · 노출도 <b style="color:${expo > 100 ? '#f87171' : expo > 70 ? '#fbbf24' : '#22c55e'};">${expo.toFixed(0)}%</b>` : ''}` : '<span style="color:var(--text-muted);">보유 포지션이 없습니다. 진입한 종목을 등록하면 실시간 손익·노출도가 보입니다.</span>';
+    if (!a.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:600px;">
+      <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+        ${['종목', '방향', '진입', '현재가', '수량', '평가손익', '%', '손절', '비중', ''].map(hh => `<th style="padding:4px 6px;text-align:left;font-size:0.55rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${hh}</th>`).join('')}
+      </tr></thead><tbody>
+      ${a.map((p, i) => {
+        const pnl = (p.dir === 'long' ? (p.cur - p.entry) : (p.entry - p.cur)) * p.qty;
+        const pnlPct = (p.dir === 'long' ? (p.cur / p.entry - 1) : (1 - p.cur / p.entry)) * 100;
+        const w = (cap > 0) ? (p.cur * p.qty / cap * 100) : null;
+        const stopHit = p.stop && (p.dir === 'long' ? p.cur <= p.stop : p.cur >= p.stop);
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${stopHit ? 'background:rgba(248,113,113,0.08);' : ''}">
+          <td style="padding:4px 6px;font-size:0.64rem;color:var(--text-bright);white-space:nowrap;">${h(p.sym)}${stopHit ? ' <span style="color:#f87171;font-size:0.5rem;">⚠️손절이탈</span>' : ''}</td>
+          <td style="padding:4px 6px;font-size:0.58rem;color:${p.dir === 'long' ? '#22c55e' : '#f87171'};">${p.dir === 'long' ? '매수' : '매도'}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${p.entry.toLocaleString()}</td>
+          <td style="padding:4px 6px;text-align:right;"><input value="${p.cur}" onchange="window.__posSetCur(${i}, this.value)" style="width:64px;text-align:right;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:var(--text-bright);font-size:0.6rem;font-family:var(--font-mono);padding:1px 3px;"></td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${p.qty.toLocaleString()}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-weight:700;font-family:var(--font-mono);color:${pnl >= 0 ? '#22c55e' : '#f87171'};white-space:nowrap;">${pnl >= 0 ? '+' : ''}${Math.round(pnl).toLocaleString()}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.58rem;color:${pnlPct >= 0 ? '#22c55e' : '#f87171'};">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-family:var(--font-mono);">${p.stop ? p.stop.toLocaleString() : '—'}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.58rem;color:${w != null && w > 40 ? '#fbbf24' : 'var(--text-muted)'};">${w != null ? w.toFixed(0) + '%' : '—'}</td>
+          <td style="padding:4px 6px;text-align:center;white-space:nowrap;"><span onclick="window.__posLiquidate(${i})" style="cursor:pointer;color:#22d3ee;font-size:0.52rem;" title="청산→일지">청산</span> <span onclick="window.__posDel(${i})" style="cursor:pointer;color:#f87171;font-size:0.7rem;" title="삭제">×</span></td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+  };
+
+  // ── ④ 진입 전 체크리스트 ──
+  window.__checkUpdate = function () {
+    const items = document.querySelectorAll('.tc-item');
+    let done = 0; items.forEach(c => { if (c.checked) done++; });
+    const el = document.getElementById('tc-status'); if (!el) return;
+    const all = items.length;
+    if (done === all) el.innerHTML = '<span style="color:#22c55e;font-weight:800;">🟢 진입 OK — 모든 규율 충족</span>';
+    else el.innerHTML = `<span style="color:#f87171;font-weight:800;">🔴 ${all - done}개 미충족 — 진입 보류</span> <span style="font-size:0.55rem;color:var(--text-muted);">규율을 어기면 계좌가 녹습니다</span>`;
+  };
+  window.__checkReset = function () { document.querySelectorAll('.tc-item').forEach(c => c.checked = false); window.__checkUpdate(); };
+
   function renderTradingTools() {
-    if (document.getElementById('trading-tools-section')) { window.__journalRender(); window.__riskCalc(); return; }
+    if (document.getElementById('trading-tools-section')) { window.__journalRender(); window.__riskCalc(); window.__posRender(); return; }
     const IST = 'width:100%;padding:5px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:var(--text-bright);font-size:0.7rem;font-family:var(--font-mono);';
     const LBL = 'font-size:0.56rem;color:var(--text-muted);margin-bottom:2px;display:block;';
     const today = new Date().toISOString().slice(0, 10);
@@ -8770,6 +8845,33 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div id="tj-summary" style="font-size:0.62rem;color:var(--text);padding:8px 0;border-top:1px solid rgba(255,255,255,0.08);"></div>
         <div id="tj-table" style="overflow-x:auto;"></div>
       </div>
+
+      <div class="glass-card" style="padding:14px 16px;margin-top:12px;">
+        <div style="font-size:0.72rem;font-weight:700;color:#fb923c;margin-bottom:10px;">📦 포지션 트래커 <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">— 보유 종목 실시간 손익·노출도 (현재가는 직접 수정)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:8px;">
+          <div><label style="${LBL}">종목</label><input id="po-symbol" type="text" placeholder="SK하이닉스" style="${IST.replace('font-family:var(--font-mono);','')}"></div>
+          <div><label style="${LBL}">방향</label><select id="po-dir" style="${IST}"><option value="long">매수</option><option value="short">매도</option></select></div>
+          <div><label style="${LBL}">진입가</label><input id="po-entry" type="text" inputmode="decimal" style="${IST}"></div>
+          <div><label style="${LBL}">수량</label><input id="po-qty" type="text" inputmode="numeric" style="${IST}"></div>
+          <div><label style="${LBL}">손절가(선택)</label><input id="po-stop" type="text" inputmode="decimal" style="${IST}"></div>
+          <div><label style="${LBL}">현재가</label><input id="po-cur" type="text" inputmode="decimal" style="${IST}"></div>
+        </div>
+        <div style="text-align:right;margin-bottom:10px;"><span onclick="window.__posAdd()" style="cursor:pointer;font-size:0.68rem;font-weight:700;color:#0a0e14;background:#fb923c;border-radius:6px;padding:6px 16px;display:inline-block;">+ 포지션 등록</span></div>
+        <div id="po-summary" style="font-size:0.62rem;color:var(--text);padding:8px 0;border-top:1px solid rgba(255,255,255,0.08);"></div>
+        <div id="po-table" style="overflow-x:auto;"></div>
+      </div>
+
+      <div class="glass-card" style="padding:14px 16px;margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+          <div style="font-size:0.72rem;font-weight:700;color:#34d399;">✅ 진입 전 체크리스트 <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">— 규율 강제(심리 보조)</span></div>
+          <span onclick="window.__checkReset()" style="cursor:pointer;font-size:0.56rem;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:2px 8px;">초기화</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          ${['예측 방향(선물·실증베타) 확인했다', '반전경보·뉴스 심리 확인했다', '손절가를 미리 정했다', '1회 손실이 한도(2%) 이내다', '손익비(R:R) 2:1 이상이다', '추격매수·복수매매가 아니다', '계획대로 진입한다(감정 아님)'].map((t, i) => `<label style="display:flex;align-items:center;gap:8px;font-size:0.66rem;color:var(--text);cursor:pointer;"><input type="checkbox" class="tc-item" onchange="window.__checkUpdate()" style="accent-color:#34d399;width:15px;height:15px;cursor:pointer;"> ${t}</label>`).join('')}
+        </div>
+        <div id="tc-status" style="margin-top:10px;font-size:0.7rem;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);"></div>
+      </div>
+
       <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;">※ 모든 데이터는 이 브라우저에만 저장됩니다(localStorage, 서버 전송 없음). 다른 기기·브라우저와 공유되지 않으니 CSV로 백업하세요.</div>
     </section>`;
     const tmp = document.createElement('div'); tmp.innerHTML = html;
@@ -8778,7 +8880,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (anchor && anchor.id === 'app') anchor.appendChild(node);
     else if (anchor) anchor.insertAdjacentElement('beforebegin', node);
     else document.body.appendChild(node);
-    window.__journalRender(); window.__riskCalc();
+    window.__journalRender(); window.__riskCalc(); window.__posRender(); window.__checkUpdate();
     scheduleNavRebuild();
   }
 
