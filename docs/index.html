@@ -9922,6 +9922,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderEconomicCalendar(calData) {
     if (!calData || !calData.events || calData.events.length === 0) return;
 
+    // ── 지난 이벤트 제외: 오늘(KST) 이후만 표시 (미래 이벤트는 백엔드가 계속 수집) ──
+    const _td = new Date();
+    const _todayKST = `${_td.getFullYear()}-${String(_td.getMonth() + 1).padStart(2, '0')}-${String(_td.getDate()).padStart(2, '0')}`;
+    const _upcoming = calData.events.filter(ev => !ev.date || String(ev.date).includes('TBD') || String(ev.date) >= _todayKST);
+    if (!_upcoming.length) return;
+    calData = Object.assign({}, calData, { events: _upcoming });
+
     // ── 실시간 카운트다운 타깃 계산 (ET 이벤트는 EDT, 그 외 KST) ──
     const eventTargetMs = (ev) => {
       if (!ev.date || String(ev.date).includes('TBD')) return null;
