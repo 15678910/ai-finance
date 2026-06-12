@@ -8884,6 +8884,47 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  // ─── 📊 전략 백테스트 ──────────────────────
+  function renderStrategyBacktest(sb) {
+    if (!sb || !sb.strategies) return;
+    const best = sb.strategies.reduce((a, b) => ((b.m && (b.m.cum_return || 0)) > (a.m && (a.m.cum_return || 0) || -999) ? b : a), sb.strategies[0]);
+    const rows = sb.strategies.map(st => {
+      const m = st.m || {}; const isBest = st.key === best.key;
+      const cr = m.cum_return || 0;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${isBest ? 'background:rgba(34,197,94,0.06);' : ''}">
+        <td style="padding:6px 8px;font-size:0.66rem;color:var(--text-bright);">${isBest ? '🏆 ' : ''}${h(st.name)}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.62rem;color:var(--text-muted);font-family:var(--font-mono);">${m.trades ?? '—'}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);color:${(m.win_rate||0)>=60?'#22c55e':'#fbbf24'};">${m.win_rate ?? '—'}%</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-weight:700;font-family:var(--font-mono);color:${cr>=0?'#22c55e':'#f87171'};">${cr>=0?'+':''}${cr}%</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:#f87171;">${m.mdd ?? '—'}%</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${m.sharpe ?? '—'}</td>
+      </tr>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="strategy-backtest-section">
+      <div class="section-label" style="color:#38bdf8;">📊 전략 백테스트 <span style="font-size:0.62rem;color:var(--text-muted);">(선물 신호 매매 규칙의 과거 성과 — ${h(sb.period||'')})</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(sb.generated_at||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:8px 12px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:460px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            ${['전략','거래수','승률','누적수익','MDD','Sharpe'].map((hh,i)=>`<th style="padding:5px 8px;text-align:${i===0?'left':'right'};font-size:0.56rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${hh}</th>`).join('')}
+          </tr></thead><tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:0.56rem;color:#fbbf24;margin-top:8px;line-height:1.5;">⚠️ <b>주의</b>: 최근은 강세장(KOSPI 2개월 +50%)이라 수치가 부풀려져 있고, <b>거래비용·세금·슬리피지 미반영</b>입니다. 절대수익보다 <b>벤치마크(Buy&Hold) 대비 초과·MDD(최대낙폭)</b>를 보세요. 과거≠미래. 교육용.</div>
+    </section>`;
+    const existing = document.getElementById('strategy-backtest-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('prediction-log-section') || document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   // ─── 📰 시장 뉴스 (급변 원인) ──────────────────────
   function renderMarketNews(mn) {
     if (!mn || !mn.items || !mn.items.length) return;
@@ -10150,6 +10191,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./sk_hynix_forecast.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sf => { if (sf) renderSkForecast(sf); });
+      // Load Strategy Backtest (전략 백테스트)
+      fetch('./strategy_backtest.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(sb => { if (sb) renderStrategyBacktest(sb); });
       // Load Overheating Risk Gauge (과열·차익실현 위험)
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

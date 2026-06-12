@@ -101,6 +101,13 @@ jobs:
         run: |
           python sk_hynix_forecast.py || echo "SK Hynix forecast had errors, continuing..."
 
+      # 전략 백테스트 (선물 신호 매매 규칙 과거 성과)
+      - name: Run strategy backtest
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python strategy_backtest.py || echo "Strategy backtest had errors, continuing..."
+
       # overseas_market.json을 data.json에 병합 (대시보드는 data.json을 읽음)
       # 이 단계가 없으면 시세는 수집돼도 화면·갱신시각이 멈춤
       - name: Regenerate dashboard data.json
@@ -124,7 +131,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"
