@@ -4923,6 +4923,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ─── TradingView 위젯(tv.js) 마운트 (스트리밍+지표) ──
     setTimeout(() => initTvWidgets(), 200);
 
+    // ─── 🛡️ 트레이딩 도구 (리스크 계산기 + 매매일지) ──
+    setTimeout(() => renderTradingTools(), 260);
+
     // ─── 🕸️ Render Knowledge Graph (Palantir 스타일) ────
     setTimeout(() => renderKnowledgeGraph(data), 200);
 
@@ -8627,6 +8630,155 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       if (anchor) anchor.insertAdjacentElement('afterend', node);
       else (document.getElementById('app') || document.body).appendChild(node);
     }
+    scheduleNavRebuild();
+  }
+
+  // ─── 🛡️ 트레이딩 도구: 리스크 관리 계산기 + 매매일지 ──────────────
+  const TJ_KEY = 'omc_trade_journal_v1';
+  function tjLoad() { try { return JSON.parse(localStorage.getItem(TJ_KEY) || '[]'); } catch (e) { return []; } }
+  function tjSave(a) { try { localStorage.setItem(TJ_KEY, JSON.stringify(a)); } catch (e) {} }
+  const _won = n => (Math.round(n)).toLocaleString() + '원';
+  const _numv = id => { const el = document.getElementById(id); return el ? parseFloat(String(el.value || '').replace(/,/g, '')) : NaN; };
+
+  window.__riskCalc = function () {
+    const cap = _numv('rc-cap'), riskPct = _numv('rc-risk'), entry = _numv('rc-entry'), stop = _numv('rc-stop'), target = _numv('rc-target');
+    const out = document.getElementById('rc-out');
+    if (!out) return;
+    if (!(cap > 0) || !(riskPct > 0) || !(entry > 0) || !(stop > 0) || entry === stop) {
+      out.innerHTML = '<span style="color:var(--text-muted);font-size:0.62rem;">자본 · 손실한도 · 진입가 · 손절가를 입력하세요.</span>'; return;
+    }
+    const riskAmt = cap * riskPct / 100;
+    const perShare = Math.abs(entry - stop);
+    const qty = Math.floor(riskAmt / perShare);
+    const cost = qty * entry;
+    const stopPct = perShare / entry * 100;
+    const weight = cap > 0 ? cost / cap * 100 : 0;
+    const isLong = stop < entry;
+    let rr = null, tgtPct = null;
+    if (target > 0) { rr = Math.abs(target - entry) / perShare; tgtPct = Math.abs(target - entry) / entry * 100; }
+    const rrCol = rr == null ? 'var(--text-muted)' : rr >= 2 ? '#22c55e' : rr >= 1 ? '#fbbf24' : '#f87171';
+    const wWarn = weight > 100 ? '<span style="color:#f87171;"> ⚠️레버리지(자본초과)</span>' : weight > 40 ? '<span style="color:#fbbf24;"> ⚠️집중</span>' : '';
+    out.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="text-align:center;padding:9px;background:rgba(34,211,238,0.08);border-radius:8px;">
+          <div style="font-size:0.56rem;color:var(--text-muted);">적정 수량 (${isLong ? '매수' : '매도'})</div>
+          <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:#22d3ee;">${qty.toLocaleString()}주</div>
+        </div>
+        <div style="text-align:center;padding:9px;background:rgba(248,113,113,0.08);border-radius:8px;">
+          <div style="font-size:0.56rem;color:var(--text-muted);">예상 손실 (손절 시)</div>
+          <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:#f87171;">${_won(qty * perShare)}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:9px;font-size:0.62rem;color:var(--text-muted);">
+        <span>투입금액 <b style="color:var(--text-bright);font-family:var(--font-mono);">${_won(cost)}</b> (자본의 ${weight.toFixed(1)}%)${wWarn}</span>
+        <span>손절폭 <b style="color:#f87171;">${stopPct.toFixed(2)}%</b></span>
+        <span>손익비(R:R) <b style="color:${rrCol};font-family:var(--font-mono);">${rr == null ? '—' : '1 : ' + rr.toFixed(2)}</b>${rr != null && rr < 1 ? ' <span style="color:#f87171;">불리</span>' : rr != null && rr >= 2 ? ' <span style="color:#22c55e;">양호</span>' : ''}</span>
+      </div>
+      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:7px;">※ 1회 손실 ${riskPct}%(${_won(riskAmt)}) 한도로 자동 사이징. R:R 2 이상 권장. 손절을 지켜야 의미가 있습니다.</div>`;
+  };
+
+  window.__journalAdd = function () {
+    const g = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    const entry = parseFloat(g('tj-entry').replace(/,/g, '')), exit = parseFloat(g('tj-exit').replace(/,/g, '')), qty = parseFloat(g('tj-qty').replace(/,/g, ''));
+    const sym = g('tj-symbol');
+    if (!sym || !(entry > 0) || !(exit > 0) || !(qty > 0)) { alert('종목 · 진입가 · 청산가 · 수량을 입력하세요.'); return; }
+    const dir = g('tj-dir') || 'long';
+    const pnl = (dir === 'long' ? (exit - entry) : (entry - exit)) * qty;
+    const pnlPct = (dir === 'long' ? (exit / entry - 1) : (1 - exit / entry)) * 100;
+    const arr = tjLoad();
+    arr.unshift({ date: g('tj-date') || new Date().toISOString().slice(0, 10), sym, dir, entry, exit, qty, reason: g('tj-reason'), emotion: g('tj-emotion') || '😐', memo: g('tj-memo'), pnl, pnlPct });
+    tjSave(arr);
+    ['tj-symbol', 'tj-entry', 'tj-exit', 'tj-qty', 'tj-reason', 'tj-memo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    window.__journalRender();
+  };
+  window.__journalDel = function (i) { const a = tjLoad(); a.splice(i, 1); tjSave(a); window.__journalRender(); };
+  window.__journalClear = function () { if (confirm('매매일지를 모두 삭제할까요?')) { tjSave([]); window.__journalRender(); } };
+  window.__journalExport = function () {
+    const a = tjLoad(); if (!a.length) { alert('기록이 없습니다.'); return; }
+    const head = ['날짜', '종목', '방향', '진입가', '청산가', '수량', '손익', '손익%', '사유', '감정', '메모'];
+    const rows = a.map(t => [t.date, t.sym, t.dir === 'long' ? '매수' : '매도', t.entry, t.exit, t.qty, Math.round(t.pnl), t.pnlPct.toFixed(2), (t.reason || '').replace(/,/g, ' '), t.emotion, (t.memo || '').replace(/,/g, ' ')].join(','));
+    const csv = '﻿' + [head.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob); const a2 = document.createElement('a'); a2.href = url; a2.download = 'trade_journal.csv'; a2.click(); URL.revokeObjectURL(url);
+  };
+  window.__journalRender = function () {
+    const box = document.getElementById('tj-table'); if (!box) return;
+    const a = tjLoad();
+    const n = a.length, wins = a.filter(t => t.pnl > 0).length;
+    const total = a.reduce((s, t) => s + t.pnl, 0);
+    const avgPct = n ? a.reduce((s, t) => s + t.pnlPct, 0) / n : 0;
+    const winRate = n ? Math.round(wins / n * 100) : 0;
+    const sumEl = document.getElementById('tj-summary');
+    if (sumEl) sumEl.innerHTML = n ? `총 <b style="color:var(--text-bright);">${n}</b>건 · 승률 <b style="color:${winRate >= 50 ? '#22c55e' : '#fbbf24'};">${winRate}%</b> · 누적손익 <b style="color:${total >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${total >= 0 ? '+' : ''}${_won(total)}</b> · 평균 <b style="color:${avgPct >= 0 ? '#22c55e' : '#f87171'};">${avgPct >= 0 ? '+' : ''}${avgPct.toFixed(2)}%</b>` : '<span style="color:var(--text-muted);">아직 기록이 없습니다. 첫 매매를 기록해 보세요.</span>';
+    if (!n) { box.innerHTML = ''; return; }
+    box.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:560px;">
+      <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+        ${['날짜', '종목', '방향', '진입', '청산', '수량', '손익', '%', '사유', '', ''].map(hh => `<th style="padding:4px 6px;text-align:left;font-size:0.55rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${hh}</th>`).join('')}
+      </tr></thead><tbody>
+      ${a.map((t, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:4px 6px;font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;">${h(t.date)}</td>
+        <td style="padding:4px 6px;font-size:0.64rem;color:var(--text-bright);white-space:nowrap;">${h(t.sym)}</td>
+        <td style="padding:4px 6px;font-size:0.58rem;color:${t.dir === 'long' ? '#22c55e' : '#f87171'};">${t.dir === 'long' ? '매수' : '매도'}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${t.entry.toLocaleString()}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${t.exit.toLocaleString()}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${t.qty.toLocaleString()}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-weight:700;font-family:var(--font-mono);color:${t.pnl >= 0 ? '#22c55e' : '#f87171'};white-space:nowrap;">${t.pnl >= 0 ? '+' : ''}${Math.round(t.pnl).toLocaleString()}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.58rem;color:${t.pnlPct >= 0 ? '#22c55e' : '#f87171'};">${t.pnlPct >= 0 ? '+' : ''}${t.pnlPct.toFixed(1)}%</td>
+        <td style="padding:4px 6px;font-size:0.56rem;color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${h(t.memo || '')}">${t.emotion || ''} ${h(t.reason || '')}</td>
+        <td style="padding:4px 6px;"></td>
+        <td style="padding:4px 6px;text-align:center;"><span onclick="window.__journalDel(${i})" style="cursor:pointer;color:#f87171;font-size:0.7rem;" title="삭제">×</span></td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  };
+
+  function renderTradingTools() {
+    if (document.getElementById('trading-tools-section')) { window.__journalRender(); window.__riskCalc(); return; }
+    const IST = 'width:100%;padding:5px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:var(--text-bright);font-size:0.7rem;font-family:var(--font-mono);';
+    const LBL = 'font-size:0.56rem;color:var(--text-muted);margin-bottom:2px;display:block;';
+    const today = new Date().toISOString().slice(0, 10);
+    const html = `<section class="section-wrap" id="trading-tools-section">
+      <div class="section-label" style="color:#2dd4bf;">🛡️ 트레이딩 도구 <span style="font-size:0.62rem;color:var(--text-muted);">(리스크 관리 + 매매일지 — 예측보다 수익에 직접적)</span></div>
+
+      <div class="glass-card" style="padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:0.72rem;font-weight:700;color:#2dd4bf;margin-bottom:10px;">🛡️ 리스크 관리 계산기 <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">— 틀려도 살아남는 포지션 사이징</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:12px;">
+          <div><label style="${LBL}">계좌 자본(원)</label><input id="rc-cap" type="text" inputmode="numeric" placeholder="10,000,000" oninput="window.__riskCalc()" style="${IST}"></div>
+          <div><label style="${LBL}">1회 손실 한도(%)</label><input id="rc-risk" type="text" inputmode="decimal" value="2" oninput="window.__riskCalc()" style="${IST}"></div>
+          <div><label style="${LBL}">진입가</label><input id="rc-entry" type="text" inputmode="decimal" placeholder="70000" oninput="window.__riskCalc()" style="${IST}"></div>
+          <div><label style="${LBL}">손절가</label><input id="rc-stop" type="text" inputmode="decimal" placeholder="68000" oninput="window.__riskCalc()" style="${IST}"></div>
+          <div><label style="${LBL}">목표가(선택)</label><input id="rc-target" type="text" inputmode="decimal" placeholder="74000" oninput="window.__riskCalc()" style="${IST}"></div>
+        </div>
+        <div id="rc-out"></div>
+      </div>
+
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">📓 매매일지 <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">— 복기 없는 트레이더는 같은 실수 반복</span></div>
+          <div style="display:flex;gap:6px;"><span onclick="window.__journalExport()" style="cursor:pointer;font-size:0.56rem;color:#22d3ee;border:1px solid rgba(34,211,238,0.3);border-radius:5px;padding:2px 8px;">CSV 내보내기</span><span onclick="window.__journalClear()" style="cursor:pointer;font-size:0.56rem;color:#f87171;border:1px solid rgba(248,113,113,0.3);border-radius:5px;padding:2px 8px;">전체삭제</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:8px;">
+          <div><label style="${LBL}">날짜</label><input id="tj-date" type="date" value="${today}" style="${IST}"></div>
+          <div><label style="${LBL}">종목</label><input id="tj-symbol" type="text" placeholder="SK하이닉스" style="${IST.replace('font-family:var(--font-mono);','')}"></div>
+          <div><label style="${LBL}">방향</label><select id="tj-dir" style="${IST}"><option value="long">매수</option><option value="short">매도(공매도)</option></select></div>
+          <div><label style="${LBL}">진입가</label><input id="tj-entry" type="text" inputmode="decimal" style="${IST}"></div>
+          <div><label style="${LBL}">청산가</label><input id="tj-exit" type="text" inputmode="decimal" style="${IST}"></div>
+          <div><label style="${LBL}">수량</label><input id="tj-qty" type="text" inputmode="numeric" style="${IST}"></div>
+          <div><label style="${LBL}">감정</label><select id="tj-emotion" style="${IST}"><option>😐</option><option>😀</option><option>😰</option><option>😡</option><option>🤑</option></select></div>
+          <div style="grid-column:1/-1;"><label style="${LBL}">사유 / 메모</label><div style="display:flex;gap:8px;"><input id="tj-reason" type="text" placeholder="진입 사유 (예: 선물 반등+뉴스 완화)" style="${IST.replace('font-family:var(--font-mono);','')}"><input id="tj-memo" type="text" placeholder="복기 메모" style="${IST.replace('font-family:var(--font-mono);','')}"></div></div>
+        </div>
+        <div style="text-align:right;margin-bottom:10px;"><span onclick="window.__journalAdd()" style="cursor:pointer;font-size:0.68rem;font-weight:700;color:#0a0e14;background:#a78bfa;border-radius:6px;padding:6px 16px;display:inline-block;">+ 매매 기록</span></div>
+        <div id="tj-summary" style="font-size:0.62rem;color:var(--text);padding:8px 0;border-top:1px solid rgba(255,255,255,0.08);"></div>
+        <div id="tj-table" style="overflow-x:auto;"></div>
+      </div>
+      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;">※ 모든 데이터는 이 브라우저에만 저장됩니다(localStorage, 서버 전송 없음). 다른 기기·브라우저와 공유되지 않으니 CSV로 백업하세요.</div>
+    </section>`;
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    const node = tmp.firstElementChild;
+    const anchor = document.getElementById('kospi-scenario-section') || document.getElementById('app');
+    if (anchor && anchor.id === 'app') anchor.appendChild(node);
+    else if (anchor) anchor.insertAdjacentElement('beforebegin', node);
+    else document.body.appendChild(node);
+    window.__journalRender(); window.__riskCalc();
     scheduleNavRebuild();
   }
 
