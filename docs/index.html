@@ -8650,19 +8650,34 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const c = CAT[it.category] || CAT['기타'];
       const link = it.link ? h(it.link) : '#';
       const pub = it.pub ? `<span style="font-size:0.52rem;color:var(--text-muted);white-space:nowrap;">${h(it.pub.replace(/\s*\+0000.*$/, '').replace(/^\w{3},\s*/, ''))}</span>` : '';
+      const stag = (it.impact) ? `<span style="font-size:0.5rem;color:${it.sentiment>0?'#22c55e':'#f87171'};white-space:nowrap;">${it.sent_emoji||''}${h(it.impact)}</span>` : '';
       return `<a href="${link}" target="_blank" rel="noopener" style="display:flex;gap:9px;align-items:flex-start;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05);text-decoration:none;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
         <span style="flex-shrink:0;font-size:0.55rem;font-weight:700;color:${c};background:${c}1a;padding:2px 6px;border-radius:5px;white-space:nowrap;min-width:62px;text-align:center;">${it.cat_emoji||''} ${h(it.category)}</span>
-        <span style="flex:1;font-size:0.72rem;color:var(--text-bright);line-height:1.35;">${h(it.region||'')} ${h(it.title)}</span>
+        <span style="flex:1;font-size:0.72rem;color:var(--text-bright);line-height:1.35;">${h(it.region||'')} ${h(it.title)} ${stag}</span>
         ${pub}
       </a>`;
     }).join('');
+
+    // 뉴스 심리 게이지 + 반전경보
+    const se = mn.sentiment || null;
+    const rev = mn.reversal_warning || null;
+    const sentBar = se ? `<span style="font-size:0.6rem;color:var(--text-muted);">뉴스 심리:</span>
+      <span style="font-size:0.62rem;font-weight:700;color:${se.score>0?'#22c55e':se.score<0?'#f87171':'#94a3b8'};">${se.emoji} ${h(se.label)}</span>
+      <span style="font-size:0.54rem;color:var(--text-muted);">완화 ${se.deesc} · 격화 ${se.esc} · 순 ${se.score>=0?'+':''}${se.score}</span>` : '';
+    const revBanner = rev ? `<div class="glass-card" style="padding:10px 14px;margin-bottom:8px;background:${rev.flag==='up'?'rgba(34,197,94,0.12)':'rgba(248,113,113,0.12)'};border-left:3px solid ${rev.flag==='up'?'#22c55e':'#f87171'};">
+        <div style="font-size:0.68rem;font-weight:800;color:${rev.flag==='up'?'#22c55e':'#f87171'};">${rev.emoji} 예측 반전 경보</div>
+        <div style="font-size:0.62rem;color:var(--text-bright);margin-top:3px;">${h(rev.text)}</div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">※ 미국 선물 예측과 지정학 뉴스 심리가 엇갈림 → 장중 반전 가능. 키워드 기반 근사치, 참고용.</div>
+      </div>` : '';
 
     const html = `<section class="section-wrap" id="market-news-section">
       <div class="section-label" style="color:#fb923c;">📰 시장 뉴스 — 급변 원인
         <span style="font-size:0.62rem;color:var(--text-muted);">(왜 올랐나/빠졌나 · Yahoo·네이버 자동 수집)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(mn.generated_at||'')}</span>
       </div>
-      <div class="glass-card" style="padding:8px 12px;margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      ${revBanner}
+      <div class="glass-card" style="padding:8px 12px;margin-bottom:8px;display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;">
+        ${sentBar}<span style="width:1px;height:12px;background:rgba(255,255,255,0.1);"></span>
         <span style="font-size:0.6rem;color:var(--text-muted);">카테고리:</span> ${chips}
       </div>
       <div class="glass-card" style="padding:2px 4px;max-height:440px;overflow-y:auto;">

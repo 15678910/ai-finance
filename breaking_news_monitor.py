@@ -22,6 +22,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from core import get_secret, send_message, load_state, save_state
+from news_impact import classify_news
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -339,7 +340,9 @@ def main():
                 if total_shown >= max_items:
                     break
                 title = news["title"][:100]
-                lines.append(f"  • [{news['source']}] {title}")
+                _, _, semoji, impact = classify_news(news["title"])
+                tag = f" {semoji}{impact}" if impact else ""
+                lines.append(f"  • [{news['source']}] {title}{tag}")
                 lines.append(f"    {news['link']}")
                 total_shown += 1
             lines.append("")

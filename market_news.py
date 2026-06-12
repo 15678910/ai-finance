@@ -111,6 +111,8 @@ def main():
     raw += fetch_naver()
 
     # 중복 제거 + 카테고리
+    from news_impact import classify_news, aggregate_sentiment
+
     seen = set()
     items = []
     for n in raw:
@@ -119,7 +121,9 @@ def main():
             continue
         seen.add(key)
         cat, emoji = _categorize(n["title"])
-        items.append({**n, "category": cat, "cat_emoji": emoji})
+        sc, slabel, semoji, impact = classify_news(n["title"])
+        items.append({**n, "category": cat, "cat_emoji": emoji,
+                      "sentiment": sc, "sent_label": slabel, "sent_emoji": semoji, "impact": impact})
 
     # 카테고리 우선순위로 정렬 (지정학·Fed·반도체 먼저)
     order = {c[0]: i for i, c in enumerate(CATEGORIES)}
@@ -128,14 +132,40 @@ def main():
 
     from collections import Counter
     cnt = Counter(i["category"] for i in items)
+    # 지정학·Fed·시장 헤드라인 중심으로 순심리 산출
+    sent_titles = [i["title"] for i in items if i["category"] in ("지정학", "Fed·물가", "AI·반도체")]
+    sentiment = aggregate_sentiment(sent_titles)
     print(f"  수집 {len(items)}건 · 카테고리: {dict(cnt)}")
-    for i in items[:6]:
-        print(f"    [{i['category']}] {i['title'][:70]}")
+    print(f"  뉴스 심리: {sentiment['emoji']} {sentiment['label']} (완화 {sentiment['deesc']} · 격화 {sentiment['esc']} · 순 {sentiment['score']:+d})")
+
+    # ── 예측 반전경보: 선물 예측 방향 ↔ 뉴스 심리 괴리 감지 ──
+    reversal = None
+    try:
+        with open(os.path.join(BASE_DIR, "docs", "kospi_scenario.json"), encoding="utf-8") as f:
+            fut = json.load(f).get("futures") or {}
+        fpct = fut.get("predicted_pct")
+        if fpct is not None and sentiment["score"] != 0:
+            fdir = 1 if fpct > 0 else -1  # 선물 예측 방향
+            sdir = 1 if sentiment["score"] > 0 else -1  # 뉴스 심리 방향
+            if fdir < 0 and sdir > 0:
+                reversal = {"flag": "up", "emoji": "🟢⚠️",
+                            "text": f"선물은 하락 신호({fpct:+.1f}%)지만 뉴스는 완화(순{sentiment['score']:+d}) → 반등 주의",
+                            "fut_pct": fpct}
+            elif fdir > 0 and sdir < 0:
+                reversal = {"flag": "down", "emoji": "🔴⚠️",
+                            "text": f"선물은 상승 신호({fpct:+.1f}%)지만 뉴스는 격화(순{sentiment['score']:+d}) → 급락 반전 주의",
+                            "fut_pct": fpct}
+        if reversal:
+            print(f"  ⚠️ 반전경보: {reversal['text']}")
+    except Exception as e:
+        print(f"  [WARN] 반전경보 계산 실패: {e}")
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "items": items,
         "category_counts": dict(cnt),
+        "sentiment": sentiment,
+        "reversal_warning": reversal,
         "note": "Yahoo Finance·네이버 금융 무료 수집. 정보 모니터링용. 투자 결정 단독 사용 금지.",
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
