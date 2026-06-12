@@ -2472,8 +2472,7 @@ body {
       // ── 필라델피아 반도체(SOXX) + 나스닥 선물(24H) 탭 전환 ──────────────
       // NASDAQ:SOX 는 외부 임베드 제한 → SOX 추종 ETF(SOXX). 선물은 OANDA CFD(24H).
       // 공식 스크립트 위젯(tv.js) — 실시간 스트리밍 + 지표 둘 다 지원
-      const TV_MOM = ['BB@tv-basicstudies', 'Stochastic@tv-basicstudies', 'RSI@tv-basicstudies'];  // 볼린저·스토캐스틱·RSI (이평선은 createStudy로 추가)
-      const TV_MA = [5, 10, 20, 60, 120];  // 이동평균선 기간
+      const TV_MOM = ['BB@tv-basicstudies', 'Stochastic@tv-basicstudies', 'RSI@tv-basicstudies'];  // 볼린저·스토캐스틱·RSI (이평선은 무료 임베드 제약으로 미지원 → 영웅문 사용)
       const soxTabs = [
         { key: 'soxx', label: '🇺🇸 필라델피아 반도체(SOXX)', sym: 'NASDAQ%3ASOXX', iv: 'D', st: TV_MOM, note: 'SOXX: iShares PHLX Semiconductor ETF — SOX 지수 추종, 삼성전자·SK하이닉스·인텔·엔비디아 등 30개 반도체 기업 편입. 일봉 + 스토캐스틱·RSI·볼린저밴드. 실시간 SOX 지수 수치는 위 해외 시장 카드(필라델피아 반도체)에서 확인.' },
         { key: 'nqf',  label: '🇺🇸 나스닥 선물(24H)', sym: 'OANDA%3ANAS100USD', iv: '3', st: TV_MOM, note: 'OANDA:NAS100USD — 나스닥100 CFD(선물 대용). 거의 24시간 거래되어 미국 현물 마감 후~KOSPI 개장 직전까지 계속 움직임 → KOSPI 개장 직전 가장 신선한 선행 신호. 3분봉 + 스토캐스틱·RSI 고정. 예측 모델의 1순위 입력값(검증 MAE ±1.9%). ※ 실제 NQ 선물(CME:NQ1!)은 무료 임베드 차단으로 동일 움직임의 CFD로 대체.' },
@@ -2493,7 +2492,6 @@ body {
         <div id="tv-sox-note" style="margin-top:8px;font-size:0.65rem;color:var(--text-muted);line-height:1.6;">※ ${h(soxTabs[0].note)}</div>
       </div>`;
       window.__tvGroups = window.__tvGroups || {};
-      soxTabs.forEach(t => t.ma = TV_MA);
       window.__tvGroups.sox = soxTabs;
 
       // ── 나스닥 100 + 닛케이 225 지수 (탭 전환) ──────────────
@@ -2521,7 +2519,6 @@ body {
         <div id="tv-idx-note" style="margin-top:8px;font-size:0.65rem;color:var(--text-muted);line-height:1.6;">※ ${h(tvIndices[0].note)}</div>
       </div>`;
       window.__tvGroups = window.__tvGroups || {};
-      tvIndices.forEach(t => t.ma = TV_MA);
       window.__tvGroups.idx = tvIndices;
 
       // 알림 메시지
@@ -6759,7 +6756,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!el || !window.TradingView || !window.TradingView.widget) return;
     el.innerHTML = '';
     try {
-      const w = new TradingView.widget({
+      new TradingView.widget({
         container_id: containerId,
         autosize: true,
         symbol: decodeURIComponent(idx.sym),
@@ -6772,21 +6769,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         backgroundColor: 'rgba(13, 17, 23, 1)',
         gridColor: 'rgba(255, 255, 255, 0.05)'
       });
-      // 이동평균선 5·10·20·60·120 — 차트 로드 후 길이별 createStudy (studies 배열은 문자열만 받아 객체형 무시됨)
-      const maList = idx.ma;
-      if (maList && maList.length && w && typeof w.onChartReady === 'function') {
-        w.onChartReady(function () {
-          try {
-            const chart = (typeof w.activeChart === 'function') ? w.activeChart()
-                        : (typeof w.chart === 'function') ? w.chart() : null;
-            if (chart && typeof chart.createStudy === 'function') {
-              maList.forEach(function (len) {
-                chart.createStudy('Moving Average', false, false, [len]);
-              });
-            }
-          } catch (e) { /* createStudy 미지원 위젯 */ }
-        });
-      }
     } catch (e) { /* tv.js 미준비 */ }
   }
 
