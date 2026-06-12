@@ -60,6 +60,14 @@ URGENT_KEYWORDS = {
         "ko": ["긴급 금리", "임시 FOMC", "긴급 인하", "긴급 인상", "중앙은행 개입",
                "긴급 회의", "금리 결정"],
     },
+    "환율_긴급": {
+        "en": ["yen plunges", "yen tumbles", "yen intervention", "FX intervention",
+               "currency intervention", "yen weakens sharply", "BOJ intervenes",
+               "won plunges", "currency crisis", "dollar-yen surges", "yen slides"],
+        "ko": ["엔화 급락", "엔화 약세", "엔화 급등", "달러엔 급등", "엔저", "슈퍼 엔저",
+               "외환시장 개입", "환율 급등", "환율 급변", "환율 개입", "일본은행 개입",
+               "원화 급락", "원화 약세", "외환 위기", "엔 매수 개입", "스무딩 오퍼레이션"],
+    },
     "지정학_긴급": {
         "en": ["war breaks out", "strikes", "attacks", "invasion", "missile",
                "nuclear", "sanctions imposed", "ceasefire breaks",
@@ -231,6 +239,7 @@ def category_emoji(category):
     return {
         "시장_긴급": "📉",
         "중앙은행_긴급": "🏦",
+        "환율_긴급": "💱",
         "지정학_긴급": "⚠️",
         "기업_긴급": "🏢",
         "원자재_긴급": "🛢️",
@@ -242,6 +251,7 @@ def category_name(category):
     return {
         "시장_긴급": "시장 긴급",
         "중앙은행_긴급": "중앙은행",
+        "환율_긴급": "환율/외환",
         "지정학_긴급": "지정학",
         "기업_긴급": "기업",
         "원자재_긴급": "원자재",
@@ -325,7 +335,7 @@ def main():
                 break  # 한 뉴스는 한 카테고리만
 
         # 메시지 조립
-        priority_order = ["시장_긴급", "중앙은행_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
+        priority_order = ["시장_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
         lines = ["🚨 긴급 뉴스 알림", "=" * 25, ""]
 
         max_items = 15  # 텔레그램 메시지 길이 제한

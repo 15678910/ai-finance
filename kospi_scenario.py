@@ -367,6 +367,36 @@ def nikkei_divergence(np, window=40):
     }
 
 
+def yen_watch(np):
+    """USD/JPY(엔/달러) 감시 — 엔화는 아시아 위험의 선행지표. 급변 시 KOSPI 반전 신호(예측 아님·맥락)."""
+    import yfinance as yf
+    try:
+        s = yf.download("JPY=X", period="12d", interval="1d", progress=False)["Close"]
+        if hasattr(s, "columns"):  # 단일종목 DataFrame → Series
+            s = s.iloc[:, 0]
+        s = s.dropna()
+    except Exception as e:
+        print(f"  [WARN] 엔화 다운로드 실패: {e}")
+        return None
+    if len(s) < 3:
+        return None
+    cur = float(s.iloc[-1])
+    chg1 = (cur / float(s.iloc[-2]) - 1) * 100
+    chg5 = (cur / float(s.iloc[-6]) - 1) * 100 if len(s) >= 6 else None
+    # 급변 경고: 1일 ±1% 또는 5일 ±2.5% (USD/JPY↑ = 엔 약세)
+    alert = None
+    if abs(chg1) >= 1.0 or (chg5 is not None and abs(chg5) >= 2.5):
+        direction = "약세(엔↓)" if chg1 > 0 else "강세(엔↑)"
+        alert = f"엔화 {direction} 급변 — 아시아 위험·BOJ 개입 주의"
+    return {
+        "usdjpy": round(cur, 2),
+        "chg_1d": round(chg1, 2),
+        "chg_5d": round(chg5, 2) if chg5 is not None else None,
+        "alert": alert,
+        "asof": s.index[-1].strftime("%Y-%m-%d"),
+    }
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -460,6 +490,11 @@ def main():
         print(f"한일 진단({nikkei['date']}): KOSPI {nikkei['kospi_chg']:+.2f}% vs 니케이 {nikkei['nikkei_chg']:+.2f}% "
               f"(기대 {nikkei['expected_kospi_chg']:+.2f}%, 괴리 {nikkei['gap_pct']:+.2f}%) → {nikkei['verdict']}")
 
+    # 엔/달러(USD/JPY) 감시 — 아시아 위험 선행지표 (BOJ·엔화 급변 맥락)
+    yen = yen_watch(np)
+    if yen:
+        print(f"엔/달러: {yen['usdjpy']} ({yen['chg_1d']:+.2f}% 1d){' ⚠️ ' + yen['alert'] if yen['alert'] else ''}")
+
     # 장중 보정 (개장 시가갭 → 종가) — 가장 큰 정확도 지렛대
     intraday = intraday_open_revision(np, window=30)
     if intraday:
@@ -480,6 +515,7 @@ def main():
         "empirical": emp,  # 일별 실증 회귀(최근 레짐) — 슬라이더 가정도구·밴드
         "futures": futures,  # 선물 야간(NQ=F) 기반 장전 예측 — 최고의 선행신호(R²0.53)
         "nikkei_div": nikkei,  # 한일 동행/괴리 진단(예측 아님 — 원인 해석용)
+        "yen": yen,  # 엔/달러 감시(아시아 위험 선행 — BOJ·엔화 급변 맥락)
         "intraday": intraday,  # 장중 보정(개장 시가갭 → 종가) — 개장 후 추가 정확도
         "default_targets": {"soxx": 460, "qqq": 650},
         "tail_multiplier": 1.8,
