@@ -68,6 +68,17 @@ URGENT_KEYWORDS = {
                "외환시장 개입", "환율 급등", "환율 급변", "환율 개입", "일본은행 개입",
                "원화 급락", "원화 약세", "외환 위기", "엔 매수 개입", "스무딩 오퍼레이션"],
     },
+    "신용_긴급": {
+        "en": ["redemption halt", "redemption suspended", "redemptions frozen", "fund gating",
+               "margin call", "margin calls", "fire sale", "fire-sale", "forced selling",
+               "distressed selling", "credit line cut", "credit crunch", "liquidity crisis",
+               "bank run", "default", "debt default", "capital call default", "LP default",
+               "fund freezes", "halts withdrawals", "credit event", "deleveraging"],
+        "ko": ["환매 중단", "환매 연기", "환매 정지", "마진콜", "마진 콜", "헐값 매각",
+               "투매", "강제 매각", "신용한도 축소", "여신 축소", "만기연장 거부",
+               "디폴트", "채무불이행", "유동성 위기", "유동성 경색", "신용경색", "자금경색",
+               "뱅크런", "펀드런", "환매 폭주", "부실 매각", "신용 이벤트", "디레버리징"],
+    },
     "지정학_긴급": {
         "en": ["war breaks out", "strikes", "attacks", "invasion", "missile",
                "nuclear", "sanctions imposed", "ceasefire breaks",
@@ -240,6 +251,7 @@ def category_emoji(category):
         "시장_긴급": "📉",
         "중앙은행_긴급": "🏦",
         "환율_긴급": "💱",
+        "신용_긴급": "💳",
         "지정학_긴급": "⚠️",
         "기업_긴급": "🏢",
         "원자재_긴급": "🛢️",
@@ -252,6 +264,7 @@ def category_name(category):
         "시장_긴급": "시장 긴급",
         "중앙은행_긴급": "중앙은행",
         "환율_긴급": "환율/외환",
+        "신용_긴급": "신용/유동성",
         "지정학_긴급": "지정학",
         "기업_긴급": "기업",
         "원자재_긴급": "원자재",
@@ -335,7 +348,7 @@ def main():
                 break  # 한 뉴스는 한 카테고리만
 
         # 메시지 조립
-        priority_order = ["시장_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
+        priority_order = ["시장_긴급", "신용_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
         lines = ["🚨 긴급 뉴스 알림", "=" * 25, ""]
 
         max_items = 15  # 텔레그램 메시지 길이 제한

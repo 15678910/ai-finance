@@ -8889,6 +8889,50 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  // ─── 🚨 시스템 유동성 위험 게이지 ──────────────────────
+  function renderLiquidityStress(ls) {
+    if (!ls || !ls.indicators || !ls.indicators.length) return;
+    const SC = { red: '#f87171', amber: '#fbbf24', green: '#22c55e' };
+    const oc = SC[ls.overall_color] || SC.green;
+    const rows = ls.indicators.map(it => {
+      const c = SC[it.color] || SC.green;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:6px 8px;font-size:0.64rem;color:var(--text-bright);">${h(it.name)}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-weight:700;font-family:var(--font-mono);color:${c};">${it.value}</td>
+        <td style="padding:6px 8px;text-align:center;font-size:0.58rem;font-weight:700;color:${c};">${it.status}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.58rem;font-family:var(--font-mono);color:${it.chg_30d>=0?'#f87171':'#22c55e'};">${it.chg_30d>=0?'+':''}${it.chg_30d}</td>
+        <td style="padding:6px 8px;font-size:0.54rem;color:var(--text-muted);">${h(it.desc||'')}</td>
+      </tr>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="liquidity-stress-section">
+      <div class="section-label" style="color:#f87171;">🚨 시스템 유동성 위험 게이지 <span style="font-size:0.62rem;color:var(--text-muted);">(펀드 환매·신용경색 선행 — 연준 스트레스지수·신용스프레드·VIX)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(ls.generated_at||'')}</span>
+      </div>
+      <div class="glass-card" style="padding:12px 16px;margin-bottom:8px;background:${oc}15;border-left:3px solid ${oc};">
+        <div style="font-size:0.95rem;font-weight:800;color:${oc};">${h(ls.overall)}</div>
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:2px;">경계 ${ls.red_count} · 주의 ${ls.amber_count} (4개 지표 중)</div>
+      </div>
+      <div class="glass-card" style="padding:6px 10px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:480px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            ${['지표','현재값','상태','30일변화','의미'].map((hh,i)=>`<th style="padding:5px 8px;text-align:${i===0||i===4?'left':i===2?'center':'right'};font-size:0.56rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${hh}</th>`).join('')}
+          </tr></thead><tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">※ ${h(ls.note||'')}</div>
+    </section>`;
+    const existing = document.getElementById('liquidity-stress-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('market-news-section') || document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   // ─── 📊 전략 백테스트 ──────────────────────
   function renderStrategyBacktest(sb) {
     if (!sb || !sb.strategies) return;
@@ -10207,6 +10251,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./strategy_backtest.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sb => { if (sb) renderStrategyBacktest(sb); });
+      // Load Liquidity Stress (시스템 유동성 위험 게이지)
+      fetch('./liquidity_stress.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(ls => { if (ls) renderLiquidityStress(ls); });
       // Load Overheating Risk Gauge (과열·차익실현 위험)
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

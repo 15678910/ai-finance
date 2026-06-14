@@ -45,6 +45,13 @@ jobs:
         run: |
           python credit_spread_monitor.py
 
+      - name: Run liquidity stress gauge
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python liquidity_stress.py || echo "Liquidity stress had errors, continuing..."
+
       - name: Regenerate dashboard data.json
         env:
           PYTHONIOENCODING: utf-8
@@ -57,7 +64,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/credit_spread.json docs/credit_spread_state.json docs/data.json docs/macro_cache.json 2>/dev/null || true
+          git add docs/credit_spread.json docs/credit_spread_state.json docs/data.json docs/macro_cache.json docs/liquidity_stress.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes"
