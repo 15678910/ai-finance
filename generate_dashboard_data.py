@@ -1405,7 +1405,10 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         # 등락률 계산
                         if prev_close and prev_close > 0 and abs(cp - prev_close) > 1e-6:
                             base["change_pct"] = round((cp - prev_close) / prev_close * 100, 2)
-                        break
+                        # 시총까지 확보되면 종료. 가격만 있고 시총 없으면(KOSDAQ가 .KS로 가격만 준 경우)
+                        # 다음 거래소 접미사(.KQ)를 시도해 시총을 보완 (박스 크기 결정에 시총 필수)
+                        if base.get("market_cap"):
+                            break
                     except Exception:
                         continue
 
