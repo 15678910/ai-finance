@@ -40,6 +40,9 @@ RSS_FEEDS = [
     {"name": "Google News(경제)", "url": "https://news.google.com/rss/search?q=%EA%B8%B4%EA%B8%89+%EA%B2%BD%EC%A0%9C+%EC%86%8D%EB%B3%B4+when%3A1d&hl=ko&gl=KR&ceid=KR:ko", "lang": "ko"},
     # 이공계 석박사 전문 기술 분석 (반도체, AI, 바이오, 핵융합 등)
     {"name": "Heisenberg(기술분석)", "url": "https://heisenberg.kr/feed/", "lang": "ko"},
+    # BOJ 사전신호 — 닛케이/로이터/블룸버그 관측보도 선점(회의 며칠 전 소식통 인용으로 흘러나옴)
+    {"name": "Google News(BOJ)", "url": "https://news.google.com/rss/search?q=%22Bank+of+Japan%22+OR+BOJ+OR+Ueda+rate+when%3A2d&hl=en-US&gl=US&ceid=US:en", "lang": "en"},
+    {"name": "Google News(일본은행)", "url": "https://news.google.com/rss/search?q=%EC%9D%BC%EB%B3%B8%EC%9D%80%ED%96%89+%EA%B8%88%EB%A6%AC+when%3A2d&hl=ko&gl=KR&ceid=KR:ko", "lang": "ko"},
 ]
 
 # ====================================================================
@@ -52,6 +55,19 @@ URGENT_KEYWORDS = {
                "emergency", "record low", "worst day"],
         "ko": ["폭락", "서킷브레이커", "거래정지", "급락", "패닉", "공포", "대폭락",
                "사이드카", "긴급", "역대최저", "최악"],
+    },
+    # BOJ 사전신호(관측보도) — 최우선·쿨다운 없음. 회의 전 흘러나오는 방향 기사 선점.
+    "중앙은행_관측": {
+        "en": ["boj to raise", "boj to hike", "boj to consider", "boj said to", "boj mulls",
+               "boj to hold", "boj to keep", "boj eyes", "boj weighs", "boj to debate",
+               "boj likely", "boj signals", "boj to lift", "boj hikes", "boj raises",
+               "boj holds", "boj keeps", "boj lifts", "boj meeting", "boj policy",
+               "boj rate hike", "boj rate decision", "ueda",
+               "bank of japan to", "bank of japan likely", "bank of japan rate",
+               "bank of japan hikes", "bank of japan raises", "bank of japan holds"],
+        "ko": ["일본은행 인상", "일본은행 금리", "일본은행 동결", "일본은행 회의", "일본은행 검토",
+               "boj 인상", "boj 금리", "우에다", "日銀", "利上げ", "据え置き",
+               "金融政策決定会合", "엔캐리 청산", "엔 캐리 청산"],
     },
     "중앙은행_긴급": {
         "en": ["emergency rate cut", "emergency rate hike", "unscheduled meeting",
@@ -248,6 +264,7 @@ def detect_urgent(title, lang="en"):
 def category_emoji(category):
     """카테고리별 이모지."""
     return {
+        "중앙은행_관측": "🔭",
         "시장_긴급": "📉",
         "중앙은행_긴급": "🏦",
         "환율_긴급": "💱",
@@ -261,6 +278,7 @@ def category_emoji(category):
 def category_name(category):
     """카테고리 한글명."""
     return {
+        "중앙은행_관측": "🇯🇵 BOJ 관측·사전신호",
         "시장_긴급": "시장 긴급",
         "중앙은행_긴급": "중앙은행",
         "환율_긴급": "환율/외환",
@@ -390,7 +408,7 @@ def main():
             return 0
 
         # 메시지 조립
-        priority_order = ["시장_긴급", "신용_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
+        priority_order = ["중앙은행_관측", "시장_긴급", "신용_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
         lines = ["🚨 긴급 뉴스 알림", "=" * 25, ""]
 
         max_items = 15  # 텔레그램 메시지 길이 제한
