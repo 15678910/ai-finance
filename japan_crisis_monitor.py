@@ -85,24 +85,45 @@ def fetch_fred_csv(series_id: str, start_date: str = None, retries: int = 3) -> 
     return pd.DataFrame()
 
 
+def _fred_series_rows(series_id: str):
+    """FRED 시계열을 [(date, value)] 오름차순으로. 검증된 페처(credit_spread_monitor)
+    우선, 실패 시 로컬 CSV 폴백 — 단일 CSV 엔드포인트 연결 끊김(WinError 10054) 회피."""
+    try:
+        from credit_spread_monitor import fetch_fred_series
+        rows = fetch_fred_series(series_id)
+        if rows:
+            out = []
+            for r in rows:
+                try:
+                    out.append((datetime.strptime(r["date"], "%Y-%m-%d"), float(r["value"])))
+                except Exception:
+                    continue
+            if out:
+                out.sort(key=lambda x: x[0])
+                return out
+    except Exception as e:
+        print(f"  [robust FRED 폴백] {series_id}: {e}")
+    df = fetch_fred_csv(series_id)
+    if not df.empty:
+        return [(d, float(v)) for d, v in zip(df["DATE"], df["VALUE"])]
+    return []
+
+
 def get_latest_fred(series_id: str, label: str) -> dict:
     """FRED 시리즈의 최신값과 변화량."""
-    df = fetch_fred_csv(series_id)
-    if df.empty:
+    rows = _fred_series_rows(series_id)
+    if not rows:
         return {"label": label, "current": None, "change_3m": None, "change_1y": None}
 
-    current = float(df["VALUE"].iloc[-1])
-    current_date = df["DATE"].iloc[-1]
+    current_date, current = rows[-1]
 
-    # 3개월 전 값
-    three_months_ago = current_date - timedelta(days=90)
-    df_3m = df[df["DATE"] <= three_months_ago]
-    val_3m = float(df_3m["VALUE"].iloc[-1]) if not df_3m.empty else None
+    def val_before(days):
+        cutoff = current_date - timedelta(days=days)
+        prev = [v for d, v in rows if d <= cutoff]
+        return prev[-1] if prev else None
 
-    # 1년 전 값
-    one_year_ago = current_date - timedelta(days=365)
-    df_1y = df[df["DATE"] <= one_year_ago]
-    val_1y = float(df_1y["VALUE"].iloc[-1]) if not df_1y.empty else None
+    val_3m = val_before(90)
+    val_1y = val_before(365)
 
     return {
         "label": label,
@@ -178,17 +199,23 @@ def calculate_carry_pressure(usd_jpy: dict, jp_10y: dict, us_10y: dict) -> dict:
     elif yen_w > 3:
         factors.append(f"엔화 약세 지속 ({yen_w:+.1f}%) - 캐리 매력 유지")
 
-    # 2) 일미 금리차 축소 (캐리 매력도 감소)
-    jp_rate = jp_10y.get("current") or 0
-    us_rate = us_10y.get("current") or 0
-    spread = us_rate - jp_rate
-
-    if spread < 2.0:
-        score += 30
-        factors.append(f"일미 금리차 {spread:.2f}%p (캐리 매력 급감)")
-    elif spread < 3.0:
-        score += 15
-        factors.append(f"일미 금리차 {spread:.2f}%p (캐리 매력 약화)")
+    # 2) 일미 금리차 축소 (캐리 매력도 감소) — 데이터 있을 때만 평가.
+    #    null을 0으로 떨어뜨리면 거짓 '금리차 0%p 급감' 신호가 나므로 금지.
+    jp_rate = jp_10y.get("current")
+    us_rate = us_10y.get("current")
+    if jp_rate is not None and us_rate is not None:
+        spread = us_rate - jp_rate
+        if spread < 2.0:
+            score += 30
+            factors.append(f"일미 금리차 {spread:.2f}%p (캐리 매력 급감)")
+        elif spread < 3.0:
+            score += 15
+            factors.append(f"일미 금리차 {spread:.2f}%p (캐리 매력 약화)")
+        else:
+            factors.append(f"일미 금리차 {spread:.2f}%p (캐리 매력 유지)")
+    else:
+        spread = None
+        factors.append("일미 금리차 데이터 일시 불가(FRED) — 금리차 요인 제외")
 
     # 3) 일본 10Y 금리 상승 추세
     jp_change_3m = jp_10y.get("change_3m") or 0
@@ -224,7 +251,7 @@ def calculate_carry_pressure(usd_jpy: dict, jp_10y: dict, us_10y: dict) -> dict:
         "score": score,
         "level": level,
         "severity": severity,
-        "spread_us_jp": round(spread, 2),
+        "spread_us_jp": round(spread, 2) if spread is not None else None,
         "factors": factors,
     }
 
@@ -447,6 +474,11 @@ def send_telegram(data: dict, alerts: list):
 # 메인
 # ====================================================================
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore
+        except Exception:
+            pass
     print("=" * 65)
     print("  일본 경제 위기 모니터링")
     print(f"  KST: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}")
