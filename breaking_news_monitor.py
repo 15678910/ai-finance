@@ -271,6 +271,17 @@ def category_name(category):
     }.get(category, "뉴스")
 
 
+# 카테고리별 알림 쿨다운(시간) — 큰 이벤트 직전 같은 주제 긴급뉴스 도배 방지.
+# 시장_긴급·신용_긴급은 최우선이라 쿨다운 없음(항상 즉시 발송).
+COOLDOWN_HOURS = {
+    "환율_긴급": 4,
+    "중앙은행_긴급": 3,
+    "지정학_긴급": 3,
+    "원자재_긴급": 4,
+    "기업_긴급": 3,
+}
+
+
 # ====================================================================
 # 메인
 # ====================================================================
@@ -290,6 +301,7 @@ def main():
     # 이전 상태 로드
     state = load_state("breaking_news", default={"seen_links": [], "last_updated": None})
     seen_links = set(state.get("seen_links", []))
+    cat_last_sent = dict(state.get("cat_last_sent", {}))  # {카테고리: 마지막 발송 ISO ts}
     print(f"  이전 본 뉴스: {len(seen_links)}건")
 
     # RSS 피드 수집
@@ -347,18 +359,50 @@ def main():
                 by_category[cat].append(news)
                 break  # 한 뉴스는 한 카테고리만
 
+        # 카테고리별 쿨다운 적용 — 직전 발송 후 쿨다운 시간 내면 이번 회차에서 제외
+        now_utc = datetime.now(timezone.utc)
+
+        def _on_cooldown(cat):
+            h = COOLDOWN_HOURS.get(cat)
+            if not h:
+                return False  # 시장·신용 등 최우선은 항상 발송
+            ts = cat_last_sent.get(cat)
+            if not ts:
+                return False
+            try:
+                last = datetime.fromisoformat(ts)
+            except Exception:
+                return False
+            return (now_utc - last) < timedelta(hours=h)
+
+        suppressed = [c for c in list(by_category) if _on_cooldown(c)]
+        for c in suppressed:
+            del by_category[c]
+        if suppressed:
+            print(f"  쿨다운 보류 카테고리: {', '.join(suppressed)}")
+        if not by_category:
+            print("  모든 긴급 카테고리가 쿨다운 중 → 알림 전송 안 함")
+            save_state("breaking_news", {
+                "seen_links": list(seen_links)[-500:],
+                "cat_last_sent": cat_last_sent,
+                "last_updated": now_utc.isoformat(),
+            })
+            return 0
+
         # 메시지 조립
         priority_order = ["시장_긴급", "신용_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
         lines = ["🚨 긴급 뉴스 알림", "=" * 25, ""]
 
         max_items = 15  # 텔레그램 메시지 길이 제한
         total_shown = 0
+        shown_cats = set()  # 이번 회차에 실제로 발송된 카테고리(쿨다운 갱신용)
 
         for cat in priority_order:
             if cat not in by_category:
                 continue
             emoji = category_emoji(cat)
             lines.append(f"{emoji} {category_name(cat)}")
+            cnt_before = total_shown
             for news in by_category[cat][:5]:
                 if total_shown >= max_items:
                     break
@@ -368,6 +412,8 @@ def main():
                 lines.append(f"  • [{news['source']}] {title}{tag}")
                 lines.append(f"    {news['link']}")
                 total_shown += 1
+            if total_shown > cnt_before:
+                shown_cats.add(cat)
             lines.append("")
 
         if total_shown < len(all_urgent):
@@ -384,6 +430,15 @@ def main():
         ok = send_message(message, disable_preview=False)
         if ok:
             print(f"  텔레그램 전송 완료: {total_shown}건")
+            # 실제 발송된 카테고리만 쿨다운 타이머 갱신 후 저장
+            for c in shown_cats:
+                if c in COOLDOWN_HOURS:
+                    cat_last_sent[c] = now_utc.isoformat()
+            save_state("breaking_news", {
+                "seen_links": list(seen_links)[-500:],
+                "cat_last_sent": cat_last_sent,
+                "last_updated": now_utc.isoformat(),
+            })
         else:
             print("  [텔레그램 실패]")
             return 1
