@@ -85,92 +85,6 @@ def naver_kospi_daily(days=90):
         return {}
 
 
-def naver_kospi_ohlc(days=50):
-    """네이버 KOSPI 일별 OHLC → [(date, open, close)] 오름차순 (장중 보정용)."""
-    import urllib.request
-    import re
-    from datetime import date, timedelta
-    try:
-        end = date.today().strftime("%Y%m%d")
-        start = (date.today() - timedelta(days=days)).strftime("%Y%m%d")
-        url = (f"https://api.finance.naver.com/siseJson.naver?symbol=KOSPI"
-               f"&requestType=1&startTime={start}&endTime={end}&timeframe=day")
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"})
-        txt = urllib.request.urlopen(req, timeout=10).read().decode("utf-8")
-        rows = re.findall(r'\["(\d{8})",\s*([\d.]+),\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)', txt)
-        return [(f"{d[:4]}-{d[4:6]}-{d[6:]}", float(o), float(c)) for d, o, c in rows]
-    except Exception as e:
-        print(f"  [WARN] 네이버 OHLC 실패: {e}")
-        return []
-
-
-def intraday_open_revision(np, window=30):
-    """장중 보정: 개장 시가갭 → 종가 회귀(무절편) close_ret ≈ b·open_gap.
-    개장 시가만 알아도 종일 변동의 ~59%가 결정 → 장전 MAE 2.9%를 1.8%로 단축.
-    오늘 시가가 있으면 보정 예측을 반환."""
-    bars = naver_kospi_ohlc(120)
-    if len(bars) < window + 3:
-        return None
-    recs = []  # (date, prev_close, open, close, gap, full)
-    for i in range(1, len(bars)):
-        pc, o, c = bars[i - 1][2], bars[i][1], bars[i][2]
-        if pc > 0:
-            recs.append((bars[i][0], pc, o, c, o / pc - 1, c / pc - 1))
-    if len(recs) < window + 2:
-        return None
-
-    today = recs[-1]
-    hist = recs[:-1][-window:]  # 완료된 직전 일자들
-    g = np.array([r[4] for r in hist])
-    f = np.array([r[5] for r in hist])
-    denom = float(g @ g) or 1e-9
-    b_oc = float((g @ f) / denom)             # 무절편 기울기 (보통 >1: 갭 확장 경향)
-    resid = f - b_oc * g
-    sigma = float(resid.std(ddof=1)) if len(resid) > 2 else float(resid.std())
-    ss_tot = float(((f - f.mean()) ** 2).sum()) or 1e-9
-    r2 = 1 - float((resid ** 2).sum()) / ss_tot
-
-    # 워크포워드 백테스트 MAE (장중 보정)
-    errs = []
-    for j in range(window, len(recs) - 1):  # 완료일만
-        gg = np.array([r[4] for r in recs[j - window:j]])
-        ff = np.array([r[5] for r in recs[j - window:j]])
-        bb = float((gg @ ff) / (float(gg @ gg) or 1e-9))
-        errs.append(abs((bb * recs[j][4] - recs[j][5]) * 100))
-    mae_bt = float(np.mean(errs[-20:])) if errs else None
-
-    tdate, pc, o, c, gap, full = today
-    from datetime import datetime
-    nowk = datetime.now(KST)
-    hm = nowk.hour * 100 + nowk.minute
-    is_today = (tdate == nowk.strftime("%Y-%m-%d"))
-    if not is_today:
-        state = "pre"          # 오늘 바 없음(개장 전)
-    elif hm >= 1630:
-        state = "closed"       # 종가 확정
-    elif hm >= 900:
-        state = "open"         # 장중
-    else:
-        state = "pre"
-    revised = pc * (1 + b_oc * gap)
-    return {
-        "date": tdate,
-        "prev_close": round(pc, 2),
-        "open": round(o, 2),
-        "current": round(c, 2),
-        "open_gap_pct": round(gap * 100, 2),
-        "b_oc": round(b_oc, 3),
-        "revised_close": round(revised, 0),
-        "revised_pct": round((revised / pc - 1) * 100, 2),
-        "sigma": round(sigma, 4),
-        "r2": round(r2, 3),
-        "mae_bt": round(mae_bt, 2) if mae_bt is not None else None,
-        "window": window,
-        "state": state,
-    }
-
-
 def futures_signal(np, pd, kospi_close_date, kospi_last_close, window=20):
     """선물 기반 장전 예측: 직전 KOSPI 마감 → 현재까지 나스닥선물(NQ=F) 야간 움직임.
     선물은 24시간 거래 → 미국 현물 마감 후 뉴스까지 반영 = 가장 신선한 선행신호.
@@ -495,12 +409,8 @@ def main():
     if yen:
         print(f"엔/달러: {yen['usdjpy']} ({yen['chg_1d']:+.2f}% 1d){' ⚠️ ' + yen['alert'] if yen['alert'] else ''}")
 
-    # 장중 보정 (개장 시가갭 → 종가) — 가장 큰 정확도 지렛대
-    intraday = intraday_open_revision(np, window=30)
-    if intraday:
-        print(f"장중 보정: 시가갭 {intraday['open_gap_pct']:+.2f}% → 보정종가 {intraday['revised_close']:.0f} "
-              f"({intraday['revised_pct']:+.2f}%) [b={intraday['b_oc']} R²={intraday['r2']} "
-              f"MAE={intraday['mae_bt']}% state={intraday['state']}]")
+    # ※ 장중 보정(개장 시가갭→종가)은 '진짜 예측'이 아니라 이미 실현된 시가를 끌어쓰는
+    #   정보 누출이라 제거됨. 예측은 개장 전(05:30 KST) 고정 → 마감 후 채점(prediction_tracker.py).
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
@@ -516,7 +426,6 @@ def main():
         "futures": futures,  # 선물 야간(NQ=F) 기반 장전 예측 — 최고의 선행신호(R²0.53)
         "nikkei_div": nikkei,  # 한일 동행/괴리 진단(예측 아님 — 원인 해석용)
         "yen": yen,  # 엔/달러 감시(아시아 위험 선행 — BOJ·엔화 급변 맥락)
-        "intraday": intraday,  # 장중 보정(개장 시가갭 → 종가) — 개장 후 추가 정확도
         "default_targets": {"soxx": 460, "qqq": 650},
         "tail_multiplier": 1.8,
         "window_years": 3,

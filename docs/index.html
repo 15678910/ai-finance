@@ -8356,11 +8356,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       autoBlock = `<div class="glass-card" style="padding:13px 16px;margin-bottom:12px;background:rgba(56,189,248,0.10);border-left:3px solid #38bdf8;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div>
-            <div style="font-size:0.64rem;color:#38bdf8;font-weight:700;">🔵 선물 기반 장전 예측 <span style="color:var(--text-muted);font-weight:400;">(나스닥 선물 24H — 가장 신선한 선행신호)</span></div>
+            <div style="font-size:0.64rem;color:#38bdf8;font-weight:700;">🔵 개장 전 고정 예측 <span style="color:var(--text-muted);font-weight:400;">(나스닥 선물 24H — 05:30 KST 고정, 장중 보정 없음)</span></div>
             <div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">직전 KOSPI 마감 이후 나스닥선물 <b style="color:${fov>=0?'#22c55e':'#f87171'};">${fov>=0?'+':''}${fov}%</b> <span style="font-size:0.52rem;">검증 MAE ±${fut.mae_bt}% · R²${fut.r2} (현물보다 정확)</span></div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">KOSPI 예상(다음 거래일)</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">KOSPI 종가 예상</div>
             <div style="font-size:1.6rem;font-weight:800;font-family:var(--font-mono);color:${fCol};line-height:1.1;">${fmtN(fut.predicted)} <span style="font-size:0.72rem;">${fp>=0?'+':''}${fp}%</span></div>
             <div style="font-size:0.54rem;color:var(--text-muted);">±1σ ${fmtN(fLo)}~${fmtN(fHi)}</div>
           </div>
@@ -8411,34 +8411,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       }
     }
 
-    // 🟢 장중 보정 — 개장 시가갭이 종일 변동의 ~59% 결정 → 장전보다 정확
-    let intradayBlock = '';
-    const intra = sc.intraday;
-    if (intra && (intra.state === 'open' || intra.state === 'closed') && intra.open) {
-      const gp = intra.open_gap_pct, rp = intra.revised_pct;
-      const isOpen = intra.state === 'open';
-      const rCol = rp >= 0 ? '#22c55e' : '#f87171';
-      const rev = intra.revised_close, sig = (intra.sigma || 0.026);
-      const rLo = rev * (1 - sig), rHi = rev * (1 + sig);
-      const title = isOpen ? '🟢 장중 보정 예측' : '✅ 오늘 종가 (보정모델 사후검증)';
-      const sub = isOpen
-        ? `개장 시가갭 <b style="color:${gp>=0?'#22c55e':'#f87171'};">${gp>=0?'+':''}${gp}%</b> 반영 — 장전보다 정확(검증 MAE ±${intra.mae_bt}%)`
-        : `시가갭 <b style="color:${gp>=0?'#22c55e':'#f87171'};">${gp>=0?'+':''}${gp}%</b> → 보정예측 ${fmtN(rev)} vs 실제 ${fmtN(intra.current)}`;
-      intradayBlock = `<div class="glass-card" style="padding:12px 16px;margin-bottom:12px;background:${rCol}11;border-left:3px solid ${rCol};">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <div>
-            <div style="font-size:0.62rem;color:${rCol};font-weight:700;">${title} <span style="color:var(--text-muted);font-weight:400;">(개장 시가 → 종가, R²${intra.r2})</span></div>
-            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${sub}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">${isOpen ? '오늘 종가 보정예측' : '보정모델 추정'}</div>
-            <div style="font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:${rCol};line-height:1.1;">${fmtN(rev)} <span style="font-size:0.7rem;">${rp>=0?'+':''}${rp}%</span></div>
-            ${isOpen ? `<div style="font-size:0.54rem;color:var(--text-muted);">±1σ ${fmtN(rLo)}~${fmtN(rHi)} · 현재 ${fmtN(intra.current)}</div>` : ''}
-          </div>
-        </div>
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;">※ 시가갭(전일종가→개장가)은 종일 변동의 약 59%를 결정. 장중일수록 현재가가 종가에 수렴 → 가장 정확한 보정 단계.</div>
-      </div>`;
-    }
+    // ※ 장중 보정 카드 제거됨 — 이미 실현된 시가를 끌어쓰는 정보 누출이라 '진짜 예측'이 아님.
+    //   예측은 개장 전(05:30 KST) 고정 → 마감 후 채점(📋 예측 성적표 섹션).
 
     // 🇰🇷vs🇯🇵 한일 동행/괴리 진단 (예측 아님 — 원인 해석)
     let nikkeiBlock = '';
@@ -8477,7 +8451,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="font-size:0.6rem;color:var(--text);">💡 <b>오늘 미국 변화가 기본 반영</b>됩니다(슬라이더=전일 대비). 더 <b style="color:#f87171;">내리면</b> 추가 하락, 더 <b style="color:#22c55e;">올리면</b> 추가 상승 가정. 예상 KOSPI는 미국 움직임의 다음날 캐치업 기대값.</div>
       </div>
       ${autoBlock}
-      ${intradayBlock}
       ${nikkeiBlock}
       <div class="glass-card" style="padding:16px 18px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px;">
@@ -9046,45 +9019,82 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderPredictionLog(pl) {
     if (!pl || !pl.entries || !pl.entries.length) return;
     const acc = pl.accuracy || {};
+    const fmt = n => Math.round(n).toLocaleString();
+    const eCol = ae => ae == null ? 'var(--text-muted)' : ae <= 1 ? '#22c55e' : ae <= 3 ? '#fbbf24' : '#f87171';
+    const dirMark = ok => ok ? '<span style="color:#22c55e;">✓</span>' : '<span style="color:#f87171;">✗</span>';
+
+    // 모델 셀 (예측 / 오차 / 방향)
+    function mcell(m) {
+      if (!m) return `<td style="padding:5px 6px;text-align:center;font-size:0.6rem;color:var(--text-muted);">—</td>`;
+      return `<td style="padding:5px 6px;text-align:right;font-family:var(--font-mono);font-size:0.66rem;color:var(--text);">${fmt(m.pred)}<br>
+        <span style="font-size:0.6rem;font-weight:700;color:${eCol(m.abs_err)};">${m.err>=0?'+':''}${m.err}%</span> ${dirMark(m.dir)}</td>`;
+    }
     const rows = pl.entries.slice().reverse().map(e => {
-      const errC = e.abs_error <= 1 ? '#22c55e' : e.abs_error <= 3 ? '#fbbf24' : '#f87171';
-      const dir = e.dir_correct ? '<span style="color:#22c55e;">✓</span>' : '<span style="color:#f87171;">✗</span>';
-      const usC = (e.sox_ret >= 0) ? '#22c55e' : '#f87171';
       const md = e.date.slice(5).replace('-', '/');
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-        <td style="padding:5px 8px;font-size:0.7rem;color:var(--text-bright);font-family:var(--font-mono);">${md}</td>
-        <td style="padding:5px 8px;text-align:right;font-size:0.6rem;color:${usC};font-family:var(--font-mono);">SOX ${e.sox_ret>=0?'+':''}${e.sox_ret}%<br>NDX ${e.ndx_ret>=0?'+':''}${e.ndx_ret}%</td>
-        <td style="padding:5px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);color:var(--text);">${Math.round(e.predicted).toLocaleString()}<br><span style="font-size:0.54rem;color:var(--text-muted);">${e.pred_pct>=0?'+':''}${e.pred_pct}%</span></td>
-        <td style="padding:5px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);color:var(--text-bright);">${Math.round(e.actual).toLocaleString()}<br><span style="font-size:0.54rem;color:${e.actual_pct>=0?'#22c55e':'#f87171'};">${e.actual_pct>=0?'+':''}${e.actual_pct}%</span></td>
-        <td style="padding:5px 8px;text-align:right;font-size:0.72rem;font-weight:700;font-family:var(--font-mono);color:${errC};">${e.error_pct>=0?'+':''}${e.error_pct}%</td>
-        <td style="padding:5px 8px;text-align:center;font-size:0.8rem;">${dir}</td>
+        <td style="padding:5px 6px;font-size:0.66rem;color:var(--text-bright);font-family:var(--font-mono);">${md}</td>
+        <td style="padding:5px 6px;text-align:right;font-family:var(--font-mono);font-size:0.66rem;color:var(--text-bright);">${fmt(e.actual)}<br><span style="font-size:0.56rem;color:${e.actual_pct>=0?'#22c55e':'#f87171'};">${e.actual_pct>=0?'+':''}${e.actual_pct}%</span></td>
+        ${mcell(e.fut)}${mcell(e.reg)}${mcell(e.ens)}
       </tr>`;
     }).join('');
 
+    // 모델별 정확도 비교 (최저 MAE 강조)
+    const accModels = [
+      { name: '🔵 선물', d: acc.fut || {} },
+      { name: '🟣 회귀', d: acc.reg || {} },
+      { name: '⚪ 앙상블', d: acc.ens || {} },
+    ];
+    const maes = accModels.map(m => m.d.mae_pct).filter(v => v != null);
+    const bestMae = maes.length ? Math.min(...maes) : null;
+    const accCards = accModels.map(m => {
+      const d = m.d, isBest = (d.mae_pct != null && d.mae_pct === bestMae);
+      const mc = d.mae_pct == null ? 'var(--text-muted)' : d.mae_pct <= 2 ? '#22c55e' : d.mae_pct <= 4 ? '#fbbf24' : '#f87171';
+      return `<div style="flex:1;min-width:120px;padding:8px 10px;border-radius:8px;background:${isBest?'rgba(34,197,94,0.12)':'rgba(255,255,255,0.04)'};border:1px solid ${isBest?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.08)'};">
+        <div style="font-size:0.62rem;color:var(--text);font-weight:700;">${m.name}${isBest?' <span style="font-size:0.5rem;color:#22c55e;">최저오차</span>':''}</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:3px;">MAE <b style="font-family:var(--font-mono);color:${mc};font-size:0.9rem;">±${d.mae_pct!=null?d.mae_pct:'—'}%</b></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);">방향 <b style="font-family:var(--font-mono);color:${d.dir_hit_rate>=70?'#22c55e':'#fbbf24'};">${d.dir_hit_rate!=null?d.dir_hit_rate:'—'}%</b> <span style="opacity:0.6;">n${d.n||0}</span></div>
+      </div>`;
+    }).join('');
+
+    // 다음(미마감) 세션 개장 전 고정 예측
+    const t = pl.today || {};
+    let todayCard = '';
+    const tHead = (t.ens || t.fut || t.reg);
+    if (tHead) {
+      const cell = (label, m, col) => m ? `<div style="text-align:center;">
+        <div style="font-size:0.54rem;color:var(--text-muted);">${label}</div>
+        <div style="font-size:1.05rem;font-weight:800;font-family:var(--font-mono);color:${col};">${fmt(m.pred)}</div>
+        <div style="font-size:0.52rem;color:${m.pct>=0?'#22c55e':'#f87171'};">${m.pct>=0?'+':''}${m.pct}%</div></div>` : '';
+      const ovn = (t.fut && t.fut.overnight != null) ? ` · 나스닥선물 야간 ${t.fut.overnight>=0?'+':''}${t.fut.overnight}%` : '';
+      todayCard = `<div class="glass-card" style="padding:12px 16px;margin-bottom:10px;background:rgba(56,189,248,0.08);border-left:3px solid #38bdf8;">
+        <div style="font-size:0.64rem;color:#38bdf8;font-weight:700;">🔒 ${h(t.target_date||'다음 거래일')} 개장 전 고정 예측 <span style="color:var(--text-muted);font-weight:400;font-size:0.54rem;">(05:30 KST 확정 · 마감 후 채점)</span></div>
+        <div style="display:flex;gap:18px;align-items:flex-end;margin-top:8px;flex-wrap:wrap;">
+          ${cell('🔵 선물', t.fut, '#38bdf8')}${cell('🟣 회귀', t.reg, '#a78bfa')}${cell('⚪ 앙상블', t.ens, '#e2e8f0')}
+          <div style="font-size:0.52rem;color:var(--text-muted);align-self:center;">전일종가 ${fmt(t.base)}${ovn}</div>
+        </div>
+      </div>`;
+    }
+
     const html = `<section class="section-wrap" id="prediction-log-section">
-      <div class="section-label" style="color:#a78bfa;">📋 KOSPI 예측 적중 기록
-        <span style="font-size:0.62rem;color:var(--text-muted);">(매일 '전일종가×미국 야간움직임' 예측 vs 실제)</span>
+      <div class="section-label" style="color:#a78bfa;">📋 개장 전 예측 성적표
+        <span style="font-size:0.62rem;color:var(--text-muted);">(장중 보정 없는 '진짜 예측' — 05:30 고정 → 마감 채점)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(pl.generated_at||'')}</span>
       </div>
-      <div class="glass-card" style="padding:10px 14px;margin-bottom:10px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
-        <div><span style="font-size:0.62rem;color:var(--text-muted);">방향 적중률</span> <b style="font-size:1.2rem;color:${acc.dir_hit_rate>=70?'#22c55e':'#fbbf24'};font-family:var(--font-mono);">${acc.dir_hit_rate}%</b></div>
-        <div><span style="font-size:0.62rem;color:var(--text-muted);">평균오차(MAE)</span> <b style="font-size:1.2rem;color:${acc.mae_pct<=2?'#22c55e':acc.mae_pct<=4?'#fbbf24':'#f87171'};font-family:var(--font-mono);">±${acc.mae_pct}%</b></div>
-        <div style="font-size:0.58rem;color:var(--text-muted);max-width:420px;">최근 ${acc.n}거래일 기준. 방향은 잘 맞히나 급락·급반등 규모는 과소예측 경향(꼬리위험·오버슈팅 밴드가 보완).</div>
-      </div>
+      ${todayCard}
+      <div class="glass-card" style="padding:10px 12px;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;">${accCards}</div>
       <div class="glass-card" style="padding:6px 12px;overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;min-width:480px;">
+        <table style="width:100%;border-collapse:collapse;min-width:520px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
-            <th style="padding:5px 8px;text-align:left;font-size:0.58rem;color:var(--text-muted);font-weight:500;">날짜</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">미국 야간</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">예측</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">실제</th>
-            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">오차</th>
-            <th style="padding:5px 8px;text-align:center;font-size:0.58rem;color:var(--text-muted);font-weight:500;">방향</th>
+            <th style="padding:5px 6px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">날짜</th>
+            <th style="padding:5px 6px;text-align:right;font-size:0.56rem;color:var(--text-muted);font-weight:500;">실제</th>
+            <th style="padding:5px 6px;text-align:right;font-size:0.56rem;color:#38bdf8;font-weight:600;">🔵 선물</th>
+            <th style="padding:5px 6px;text-align:right;font-size:0.56rem;color:#a78bfa;font-weight:600;">🟣 회귀</th>
+            <th style="padding:5px 6px;text-align:right;font-size:0.56rem;color:var(--text-muted);font-weight:600;">⚪ 앙상블</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;">※ ${h(pl.note||'')}<br>🚨 통계 추정. 투자 결정 단독 사용 금지.</div>
+      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;">※ 각 칸 = 예측값 / 오차% / 방향(✓✗). ${h(pl.note||'')}<br>🚨 통계 추정. 투자 결정 단독 사용 금지.</div>
     </section>`;
 
     const existing = document.getElementById('prediction-log-section');
