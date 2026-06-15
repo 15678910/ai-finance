@@ -66,10 +66,18 @@ URGENT_KEYWORDS = {
                "boj set to", "boj set for", "boj poised", "boj to lift rate",
                "bank of japan to", "bank of japan set to", "bank of japan poised",
                "bank of japan likely", "bank of japan rate",
-               "bank of japan hikes", "bank of japan raises", "bank of japan holds"],
+               "bank of japan hikes", "bank of japan raises", "bank of japan holds",
+               # 회견 2차 신호(포워드 가이던스·QT) — BOJ/우에다 문맥 한정
+               "boj more hikes", "boj further hike", "boj additional hike",
+               "boj neutral rate", "boj rate path", "boj to continue", "boj signals more",
+               "boj qt", "boj taper", "boj to taper", "boj jgb", "boj bond purchase",
+               "ueda hawkish", "ueda dovish", "ueda neutral", "ueda signals"],
         "ko": ["일본은행 인상", "일본은행 금리", "일본은행 동결", "일본은행 회의", "일본은행 검토",
                "boj 인상", "boj 금리", "우에다", "日銀", "利上げ", "据え置き",
-               "金融政策決定会合", "엔캐리 청산", "엔 캐리 청산"],
+               "金融政策決定会合", "엔캐리 청산", "엔 캐리 청산",
+               # 회견 2차 신호(일본어·일본 문맥은 자체로 BOJ 한정이라 안전)
+               "追加利上げ", "中立金利", "連続利上げ", "量的引き締め", "国債買い入れ",
+               "일본은행 추가", "일본 중립금리", "우에다 매파", "우에다 비둘기"],
     },
     "중앙은행_긴급": {
         "en": ["emergency rate cut", "emergency rate hike", "unscheduled meeting",
