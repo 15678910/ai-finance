@@ -8560,11 +8560,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
   // ─── 🔮 SK하이닉스 OHLC 예측 ──────────────────────
   function renderSkForecast(sf) {
-    if (!sf || !sf.forecast) return;
-    const f = sf.forecast, m = sf.model || {}, p = sf.peers || {};
-    const base = sf.base_close;
+    if (!sf || !sf.today) return;
+    const t = sf.today, m = sf.model || {}, p = sf.peers || {}, acc = sf.accuracy || {};
+    const base = t.base_close;
     const fmt = n => Math.round(n).toLocaleString();
-    const sigCol = (sf.fut_overnight_pct >= 0) ? '#22c55e' : '#f87171';
+    const sigCol = (t.fut_overnight_pct >= 0) ? '#22c55e' : '#f87171';
+    const locked = t.status === 'locked';
+    const statusBadge = locked
+      ? `<span style="font-size:0.54rem;padding:2px 9px;border-radius:10px;background:rgba(56,189,248,0.15);color:#38bdf8;font-weight:700;">🔒 개장 전 고정</span>`
+      : `<span style="font-size:0.54rem;padding:2px 9px;border-radius:10px;background:rgba(251,191,36,0.15);color:#fbbf24;font-weight:700;">⏳ 잠정 · 05:30 확정 전</span>`;
     const peerChips = Object.entries(p).map(([k, v]) => {
       const c = v >= 0 ? '#22c55e' : '#f87171';
       return `<span style="font-size:0.58rem;padding:2px 8px;border-radius:10px;background:${c}1a;color:${c};font-weight:700;">${h(k)} ${v >= 0 ? '+' : ''}${v}%</span>`;
@@ -8573,28 +8577,65 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div style="font-size:0.58rem;color:var(--text-muted);">${label}</div>
       <div style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${col};line-height:1.2;">${fmt(val)}</div>
       ${pct != null ? `<div style="font-size:0.54rem;color:${pct >= 0 ? '#22c55e' : '#f87171'};">${pct >= 0 ? '+' : ''}${pct}%</div>` : '<div style="font-size:0.54rem;color:transparent;">.</div>'}</div>`;
-    const oC = f.open_pct >= 0 ? '#22c55e' : '#f87171';
-    const cC = f.close_pct >= 0 ? '#22c55e' : '#f87171';
+    const oC = t.open_pct >= 0 ? '#22c55e' : '#f87171';
+    const cC = t.close_pct >= 0 ? '#22c55e' : '#f87171';
+
+    // 성적표 칩
+    const accChips = (acc.n) ? `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
+      <span style="font-size:0.6rem;color:var(--text-muted);">📊 종가 MAE <b style="font-family:var(--font-mono);color:${acc.close_mae_pct<=3?'#22c55e':acc.close_mae_pct<=5?'#fbbf24':'#f87171'};">±${acc.close_mae_pct}%</b></span>
+      <span style="font-size:0.6rem;color:var(--text-muted);">방향 적중 <b style="font-family:var(--font-mono);color:${acc.dir_hit_rate>=70?'#22c55e':'#fbbf24'};">${acc.dir_hit_rate}%</b></span>
+      <span style="font-size:0.6rem;color:var(--text-muted);">범위 적중 <b style="font-family:var(--font-mono);color:${acc.range_hit_rate>=60?'#22c55e':'#fbbf24'};">${acc.range_hit_rate}%</b></span>
+      <span style="font-size:0.52rem;color:var(--text-muted);">최근 ${acc.n}거래일 채점</span></div>` : '';
+
+    // 최근 채점표 (예측 종가 vs 실제)
+    const rows = (sf.entries || []).slice().reverse().slice(0, 10).map(e => {
+      const md = e.date.slice(5).replace('-', '/');
+      const ec = e.abs_err <= 2 ? '#22c55e' : e.abs_err <= 5 ? '#fbbf24' : '#f87171';
+      const dir = e.dir_ok ? '<span style="color:#22c55e;">✓</span>' : '<span style="color:#f87171;">✗</span>';
+      const rh = e.range_hit ? '<span style="color:#22c55e;">✓</span>' : '<span style="color:#64748b;">·</span>';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${md}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text);">${fmt(e.pred_close)}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${fmt(e.actual_close)}<br><span style="font-size:0.5rem;color:${e.actual_close_pct>=0?'#22c55e':'#f87171'};">${e.actual_close_pct>=0?'+':''}${e.actual_close_pct}%</span></td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.64rem;font-weight:700;font-family:var(--font-mono);color:${ec};">${e.close_err>=0?'+':''}${e.close_err}%</td>
+        <td style="padding:4px 6px;text-align:center;font-size:0.72rem;">${dir}</td>
+        <td style="padding:4px 6px;text-align:center;font-size:0.72rem;">${rh}</td>
+      </tr>`;
+    }).join('');
+    const table = rows ? `<div style="margin-top:10px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:380px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:4px 6px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">날짜</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">예측종가</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">실제종가</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">오차</th>
+            <th style="padding:4px 6px;text-align:center;font-size:0.54rem;color:var(--text-muted);font-weight:500;">방향</th>
+            <th style="padding:4px 6px;text-align:center;font-size:0.54rem;color:var(--text-muted);font-weight:500;">범위</th>
+          </tr></thead><tbody>${rows}</tbody>
+        </table></div>` : '';
 
     const html = `<section class="section-wrap" id="sk-forecast-section">
-      <div class="section-label" style="color:#818cf8;">🔮 SK하이닉스 OHLC 예측 <span style="font-size:0.62rem;color:var(--text-muted);">(다음 거래일 시·고·저·종 — 나스닥 선물 24H 기반)</span>
+      <div class="section-label" style="color:#818cf8;">🔮 SK하이닉스 OHLC 예측 <span style="font-size:0.62rem;color:var(--text-muted);">(개장 전 고정 → 마감 후 채점 — 나스닥 선물 24H 기반)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(sf.generated_at || '')}</span>
       </div>
       <div class="glass-card" style="padding:14px 16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-          <div style="font-size:0.62rem;color:var(--text-muted);">기준 ${h(sf.base_date || '')} 종가 <b style="color:var(--text-bright);font-family:var(--font-mono);">${fmt(base)}</b>원 · 직전마감 이후 나스닥선물 <b style="color:${sigCol};">${sf.fut_overnight_pct >= 0 ? '+' : ''}${sf.fut_overnight_pct}%</b></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${statusBadge}<span style="font-size:0.62rem;color:var(--text);font-weight:600;">${h(t.target_date || '')} 종가 예측</span></div>
           <span style="font-size:0.52rem;color:var(--text-muted);">검증 MAE ±${m.mae_bt}% · R²${m.r2} · β${m.beta_close}</span>
         </div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:12px;">기준 ${h(t.base_date || '')} 종가 <b style="color:var(--text-bright);font-family:var(--font-mono);">${fmt(base)}</b>원 · 직전마감 이후 나스닥선물 <b style="color:${sigCol};">${t.fut_overnight_pct >= 0 ? '+' : ''}${t.fut_overnight_pct}%</b> · 고정 ${h(t.locked_at || '')}</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-          ${box('예상 시가', f.open, f.open_pct, oC)}
-          ${box('예상 고가', f.high, null, '#22d3ee')}
-          ${box('예상 저가', f.low, null, '#fb923c')}
-          ${box('예상 종가', f.close, f.close_pct, cC)}
+          ${box('예상 시가', t.open, t.open_pct, oC)}
+          ${box('예상 고가', t.high, null, '#22d3ee')}
+          ${box('예상 저가', t.low, null, '#fb923c')}
+          ${box('예상 종가', t.close, t.close_pct, cC)}
         </div>
+        ${accChips}
+        ${table}
         ${peerChips ? `<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           <span style="font-size:0.6rem;color:var(--text-muted);">미국 반도체 동료(직전 거래일):</span> ${peerChips}
           <span style="font-size:0.52rem;color:var(--text-muted);">← 마이크론(메모리 경쟁사)이 가장 밀접</span></div>` : ''}
-        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ ${h(sf.note || '')}<br>🚨 통계 추정 · 개별종목은 지수보다 변동 큼(종가 MAE ±${m.mae_bt}%). 개장 후 실제 시가가 나오면 종가 정확도 상승. 투자 결정 단독 사용 금지.</div>
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ ${h(sf.note || '')}<br>🚨 통계 추정 · 개별종목은 지수보다 변동 큼(종가 MAE ±${m.mae_bt}%). 투자 결정 단독 사용 금지.</div>
       </div>
     </section>`;
 

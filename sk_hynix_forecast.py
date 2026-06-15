@@ -1,14 +1,13 @@
 """
-SK하이닉스 OHLC 예측기 (시가·고가·저가·종가)
-================================================
-KOSPI 방법론을 개별 종목에 적용 — 미국 마감 → 다음날 한국 반응(1일 시차).
-엔진: 나스닥 선물(NQ=F) 24H 야간 움직임 = 가장 신선한 선행신호.
-참고: 마이크론(MU, 메모리 경쟁사)·브로드컴(AVGO)·SOXX 반도체 동향.
+SK하이닉스 OHLC 예측기 — 개장 전 고정 + 마감 후 채점 (누적 성적표)
+====================================================================
+KOSPI 시나리오와 동일 철학: '진짜 예측'만 평가한다.
+  · 개장 전(05:30 KST, 미국 마감 직후) 나스닥선물 야간신호로 다음 거래일 OHLC 예측
+  · 한 번 고정하면 장중 시장 따라 수정 금지(freeze) — today 블록 persist
+  · 마감 후 실제 종가로 워크포워드 채점(해당일 제외) → 종가 MAE·방향·범위 적중 누적
 
-실증(워크포워드):
-  - 선물야간 ↔ SK 시가갭 corr 0.79 / 종일 corr 0.67(R²0.45, β~3.4)
-  - 시가갭 ↔ 종일 corr 0.80 → 개장 후 종가오차 4.7%→2.7%
-  - 일중 범위(고저폭 평균 5.3%)로 고가·저가 추정
+엔진: 나스닥선물(NQ=F) 24H 야간(직전 SK 마감 06:30 UTC → 05:30 KST) × 워크포워드 β.
+참고: 마이크론(MU, 메모리 경쟁사)·브로드컴·SOXX·엔비디아 동향.
 
 출력: docs/sk_hynix_forecast.json
 🚨 통계 추정. 투자 결정 단독 사용 금지.
@@ -25,6 +24,7 @@ KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "sk_hynix_forecast.json")
 CODE = "000660"  # SK하이닉스
+W = 25           # 워크포워드 윈도우
 
 
 def naver_ohlc(code, days=120):
@@ -63,137 +63,182 @@ def main():
     import warnings
     warnings.filterwarnings("ignore")
 
+    now = datetime.now(KST)
     print("=" * 55)
-    print("  SK하이닉스 OHLC 예측기")
-    print(f"  KST: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}")
+    print("  SK하이닉스 OHLC 예측 — 개장전 고정 + 마감후 채점")
+    print(f"  KST: {now.strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 55)
 
     bars = naver_ohlc(CODE, 120)
-    if len(bars) < 30:
+    if len(bars) < W + 5:
         print("[ERROR] SK하이닉스 데이터 부족")
         return 1
     bars.sort(key=lambda x: x[0])
-    last = bars[-1]
-    last_date, lo_o, lo_h, lo_l, last_close = last
+    last_date, lo_o, lo_h, lo_l, last_close = bars[-1]
     print(f"SK하이닉스 최근 {last_date}: 시{lo_o:.0f} 고{lo_h:.0f} 저{lo_l:.0f} 종{last_close:.0f}")
 
-    # 나스닥 선물 1시간봉 (24H 야간 신호)
+    # 나스닥선물 1시간봉 (24H 야간 신호)
     nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"]
-    if hasattr(nq, "columns"):  # CI yfinance는 단일종목도 DataFrame 반환 → Series로
+    if hasattr(nq, "columns"):       # CI yfinance 단일종목도 DataFrame → Series
         nq = nq.iloc[:, 0]
     nq = nq.dropna()
     nq.index = nq.index.tz_convert("UTC") if nq.index.tz else nq.index.tz_localize("UTC")
     nq = nq.sort_index()
 
-    def ab(ts):
+    def ab(ts):  # ts 이전(같거나) 마지막 선물값
         sub = nq[nq.index <= ts]
         return float(sub.iloc[-1]) if len(sub) else None
 
-    # 역사 표본: (full_ret, gap_ret, fut_overnight, up_wick, dn_wick)
+    # 역사 표본: 직전마감(06:30 UTC) → 05:30 KST(=D 00:00 UTC-3.5h) 선물 야간 + 실제 OHLC
     recs = []
-    W = 25
     for i in range(1, len(bars)):
         D, P = bars[i][0], bars[i - 1][0]
         pc = bars[i - 1][4]
         o, h, l, c = bars[i][1], bars[i][2], bars[i][3], bars[i][4]
         f0 = ab(pd.Timestamp(f"{P} 06:30", tz="UTC"))
-        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC"))
+        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=3.5))  # 05:30 KST D
         if f0 and f1 and f0 > 0 and pc > 0:
             fo = f1 / f0 - 1
             if abs(fo) < 0.2:
-                body_top, body_bot = max(o, c), min(o, c)
-                recs.append((c / pc - 1, o / pc - 1, fo,
-                             h / body_top - 1, l / body_bot - 1))
+                bt, bb = max(o, c), min(o, c)
+                recs.append({"D": D, "base": pc, "o": o, "h": h, "l": l, "c": c,
+                             "c_ret": c / pc - 1, "g_ret": o / pc - 1, "fov": fo,
+                             "uw": h / bt - 1, "dw": l / bb - 1})
     if len(recs) < W + 2:
         print("[ERROR] 선물 정렬 표본 부족")
         return 1
 
-    win = recs[-W:]
-    F = np.array([r[2] for r in win])
-    Yc = np.array([r[0] for r in win])  # 종일
-    Yg = np.array([r[1] for r in win])  # 시가갭
-    denom = float(F @ F) or 1e-9
-    b_close = float((F @ Yc) / denom)
-    b_gap = float((F @ Yg) / denom)
-    resid_c = Yc - b_close * F
-    sigma_c = float(resid_c.std(ddof=1))
-    # 윅(고가/저가) 중앙값
-    up_wick = float(np.median([r[3] for r in win]))
-    dn_wick = float(np.median([r[4] for r in win]))
-    # 시가갭→종가 베타(개장 후 보정용)
-    G2 = np.array([r[1] for r in win])
-    b_oc = float((G2 @ Yc) / (float(G2 @ G2) or 1e-9))
+    def betas(win):
+        F = np.array([r["fov"] for r in win])
+        den = float(F @ F) or 1e-9
+        bC = float((F @ np.array([r["c_ret"] for r in win])) / den)
+        bG = float((F @ np.array([r["g_ret"] for r in win])) / den)
+        uw = float(np.median([r["uw"] for r in win]))
+        dw = float(np.median([r["dw"] for r in win]))
+        return bC, bG, uw, dw
 
-    # 전체 R² + 워크포워드 MAE(종가)
-    Fa = np.array([r[2] for r in recs])
-    Ya = np.array([r[0] for r in recs])
+    # 최신 윈도우 베타 (오늘 예측·표시용)
+    b_close, b_gap, up_wick, dn_wick = betas(recs[-W:])
+    G2 = np.array([r["g_ret"] for r in recs[-W:]])
+    Yc2 = np.array([r["c_ret"] for r in recs[-W:]])
+    b_oc = float((G2 @ Yc2) / (float(G2 @ G2) or 1e-9))
+    sigma_c = float((Yc2 - b_close * np.array([r["fov"] for r in recs[-W:]])).std(ddof=1))
+    Fa, Ya = np.array([r["fov"] for r in recs]), np.array([r["c_ret"] for r in recs])
     r2 = float(np.corrcoef(Ya, Fa)[0, 1] ** 2)
-    errs = []
-    N = len(recs)
-    for j in range(max(W, N - 12), N):
-        w = recs[j - W:j]
-        Fw = np.array([x[2] for x in w])
-        Yw = np.array([x[0] for x in w])
-        bw = float((Fw @ Yw) / (float(Fw @ Fw) or 1e-9))
-        errs.append(abs((bw * recs[j][2] - recs[j][0]) * 100))
-    mae_bt = float(np.mean(errs)) if errs else None
 
-    # 현재 라이브 선물신호 (직전 SK 마감 06:30 UTC → 현재)
-    f_close = ab(pd.Timestamp(f"{last_date} 06:30", tz="UTC"))
-    f_now = float(nq.iloc[-1])
-    sig = (f_now / f_close - 1) if (f_close and f_close > 0) else 0.0
+    # ── 워크포워드 채점 (해당일 제외 직전 W일로 적합 → 종가 예측 vs 실제) ──
+    entries = []
+    for j in range(W, len(recs)):
+        r = recs[j]
+        bC, bG, uw, dw = betas(recs[j - W:j])
+        base, fov = r["base"], r["fov"]
+        p_open = base * (1 + bG * fov)
+        p_close = base * (1 + bC * fov)
+        p_high = max(p_open, p_close) * (1 + uw)
+        p_low = min(p_open, p_close) * (1 + dw)
+        actual = r["c"]
+        err = (actual / p_close - 1) * 100
+        entries.append({
+            "date": r["D"], "base": round(base, 0),
+            "fut_overnight": round(fov * 100, 2),
+            "pred_open": _round_tick(p_open), "pred_close": _round_tick(p_close),
+            "pred_high": _round_tick(p_high), "pred_low": _round_tick(p_low),
+            "actual_open": round(r["o"], 0), "actual_high": round(r["h"], 0),
+            "actual_low": round(r["l"], 0), "actual_close": round(actual, 0),
+            "actual_close_pct": round(r["c_ret"] * 100, 2),
+            "close_err": round(err, 2), "abs_err": round(abs(err), 2),
+            "dir_ok": bool((p_close >= base) == (actual >= base)),
+            "range_hit": bool(p_low <= actual <= p_high),
+        })
+    entries = entries[-15:]
+    n = len(entries)
+    mae = round(sum(e["abs_err"] for e in entries) / n, 2) if n else None
+    dir_hit = round(sum(1 for e in entries if e["dir_ok"]) / n * 100) if n else None
+    range_hit = round(sum(1 for e in entries if e["range_hit"]) / n * 100) if n else None
+    errs = [e["abs_err"] for e in entries]
+    mae_bt = round(sum(errs) / len(errs), 2) if errs else None
 
-    # 예측 OHLC (다음 거래일)
-    open_pred = last_close * (1 + b_gap * sig)
-    close_pred = last_close * (1 + b_close * sig)
-    high_pred = max(open_pred, close_pred) * (1 + up_wick)
-    low_pred = min(open_pred, close_pred) * (1 + dn_wick)
+    # ── 다음 세션 예측 (개장 전 고정 / 잠정) ──
+    def compute_today(status, target_label):
+        f0 = ab(pd.Timestamp(f"{last_date} 06:30", tz="UTC"))
+        f_now = float(nq.iloc[-1])
+        sig = (f_now / f0 - 1) if (f0 and f0 > 0) else 0.0
+        op = last_close * (1 + b_gap * sig)
+        cl = last_close * (1 + b_close * sig)
+        hi = max(op, cl) * (1 + up_wick)
+        lo = min(op, cl) * (1 + dn_wick)
+        return {
+            "target_date": target_label, "status": status,
+            "locked_at": now.strftime("%Y-%m-%d %H:%M KST"),
+            "base_date": last_date, "base_close": round(last_close, 0),
+            "fut_overnight_pct": round(sig * 100, 2),
+            "fut_asof_utc": nq.index[-1].strftime("%Y-%m-%d %H:%M UTC"),
+            "open": _round_tick(op), "high": _round_tick(hi),
+            "low": _round_tick(lo), "close": _round_tick(cl),
+            "open_pct": round((op / last_close - 1) * 100, 2),
+            "close_pct": round((cl / last_close - 1) * 100, 2),
+        }
 
-    # 미국 반도체 동료 맥락 (마이크론·브로드컴·SOXX 최근 등락)
+    # 직전 출력 로드 (freeze 유지용)
+    prev_today = {}
+    try:
+        with open(OUTPUT_FILE, encoding="utf-8") as f:
+            prev_today = (json.load(f) or {}).get("today") or {}
+    except Exception:
+        prev_today = {}
+
+    today_str = now.strftime("%Y-%m-%d")
+    hm = now.hour * 100 + now.minute
+    LOCK_LO, LOCK_HI, CLOSE_HM = 500, 900, 1530  # 05:00~09:00 개장전 윈도우, 15:30 마감
+
+    if hm < CLOSE_HM:
+        # 오늘 세션 대상 — 개장 전 고정 또는 장중 고정 유지(수정 금지)
+        if prev_today.get("status") == "locked" and prev_today.get("target_date") == today_str:
+            today = prev_today
+            print(f"  오늘({today_str}) 예측 고정 유지 — 장중 수정 안 함")
+        elif LOCK_LO <= hm < LOCK_HI:
+            today = compute_today("locked", today_str)
+            print(f"  ▶ {today_str} 개장 전 고정: 종가 {today['close']:.0f} ({today['close_pct']:+.2f}%)")
+        else:
+            today = compute_today("provisional", today_str)
+            print(f"  ▶ {today_str} 잠정(05:30 확정 전): 종가 {today['close']:.0f}")
+    else:
+        # 마감 후 ~ 익일 새벽: 다음 거래일 잠정(내일 05:30 확정 예정)
+        today = compute_today("provisional", "다음 거래일")
+        print(f"  ▶ 다음 거래일 잠정(내일 05:30 확정 예정): 종가 {today['close']:.0f}")
+
+    # 미국 반도체 동료 맥락
     peers = {}
     try:
         praw = yf.download(["MU", "AVGO", "SOXX", "NVDA"], period="6d", interval="1d",
                            progress=False, auto_adjust=True)["Close"].dropna()
-        pmap = {"MU": "마이크론", "AVGO": "브로드컴", "SOXX": "SOXX반도체", "NVDA": "엔비디아"}
-        for t, nm in pmap.items():
+        for t, nm in {"MU": "마이크론", "AVGO": "브로드컴", "SOXX": "SOXX반도체", "NVDA": "엔비디아"}.items():
             s = praw[t].dropna()
             if len(s) >= 2:
                 peers[nm] = round((float(s.iloc[-1]) / float(s.iloc[-2]) - 1) * 100, 2)
     except Exception as e:
         print(f"  [WARN] 동료 수집 실패: {e}")
 
-    print(f"선물 야간 {sig*100:+.2f}% (β종가 {b_close:.2f} β시가 {b_gap:.2f}) R²{r2:.2f} MAE±{mae_bt}%")
-    print(f"예측: 시{_round_tick(open_pred):.0f} 고{_round_tick(high_pred):.0f} "
-          f"저{_round_tick(low_pred):.0f} 종{_round_tick(close_pred):.0f}")
-    print(f"동료: {peers}")
+    print(f"  채점({n}일): 종가 MAE ±{mae}% · 방향 {dir_hit}% · 범위 적중 {range_hit}%")
 
     output = {
-        "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
+        "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "name": "SK하이닉스", "code": CODE,
-        "base_date": last_date,
-        "base_close": round(last_close, 0),
-        "fut_overnight_pct": round(sig * 100, 2),
-        "fut_asof_utc": nq.index[-1].strftime("%Y-%m-%d %H:%M UTC"),
-        "forecast": {
-            "open": _round_tick(open_pred),
-            "high": _round_tick(high_pred),
-            "low": _round_tick(low_pred),
-            "close": _round_tick(close_pred),
-            "open_pct": round((open_pred / last_close - 1) * 100, 2),
-            "close_pct": round((close_pred / last_close - 1) * 100, 2),
-        },
+        "today": today,
+        "entries": entries,
+        "accuracy": {"close_mae_pct": mae, "dir_hit_rate": dir_hit,
+                     "range_hit_rate": range_hit, "n": n},
         "model": {
             "beta_close": round(b_close, 2), "beta_gap": round(b_gap, 2),
-            "beta_open_to_close": round(b_oc, 2),
-            "sigma_close": round(sigma_c, 4),
+            "beta_open_to_close": round(b_oc, 2), "sigma_close": round(sigma_c, 4),
             "up_wick": round(up_wick, 4), "dn_wick": round(dn_wick, 4),
-            "r2": round(r2, 3), "mae_bt": round(mae_bt, 2) if mae_bt is not None else None,
-            "window": W,
+            "r2": round(r2, 3), "mae_bt": mae_bt, "window": W,
         },
         "peers": peers,
         "last_ohlc": {"open": lo_o, "high": lo_h, "low": lo_l, "close": last_close},
-        "note": ("나스닥 선물 24H 야간신호 → 다음 거래일 시가·종가 예측, 일중 범위로 고가·저가 추정. "
-                 "마이크론(메모리 경쟁사) 동향이 SK하이닉스와 가장 밀접. 통계 추정."),
+        "note": ("개장 전(05:30 KST) 나스닥선물 야간신호로 다음 거래일 OHLC를 고정 → 장중 수정 없음 → "
+                 "마감 후 실제 종가로 워크포워드 채점. 범위 적중=실제 종가가 예측 고저 안에 들어온 비율. "
+                 "마이크론(메모리 경쟁사) 동향이 가장 밀접. 통계 추정."),
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
