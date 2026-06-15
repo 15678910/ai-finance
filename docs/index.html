@@ -8559,6 +8559,33 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
   // ─── 🔮 SK하이닉스 OHLC 예측 ──────────────────────
+  // ─── ⚖️ 컨센서스 vs 실데이터 괴리 (한 줄) ──────────────────────
+  function renderConsensusGap(cg) {
+    if (!cg || !cg.headline) return;
+    const COL = { red: '#f87171', amber: '#fbbf24', green: '#4ade80' };
+    const c = COL[cg.color] || '#94a3b8';
+    const icon = cg.color === 'red' ? '⚠️' : cg.color === 'amber' ? '🟡' : '🟢';
+    const html = `<section class="section-wrap" id="consensus-gap-section">
+      <div class="glass-card" style="padding:10px 14px;border-left:3px solid ${c};background:${c}14;">
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:0.72rem;font-weight:800;color:${c};white-space:nowrap;">${icon} 컨센서스 vs 실데이터 괴리: ${h(cg.gap_level)} <span style="font-family:var(--font-mono);">${cg.gap_score}</span></span>
+          <span style="font-size:0.62rem;color:var(--text);">${h(cg.headline)}</span>
+        </div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:5px;line-height:1.5;">※ ${h(cg.note || '')}<br>갱신: ${h(cg.generated_at || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('consensus-gap-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('beforebegin', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   function renderSkForecast(sf) {
     if (!sf || !sf.today) return;
     const t = sf.today, m = sf.model || {}, p = sf.peers || {}, acc = sf.accuracy || {};
@@ -10286,6 +10313,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./kospi_scenario.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sc => { if (sc) renderKospiScenario(sc); });
+      // Load Consensus vs Real-data Gap (컨센서스 vs 실데이터 괴리 한 줄)
+      fetch('./consensus_gap.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(cg => { if (cg) renderConsensusGap(cg); });
       // Load Prediction Log (예측 적중 기록)
       fetch('./prediction_log.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

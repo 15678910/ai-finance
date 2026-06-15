@@ -73,6 +73,13 @@ jobs:
         run: |
           python overheating_monitor.py || echo "Overheating monitor had errors, continuing..."
 
+      # 컨센서스 vs 실데이터 괴리 (과열↔엔캐리·BOJ·엔화 — japan_crisis·economic_calendar·overheating 읽음)
+      - name: Run consensus gap indicator
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python consensus_gap.py || echo "Consensus gap had errors, continuing..."
+
       # KOSPI 예측 vs 실제 추적 (kospi_scenario 베타 사용 → 이후 실행)
       - name: Run prediction tracker
         env:
@@ -131,7 +138,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"
