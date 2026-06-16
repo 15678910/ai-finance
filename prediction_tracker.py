@@ -200,19 +200,21 @@ def main():
 
     acc = {"reg": accuracy("reg"), "fut": accuracy("fut"), "ens": accuracy("ens")}
 
-    # ── 다음(미마감) 세션 개장 전 고정 예측 ──
-    today_kst = datetime.now(KST).strftime("%Y-%m-%d")
+    # ── 다음(미마감) 세션 개장 전 고정 예측 — SK처럼 07:30 1회 고정·장중 수정 금지(persist freeze) ──
+    now_k = datetime.now(KST)
+    today_kst = now_k.strftime("%Y-%m-%d")
+    hm = now_k.hour * 100 + now_k.minute
+    LOCK_LO, LOCK_HI, CLOSE_HM = 700, 900, 1530  # 07:00~09:00 개장전 윈도우(07:30 신호), 15:30 마감
     L = kdays[-1]
     baseL = kospi[L]
-    target = today_kst if (today_kst not in kospi and today_kst > L) else "다음 거래일"
-    today_block = {"target_date": target, "base": round(baseL, 2),
-                   "locked_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M KST"),
-                   "reg": None, "fut": None, "ens": None}
+
+    fresh = {"base": round(baseL, 2), "locked_at": now_k.strftime("%Y-%m-%d %H:%M KST"),
+             "reg": None, "fut": None, "ens": None}
     if len(reg) >= WIN and L in sr and L in nr:
         bS, bN = fit_beta(reg[-WIN:])
         move = bS * sr[L] + bN * nr[L]
-        today_block["reg"] = {"pred": round(baseL * (1 + move), 0), "pct": round(move * 100, 2),
-                              "sox_ret": round(sr[L] * 100, 2), "ndx_ret": round(nr[L] * 100, 2)}
+        fresh["reg"] = {"pred": round(baseL * (1 + move), 0), "pct": round(move * 100, 2),
+                        "sox_ret": round(sr[L] * 100, 2), "ndx_ret": round(nr[L] * 100, 2)}
     if nq is not None and len(fpairs) >= WINF:
         try:
             sub = nq[nq.index <= pd.Timestamp.utcnow()]
@@ -220,14 +222,39 @@ def main():
             if len(sub) and len(f0) and float(f0.iloc[-1]) > 0:
                 fov_now = float(sub.iloc[-1]) / float(f0.iloc[-1]) - 1
                 bf = fit_beta_f(fpairs[-WINF:])
-                today_block["fut"] = {"pred": round(baseL * (1 + bf * fov_now), 0),
-                                      "pct": round(bf * fov_now * 100, 2),
-                                      "overnight": round(fov_now * 100, 2)}
+                fresh["fut"] = {"pred": round(baseL * (1 + bf * fov_now), 0),
+                                "pct": round(bf * fov_now * 100, 2),
+                                "overnight": round(fov_now * 100, 2)}
         except Exception as e:
             print(f"  [WARN] 선물 forward 예측 실패: {e}")
-    if today_block["reg"] and today_block["fut"]:
-        p = (today_block["reg"]["pred"] + today_block["fut"]["pred"]) / 2
-        today_block["ens"] = {"pred": round(p, 0), "pct": round((p / baseL - 1) * 100, 2)}
+    if fresh["reg"] and fresh["fut"]:
+        p = (fresh["reg"]["pred"] + fresh["fut"]["pred"]) / 2
+        fresh["ens"] = {"pred": round(p, 0), "pct": round((p / baseL - 1) * 100, 2)}
+
+    # 직전 출력 로드 → 장중 고정 유지(freeze)
+    prev_today = {}
+    try:
+        with open(OUTPUT_FILE, encoding="utf-8") as f:
+            prev_today = (json.load(f) or {}).get("today") or {}
+    except Exception:
+        prev_today = {}
+
+    if hm < CLOSE_HM:
+        # 오늘 세션 대상 — 개장 전(07:30) 1회 고정 또는 장중 고정 유지(수정 금지)
+        if prev_today.get("status") == "locked" and prev_today.get("target_date") == today_kst:
+            today_block = prev_today
+            print(f"  오늘({today_kst}) 예측 고정 유지 — 장중 수정 안 함")
+        elif LOCK_LO <= hm < LOCK_HI:
+            fresh.update({"status": "locked", "target_date": today_kst})
+            today_block = fresh
+        else:
+            fresh.update({"status": "provisional", "target_date": today_kst})
+            today_block = fresh
+    else:
+        # 마감 후 ~ 익일 새벽: 다음 거래일 잠정(내일 07:30 확정 예정)
+        fresh.update({"status": "provisional", "target_date": "다음 거래일"})
+        today_block = fresh
+    target = today_block.get("target_date")
 
     for e in entries[-6:]:
         parts = []
