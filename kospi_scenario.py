@@ -114,7 +114,7 @@ def futures_signal(np, pd, kospi_close_date, kospi_last_close, window=20):
         D, P = kd[i], kd[i - 1]
         pc = kmap[P]
         f0 = ab(pd.Timestamp(f"{P} 06:30", tz="UTC"))  # 직전 KOSPI 마감(15:30 KST)
-        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC"))   # KOSPI 개장(09:00 KST)
+        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=1.5))  # 07:30 KST(개장 전, 최적 MAE)
         if f0 and f1 and f0 > 0:
             r = f1 / f0 - 1
             if abs(r) < 0.2:
@@ -410,7 +410,7 @@ def main():
         print(f"엔/달러: {yen['usdjpy']} ({yen['chg_1d']:+.2f}% 1d){' ⚠️ ' + yen['alert'] if yen['alert'] else ''}")
 
     # ※ 장중 보정(개장 시가갭→종가)은 '진짜 예측'이 아니라 이미 실현된 시가를 끌어쓰는
-    #   정보 누출이라 제거됨. 예측은 개장 전(05:30 KST) 고정 → 마감 후 채점(prediction_tracker.py).
+    #   정보 누출이라 제거됨. 예측은 개장 전(07:30 KST) 고정 → 마감 후 채점(prediction_tracker.py).
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),

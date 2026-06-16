@@ -2,11 +2,11 @@
 SK하이닉스 OHLC 예측기 — 개장 전 고정 + 마감 후 채점 (누적 성적표)
 ====================================================================
 KOSPI 시나리오와 동일 철학: '진짜 예측'만 평가한다.
-  · 개장 전(05:30 KST, 미국 마감 직후) 나스닥선물 야간신호로 다음 거래일 OHLC 예측
+  · 개장 전(07:30 KST, 미국 마감 직후) 나스닥선물 야간신호로 다음 거래일 OHLC 예측
   · 한 번 고정하면 장중 시장 따라 수정 금지(freeze) — today 블록 persist
   · 마감 후 실제 종가로 워크포워드 채점(해당일 제외) → 종가 MAE·방향·범위 적중 누적
 
-엔진: 나스닥선물(NQ=F) 24H 야간(직전 SK 마감 06:30 UTC → 05:30 KST) × 워크포워드 β.
+엔진: 나스닥선물(NQ=F) 24H 야간(직전 SK 마감 06:30 UTC → 07:30 KST) × 워크포워드 β.
 참고: 마이크론(MU, 메모리 경쟁사)·브로드컴·SOXX·엔비디아 동향.
 
 출력: docs/sk_hynix_forecast.json
@@ -89,14 +89,14 @@ def main():
         sub = nq[nq.index <= ts]
         return float(sub.iloc[-1]) if len(sub) else None
 
-    # 역사 표본: 직전마감(06:30 UTC) → 05:30 KST(=D 00:00 UTC-3.5h) 선물 야간 + 실제 OHLC
+    # 역사 표본: 직전마감(06:30 UTC) → 07:30 KST(=D 00:00 UTC-1.5h) 선물 야간 + 실제 OHLC
     recs = []
     for i in range(1, len(bars)):
         D, P = bars[i][0], bars[i - 1][0]
         pc = bars[i - 1][4]
         o, h, l, c = bars[i][1], bars[i][2], bars[i][3], bars[i][4]
         f0 = ab(pd.Timestamp(f"{P} 06:30", tz="UTC"))
-        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=3.5))  # 05:30 KST D
+        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=1.5))  # 07:30 KST D
         if f0 and f1 and f0 > 0 and pc > 0:
             fo = f1 / f0 - 1
             if abs(fo) < 0.2:
@@ -189,7 +189,7 @@ def main():
 
     today_str = now.strftime("%Y-%m-%d")
     hm = now.hour * 100 + now.minute
-    LOCK_LO, LOCK_HI, CLOSE_HM = 500, 900, 1530  # 05:00~09:00 개장전 윈도우, 15:30 마감
+    LOCK_LO, LOCK_HI, CLOSE_HM = 700, 900, 1530  # 07:00~09:00 개장전 윈도우(07:30 신호), 15:30 마감
 
     if hm < CLOSE_HM:
         # 오늘 세션 대상 — 개장 전 고정 또는 장중 고정 유지(수정 금지)
@@ -201,11 +201,11 @@ def main():
             print(f"  ▶ {today_str} 개장 전 고정: 종가 {today['close']:.0f} ({today['close_pct']:+.2f}%)")
         else:
             today = compute_today("provisional", today_str)
-            print(f"  ▶ {today_str} 잠정(05:30 확정 전): 종가 {today['close']:.0f}")
+            print(f"  ▶ {today_str} 잠정(07:30 확정 전): 종가 {today['close']:.0f}")
     else:
-        # 마감 후 ~ 익일 새벽: 다음 거래일 잠정(내일 05:30 확정 예정)
+        # 마감 후 ~ 익일 새벽: 다음 거래일 잠정(내일 07:30 확정 예정)
         today = compute_today("provisional", "다음 거래일")
-        print(f"  ▶ 다음 거래일 잠정(내일 05:30 확정 예정): 종가 {today['close']:.0f}")
+        print(f"  ▶ 다음 거래일 잠정(내일 07:30 확정 예정): 종가 {today['close']:.0f}")
 
     # 미국 반도체 동료 맥락
     peers = {}
@@ -236,7 +236,7 @@ def main():
         },
         "peers": peers,
         "last_ohlc": {"open": lo_o, "high": lo_h, "low": lo_l, "close": last_close},
-        "note": ("개장 전(05:30 KST) 나스닥선물 야간신호로 다음 거래일 OHLC를 고정 → 장중 수정 없음 → "
+        "note": ("개장 전(07:30 KST) 나스닥선물 야간신호로 다음 거래일 OHLC를 고정 → 장중 수정 없음 → "
                  "마감 후 실제 종가로 워크포워드 채점. 범위 적중=실제 종가가 예측 고저 안에 들어온 비율. "
                  "마이크론(메모리 경쟁사) 동향이 가장 밀접. 통계 추정."),
     }

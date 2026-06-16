@@ -1,12 +1,12 @@
 """
 KOSPI 개장 전 예측 vs 실제 추적기 (듀얼모델)
 =============================================
-'진짜 예측'만 채점한다 — 장 시작 전(05:30 KST, 미국 마감 직후)에 확정 가능한 정보만으로
+'진짜 예측'만 채점한다 — 장 시작 전(07:30 KST, 미국 마감 직후)에 확정 가능한 정보만으로
 당일 KOSPI 종가를 예측하고, 마감 후 실제 종가로 채점. 장중 보정(시가갭) 같은 정보 누출 금지.
 
 두 모델을 매일 워크포워드(해당일 제외, 직전 N일로만 적합)로 예측·채점:
   · 회귀  : KOSPI(D) = 전일종가 × (1 + βs·SOX(P) + βn·NDX(P))  — 미국 1일 시차 캐치업
-  · 선물  : KOSPI(D) = 전일종가 × (1 + βf·NQ야간)             — 나스닥선물 24H(직전 마감→05:30)
+  · 선물  : KOSPI(D) = 전일종가 × (1 + βf·NQ야간)             — 나스닥선물 24H(직전 마감→07:30)
   · 앙상블: 두 모델 평균
 누적 채점으로 모델별 MAE·방향 적중률을 산출 → 어느 쪽이 우수한지 데이터로 판정(연구 엔진).
 
@@ -47,8 +47,9 @@ def naver_kospi_daily(days=95):
 
 
 def build_futures_overnight(kdays, kospi, np, pd):
-    """직전 KOSPI 마감(06:30 UTC) → 05:30 KST(=다음날 00:00 UTC-3.5h) 나스닥선물 야간수익률.
-    반환: {D: fov} — 05:30 고정 시점까지의 선물 움직임(개장 전 확정 정보)."""
+    """직전 KOSPI 마감(06:30 UTC) → 07:30 KST(=다음날 00:00 UTC-1.5h) 나스닥선물 야간수익률.
+    ※ 07:30 채택: 백테스트상 05:30보다 MAE 낮음(밤사이 정보 더 반영, 여전히 개장 전).
+    반환: {D: fov} — 07:30 고정 시점까지의 선물 움직임(개장 전 확정 정보)."""
     import yfinance as yf
     try:
         nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"]
@@ -71,7 +72,7 @@ def build_futures_overnight(kdays, kospi, np, pd):
     for i in range(1, len(kdays)):
         D, P = kdays[i], kdays[i - 1]
         f0 = ab(pd.Timestamp(f"{P} 06:30", tz="UTC"))                       # 직전 KOSPI 마감(15:30 KST)
-        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=3.5))  # 05:30 KST D
+        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=1.5))  # 07:30 KST D
         if f0 and f1 and f0 > 0:
             r = f1 / f0 - 1
             if abs(r) < 0.2:
@@ -242,14 +243,43 @@ def main():
         print(f"  ▶ {target} 개장 전 고정 예측: "
               f"{(today_block.get('ens') or today_block.get('fut') or today_block.get('reg'))['pred']:.0f}")
 
+    # ── 마감 후 자동 요약: 새로 채점된 날 1회 텔레그램 푸시(중복 방지) ──
+    prev_notified = None
+    try:
+        with open(OUTPUT_FILE, encoding="utf-8") as f:
+            prev_notified = (json.load(f) or {}).get("last_notified")
+    except Exception:
+        pass
+    last_notified = prev_notified
+    try:
+        from core import send_message, get_secret
+    except Exception:
+        send_message = get_secret = None
+    if entries and send_message and get_secret and get_secret("TELEGRAM_FINANCE_BOT_TOKEN"):
+        le = entries[-1]
+        if le["date"] != prev_notified:
+            def _seg(nm, m):
+                return f"· {nm}: —" if not m else f"· {nm} {m['pred']:.0f} (오차 {m['err']:+.2f}% {'✓' if m['dir'] else '✗'})"
+            msg = (f"📊 KOSPI 예측 채점 ({le['date']})\n"
+                   f"실제 종가 {le['actual']:.0f} ({le['actual_pct']:+.2f}%)\n"
+                   f"{_seg('선물', le.get('fut'))}\n{_seg('회귀', le.get('reg'))}\n{_seg('앙상블', le.get('ens'))}\n"
+                   f"누적(최근 {acc['fut']['n']}일): 선물 MAE ±{acc['fut']['mae_pct']}% 방향 {acc['fut']['dir_hit_rate']}%")
+            try:
+                if send_message(msg):
+                    last_notified = le["date"]
+                    print(f"  텔레그램 채점 요약 발송: {le['date']}")
+            except Exception as ex:
+                print(f"  [WARN] 텔레그램 발송 실패: {ex}")
+
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
-        "models": "개장 전(05:30 KST) 고정 예측 — 회귀(미국 1일 시차) · 선물(NQ 야간) · 앙상블. 장중 보정 없음.",
+        "models": "개장 전(07:30 KST) 고정 예측 — 회귀(미국 1일 시차) · 선물(NQ 야간) · 앙상블. 장중 보정 없음.",
         "window": WIN, "fut_window": WINF,
         "entries": entries,
         "accuracy": acc,
         "today": today_block,
-        "note": ("개장 전 확정 정보(미국 마감·나스닥선물 05:30)만으로 당일 종가 예측 → 마감 후 실제로 채점. "
+        "last_notified": last_notified,
+        "note": ("개장 전 확정 정보(미국 마감·나스닥선물 07:30)만으로 당일 종가 예측 → 마감 후 실제로 채점. "
                  "장중 시가갭 보정 같은 정보 누출은 제외. 워크포워드(해당일 제외)라 과적합 없음. 통계 추정."),
     }
     os.makedirs(DOCS, exist_ok=True)
