@@ -1405,6 +1405,35 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         # 등락률 계산
                         if prev_close and prev_close > 0 and abs(cp - prev_close) > 1e-6:
                             base["change_pct"] = round((cp - prev_close) / prev_close * 100, 2)
+                        # 기술적 레짐·센티멘트 계산 (레짐 미산출 종목 — 외국/SpaceX/공급망 등)
+                        if base.get("regime") in (None, "", "N/A"):
+                            try:
+                                cl = t.history(period="3mo")["Close"].dropna()
+                                if len(cl) >= 20:
+                                    ma20 = float(cl.iloc[-20:].mean())
+                                    ma60 = float(cl.iloc[-min(60, len(cl)):].mean())
+                                    curp = float(cl.iloc[-1])
+                                    chg5 = (curp - float(cl.iloc[-6])) / float(cl.iloc[-6]) * 100 if len(cl) >= 6 else 0
+                                    if curp > ma20 * 1.03 and ma20 > ma60 and chg5 > 1:
+                                        base["regime"] = "강한상승"
+                                    elif curp > ma20 * 1.01 and ma20 >= ma60:
+                                        base["regime"] = "상승"
+                                    elif curp > ma20 * 0.99:
+                                        base["regime"] = "약한상승"
+                                    elif curp < ma20 * 0.97 and ma20 > ma60:
+                                        base["regime"] = "약한하락"
+                                    elif curp < ma20 and ma20 < ma60:
+                                        base["regime"] = "하락"
+                                    elif curp < ma20 * 0.95 and ma20 < ma60:
+                                        base["regime"] = "강한하락"
+                                    else:
+                                        base["regime"] = "횡보"
+                                    n21 = min(21, len(cl))
+                                    ret20 = (curp - float(cl.iloc[-n21])) / float(cl.iloc[-n21]) * 100 if len(cl) >= 6 else 0
+                                    base["sentiment_label"] = "긍정" if ret20 > 5 else ("약한긍정" if ret20 > 0 else "약세")
+                                    base["sentiment_score"] = f"+{ret20:.1f}" if ret20 >= 0 else f"{ret20:.1f}"
+                            except Exception:
+                                pass
                         # 시총까지 확보되면 종료. 가격만 있고 시총 없으면(KOSDAQ가 .KS로 가격만 준 경우)
                         # 다음 거래소 접미사(.KQ)를 시도해 시총을 보완 (박스 크기 결정에 시총 필수)
                         if base.get("market_cap"):
