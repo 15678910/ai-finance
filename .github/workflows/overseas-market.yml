@@ -80,6 +80,13 @@ jobs:
         run: |
           python consensus_gap.py || echo "Consensus gap had errors, continuing..."
 
+      # 이벤트 사전영향 레이더 (다가오는 FOMC/BOJ 등이 오늘 포지셔닝에 주는 영향 — economic_calendar 읽음)
+      - name: Run event radar
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python event_radar.py || echo "Event radar had errors, continuing..."
+
       # KOSPI 예측 vs 실제 추적 (kospi_scenario 베타 사용 → 이후 실행)
       - name: Run prediction tracker
         env:
@@ -138,7 +145,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json docs/event_radar.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"
