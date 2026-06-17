@@ -2051,7 +2051,8 @@ body {
     const counts = {};
     sectors.forEach(sec => {
       sec.stocks.forEach(s => {
-        const r = s.regime || '기타';
+        const r = s.regime;
+        if (!r || r === 'N/A' || r === '기타') return;  // N/A·미산출 제외(도넛 도배 방지)
         counts[r] = (counts[r] || 0) + 1;
       });
     });
@@ -2462,7 +2463,7 @@ body {
               ${m.region} ${h(m.name)}${liveBadge}
             </div>
             <div style="text-align:right;">
-              <div ${fxKey ? `id="fxval-${fxKey}"` : ''} style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current != null ? m.current.toLocaleString() : 'N/A'}</div>
+              <div ${fxKey ? `id="fxval-${fxKey}" data-fx="${fxKey}"` : ''} style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current != null ? m.current.toLocaleString() : 'N/A'}</div>
               <div ${fxKey ? `id="fxchg-${fxKey}"` : ''} style="font-size:0.7rem;color:${color};">${arrow} ${change != null ? (change >= 0 ? '+' : '') + change.toFixed(2) + '%' : 'N/A'}</div>
             </div>
           </div>`;
@@ -8690,7 +8691,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div class="glass-card" style="padding:10px 14px;border-left:3px solid ${c};background:${c}14;">
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
           <span style="font-size:0.82rem;font-weight:800;color:${c};white-space:nowrap;">${icon} 컨센서스 vs 실데이터 괴리: ${h(cg.gap_level)} <span style="font-family:var(--font-mono);">${cg.gap_score}</span></span>
-          <span style="font-size:0.72rem;color:var(--text);">${h(cg.headline)}</span>
+          <span style="font-size:0.72rem;color:var(--text);">${h(cg.headline).replace(/USD\/JPY\s*([\d.]+)/, 'USD/JPY <span data-fx="usdjpy">$1</span>')}</span>
         </div>
         <div style="font-size:0.6rem;color:var(--text-muted);margin-top:5px;line-height:1.5;">※ ${h(cg.note || '')}<br>갱신: ${h(cg.generated_at || '')}</div>
       </div>
@@ -10423,6 +10424,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     window.__calCdTimer = setInterval(tick, 1000);
   }
 
+  // ─── 💱 USD/JPY 값 통일 (소스별 제각각 → 가장 최신값으로 일치) ──────
+  window.__yenSrc = window.__yenSrc || {};
+  function registerYen(key, value, ts) {
+    const v = Number(value);
+    if (!v || v <= 0) return;
+    window.__yenSrc[key] = { v: v, ts: String(ts || '') };
+    applyCanonicalYen();
+  }
+  function applyCanonicalYen() {
+    if (window.__fxLiveStarted) return;  // 실시간 키 작동 중이면 그쪽이 통일 담당
+    const arr = Object.values(window.__yenSrc);
+    if (!arr.length) return;
+    arr.sort((a, b) => (a.ts < b.ts ? 1 : -1));  // ts(생성시각) 큰=최신 우선
+    const ps = arr[0].v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.querySelectorAll('[data-fx="usdjpy"]').forEach(el => { el.textContent = ps; });
+  }
+
   // ─── 💱 실시간 FX (USD/JPY·USD/KRW) — TwelveData 무료 키 폴링 ─────────
   // 사용법: 아래 apiKey 에 TwelveData 무료 키 입력 (https://twelvedata.com 가입 → API Key 복사).
   //   · 키가 비어 있으면 비활성 → 기존 워크플로 값(약 1시간 주기) 그대로 표시.
@@ -10475,6 +10493,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     .then(data => {
       render(data);
       startLiveFx();  // 💱 실시간 FX 폴링 시작 (키 있을 때만 동작)
+      // USD/JPY 통일: data.json 내 소스(통화/금리·일본위기)도 등록
+      try {
+        const _om = data.overseas_market;
+        if (_om && _om.markets) (_om.markets['통화_금리'] || []).forEach(m => { if ((m.name || '').includes('USD/JPY')) registerYen('overseas', m.current, _om.generated_at); });
+        const _jc = data.japan_crisis;
+        if (_jc && _jc.market && _jc.market.usd_jpy) registerYen('japan', _jc.market.usd_jpy.current, _jc.generated_at);
+      } catch (e) {}
       // Load economic calendar
       fetch('./economic_calendar.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null)
@@ -10515,11 +10540,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // Load KOSPI Scenario Simulator (실시간 베타 예측)
       fetch('./kospi_scenario.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(sc => { if (sc) renderKospiScenario(sc); });
+        .then(sc => { if (sc) { renderKospiScenario(sc); if (sc.yen) registerYen('kospi', sc.yen.usdjpy, sc.generated_at); } });
       // Load Consensus vs Real-data Gap (컨센서스 vs 실데이터 괴리 한 줄)
       fetch('./consensus_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(cg => { if (cg) renderConsensusGap(cg); });
+        .then(cg => { if (cg) { renderConsensusGap(cg); if (cg.components && cg.components.usdjpy) registerYen('gap', cg.components.usdjpy, cg.generated_at); } });
       // Load Event Radar (이벤트 사전영향 레이더)
       fetch('./event_radar.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
