@@ -282,10 +282,10 @@ def nikkei_divergence(np, window=40):
 
 
 def yen_watch(np):
-    """USD/JPY(엔/달러) 감시 — 엔화는 아시아 위험의 선행지표. 급변 시 KOSPI 반전 신호(예측 아님·맥락)."""
+    """USD/JPY(엔/달러) 감시 + KOSPI 동시 민감도 — 엔화는 아시아 위험 선행지표(예측 아님·맥락)."""
     import yfinance as yf
     try:
-        s = yf.download("JPY=X", period="12d", interval="1d", progress=False)["Close"]
+        s = yf.download("JPY=X", period="5mo", interval="1d", progress=False)["Close"]
         if hasattr(s, "columns"):  # 단일종목 DataFrame → Series
             s = s.iloc[:, 0]
         s = s.dropna()
@@ -302,12 +302,37 @@ def yen_watch(np):
     if abs(chg1) >= 1.0 or (chg5 is not None and abs(chg5) >= 2.5):
         direction = "약세(엔↓)" if chg1 > 0 else "강세(엔↑)"
         alert = f"엔화 {direction} 급변 — 아시아 위험·BOJ 개입 주의"
+
+    # KOSPI 동시 민감도: KOSPI(D) 일별수익률 ~ USDJPY(D) 일별수익률 (최근 W일 회귀)
+    #   beta<0 = 엔약세(USDJPY↑)→KOSPI 하락(수출경쟁 채널 우세). ※ 동시상관, 예측 아님.
+    kospi_beta = kospi_r = kospi_n = None
+    try:
+        jr = {d.strftime("%Y-%m-%d"): float(v) for d, v in s.pct_change().items() if not np.isnan(v)}
+        kmap = naver_kospi_daily(150)
+        kd = sorted(kmap)
+        xs, ys = [], []
+        for i in range(1, len(kd)):
+            D, P = kd[i], kd[i - 1]
+            if D in jr and kmap[P] > 0:
+                xs.append(jr[D]); ys.append(kmap[D] / kmap[P] - 1)
+        if len(xs) >= 20:
+            X = np.array(xs[-60:]); Y = np.array(ys[-60:])
+            kospi_beta = round(float(np.polyfit(X, Y, 1)[0]), 2)   # USD/JPY +1% → KOSPI %
+            kospi_r = round(float(np.corrcoef(X, Y)[0, 1]), 2)
+            kospi_n = len(X)
+            print(f"엔-KOSPI 민감도(동시,최근{kospi_n}일): USD/JPY +1% → KOSPI {kospi_beta:+.2f}% "
+                  f"(r={kospi_r}, R²={kospi_r**2:.2f})")
+    except Exception as e:
+        print(f"  [WARN] 엔-KOSPI 민감도 실패: {e}")
+
     return {
         "usdjpy": round(cur, 2),
         "chg_1d": round(chg1, 2),
         "chg_5d": round(chg5, 2) if chg5 is not None else None,
         "alert": alert,
         "asof": s.index[-1].strftime("%Y-%m-%d"),
+        "kospi_beta": kospi_beta,   # USD/JPY +1% 당 KOSPI %(동시·음수=엔약세→하락)
+        "kospi_r": kospi_r, "kospi_n": kospi_n,
     }
 
 

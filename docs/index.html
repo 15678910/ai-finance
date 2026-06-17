@@ -8427,8 +8427,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const jc = nd.nikkei_chg >= 0 ? '#22c55e' : '#f87171';
       const md = nd.date ? nd.date.slice(5).replace('-', '/') : '';
       const yn = sc.yen;
-      const yenLine = yn ? `<span>💴 엔/달러 <b style="color:${yn.chg_1d >= 0 ? '#fbbf24' : '#22c55e'};font-family:var(--font-mono);">${yn.usdjpy}</b> <span style="font-size:0.54rem;">(${yn.chg_1d >= 0 ? '+' : ''}${yn.chg_1d}% · 엔${yn.chg_1d >= 0 ? '약세' : '강세'})</span></span>` : '';
-      const yenAlert = (yn && yn.alert) ? `<div style="font-size:0.58rem;color:#f87171;font-weight:700;margin-top:5px;">⚠️ ${h(yn.alert)}</div>` : '';
+      const yenLine = yn ? `<span>💴 엔/달러 <b style="color:${yn.chg_1d >= 0 ? '#fbbf24' : '#22c55e'};font-family:var(--font-mono);">${yn.usdjpy}</b> <span style="font-size:0.58rem;">(${yn.chg_1d >= 0 ? '+' : ''}${yn.chg_1d}% · 엔${yn.chg_1d >= 0 ? '약세' : '강세'})</span></span>` : '';
+      const yenSens = (yn && yn.kospi_beta != null) ? `<span>📐 엔→KOSPI 민감도 <b style="font-family:var(--font-mono);color:${yn.kospi_beta<0?'#f87171':'#22c55e'};">+1%→${yn.kospi_beta}%</b> <span style="font-size:0.54rem;">(동시상관 r${yn.kospi_r}·약함, 예측 아님)</span></span>` : '';
+      const yenAlert = (yn && yn.alert) ? `<div style="font-size:0.62rem;color:#f87171;font-weight:700;margin-top:5px;">⚠️ ${h(yn.alert)}</div>` : '';
       nikkeiBlock = `<div class="glass-card" style="padding:10px 14px;margin-bottom:12px;background:${vc}11;border-left:3px solid ${vc};">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div style="font-size:0.62rem;color:${vc};font-weight:700;">🇰🇷vs🇯🇵 한일 동행 진단 <span style="color:var(--text-muted);font-weight:400;">(${md} · 원인 해석용, 예측 아님)</span></div>
@@ -8440,6 +8441,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span>니케이 기준 기대 <b style="font-family:var(--font-mono);color:var(--text);">${nd.expected_kospi_chg>=0?'+':''}${nd.expected_kospi_chg}%</b></span>
           <span>괴리 <b style="font-family:var(--font-mono);color:${vc};">${nd.gap_pct>=0?'+':''}${nd.gap_pct}%p</b></span>
           ${yenLine}
+          ${yenSens}
         </div>
         ${yenAlert}
         <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 한일은 같은 시간대(동조 ${nd.corr}). 일본과 함께 움직이면 '아시아 동반', KOSPI만 따로면 '한국 고유 요인(외인 투매·환율·지정학)'. 엔/달러 급변은 BOJ 개입·아시아 위험의 선행신호. 예측이 아닌 원인 진단입니다.</div>
@@ -8569,18 +8571,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const COL = { event_wait: '#fbbf24', approach: '#22d3ee', calm: '#4ade80' };
     const c = COL[er.bias && er.bias.key] || '#94a3b8';
     const rows = er.events.map(e => `<div style="display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-      <span style="font-family:var(--font-mono);font-size:0.62rem;font-weight:700;color:${e.dday<=1?'#f87171':e.dday<=3?'#fbbf24':'var(--text-muted)'};white-space:nowrap;">D-${e.dday||'day'}</span>
+      <span style="font-family:var(--font-mono);font-size:0.7rem;font-weight:700;color:${e.dday<=1?'#f87171':e.dday<=3?'#fbbf24':'var(--text-muted)'};white-space:nowrap;">D-${e.dday||'day'}</span>
       <div style="flex:1;">
-        <span style="font-size:0.66rem;color:var(--text-bright);font-weight:600;">${h(e.region||'')} ${h(e.title)}</span>${e.consensus?` <span style="font-size:0.54rem;color:#fbbf24;font-family:var(--font-mono);">${h(e.consensus)}</span>`:''}
-        ${e.effect?`<div style="font-size:0.54rem;color:var(--text-muted);line-height:1.4;margin-top:1px;">${h(e.effect)}</div>`:''}
+        <span style="font-size:0.74rem;color:var(--text-bright);font-weight:600;">${h(e.region||'')} ${h(e.title)}</span>${e.consensus?` <span style="font-size:0.6rem;color:#fbbf24;font-family:var(--font-mono);">${h(e.consensus)}</span>`:''}
+        ${e.effect?`<div style="font-size:0.6rem;color:var(--text-muted);line-height:1.45;margin-top:2px;">${h(e.effect)}</div>`:''}
       </div></div>`).join('');
     const html = `<section class="section-wrap" id="event-radar-section">
       <div class="section-label" style="color:#fbbf24;">📡 이벤트 사전영향 레이더 <span style="font-size:0.6rem;color:var(--text-muted);">(다가오는 이벤트가 오늘 포지셔닝에 주는 영향 — 정량 예측 아님)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(er.generated_at||'')}</span></div>
       <div class="glass-card" style="padding:10px 14px;border-left:3px solid ${c};background:${c}11;">
-        <div style="font-size:0.66rem;color:${c};font-weight:700;line-height:1.5;margin-bottom:6px;">${h((er.bias&&er.bias.text)||'')}</div>
-        ${rows || '<div style="font-size:0.6rem;color:var(--text-muted);">향후 7일 HIGH 이벤트 없음</div>'}
-        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:7px;">※ ${h(er.note||'')}</div>
+        <div style="font-size:0.74rem;color:${c};font-weight:700;line-height:1.5;margin-bottom:7px;">${h((er.bias&&er.bias.text)||'')}</div>
+        ${rows || '<div style="font-size:0.66rem;color:var(--text-muted);">향후 7일 HIGH 이벤트 없음</div>'}
+        <div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;">※ ${h(er.note||'')}</div>
       </div>
     </section>`;
     const existing = document.getElementById('event-radar-section');
@@ -9191,7 +9193,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     let lastResultCard = '';
     if (last) {
       const md = last.date.slice(5).replace('-', '/');
-      const seg = (name, m, col) => m ? `<span style="font-size:0.6rem;color:var(--text-muted);">${name} <b style="font-family:var(--font-mono);color:${col};">${fmt(m.pred)}</b> <span style="color:${m.abs_err<=2?'#22c55e':m.abs_err<=5?'#fbbf24':'#f87171'};">${m.err>=0?'+':''}${m.err}% ${m.dir?'✓':'✗'}</span></span>` : '';
+      const seg = (name, m, col) => m ? `<span style="font-size:0.66rem;color:var(--text-muted);">${name} <b style="font-family:var(--font-mono);color:${col};">${fmt(m.pred)}</b> <span style="color:${m.abs_err<=2?'#22c55e':m.abs_err<=5?'#fbbf24':'#f87171'};">${m.err>=0?'+':''}${m.err}% ${m.dir?'✓':'✗'}</span></span>` : '';
       // 냉정한 평가: 방향 적중 여부 + 대형 오차
       const ms = ['fut', 'reg', 'ens'].map(k => last[k]).filter(Boolean);
       const wrong = ms.filter(m => !m.dir).length, tot = ms.length;
@@ -9204,10 +9206,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         : wrong > 0 ? `일부 방향 오답 (${wrong}/${tot}) — 부분 신뢰` : `전 모델 방향 적중${maxErr>=5?` (단 오차 ±${maxErr}%)`:''}`;
       lastResultCard = `<div class="glass-card" style="padding:10px 14px;margin-bottom:10px;border-left:3px solid ${vCol};background:${vCol}12;">
         <div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;">
-          <span style="font-size:0.68rem;font-weight:800;color:${vCol};">${icon} ${md} 냉정 평가 <span style="font-weight:400;color:var(--text-muted);font-size:0.52rem;">(마감 후 자동)</span></span>
-          <span style="font-size:0.66rem;color:var(--text-bright);">실제 종가 <b style="font-family:var(--font-mono);">${fmt(last.actual)}</b> <span style="color:${last.actual_pct>=0?'#22c55e':'#f87171'};font-size:0.56rem;">${last.actual_pct>=0?'+':''}${last.actual_pct}%</span></span>
+          <span style="font-size:0.78rem;font-weight:800;color:${vCol};">${icon} ${md} 냉정 평가 <span style="font-weight:400;color:var(--text-muted);font-size:0.58rem;">(마감 후 자동)</span></span>
+          <span style="font-size:0.74rem;color:var(--text-bright);">실제 종가 <b style="font-family:var(--font-mono);">${fmt(last.actual)}</b> <span style="color:${last.actual_pct>=0?'#22c55e':'#f87171'};font-size:0.6rem;">${last.actual_pct>=0?'+':''}${last.actual_pct}%</span></span>
         </div>
-        <div style="font-size:0.6rem;color:${vCol};font-weight:600;margin-top:4px;line-height:1.4;">${verdict}</div>
+        <div style="font-size:0.68rem;color:${vCol};font-weight:600;margin-top:5px;line-height:1.45;">${verdict}</div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:5px;">
           ${seg('🔵 선물', last.fut, '#38bdf8')}${seg('🟣 회귀', last.reg, '#a78bfa')}${seg('⚪ 앙상블', last.ens, '#e2e8f0')}
         </div>
