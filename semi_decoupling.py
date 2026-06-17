@@ -39,6 +39,39 @@ def naver_close(sym, days=120):
     return {f"{d[:4]}-{d[4:6]}-{d[6:]}": float(c) for d, c in rows}
 
 
+def naver_foreign_flow(ticker):
+    """frgn.naver 외국인 순매매(주식수)×종가 → 최근일·5일 순매수(억원). 로그인 불필요.
+    디커플링의 실제 동력(외인 수급)을 측정."""
+    try:
+        url = f"https://finance.naver.com/item/frgn.naver?code={ticker}&page=1"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"})
+        html = urllib.request.urlopen(req, timeout=12).read().decode("euc-kr", errors="replace")
+    except Exception:
+        return None, None
+    def pint(s):
+        s = (s or "").replace(",", "").replace("+", "").strip()
+        try:
+            return int(float(s))
+        except Exception:
+            return 0
+    out = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.DOTALL):
+        if not re.search(r"\d{4}\.\d{2}\.\d{2}", tr):
+            continue
+        tds = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", td)).strip()
+               for td in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.DOTALL)]
+        if len(tds) < 9:
+            continue
+        out.append((tds[0].replace(".", "-"), pint(tds[6]), pint(tds[1])))  # (date, 순매매주, 종가)
+    out.sort(key=lambda x: x[0])
+    if not out:
+        return None, None
+    f1 = round(out[-1][1] * out[-1][2] / 1e8)            # 최근일 억원
+    f5 = round(sum(n * c for _, n, c in out[-5:]) / 1e8)  # 5일 합 억원
+    return f1, f5
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -90,14 +123,16 @@ def main():
             verdict, vkey = "한국 반도체 독자 강세", "kr_strong"
         else:
             verdict, vkey = "한국 반도체 독자 약세", "kr_weak"
+        f1, f5 = naver_foreign_flow(sym)  # 외국인 순매수(억원) — 디커플링 동력
         out_assets.append({
             "name": nm, "code": sym, "date": D,
             "actual_pct": round(y * 100, 2), "expected_pct": round(expected * 100, 2),
             "decoupling_pp": round(resid * 100, 2), "beta": round(beta, 2), "r": round(r, 2),
             "recent10_pp": round(recent10 * 100, 2), "verdict": verdict, "vkey": vkey,
+            "foreign_1d_eok": f1, "foreign_5d_eok": f5,
         })
         print(f"  {nm} {D}: 실제 {y*100:+.2f}% vs SOX기대 {expected*100:+.2f}% "
-              f"→ 디커플링 {resid*100:+.2f}%p (β{beta:.2f} r{r:+.2f}) {verdict}")
+              f"→ 디커플링 {resid*100:+.2f}%p (β{beta:.2f} r{r:+.2f}) {verdict} | 외인5일 {f5}억")
 
     # 레짐(SK 기준): 최근 디커플링 크기·지속
     sk = next((a for a in out_assets if a["code"] == "000660"), None)
@@ -114,8 +149,9 @@ def main():
         "sox": {"chg_pct": sox_chg, "asof": sox_asof},
         "assets": out_assets,
         "regime": regime,
-        "note": ("미국 SOX 전일 등락은 개장 전 확인 가능(반도체 선행신호). 한국 고유 디커플링(실제−SOX기대)은 "
-                 "장중 아시아 수급·AI테마·외인 매매라 개장 전 예측 불가 → 진단·신뢰도 경고용. 동시상관, 예측 아님."),
+        "note": ("미국 SOX 전일 등락은 개장 전 확인 가능(반도체 선행신호). 한국 고유 디커플링(실제−SOX기대)의 "
+                 "실제 동력은 아래 '외국인 5일 순매수' — 외인이 크게 사면 미국과 따로 강세(6/17 SK처럼). "
+                 "이 수급은 장중 결정이라 개장 전 예측 불가 → 진단·신뢰도 경고용. 동시상관, 예측 아님."),
     }
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)

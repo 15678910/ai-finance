@@ -8592,6 +8592,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:440px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">${th('종목','left')}${th('실제','right')}${th('SOX기준 기대','right')}${th('디커플링','right')}${th('진단','left')}</tr></thead>
           <tbody>${rows}</tbody></table></div>
+        ${sd.assets.some(a=>a.foreign_5d_eok!=null) ? `<div style="font-size:0.66rem;color:var(--text);margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.06);">💰 외국인 5일 순매수 <span style="font-size:0.54rem;color:var(--text-muted);">(디커플링의 실제 동력)</span>: ${sd.assets.filter(a=>a.foreign_5d_eok!=null).map(a=>`${h(a.name)} <b style="font-family:var(--font-mono);color:${a.foreign_5d_eok>=0?'#22c55e':'#f87171'};">${a.foreign_5d_eok>=0?'+':''}${a.foreign_5d_eok.toLocaleString()}억</b>`).join(' · ')}</div>` : ''}
         <div style="font-size:0.6rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">※ ${h(sd.note||'')}</div>
       </div>
     </section>`;
