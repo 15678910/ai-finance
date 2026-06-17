@@ -207,6 +207,17 @@ def main():
         today = compute_today("provisional", "다음 거래일")
         print(f"  ▶ 다음 거래일 잠정(내일 07:30 확정 예정): 종가 {today['close']:.0f}")
 
+    # 이벤트 영향권 경고(FOMC/BOJ ±1거래일) — 점 예측은 못 고치므로 신뢰도만 명시
+    try:
+        from event_risk import event_risk_block
+        _ev_date = today_str if today.get("target_date") in (None, "다음 거래일") else today["target_date"]
+        today = dict(today)
+        today["event_risk"] = event_risk_block(_ev_date, window_days=1)
+        if today["event_risk"]["flag"]:
+            print(f"  ⚠️ 이벤트 영향권: {[e['title'] for e in today['event_risk']['events']]}")
+    except Exception as e:
+        print(f"  [WARN] event_risk 실패: {e}")
+
     # 미국 반도체 동료 맥락
     peers = {}
     try:

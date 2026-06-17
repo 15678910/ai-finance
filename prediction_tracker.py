@@ -256,6 +256,17 @@ def main():
         today_block = fresh
     target = today_block.get("target_date")
 
+    # 이벤트 영향권 경고(FOMC/BOJ ±1거래일) — 점 예측은 못 고치므로 신뢰도만 명시(매 실행 갱신)
+    try:
+        from event_risk import event_risk_block
+        _ev_date = today_kst if target == "다음 거래일" else target
+        today_block = dict(today_block)
+        today_block["event_risk"] = event_risk_block(_ev_date, window_days=1)
+        if today_block["event_risk"]["flag"]:
+            print(f"  ⚠️ 이벤트 영향권: {[e['title'] for e in today_block['event_risk']['events']]}")
+    except Exception as e:
+        print(f"  [WARN] event_risk 실패: {e}")
+
     for e in entries[-6:]:
         parts = []
         if e["reg"]:

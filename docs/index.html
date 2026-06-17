@@ -8661,6 +8661,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${box('예상 저가', t.low, null, '#fb923c')}
           ${box('예상 종가', t.close, t.close_pct, cC)}
         </div>
+        ${(t.event_risk && t.event_risk.flag) ? `<div style="margin-top:8px;font-size:0.58rem;color:#fbbf24;font-weight:600;line-height:1.4;">⚠️ ${h((t.event_risk.events[0]||{}).title||'중앙은행 이벤트')} 영향권 — 선물 신호 신뢰도 낮음(반도체 디커플링·꼬리사건 위험). 변동 확대 주의.</div>` : ''}
         ${accChips}
         ${table}
         ${peerChips ? `<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -9149,6 +9150,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${cell('🔵 선물', t.fut, '#38bdf8')}${cell('🟣 회귀', t.reg, '#a78bfa')}${cell('⚪ 앙상블', t.ens, '#e2e8f0')}
           <div style="font-size:0.52rem;color:var(--text-muted);align-self:center;">전일종가 ${fmt(t.base)}${ovn}</div>
         </div>
+        ${(t.event_risk && t.event_risk.flag) ? `<div style="margin-top:7px;font-size:0.58rem;color:#fbbf24;font-weight:600;line-height:1.4;">⚠️ ${h((t.event_risk.events[0]||{}).title||'중앙은행 이벤트')} 영향권 — 선물 선행신호 신뢰도 낮음(디커플링·안도/실망 랠리로 방향까지 빗나갈 수 있음). 변동 확대 주의.</div>` : ''}
       </div>`;
     }
 
