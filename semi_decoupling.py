@@ -143,6 +143,30 @@ def main():
     else:
         regime = {"key": "low", "text": "🟢 미국 반도체와 대체로 동조 — 선물·SOX 선행신호 신뢰도 상대적 양호."}
 
+    # 외인 수급 편향(약한 선행 r~0.22 — 예측 입력 아닌 신뢰도 편향용)
+    sk_f5 = sk.get("foreign_5d_eok") if sk else None
+    if sk_f5 is not None and abs(sk_f5) >= 10000:
+        regime["foreign_bias"] = ("외인 강매수 지속 → 상방 디커플링 편향(선물 하락예측 신뢰 ↓)"
+                                  if sk_f5 > 0 else "외인 강매도 지속 → 하방 위험(반도체 적신호)")
+
+    # 외국인 반도체 수급 1일 급변(±3000억↑) 텔레그램 경보(하루 1회 dedup)
+    surge = [a for a in out_assets if a.get("foreign_1d_eok") and abs(a["foreign_1d_eok"]) >= 3000]
+    if surge:
+        try:
+            from core import send_message, get_secret, load_state, save_state
+            today_s = datetime.now(KST).strftime("%Y-%m-%d")
+            st = load_state("semi_foreign_alert", default={})
+            if get_secret("TELEGRAM_FINANCE_BOT_TOKEN") and st.get("last") != today_s:
+                lines = [f"{a['name']} 외인 {a['foreign_1d_eok']:+,}억 — "
+                         f"{'강매수(상방 디커플링)' if a['foreign_1d_eok'] > 0 else '강매도(하방 위험)'}"
+                         for a in surge]
+                if send_message("💰 외국인 반도체 수급 급변\n" + "\n".join(lines)
+                                + "\n※ 디커플링 동력(약한 선행 r~0.22). 선물 예측과 함께 보세요."):
+                    save_state("semi_foreign_alert", {"last": today_s})
+                    print("  💰 외인 수급 급변 텔레그램 발송")
+        except Exception as e:
+            print(f"  [WARN] 외인 경보 실패: {e}")
+
     out = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "window": W,
