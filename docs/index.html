@@ -8428,7 +8428,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const md = nd.date ? nd.date.slice(5).replace('-', '/') : '';
       const yn = sc.yen;
       const yenLine = yn ? `<span>💴 엔/달러 <b style="color:${yn.chg_1d >= 0 ? '#fbbf24' : '#22c55e'};font-family:var(--font-mono);">${yn.usdjpy}</b> <span style="font-size:0.58rem;">(${yn.chg_1d >= 0 ? '+' : ''}${yn.chg_1d}% · 엔${yn.chg_1d >= 0 ? '약세' : '강세'})</span></span>` : '';
-      const yenSens = (yn && yn.kospi_beta != null) ? `<span>📐 엔→KOSPI 민감도 <b style="font-family:var(--font-mono);color:${yn.kospi_beta<0?'#f87171':'#22c55e'};">+1%→${yn.kospi_beta}%</b> <span style="font-size:0.54rem;">(동시상관 r${yn.kospi_r}·약함, 예측 아님)</span></span>` : '';
       const yenAlert = (yn && yn.alert) ? `<div style="font-size:0.62rem;color:#f87171;font-weight:700;margin-top:5px;">⚠️ ${h(yn.alert)}</div>` : '';
       nikkeiBlock = `<div class="glass-card" style="padding:10px 14px;margin-bottom:12px;background:${vc}11;border-left:3px solid ${vc};">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -8441,7 +8440,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span>니케이 기준 기대 <b style="font-family:var(--font-mono);color:var(--text);">${nd.expected_kospi_chg>=0?'+':''}${nd.expected_kospi_chg}%</b></span>
           <span>괴리 <b style="font-family:var(--font-mono);color:${vc};">${nd.gap_pct>=0?'+':''}${nd.gap_pct}%p</b></span>
           ${yenLine}
-          ${yenSens}
         </div>
         ${yenAlert}
         <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 한일은 같은 시간대(동조 ${nd.corr}). 일본과 함께 움직이면 '아시아 동반', KOSPI만 따로면 '한국 고유 요인(외인 투매·환율·지정학)'. 엔/달러 급변은 BOJ 개입·아시아 위험의 선행신호. 예측이 아닌 원인 진단입니다.</div>
@@ -8565,6 +8563,45 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
   // ─── 🔮 SK하이닉스 OHLC 예측 ──────────────────────
+  // ─── 📐 엔/달러 → 한국증시 민감도 (레짐별) ──────────────────
+  function renderYenSensitivity(ys) {
+    if (!ys || !ys.assets || !ys.assets.length) return;
+    const cell = (r) => {
+      if (!r || r.beta == null) return '<span style="color:var(--text-muted);">—</span>';
+      const c = r.beta >= 0 ? '#22c55e' : '#f87171';
+      return `<b style="font-family:var(--font-mono);color:${c};">${r.beta>=0?'+':''}${r.beta}%</b> <span style="font-size:0.52rem;color:var(--text-muted);">R²${r.r2!=null?r.r2:'—'}</span>`;
+    };
+    const rows = ys.assets.map(a => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <td style="padding:5px 8px;font-size:0.68rem;color:var(--text-bright);font-weight:600;">${h(a.name)}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:0.66rem;">${cell(a.quiet)}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:0.66rem;">${cell(a.vol)}</td>
+    </tr>`).join('');
+    const html = `<section class="section-wrap" id="yen-sens-section">
+      <div class="section-label" style="color:#fbbf24;">📐 엔/달러 → 한국증시 민감도 (레짐별) <span style="font-size:0.6rem;color:var(--text-muted);">(USD/JPY +1%=엔약세 당 종목 % · 동시상관, 예측 아님)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">${h(ys.window_desc||'')}</span></div>
+      <div class="glass-card" style="padding:10px 14px;">
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:340px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 8px;text-align:left;font-size:0.58rem;color:var(--text-muted);font-weight:500;">종목</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:var(--text-muted);font-weight:500;">평온일 |Δ|&lt;1%</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.58rem;color:#fbbf24;font-weight:600;">엔 급변일 |Δ|≥1%</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.62rem;color:#fbbf24;font-weight:600;margin-top:8px;line-height:1.5;">${h(ys.insight||'')}</div>
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;">※ ${h(ys.note||'')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('yen-sens-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   // ─── 📡 이벤트 사전영향 레이더 ──────────────────────────────
   function renderEventRadar(er) {
     if (!er || !er.events) return;
@@ -10436,6 +10473,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./event_radar.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(er => { if (er) renderEventRadar(er); });
+      // Load Yen Sensitivity (엔/달러 → 한국증시 레짐별 민감도)
+      fetch('./yen_sensitivity.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(ys => { if (ys) renderYenSensitivity(ys); });
       // Load Prediction Log (예측 적중 기록)
       fetch('./prediction_log.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
