@@ -163,7 +163,10 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json docs/event_radar.json docs/yen_sensitivity.json docs/yen_carry_alert_state.json docs/semi_decoupling.json docs/semi_foreign_alert_state.json 2>/dev/null || true
+          # docs/ 전체를 추가(없는 파일이 섞이면 git add가 통째로 실패하는 버그 회피).
+          #   예: yen_carry_alert_state.json·semi_foreign_alert_state.json은 알림 발동 시에만 생성됨
+          #   → 목록에 넣으면 미발동 시 git add 전체 실패 → "No changes" → 갱신 멈춤(6/17~6/18 사고).
+          git add docs/ 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"
