@@ -1,12 +1,12 @@
 """
 KOSPI 개장 전 예측 vs 실제 추적기 (듀얼모델)
 =============================================
-'진짜 예측'만 채점한다 — 장 시작 전(07:30 KST, 미국 마감 직후)에 확정 가능한 정보만으로
+'진짜 예측'만 채점한다 — 장 시작 전(07:00 KST, 미국 마감 직후)에 확정 가능한 정보만으로
 당일 KOSPI 종가를 예측하고, 마감 후 실제 종가로 채점. 장중 보정(시가갭) 같은 정보 누출 금지.
 
 두 모델을 매일 워크포워드(해당일 제외, 직전 N일로만 적합)로 예측·채점:
   · 회귀  : KOSPI(D) = 전일종가 × (1 + βs·SOX(P) + βn·NDX(P))  — 미국 1일 시차 캐치업
-  · 선물  : KOSPI(D) = 전일종가 × (1 + βf·NQ야간)             — 나스닥선물 24H(직전 마감→07:30)
+  · 선물  : KOSPI(D) = 전일종가 × (1 + βf·NQ야간)             — 나스닥선물 24H(직전 마감→07:00)
   · 앙상블: 두 모델 평균
 누적 채점으로 모델별 MAE·방향 적중률을 산출 → 어느 쪽이 우수한지 데이터로 판정(연구 엔진).
 
@@ -47,9 +47,9 @@ def naver_kospi_daily(days=95):
 
 
 def build_futures_overnight(kdays, kospi, np, pd):
-    """직전 KOSPI 마감(06:30 UTC) → 07:30 KST(=다음날 00:00 UTC-1.5h) 나스닥선물 야간수익률.
-    ※ 07:30 채택: 백테스트상 05:30보다 MAE 낮음(밤사이 정보 더 반영, 여전히 개장 전).
-    반환: {D: fov} — 07:30 고정 시점까지의 선물 움직임(개장 전 확정 정보)."""
+    """직전 KOSPI 마감(06:30 UTC) → 07:00 KST(=다음날 00:00 UTC-1.5h) 나스닥선물 야간수익률.
+    ※ 07:00 채택: 백테스트상 05:30보다 MAE 낮음(밤사이 정보 더 반영, 여전히 개장 전).
+    반환: {D: fov} — 07:00 고정 시점까지의 선물 움직임(개장 전 확정 정보)."""
     import yfinance as yf
     try:
         nq = yf.download("NQ=F", period="60d", interval="1h", progress=False)["Close"]
@@ -72,7 +72,7 @@ def build_futures_overnight(kdays, kospi, np, pd):
     for i in range(1, len(kdays)):
         D, P = kdays[i], kdays[i - 1]
         f0 = ab(pd.Timestamp(f"{P} 06:30", tz="UTC"))                       # 직전 KOSPI 마감(15:30 KST)
-        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=1.5))  # 07:30 KST D
+        f1 = ab(pd.Timestamp(f"{D} 00:00", tz="UTC") - pd.Timedelta(hours=2.0))  # 07:00 KST D
         if f0 and f1 and f0 > 0:
             r = f1 / f0 - 1
             if abs(r) < 0.2:
@@ -204,11 +204,11 @@ def main():
 
     acc = {"reg": accuracy("reg"), "fut": accuracy("fut"), "ens": accuracy("ens")}
 
-    # ── 다음(미마감) 세션 개장 전 고정 예측 — SK처럼 07:30 1회 고정·장중 수정 금지(persist freeze) ──
+    # ── 다음(미마감) 세션 개장 전 고정 예측 — SK처럼 07:00 1회 고정·장중 수정 금지(persist freeze) ──
     now_k = datetime.now(KST)
     today_kst = now_k.strftime("%Y-%m-%d")
     hm = now_k.hour * 100 + now_k.minute
-    LOCK_LO, LOCK_HI, CLOSE_HM = 700, 900, 1530  # 07:00~09:00 개장전 윈도우(07:30 신호), 15:30 마감
+    LOCK_LO, LOCK_HI, CLOSE_HM = 700, 900, 1530  # 07:00~09:00 개장전 윈도우(07:00 신호), 15:30 마감
     L = kdays[-1]
     baseL = kospi[L]
 
@@ -244,7 +244,7 @@ def main():
         prev_today = {}
 
     if hm < CLOSE_HM:
-        # 오늘 세션 대상 — 개장 전(07:30) 1회 고정 또는 장중 고정 유지(수정 금지)
+        # 오늘 세션 대상 — 개장 전(07:00) 1회 고정 또는 장중 고정 유지(수정 금지)
         if prev_today.get("status") == "locked" and prev_today.get("target_date") == today_kst:
             today_block = prev_today
             print(f"  오늘({today_kst}) 예측 고정 유지 — 장중 수정 안 함")
@@ -255,7 +255,7 @@ def main():
             fresh.update({"status": "provisional", "target_date": today_kst})
             today_block = fresh
     else:
-        # 마감 후 ~ 익일 새벽: 다음 거래일 잠정(내일 07:30 확정 예정)
+        # 마감 후 ~ 익일 새벽: 다음 거래일 잠정(내일 07:00 확정 예정)
         fresh.update({"status": "provisional", "target_date": "다음 거래일"})
         today_block = fresh
     target = today_block.get("target_date")
@@ -325,13 +325,13 @@ def main():
 
     output = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
-        "models": "개장 전(07:30 KST) 고정 예측 — 회귀(미국 1일 시차) · 선물(NQ 야간) · 앙상블. 장중 보정 없음.",
+        "models": "개장 전(07:00 KST) 고정 예측 — 회귀(미국 1일 시차) · 선물(NQ 야간) · 앙상블. 장중 보정 없음.",
         "window": WIN, "fut_window": WINF,
         "entries": entries,
         "accuracy": acc,
         "today": today_block,
         "last_notified": last_notified,
-        "note": ("개장 전 확정 정보(미국 마감·나스닥선물 07:30)만으로 당일 종가 예측 → 마감 후 실제로 채점. "
+        "note": ("개장 전 확정 정보(미국 마감·나스닥선물 07:00)만으로 당일 종가 예측 → 마감 후 실제로 채점. "
                  "장중 시가갭 보정 같은 정보 누출은 제외. 워크포워드(해당일 제외)라 과적합 없음. 통계 추정."),
     }
     os.makedirs(DOCS, exist_ok=True)
