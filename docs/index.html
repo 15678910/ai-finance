@@ -8565,6 +8565,48 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // ─── 📋 KOSPI 예측 적중 기록 (예측 vs 실제) ──────────────
   // ─── 🔮 SK하이닉스 OHLC 예측 ──────────────────────
+  // ─── 🔬 반도체 디커플링 진단 (한국 vs 미국 SOX) ──────────────
+  function renderSemiDecoupling(sd) {
+    if (!sd || !sd.assets || !sd.assets.length) return;
+    const RC = { high: '#f87171', mid: '#fbbf24', low: '#4ade80' };
+    const rc = RC[sd.regime && sd.regime.key] || '#94a3b8';
+    const soxC = (sd.sox && sd.sox.chg_pct >= 0) ? '#22c55e' : '#f87171';
+    const th = (t, a) => `<th style="padding:6px 8px;text-align:${a};font-size:0.62rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${t}</th>`;
+    const rows = sd.assets.map(a => {
+      const vc = a.vkey === 'kr_strong' ? '#22c55e' : a.vkey === 'kr_weak' ? '#f87171' : '#94a3b8';
+      const dc = a.decoupling_pp >= 0 ? '#22c55e' : '#f87171';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:6px 8px;font-size:0.74rem;color:var(--text-bright);font-weight:600;">${h(a.name)}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);color:${a.actual_pct>=0?'#22c55e':'#f87171'};">${a.actual_pct>=0?'+':''}${a.actual_pct}%</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);color:var(--text-muted);">${a.expected_pct>=0?'+':''}${a.expected_pct}%</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.78rem;font-weight:700;font-family:var(--font-mono);color:${dc};">${a.decoupling_pp>=0?'+':''}${a.decoupling_pp}%p</td>
+        <td style="padding:6px 8px;text-align:left;font-size:0.64rem;color:${vc};font-weight:600;">${h(a.verdict)}</td>
+      </tr>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="semi-decoupling-section">
+      <div class="section-label" style="color:#22d3ee;">🔬 반도체 디커플링 진단 <span style="font-size:0.6rem;color:var(--text-muted);">(한국 반도체 vs 미국 SOX — '따로 노는 날' 측정, 예측 아님)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(sd.generated_at||'')}</span></div>
+      <div class="glass-card" style="padding:10px 14px;border-left:3px solid ${rc};">
+        <div style="font-size:0.74rem;color:${rc};font-weight:700;line-height:1.5;margin-bottom:6px;">${h((sd.regime&&sd.regime.text)||'')}</div>
+        <div style="font-size:0.66rem;color:var(--text-muted);margin-bottom:8px;">🇺🇸 미국 SOX(반도체) 전일 <b style="font-family:var(--font-mono);color:${soxC};">${(sd.sox&&sd.sox.chg_pct>=0)?'+':''}${sd.sox?sd.sox.chg_pct:'—'}%</b> <span style="font-size:0.56rem;">— 개장 전 알 수 있는 반도체 선행신호</span></div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:440px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">${th('종목','left')}${th('실제','right')}${th('SOX기준 기대','right')}${th('디커플링','right')}${th('진단','left')}</tr></thead>
+          <tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">※ ${h(sd.note||'')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('semi-decoupling-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('yen-sens-section') || document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   // ─── 📐 엔/달러 → 한국증시 민감도 (레짐별) ──────────────────
   function renderYenSensitivity(ys) {
     if (!ys || !ys.assets || !ys.assets.length) return;
@@ -10482,6 +10524,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./yen_sensitivity.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(ys => { if (ys) renderYenSensitivity(ys); });
+      // Load Semiconductor Decoupling (반도체 디커플링 진단)
+      fetch('./semi_decoupling.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(sd => { if (sd) renderSemiDecoupling(sd); });
       // Load Prediction Log (예측 적중 기록)
       fetch('./prediction_log.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

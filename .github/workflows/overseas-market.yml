@@ -96,6 +96,13 @@ jobs:
         run: |
           python yen_sensitivity.py || echo "Yen sensitivity had errors, continuing..."
 
+      # 반도체 디커플링 진단 (한국 SK·삼성 vs 미국 SOX — 따로 노는 날 측정)
+      - name: Run semiconductor decoupling
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python semi_decoupling.py || echo "Semi decoupling had errors, continuing..."
+
       # KOSPI 예측 vs 실제 추적 (kospi_scenario 베타 사용 → 이후 실행)
       - name: Run prediction tracker
         env:
@@ -154,7 +161,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json docs/event_radar.json docs/yen_sensitivity.json docs/yen_carry_alert_state.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json docs/event_radar.json docs/yen_sensitivity.json docs/yen_carry_alert_state.json docs/semi_decoupling.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"
