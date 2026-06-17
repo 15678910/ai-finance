@@ -74,6 +74,9 @@ def main():
         print("[ERROR] SK하이닉스 데이터 부족")
         return 1
     bars.sort(key=lambda x: x[0])
+    # 장중 미확정 바 제외 — 오늘은 마감(15:40 KST) 후에만 채점(실제 종가 오류 방지)
+    if (now.hour * 100 + now.minute) < 1540 and bars and bars[-1][0] == now.strftime("%Y-%m-%d"):
+        bars = bars[:-1]
     last_date, lo_o, lo_h, lo_l, last_close = bars[-1]
     print(f"SK하이닉스 최근 {last_date}: 시{lo_o:.0f} 고{lo_h:.0f} 저{lo_l:.0f} 종{last_close:.0f}")
 

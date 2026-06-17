@@ -102,6 +102,10 @@ def main():
     if len(kospi) < WIN + 4:
         print("[ERROR] KOSPI 데이터 부족")
         return 1
+    # 장중 미확정 바 제외 — 오늘은 마감(15:40 KST) 후에만 채점(실제 종가 오류 방지)
+    _nowk = datetime.now(KST)
+    if (_nowk.hour * 100 + _nowk.minute) < 1540 and _nowk.strftime("%Y-%m-%d") in kospi:
+        del kospi[_nowk.strftime("%Y-%m-%d")]
     kdays = sorted(kospi.keys())
 
     # 전일종가·당일수익률 맵
