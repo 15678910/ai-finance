@@ -2452,14 +2452,18 @@ body {
           const color = change > 0 ? 'var(--green,#4ade80)' : change < 0 ? 'var(--red,#f87171)' : 'var(--text)';
           const isVix = m.is_vix;
           const vixColor = isVix && m.current > 25 ? 'var(--red)' : isVix && m.current > 20 ? 'var(--amber)' : 'var(--text-bright)';
+          // 실시간 FX 대상(USD/JPY·USD/KRW)엔 id·LIVE 배지 부여 → startLiveFx가 패치
+          const nm = m.name || '';
+          const fxKey = nm.includes('USD/JPY') ? 'usdjpy' : nm.includes('USD/KRW') ? 'usdkrw' : null;
+          const liveBadge = fxKey ? `<span id="fxlive-${fxKey}" style="display:none;margin-left:5px;font-size:0.5rem;color:#4ade80;font-weight:700;vertical-align:middle;">● LIVE</span>` : '';
 
           html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
             <div style="font-size:0.8rem;color:var(--text);">
-              ${m.region} ${h(m.name)}
+              ${m.region} ${h(m.name)}${liveBadge}
             </div>
             <div style="text-align:right;">
-              <div style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current != null ? m.current.toLocaleString() : 'N/A'}</div>
-              <div style="font-size:0.7rem;color:${color};">${arrow} ${change != null ? (change >= 0 ? '+' : '') + change.toFixed(2) + '%' : 'N/A'}</div>
+              <div ${fxKey ? `id="fxval-${fxKey}"` : ''} style="font-size:0.85rem;font-weight:600;color:${isVix ? vixColor : 'var(--text-bright)'};">${m.current != null ? m.current.toLocaleString() : 'N/A'}</div>
+              <div ${fxKey ? `id="fxchg-${fxKey}"` : ''} style="font-size:0.7rem;color:${color};">${arrow} ${change != null ? (change >= 0 ? '+' : '') + change.toFixed(2) + '%' : 'N/A'}</div>
             </div>
           </div>`;
         });
@@ -10287,6 +10291,46 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     window.__calCdTimer = setInterval(tick, 1000);
   }
 
+  // ─── 💱 실시간 FX (USD/JPY·USD/KRW) — TwelveData 무료 키 폴링 ─────────
+  // 사용법: 아래 apiKey 에 TwelveData 무료 키 입력 (https://twelvedata.com 가입 → API Key 복사).
+  //   · 키가 비어 있으면 비활성 → 기존 워크플로 값(약 1시간 주기) 그대로 표시.
+  //   · 공개 레포라 키가 노출됨(읽기전용 시세 키라 위험 낮으나 쿼터 도용 가능).
+  //   · 무료 800req/일: 2쌍 × 120초 ≈ 720/일. 쌍을 늘리면 intervalSec 도 늘리세요.
+  const FX_LIVE = {
+    apiKey: '',                                    // ← 여기에 TwelveData 무료 키 입력
+    pairs: { usdjpy: 'USD/JPY', usdkrw: 'USD/KRW' },
+    intervalSec: 120,
+  };
+  function startLiveFx() {
+    if (window.__fxLiveStarted || !FX_LIVE.apiKey) return;
+    window.__fxLiveStarted = true;
+    const syms = Object.values(FX_LIVE.pairs).join(',');
+    async function tick() {
+      try {
+        const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(syms)}&apikey=${FX_LIVE.apiKey}`;
+        const r = await fetch(url, { cache: 'no-store' });
+        const d = await r.json();
+        Object.entries(FX_LIVE.pairs).forEach(([key, sym]) => {
+          const q = d && (d[sym] || (d.symbol === sym ? d : null));
+          if (!q || q.status === 'error' || q.close == null) return;
+          const price = parseFloat(q.close);
+          const pct = parseFloat(q.percent_change);
+          const valEl = document.getElementById('fxval-' + key);
+          const chgEl = document.getElementById('fxchg-' + key);
+          const liveEl = document.getElementById('fxlive-' + key);
+          if (valEl && !isNaN(price)) valEl.textContent = price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (chgEl && !isNaN(pct)) {
+            chgEl.textContent = (pct >= 0 ? '▲ +' : '▼ ') + pct.toFixed(2) + '%';
+            chgEl.style.color = pct >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)';
+          }
+          if (liveEl) { liveEl.style.display = 'inline'; liveEl.title = '실시간 갱신: ' + new Date().toLocaleTimeString(); }
+        });
+      } catch (e) { /* 네트워크·쿼터 실패 → 기존 값 유지 */ }
+    }
+    tick();
+    setInterval(tick, Math.max(30, FX_LIVE.intervalSec) * 1000);
+  }
+
   // ─── Load Data ───────────────────────────────────────
   fetch('./data.json?v=' + Date.now(), { cache: 'no-store' })
     .then(r => {
@@ -10295,6 +10339,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     })
     .then(data => {
       render(data);
+      startLiveFx();  // 💱 실시간 FX 폴링 시작 (키 있을 때만 동작)
       // Load economic calendar
       fetch('./economic_calendar.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null)
