@@ -221,6 +221,16 @@ def main():
     except Exception as e:
         print(f"  [WARN] event_risk 실패: {e}")
 
+    # 반도체 디커플링 레짐 → 예측 신뢰도 경고(semi_decoupling.json, ≤1주기 지연 허용)
+    try:
+        with open(os.path.join(BASE_DIR, "docs", "semi_decoupling.json"), encoding="utf-8") as f:
+            _sd = (json.load(f) or {}).get("regime") or {}
+        if _sd.get("key") in ("high", "mid"):
+            today["semi_regime"] = {"key": _sd["key"], "text": _sd.get("text")}
+            print(f"  🔬 반도체 디커플링 레짐: {_sd['key']}")
+    except Exception:
+        pass
+
     # 미국 반도체 동료 맥락
     peers = {}
     try:
