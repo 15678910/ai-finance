@@ -59,9 +59,11 @@ jobs:
         run: |
           python ai_paradigm_monitor.py || echo "AI paradigm monitor had errors, continuing..."
 
-      # KOSPI 시나리오 시뮬레이터 — 베타 회귀 + 현재가 스냅샷
+      # KOSPI 시나리오 시뮬레이터 — 베타 회귀 + 현재가 스냅샷 (엔캐리 위험 텔레그램 경보 포함)
       - name: Run KOSPI scenario simulator
         env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
           PYTHONIOENCODING: utf-8
         run: |
           python kospi_scenario.py || echo "KOSPI scenario had errors, continuing..."
@@ -152,7 +154,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json docs/event_radar.json docs/yen_sensitivity.json 2>/dev/null || true
+          git add docs/overseas_market.json docs/overseas_market_state.json docs/data.json docs/macro_cache.json docs/ai_paradigm.json docs/kospi_scenario.json docs/overheating.json docs/sentiment.json docs/holdings_estimate.json docs/prediction_log.json docs/market_news.json docs/us_index_cache.json docs/sk_hynix_forecast.json docs/strategy_backtest.json docs/consensus_gap.json docs/event_radar.json docs/yen_sensitivity.json docs/yen_carry_alert_state.json 2>/dev/null || true
 
           if git diff --cached --quiet 2>/dev/null; then
             echo "No changes to commit"

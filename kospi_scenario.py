@@ -325,6 +325,11 @@ def yen_watch(np):
     except Exception as e:
         print(f"  [WARN] 엔-KOSPI 민감도 실패: {e}")
 
+    # 캐리 위험 경보: 엔강세 1%+ 급변(USD/JPY 하락) = 엔캐리 청산 → SK·반도체 적신호
+    #   (급변일 엔→SK 동시상관 R²0.24~0.38 — 평온일엔 무관, 급변일엔 강한 음의 리스크오프)
+    carry_risk = chg1 <= -1.0
+    carry_msg = (f"엔강세 {chg1:.2f}% 급변 — 엔캐리 청산 위험, SK·반도체 적신호"
+                 if carry_risk else None)
     return {
         "usdjpy": round(cur, 2),
         "chg_1d": round(chg1, 2),
@@ -333,6 +338,7 @@ def yen_watch(np):
         "asof": s.index[-1].strftime("%Y-%m-%d"),
         "kospi_beta": kospi_beta,   # USD/JPY +1% 당 KOSPI %(동시·음수=엔약세→하락)
         "kospi_r": kospi_r, "kospi_n": kospi_n,
+        "carry_risk": bool(carry_risk), "carry_msg": carry_msg,
     }
 
 
@@ -433,6 +439,23 @@ def main():
     yen = yen_watch(np)
     if yen:
         print(f"엔/달러: {yen['usdjpy']} ({yen['chg_1d']:+.2f}% 1d){' ⚠️ ' + yen['alert'] if yen['alert'] else ''}")
+
+    # 엔강세 급변 → 엔캐리 청산·SK 적신호 텔레그램 경보(하루 1회 중복방지)
+    if yen and yen.get("carry_risk"):
+        try:
+            from core import send_message, get_secret, load_state, save_state
+            today_s = datetime.now(KST).strftime("%Y-%m-%d")
+            st = load_state("yen_carry_alert", default={})
+            if get_secret("TELEGRAM_FINANCE_BOT_TOKEN") and st.get("last") != today_s:
+                msg = (f"🚨 {yen['carry_msg']}\n"
+                       f"USD/JPY {yen['usdjpy']} ({yen['chg_1d']:+.2f}% 1d)\n"
+                       f"※ 엔 급변일 엔→SK 동시상관 R²0.24~0.38(평온일 무관). "
+                       f"엔강세=캐리청산·리스크오프 → 반도체 하방 주의.")
+                if send_message(msg):
+                    save_state("yen_carry_alert", {"last": today_s})
+                    print("  🚨 엔캐리 위험 텔레그램 발송")
+        except Exception as e:
+            print(f"  [WARN] 캐리 경보 실패: {e}")
 
     # ※ 장중 보정(개장 시가갭→종가)은 '진짜 예측'이 아니라 이미 실현된 시가를 끌어쓰는
     #   정보 누출이라 제거됨. 예측은 개장 전(07:30 KST) 고정 → 마감 후 채점(prediction_tracker.py).
