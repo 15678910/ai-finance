@@ -1,0 +1,66 @@
+name: Asia Semiconductor Intraday
+
+# KOSPI 장중(09:00~15:30 KST)과 겹치는 대만·일본 반도체를 당일 실시간(~15분 지연) 관측.
+# 메인 overseas-market 워크플로는 KOSPI 운영시간에 쉬므로, 이 가벼운 잡이 장중 갱신을 담당.
+on:
+  schedule:
+    - cron: '0 1-6 * * 1-5'   # UTC 01:00~06:00 = KST 10:00~15:00 (KOSPI 장중) 평일 매시간
+  workflow_dispatch:
+
+concurrency:
+  group: docs-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas requests || pip install -r requirements.txt
+
+      - name: Run Asia semiconductor monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python asia_semi_monitor.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          # docs/ 전체 추가 (없는 파일 섞여도 안 깨지는 견고한 방식 — 6/17 사고 교훈)
+          git add docs/ 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update Asia semiconductor intraday [automated]"
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+          echo "Push failed after 5 attempts"
+          exit 1

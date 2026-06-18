@@ -133,6 +133,27 @@ jobs:
         run: |
           python sk_hynix_forecast.py || echo "SK Hynix forecast had errors, continuing..."
 
+      # 삼성전자 OHLC 예측 (SK와 함께 반도체 빅섹터 양대 축)
+      - name: Run Samsung OHLC forecast
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python samsung_forecast.py || echo "Samsung forecast had errors, continuing..."
+
+      # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
+      - name: Run Asia semiconductor monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python asia_semi_monitor.py || echo "Asia semi monitor had errors, continuing..."
+
+      # 모멘텀 오버레이 백테스트 (선물 단일 vs 선물+모멘텀 — 채택 여부 검증 산출물)
+      - name: Run momentum overlay backtest
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python momentum_overlay_backtest.py || echo "Momentum backtest had errors, continuing..."
+
       # 전략 백테스트 (선물 신호 매매 규칙 과거 성과)
       - name: Run strategy backtest
         env:
