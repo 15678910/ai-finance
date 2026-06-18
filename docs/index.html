@@ -8722,9 +8722,63 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  function renderAsiaSemi(as) {
+    if (!as || !Array.isArray(as.items) || !as.items.length) return;
+    const grpName = { korea: '🇰🇷 한국', asia: '🌏 아시아 피어(대만·일본)', us: '🇺🇸 미국(직전)' };
+    const order = ['korea', 'asia', 'us'];
+    const maxAbs = Math.max(2, ...as.items.map(i => Math.abs(i.chg_pct || 0)));
+    const bar = (it) => {
+      const v = it.chg_pct || 0, c = v >= 0 ? '#22c55e' : '#f87171';
+      const w = Math.min(100, Math.abs(v) / maxAbs * 100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+        <div style="width:120px;font-size:0.66rem;color:var(--text);white-space:nowrap;">${it.flag} ${h(it.name)}</div>
+        <div style="flex:1;height:14px;background:rgba(255,255,255,0.04);border-radius:4px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${w}%;background:${c};opacity:0.55;border-radius:4px;"></div></div>
+        <div style="width:62px;text-align:right;font-size:0.7rem;font-weight:800;font-family:var(--font-mono);color:${c};">${v >= 0 ? '+' : ''}${v}%</div>
+      </div>`;
+    };
+    let groups = '';
+    for (const g of order) {
+      const its = as.items.filter(i => i.group === g);
+      if (!its.length) continue;
+      groups += `<div style="margin-top:8px;"><div style="font-size:0.58rem;color:var(--text-muted);margin-bottom:2px;">${grpName[g] || g}</div>${its.map(bar).join('')}</div>`;
+    }
+    const reg = as.regime || '';
+    const regCol = reg.includes('동반 강세') ? '#22c55e' : reg.includes('동반 약세') ? '#f87171' : reg.includes('단독') ? '#fbbf24' : '#94a3b8';
+    const html = `<section class="section-wrap" id="asia-semi-section">
+      <div class="section-label" style="color:#34d399;">🌏 아시아 반도체 섹터 (당일) <span style="font-size:0.62rem;color:var(--text-muted);">— 디커플링의 선행 동력 · 같은 시간대 실시간 관측</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(as.generated_at || '')}</span>
+      </div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <span style="font-size:0.8rem;font-weight:800;color:${regCol};">${h(reg)}</span>
+          <span style="font-size:0.6rem;color:var(--text-muted);">한국 <b style="color:${(as.korea_avg||0)>=0?'#22c55e':'#f87171'};font-family:var(--font-mono);">${(as.korea_avg>=0?'+':'')}${as.korea_avg}%</b> · 아시아피어 <b style="color:${(as.asia_peer_avg||0)>=0?'#22c55e':'#f87171'};font-family:var(--font-mono);">${(as.asia_peer_avg>=0?'+':'')}${as.asia_peer_avg}%</b></span>
+        </div>
+        ${groups}
+        <div style="margin-top:10px;font-size:0.6rem;color:var(--text);line-height:1.5;background:rgba(52,211,153,0.06);border-left:2px solid #34d399;padding:7px 10px;border-radius:5px;">${h(as.message || '')}</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">※ ${h(as.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('asia-semi-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('samsung-forecast-section')
+                  || document.getElementById('sk-forecast-section')
+                  || document.getElementById('prediction-log-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   function renderSkForecast(sf) {
     if (!sf || !sf.today) return;
     const t = sf.today, m = sf.model || {}, p = sf.peers || {}, acc = sf.accuracy || {};
+    const isSamsung = (sf.code === '005930');
+    const secId = isSamsung ? 'samsung-forecast-section' : 'sk-forecast-section';
+    const accent = isSamsung ? '#60a5fa' : '#818cf8';
     const base = t.base_close;
     const fmt = n => Math.round(n).toLocaleString();
     const sigCol = (t.fut_overnight_pct >= 0) ? '#22c55e' : '#f87171';
@@ -8777,8 +8831,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           </tr></thead><tbody>${rows}</tbody>
         </table></div>` : '';
 
-    const html = `<section class="section-wrap" id="sk-forecast-section">
-      <div class="section-label" style="color:#818cf8;">🔮 SK하이닉스 OHLC 예측 <span style="font-size:0.62rem;color:var(--text-muted);">(개장 전 고정 → 마감 후 채점 — 나스닥 선물 24H 기반)</span>
+    const html = `<section class="section-wrap" id="${secId}">
+      <div class="section-label" style="color:${accent};">🔮 ${h(sf.name || 'SK하이닉스')} OHLC 예측 <span style="font-size:0.62rem;color:var(--text-muted);">(개장 전 고정 → 마감 후 채점 — 나스닥 선물 24H 기반)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(sf.generated_at || '')}</span>
       </div>
       <div class="glass-card" style="padding:14px 16px;">
@@ -8804,13 +8858,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </div>
     </section>`;
 
-    const existing = document.getElementById('sk-forecast-section');
+    const existing = document.getElementById(secId);
     if (existing) { existing.outerHTML = html; }
     else {
       const tmp = document.createElement('div'); tmp.innerHTML = html;
       const node = tmp.firstElementChild;
-      const anchor = document.getElementById('prediction-log-section')
-                  || document.getElementById('kospi-scenario-section');
+      const anchor = isSamsung
+        ? (document.getElementById('sk-forecast-section') || document.getElementById('prediction-log-section'))
+        : (document.getElementById('prediction-log-section') || document.getElementById('kospi-scenario-section'));
       if (anchor) anchor.insertAdjacentElement('afterend', node);
       else (document.getElementById('app') || document.body).appendChild(node);
     }
@@ -10587,6 +10642,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./sk_hynix_forecast.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sf => { if (sf) renderSkForecast(sf); });
+      // Load Samsung OHLC Forecast (삼성전자 OHLC 예측 — 반도체 빅섹터 양대 축)
+      fetch('./samsung_forecast.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(sf => { if (sf) renderSkForecast(sf); });
+      // Load Asia Semiconductor Monitor (아시아 반도체 당일 동조 — 디커플링 선행동력)
+      fetch('./asia_semi.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(as => { if (as) renderAsiaSemi(as); });
       // Load Strategy Backtest (전략 백테스트)
       fetch('./strategy_backtest.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
