@@ -2762,6 +2762,7 @@ body {
           style="padding:5px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:0.75rem;cursor:pointer;">🇺🇸 미국</button>
         <button class="tm-mkt-btn" data-mkt="crypto"
           style="padding:5px 14px;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:0.75rem;cursor:pointer;">🪙 암호화폐</button>
+        <span id="tm-asof" style="margin-left:auto;align-self:center;font-size:0.68rem;color:var(--text-muted);"></span>
       </div>
 
       <!-- 시각화 캔버스 (Sovereign Watch 스타일: 별이 빛나는 우주 배경) -->
@@ -5994,6 +5995,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const svg = d3.select('#tcm-treemap');
     if (!svg.node()) return;
     svg.selectAll('*').remove();
+
+    // 수집 시점 표시 (data.json generated_at)
+    const asofEl = document.getElementById('tm-asof');
+    if (asofEl) asofEl.textContent = data.generated_at ? `📡 수집: ${data.generated_at}` : '';
 
     const sectors = data.sectors || [];
     if (sectors.length === 0) {
