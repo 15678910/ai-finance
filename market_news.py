@@ -125,9 +125,18 @@ def main():
         items.append({**n, "category": cat, "cat_emoji": emoji,
                       "sentiment": sc, "sent_label": slabel, "sent_emoji": semoji, "impact": impact})
 
-    # 카테고리 우선순위로 정렬 (지정학·Fed·반도체 먼저)
-    order = {c[0]: i for i, c in enumerate(CATEGORIES)}
-    items.sort(key=lambda x: order.get(x["category"], 99))
+    # 최근순 정렬 + 오래된 기사(>4일) 제거 — 카테고리순이면 묵은 기사가 위로 올라와 '정체'처럼 보임
+    from email.utils import parsedate_to_datetime
+    from datetime import timezone as _tz, timedelta as _td
+    _now = datetime.now(_tz.utc)
+
+    def _pub(it):
+        try:
+            return parsedate_to_datetime(it.get("pub", "")).astimezone(_tz.utc)
+        except Exception:
+            return None
+    items = [it for it in items if (_pub(it) is None) or (_now - _pub(it)) <= _td(days=4)]
+    items.sort(key=lambda it: (_pub(it) or (_now - _td(days=999))), reverse=True)  # 최신 먼저
     items = items[:24]
 
     from collections import Counter
