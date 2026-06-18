@@ -1398,8 +1398,8 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         if not cp:
                             continue  # 다음 티커 시도
 
-                        is_usd = ticker.endswith("-USD")
-                        base["price"] = round(cp, 2 if is_usd else 0)
+                        _krw = ticker.isdigit() and len(ticker) == 6  # 한국 6자리=원(정수), 그 외=달러·코인(소수2)
+                        base["price"] = round(cp, 0 if _krw else 2)
                         if mc:
                             base["market_cap"] = mc
                         # 등락률 계산
@@ -1780,7 +1780,8 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         cp = info.get("currentPrice") or info.get("regularMarketPrice")
                         if cp:
                             # 가격
-                            stock["price"] = round(float(cp), 0) if not ticker.endswith("-USD") else round(float(cp), 2)
+                            _krw = ticker.isdigit() and len(ticker) == 6  # 한국 6자리=원(정수), 그 외=달러/코인(소수2)
+                            stock["price"] = round(float(cp), 0) if _krw else round(float(cp), 2)
                             # 당일 등락률 (트리맵 색상용)
                             chg_pct = info.get("regularMarketChangePercent")
                             if chg_pct is None:
@@ -1788,9 +1789,9 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                                 if prev_close and float(prev_close) > 0:
                                     chg_pct = (float(cp) - float(prev_close)) / float(prev_close) * 100
                             if chg_pct is not None:
-                                # yfinance는 소수(0.05 = 5%) 또는 정수(5.0 = 5%) 혼용
-                                v = float(chg_pct)
-                                stock["change_pct"] = round(v * 100 if abs(v) < 1 else v, 2)
+                                # regularMarketChangePercent·폴백 모두 이미 '퍼센트' 단위(-0.85 = -0.85%, 7.41 = 7.41%).
+                                # 과거 'abs(v)<1이면 ×100' 휴리스틱은 ±1%미만 종목을 100배 부풀림(MSFT -0.85%→-85%) → 제거.
+                                stock["change_pct"] = round(float(chg_pct), 2)
                             # 시총
                             if info.get("marketCap"):
                                 stock["market_cap"] = round(info["marketCap"] / 1e12, 3)
