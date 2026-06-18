@@ -1,0 +1,65 @@
+name: Data Freshness Monitor
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'   # 4시간마다 — 데이터 정체 자동 탐지 + 텔레그램 경보
+  workflow_dispatch:
+
+concurrency:
+  group: docs-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run freshness monitor
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python freshness_monitor.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          # docs/ 전체 추가 (없는 파일 섞여도 안 깨지는 견고한 방식)
+          git add docs/ 2>/dev/null || true
+
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Update freshness monitor [automated]"
+
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+          echo "Push failed after 5 attempts"
+          exit 1

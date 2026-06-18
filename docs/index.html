@@ -8681,6 +8681,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  // ─── 🩺 데이터 신선도 (정체 시에만 상단 경고) ──────────────────
+  function renderFreshness(fr) {
+    if (!fr) return;
+    const existing = document.getElementById('freshness-banner');
+    if (fr.stale_count > 0) {
+      const files = (fr.stale || []).map(s => `${h(s.file)} ${s.age_h}h`).join(' · ');
+      const html = `<div id="freshness-banner" style="margin:8px 0;padding:9px 14px;border-radius:8px;background:rgba(248,113,113,0.16);border:1px solid #f87171;color:#fff;font-size:0.72rem;font-weight:700;line-height:1.5;">🔴 데이터 정체 감지 — 워크플로 갱신 실패 가능: <span style="font-weight:400;">${files}</span> <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">(4시간마다 자동 점검·텔레그램 경보)</span></div>`;
+      if (existing) existing.outerHTML = html;
+      else { const app = document.getElementById('app'); if (app) app.insertAdjacentHTML('afterbegin', html); }
+    } else if (existing) {
+      existing.remove();
+    }
+  }
+
   // ─── ⚖️ 컨센서스 vs 실데이터 괴리 (한 줄) ──────────────────────
   function renderConsensusGap(cg) {
     if (!cg || !cg.headline) return;
@@ -10545,6 +10559,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./consensus_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(cg => { if (cg) { renderConsensusGap(cg); if (cg.components && cg.components.usdjpy) registerYen('gap', cg.components.usdjpy, cg.generated_at); } });
+      // Load Freshness Monitor (데이터 정체 감지 — 정체 시 상단 경고)
+      fetch('./freshness.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(fr => { if (fr) renderFreshness(fr); });
       // Load Event Radar (이벤트 사전영향 레이더)
       fetch('./event_radar.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
