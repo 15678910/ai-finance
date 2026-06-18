@@ -79,16 +79,32 @@ def main():
                 pairs.append((jr[D], px[D] / px[P] - 1))
         quiet = [p for p in pairs if abs(p[0]) < 0.01]
         vol = [p for p in pairs if abs(p[0]) >= 0.01]
+        wk = [p[1] for p in pairs if p[0] > 0.003]    # 엔 약세일(USD/JPY +0.3%↑)
+        stg = [p[1] for p in pairs if p[0] < -0.003]  # 엔 강세일
         out_assets.append({
             "name": nm, "code": sym,
             "all": reg(pairs), "quiet": reg(quiet), "vol": reg(vol),
+            "weak_mean": round(float(np.mean(wk)) * 100, 2) if len(wk) >= 10 else None, "weak_n": len(wk),
+            "strong_mean": round(float(np.mean(stg)) * 100, 2) if len(stg) >= 10 else None, "strong_n": len(stg),
         })
         rv = reg(vol)
         print(f"  {nm}: 평온 {reg(quiet)['beta']} / 급변 {rv['beta']} (R²{rv.get('r2')}, n{rv['n']})")
 
+    # 현재 USD/JPY 레벨 + 개입·인상 경계 (160 돌파 = 일본 당국 개입 경계선)
+    usdjpy = float(jpy.iloc[-1])
+    if usdjpy >= 160:
+        ivl, imsg = "경계", ("160 돌파 — 일본 당국 개입·BOJ 인상 트리거 구간. "
+                             "약세 자체보다 '급반전(개입·인상)→엔캐리 청산→리스크오프'가 반도체 단기 충격 위험.")
+    elif usdjpy >= 157:
+        ivl, imsg = "관찰", "157+ — 개입 경계선 접근. 추가 약세 시 경계."
+    else:
+        ivl, imsg = "정상", ""
+
     out = {
         "generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
         "window_desc": "약 3년 일별 (동시상관)",
+        "usdjpy": round(usdjpy, 2),
+        "intervention": {"level": ivl, "msg": imsg, "threshold": 160},
         "assets": out_assets,
         "insight": ("평온일(±1% 미만)엔 엔↔한국 거의 무관(약한 음의 수출경쟁). "
                     "엔 급변일(±1% 이상)엔 부호가 양(+)으로 뒤집혀 리스크온/오프 채널 지배 — "

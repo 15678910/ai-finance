@@ -8633,16 +8633,39 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <td style="padding:6px 8px;text-align:right;font-size:0.78rem;">${cell(a.quiet)}</td>
       <td style="padding:6px 8px;text-align:right;font-size:0.78rem;">${cell(a.vol)}</td>
     </tr>`).join('');
+    // 현재 USD/JPY 레벨 + 개입 경계 배너
+    const iv = ys.intervention || {};
+    const ivCol = iv.level === '경계' ? '#f87171' : iv.level === '관찰' ? '#fbbf24' : '#4ade80';
+    const ivBanner = (ys.usdjpy != null) ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:7px 10px;border-radius:6px;background:${ivCol}14;border-left:3px solid ${ivCol};">
+        <span style="font-size:0.85rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">🇯🇵 USD/JPY ${ys.usdjpy}</span>
+        <span style="font-size:0.58rem;padding:2px 9px;border-radius:10px;background:${ivCol}22;color:${ivCol};font-weight:700;">개입 ${h(iv.level||'')}</span>
+        ${iv.msg ? `<span style="font-size:0.64rem;color:${ivCol};line-height:1.45;flex-basis:100%;">⚠️ ${h(iv.msg)}</span>` : ''}
+      </div>` : '';
+    // 엔 약세일/강세일 비대칭 (한국 반도체 일평균 수익률)
+    const asy = ys.assets.map(a => {
+      const w = a.weak_mean, s = a.strong_mean;
+      const wc = (w != null && w >= 0) ? '#22c55e' : '#f87171';
+      const sc = (s != null && s >= 0) ? '#22c55e' : '#f87171';
+      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:0.72rem;">
+        <span style="color:var(--text);">${h(a.name)}</span>
+        <span style="color:var(--text-muted);">엔약세일 <b style="color:${wc};font-family:var(--font-mono);">${w != null ? (w >= 0 ? '+' : '') + w + '%' : '—'}</b> · 엔강세일 <b style="color:${sc};font-family:var(--font-mono);">${s != null ? (s >= 0 ? '+' : '') + s + '%' : '—'}</b></span>
+      </div>`;
+    }).join('');
+    const asyBlock = `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">엔 약세일(USD/JPY +0.3%↑) vs 강세일 — 한국 종목 일평균 수익률 (방향 비대칭)</div>
+        ${asy}</div>`;
     const html = `<section class="section-wrap" id="yen-sens-section">
       <div class="section-label" style="color:#fbbf24;">📐 엔/달러 → 한국증시 민감도 (레짐별) <span style="font-size:0.6rem;color:var(--text-muted);">(USD/JPY +1%=엔약세 당 종목 % · 동시상관, 예측 아님)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">${h(ys.window_desc||'')}</span></div>
       <div class="glass-card" style="padding:10px 14px;">
+        ${ivBanner}
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:340px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
             <th style="padding:6px 8px;text-align:left;font-size:0.66rem;color:var(--text-muted);font-weight:500;">종목</th>
             <th style="padding:6px 8px;text-align:right;font-size:0.66rem;color:var(--text-muted);font-weight:500;">평온일 |Δ|&lt;1%</th>
             <th style="padding:6px 8px;text-align:right;font-size:0.66rem;color:#fbbf24;font-weight:600;">엔 급변일 |Δ|≥1%</th>
           </tr></thead><tbody>${rows}</tbody></table></div>
+        ${asyBlock}
         <div style="font-size:0.72rem;color:#fbbf24;font-weight:600;margin-top:9px;line-height:1.55;">${h(ys.insight||'')}</div>
         <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;">※ ${h(ys.note||'')}</div>
       </div>
