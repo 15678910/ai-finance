@@ -1255,6 +1255,38 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
             geopolitical = _patch_none(geopolitical, cached_macro["geopolitical"])
             print(f"[INFO] geopolitical 캐시 복원 완료 (risk_score={geopolitical.get('risk_score')}, level={geopolitical.get('risk_level')})")
 
+    # 지정학 top_news 폴백 — 클라우드엔 일별 Excel(지정학리스크_*.xlsx)이 없어 목록이 비므로
+    # 클라우드에서 도는 market_news.json(RSS)의 지정학·전쟁 키워드 기사로 채운다.
+    if not geopolitical.get("top_news"):
+        try:
+            _mn_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "market_news.json")
+            with open(_mn_path, encoding="utf-8") as f:
+                _mn = json.load(f)
+            _GEO_KW = ("iran", "israel", "gaza", "ukraine", "russia", "war", "sanction",
+                       "blockade", "peace", "nato", "missile", "strike", "ceasefire",
+                       "이란", "이스라엘", "전쟁", "우크라", "러시아", "휴전", "제재")
+
+            def _is_geo(it):
+                if it.get("category") == "지정학":
+                    return True
+                t = (it.get("title") or "").lower()
+                return any(k in t for k in _GEO_KW)
+            _geo_items = [it for it in _mn.get("items", []) if _is_geo(it)][:6]
+            if _geo_items:
+                geopolitical["top_news"] = [{
+                    "date": (it.get("pub") or "")[:16],
+                    "title": it.get("title", ""),
+                    "title_kr": translate_headline(it.get("title", "")),
+                    "link": it.get("link", ""),
+                    "source": it.get("region", "RSS"),
+                    "category": "지정학",
+                    "risk_score": 0,
+                } for it in _geo_items]
+                geopolitical["news_source"] = "market_news RSS 폴백"
+                print(f"[INFO] 지정학 top_news 폴백: market_news에서 {len(_geo_items)}건")
+        except Exception as e:
+            print(f"[WARN] 지정학 top_news 폴백 실패: {e}")
+
     # 기존 data.json 로드 (sectors/macro 보존용)
     old_data: dict = {}
     if os.path.exists(output_path):
