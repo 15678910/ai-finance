@@ -27,7 +27,9 @@ UNIVERSE = [
     ("TSMC", "2330.TW", "🇹🇼", "asia"),
     ("도쿄일렉트론", "8035.T", "🇯🇵", "asia"),
     ("어드반테스트", "6857.T", "🇯🇵", "asia"),
-    ("SOXX(미국반도체)", "SOXX", "🇺🇸", "us"),
+    ("마이크론(메모리)", "MU", "🇺🇸", "us"),
+    ("브로드컴(AI)", "AVGO", "🇺🇸", "us"),
+    ("SOXX(섹터)", "SOXX", "🇺🇸", "us"),
 ]
 
 
@@ -81,7 +83,7 @@ def main():
 
     korea_avg = avg("korea")
     asia_avg = avg("asia")   # 한국 제외 아시아 피어(대만·일본)
-    us_chg = next((it["chg_pct"] for it in items if it["group"] == "us"), None)
+    us_chg = avg("us")   # 미국 반도체(마이크론·브로드컴·SOXX) 전일 평균
     asia_all = [it["chg_pct"] for it in items if it["group"] in ("korea", "asia")]
     strength = round(sum(asia_all) / len(asia_all), 2) if asia_all else None
 
