@@ -6942,7 +6942,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     const changeColor = (st.change_pct || 0) >= 0 ? '#22c55e' : '#f87171';
     const isCrypto = (st.ticker || '').endsWith('-USD');
-    const priceDisp = isCrypto
+    // 미국/해외 종목 판별: 섹터명 접두 또는 영문 티커(MU·AVGO…) → 달러. 한국은 6자리 숫자 코드.
+    const isUS = !isCrypto && (/^(미국|US|글로벌|해외)/.test(st.sector || '') || /^[A-Za-z][A-Za-z.\-]*$/.test(st.ticker || ''));
+    const priceDisp = (isCrypto || isUS)
       ? `$${(st.price||0).toLocaleString('en-US', {maximumFractionDigits:2})}`
       : `${(st.price||0).toLocaleString()}원`;
 
@@ -7451,6 +7453,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           window.__dashboardData = newData;
           __lastGeneratedAt = newGen;
           buildSidebarNav();
+          // 라이브 갱신 시 트리맵·히트맵도 재렌더 — 인스펙터(최신)와 시점 불일치(트리맵 정체) 방지
+          try { renderTcmTreemap(newData, window.__tmMarketFilter || 'all'); } catch (e) {}
+          try { renderTcmHeatmap(newData); } catch (e) {}
           flashLiveIndicator('#22d3ee', '신규 데이터');
         } else {
           flashLiveIndicator('#4ade80', 'LIVE');
