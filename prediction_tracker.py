@@ -204,6 +204,17 @@ def main():
 
     acc = {"reg": accuracy("reg"), "fut": accuracy("fut"), "ens": accuracy("ens")}
 
+    # 방향 신뢰도(B안) — 美 야간신호 강한 날(±1%↑)의 방향 적중률 분리
+    def _dir_strong(key):
+        strong = [e[key] for e in entries if e.get(key) and abs(e.get("fut_overnight") or 0) >= 1.0]
+        if len(strong) < 5:
+            return None, len(strong)
+        return round(sum(1 for v in strong if v["dir"]) / len(strong) * 100), len(strong)
+    for _k in ("reg", "fut", "ens"):
+        _ds, _ns = _dir_strong(_k)
+        acc[_k]["dir_hit_strong"] = _ds
+        acc[_k]["n_strong"] = _ns
+
     # ── 다음(미마감) 세션 개장 전 고정 예측 — SK처럼 07:00 1회 고정·장중 수정 금지(persist freeze) ──
     now_k = datetime.now(KST)
     today_kst = now_k.strftime("%Y-%m-%d")
@@ -278,6 +289,20 @@ def main():
         if isinstance(today_block, dict) and _sd.get("key") in ("high", "mid"):
             today_block["semi_regime"] = {"key": _sd["key"], "text": _sd.get("text")}
             print(f"  🔬 반도체 디커플링 레짐: {_sd['key']}")
+    except Exception:
+        pass
+
+    # 방향 신뢰도(B안) — 美 야간선물 강도(±1%↑) + SOX·나스닥선물 방향 일치
+    try:
+        _nq = (today_block.get("fut") or {}).get("overnight")
+        _sox = (today_block.get("reg") or {}).get("sox_ret")
+        if _nq is not None:
+            _strong_t = abs(_nq) >= 1.0
+            _agree = (_sox is None) or ((_sox >= 0) == (_nq >= 0))
+            today_block["dir_confidence"] = "high" if (_strong_t and _agree) else "low"
+            today_block["dir_conf_reason"] = (("美 강신호" if _strong_t else "美 신호 약함")
+                                              + (" · SOX·선물 일치" if _agree else " · SOX·선물 불일치"))
+            print(f"  방향 신뢰도: {today_block['dir_confidence']} ({today_block['dir_conf_reason']})")
     except Exception:
         pass
 
