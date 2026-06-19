@@ -160,6 +160,9 @@ def main():
     range_hit = round(sum(1 for e in entries if e["range_hit"]) / n * 100) if n else None
     errs = [e["abs_err"] for e in entries]
     mae_bt = round(sum(errs) / len(errs), 2) if errs else None
+    # 방향 신뢰도 검증: 美 야간신호 강한 날(±1%↑)의 방향 적중률 (B안 — 저신뢰일 식별)
+    _strong = [e for e in entries if abs(e.get("fut_overnight", 0)) >= 1.0]
+    dir_hit_strong = round(sum(1 for e in _strong if e["dir_ok"]) / len(_strong) * 100) if len(_strong) >= 5 else None
 
     # ── 다음 세션 예측 (개장 전 고정 / 잠정) ──
     def compute_today(status, target_label):
@@ -243,7 +246,20 @@ def main():
     except Exception as e:
         print(f"  [WARN] 동료 수집 실패: {e}")
 
-    print(f"  채점({n}일): 종가 MAE ±{mae}% · 방향 {dir_hit}% · 범위 적중 {range_hit}%")
+    # 방향 신뢰도(B안) — 美 반도체 야간신호 강도(±1%↑) + SOXX·나스닥선물 방향 일치 → 오늘 방향 믿어도 되나
+    try:
+        _sox = peers.get("SOXX반도체")
+        _nqsig = today.get("fut_overnight_pct", 0) or 0
+        _strong_today = abs(_nqsig) >= 1.0
+        _agree = (_sox is None) or ((_sox >= 0) == (_nqsig >= 0))
+        today["dir_confidence"] = "high" if (_strong_today and _agree) else "low"
+        today["dir_conf_reason"] = (("美 반도체 강신호" if _strong_today else "美 신호 약함")
+                                    + (" · SOX·선물 일치" if _agree else " · SOX·선물 불일치"))
+        print(f"  방향 신뢰도: {today['dir_confidence']} ({today['dir_conf_reason']})")
+    except Exception:
+        pass
+
+    print(f"  채점({n}일): 종가 MAE ±{mae}% · 방향 {dir_hit}%(강신호일 {dir_hit_strong}%) · 범위 {range_hit}%")
 
     output = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
@@ -251,6 +267,7 @@ def main():
         "today": today,
         "entries": entries,
         "accuracy": {"close_mae_pct": mae, "dir_hit_rate": dir_hit,
+                     "dir_hit_strong": dir_hit_strong, "n_strong": len(_strong),
                      "range_hit_rate": range_hit, "n": n},
         "model": {
             "beta_close": round(b_close, 2), "beta_gap": round(b_gap, 2),

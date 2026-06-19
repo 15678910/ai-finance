@@ -8819,6 +8819,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const statusBadge = locked
       ? `<span style="font-size:0.54rem;padding:2px 9px;border-radius:10px;background:rgba(56,189,248,0.15);color:#38bdf8;font-weight:700;">🔒 개장 전 고정</span>`
       : `<span style="font-size:0.54rem;padding:2px 9px;border-radius:10px;background:rgba(251,191,36,0.15);color:#fbbf24;font-weight:700;">⏳ 잠정 · 07:00 확정 전</span>`;
+    const dc = t.dir_confidence;
+    const confBadge = dc
+      ? `<span title="${h(t.dir_conf_reason||'')}" style="font-size:0.54rem;padding:2px 9px;border-radius:10px;background:${dc==='high'?'rgba(34,197,94,0.15)':'rgba(148,163,184,0.15)'};color:${dc==='high'?'#22c55e':'#94a3b8'};font-weight:700;">${dc==='high'?'🎯 방향신뢰 높음':'🎲 방향신뢰 낮음'}</span>`
+      : '';
     const peerChips = Object.entries(p).map(([k, v]) => {
       const c = v >= 0 ? '#22c55e' : '#f87171';
       return `<span style="font-size:0.58rem;padding:2px 8px;border-radius:10px;background:${c}1a;color:${c};font-weight:700;">${h(k)} ${v >= 0 ? '+' : ''}${v}%</span>`;
@@ -8833,7 +8837,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // 성적표 칩
     const accChips = (acc.n) ? `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
       <span style="font-size:0.6rem;color:var(--text-muted);">📊 종가 MAE <b style="font-family:var(--font-mono);color:${acc.close_mae_pct<=3?'#22c55e':acc.close_mae_pct<=5?'#fbbf24':'#f87171'};">±${acc.close_mae_pct}%</b></span>
-      <span style="font-size:0.6rem;color:var(--text-muted);">방향 적중 <b style="font-family:var(--font-mono);color:${acc.dir_hit_rate>=70?'#22c55e':'#fbbf24'};">${acc.dir_hit_rate}%</b></span>
+      <span style="font-size:0.6rem;color:var(--text-muted);">방향 적중 <b style="font-family:var(--font-mono);color:${acc.dir_hit_rate>=70?'#22c55e':'#fbbf24'};">${acc.dir_hit_rate}%</b>${acc.dir_hit_strong!=null?` <span style="color:#22c55e;">(강신호일 ${acc.dir_hit_strong}%)</span>`:''}</span>
       <span style="font-size:0.6rem;color:var(--text-muted);">범위 적중 <b style="font-family:var(--font-mono);color:${acc.range_hit_rate>=60?'#22c55e':'#fbbf24'};">${acc.range_hit_rate}%</b></span>
       <span style="font-size:0.52rem;color:var(--text-muted);">최근 ${acc.n}거래일 채점</span></div>` : '';
 
@@ -8870,7 +8874,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${statusBadge}<span style="font-size:0.62rem;color:var(--text);font-weight:600;">${h(t.target_date || '')} 종가 예측</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${statusBadge}${confBadge}<span style="font-size:0.62rem;color:var(--text);font-weight:600;">${h(t.target_date || '')} 종가 예측</span></div>
           <span style="font-size:0.52rem;color:var(--text-muted);">검증 MAE ±${m.mae_bt}% · R²${m.r2} · β${m.beta_close}</span>
         </div>
         <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:12px;">기준 ${h(t.base_date || '')} 종가 <b style="color:var(--text-bright);font-family:var(--font-mono);">${fmt(base)}</b>원 · 직전마감 이후 나스닥선물 <b style="color:${sigCol};">${t.fut_overnight_pct >= 0 ? '+' : ''}${t.fut_overnight_pct}%</b> · 고정 ${h(t.locked_at || '')}</div>
