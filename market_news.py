@@ -14,6 +14,7 @@ import re
 import sys
 import html as _html
 import urllib.request
+import urllib.parse
 from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
@@ -23,7 +24,11 @@ UA = "Mozilla/5.0 (compatible; ai-finance-news/1.0)"
 
 # 카테고리 키워드 (제목 매칭) — 우선순위 순
 CATEGORIES = [
-    ("지정학", "🌍", ["iran", "war", "geopolit", "middle east", "russia", "ukraine", "missile", "전쟁", "중동", "지정학", "이란", "북한"]),
+    ("지정학", "🌍", ["iran", "israel", "gaza", "war", "geopolit", "middle east", "russia", "ukraine",
+                     "missile", "strike", "sanction", "opec", "tariff", "trade war", "ceasefire", "nato",
+                     "summit", "diplomac", "foreign policy", "vance", "pakistan", "north korea", "taiwan strait",
+                     "전쟁", "중동", "지정학", "이란", "이스라엘", "가자", "북한", "우크라", "러시아",
+                     "외교", "정상회담", "나토", "휴전", "관세", "제재", "파키스탄"]),
     ("Fed·물가", "🏦", ["fed", "cpi", "inflation", "rate cut", "rate hike", "fomc", "powell", "ppi", "treasury", "yield", "금리", "물가", "인플레", "연준", "국채"]),
     ("AI·반도체", "🔌", ["nvidia", "chip stock", "semiconductor", "artificial intelligence", "tsmc", "micron", "broadcom", "데이터센터", "반도체", "엔비디아", "마이크론", "hbm", " a.i."]),
     ("실적", "📈", ["earnings", "revenue", "guidance", "results", "실적", "매출", "어닝"]),
@@ -93,6 +98,43 @@ def fetch_naver():
     return out
 
 
+def fetch_rss(url, region="🌍", limit=10):
+    """범용 RSS(item: title/link/pubDate) → [{title, link, pub, region}]."""
+    out = []
+    try:
+        txt = _fetch(url)
+        items = re.findall(r"<item>(.*?)</item>", txt, re.S)
+        for it in items[:limit]:
+            tm = re.search(r"<title>(.*?)</title>", it, re.S)
+            lm = re.search(r"<link>(.*?)</link>", it, re.S)
+            pm = re.search(r"<pubDate>(.*?)</pubDate>", it, re.S)
+            if not tm:
+                continue
+            title = _html.unescape(re.sub(r"<.*?>", "", tm.group(1)).strip())
+            if not title:
+                continue
+            out.append({"title": title,
+                        "link": (lm.group(1).strip() if lm else ""),
+                        "pub": (pm.group(1).strip() if pm else ""),
+                        "region": region})
+    except Exception as e:
+        print(f"  [WARN] RSS 실패 ({url[:40]}…): {e}")
+    return out
+
+
+def _gnews(q):
+    """Google News RSS 검색 — 키 불필요·최근순. 정치/외교/지정학 뉴스 보강용."""
+    return ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q)
+            + "&hl=en-US&gl=US&ceid=US:en")
+
+
+# 지정학·외교 전용 피드 (경제 RSS가 놓치는 정치·외교 헤드라인 — 이란합의·정상회담 등)
+GEO_FEEDS = [
+    (_gnews('(Iran OR Israel OR "Middle East" OR sanctions OR OPEC OR ceasefire) when:3d'), "🌍"),
+    (_gnews('("foreign policy" OR summit OR diplomacy OR NATO OR tariff OR "trade war") when:3d'), "🌍"),
+]
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -109,6 +151,8 @@ def main():
     for sym in ("^GSPC", "^IXIC", "^SOX"):
         raw += fetch_yahoo(sym)
     raw += fetch_naver()
+    for url, region in GEO_FEEDS:   # 지정학·외교 보강
+        raw += fetch_rss(url, region)
 
     # 중복 제거 + 카테고리
     from news_impact import classify_news, aggregate_sentiment
