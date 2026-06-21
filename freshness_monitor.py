@@ -27,7 +27,7 @@ MONITORED = [
     ("data.json", 8), ("market_news.json", 10), ("kospi_scenario.json", 10),
     ("overseas_market.json", 10), ("overheating.json", 10), ("sentiment.json", 12),
     ("prediction_log.json", 12), ("sk_hynix_forecast.json", 12), ("japan_crisis.json", 12),
-    ("samsung_forecast.json", 12), ("asia_semi.json", 12),
+    ("samsung_forecast.json", 12), ("asia_semi.json", 12), ("sk_cycle.json", 14),
     ("consensus_gap.json", 12), ("semi_decoupling.json", 12), ("yen_sensitivity.json", 12),
     ("event_radar.json", 14),
     # 일일 워크플로

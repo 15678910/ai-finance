@@ -140,6 +140,13 @@ jobs:
         run: |
           python samsung_forecast.py || echo "Samsung forecast had errors, continuing..."
 
+      # SK하이닉스 사이클 변곡점 (주가가 실적·메모리가격 선행 — 고점 경계 컨텍스트)
+      - name: Run SK cycle analysis
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python sk_cycle.py || echo "SK cycle had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:

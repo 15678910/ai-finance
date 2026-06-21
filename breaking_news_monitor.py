@@ -79,6 +79,23 @@ URGENT_KEYWORDS = {
                "追加利上げ", "中立金利", "連続利上げ", "量的引き締め", "国債買い入れ",
                "일본은행 추가", "일본 중립금리", "우에다 매파", "우에다 비둘기"],
     },
+    # 메모리·SK실적 변곡 — 주가가 메모리가격·실적을 1~2분기 선행하므로 가격전환·감산·실적을 최우선 감시.
+    "메모리_실적": {
+        "en": ["dram price", "nand price", "hbm price", "memory price", "memory prices",
+               "dram contract", "dram spot", "memory chip price", "chip price hike",
+               "memory glut", "memory shortage", "production cut", "output cut", "capacity cut",
+               "sk hynix earnings", "sk hynix profit", "sk hynix results", "sk hynix record",
+               "sk hynix", "hynix earnings", "hbm earnings", "record profit", "record earnings",
+               "record operating profit", "posts record", "earnings beat", "profit surge",
+               "micron earnings", "micron results", "micron guidance", "samsung memory",
+               "hbm demand", "hbm sold out", "hbm capacity", "dram inventory",
+               "memory downturn", "memory upcycle", "memory supercycle", "dxi index"],
+        "ko": ["디램 가격", "디램값", "낸드 가격", "낸드값", "메모리 가격", "메모리값",
+               "메모리 가격 인상", "메모리 가격 하락", "고정거래가", "현물가격", "감산", "증산",
+               "재고 소진", "재고 급증", "sk하이닉스 실적", "sk하이닉스 영업이익", "하이닉스 어닝",
+               "하이닉스 최대 실적", "마이크론 실적", "삼성전자 메모리", "hbm 수요", "hbm 완판",
+               "hbm 증설", "메모리 다운사이클", "메모리 업사이클", "디램 사이클", "메모리 슈퍼사이클"],
+    },
     "중앙은행_긴급": {
         "en": ["emergency rate cut", "emergency rate hike", "unscheduled meeting",
                "emergency fed", "surprise rate", "rate decision", "FOMC emergency",
@@ -275,6 +292,7 @@ def category_emoji(category):
     """카테고리별 이모지."""
     return {
         "중앙은행_관측": "🔭",
+        "메모리_실적": "💾",
         "시장_긴급": "📉",
         "중앙은행_긴급": "🏦",
         "환율_긴급": "💱",
@@ -289,6 +307,7 @@ def category_name(category):
     """카테고리 한글명."""
     return {
         "중앙은행_관측": "🇯🇵 BOJ 관측·사전신호",
+        "메모리_실적": "💾 메모리·SK 실적 변곡",
         "시장_긴급": "시장 긴급",
         "중앙은행_긴급": "중앙은행",
         "환율_긴급": "환율/외환",
@@ -302,6 +321,7 @@ def category_name(category):
 # 카테고리별 알림 쿨다운(시간) — 큰 이벤트 직전 같은 주제 긴급뉴스 도배 방지.
 # 시장_긴급·신용_긴급은 최우선이라 쿨다운 없음(항상 즉시 발송).
 COOLDOWN_HOURS = {
+    "메모리_실적": 2,
     "환율_긴급": 4,
     "중앙은행_긴급": 3,
     "지정학_긴급": 3,
@@ -418,7 +438,7 @@ def main():
             return 0
 
         # 메시지 조립
-        priority_order = ["중앙은행_관측", "시장_긴급", "신용_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
+        priority_order = ["중앙은행_관측", "메모리_실적", "시장_긴급", "신용_긴급", "중앙은행_긴급", "환율_긴급", "지정학_긴급", "원자재_긴급", "기업_긴급"]
         lines = ["🚨 긴급 뉴스 알림", "=" * 25, ""]
 
         max_items = 15  # 텔레그램 메시지 길이 제한

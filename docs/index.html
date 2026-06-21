@@ -8806,6 +8806,58 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  function renderSkCycle(c) {
+    if (!c || !Array.isArray(c.inflections) || !c.inflections.length) return;
+    const fmt = n => Math.round(n).toLocaleString();
+    const cy = c.cycle || {};
+    const cyCol = cy.key === 'peak_watch' ? '#f87171' : cy.key === 'correction' ? '#fbbf24' : cy.key === 'upcycle' ? '#22c55e' : '#94a3b8';
+    const m = c.metrics || {};
+    const typeCol = { '고점선행': '#f87171', '바닥선행': '#22c55e', '랠리': '#22d3ee', '구조성장': '#a78bfa', '정점권': '#fbbf24' };
+    const rows = c.inflections.map(it => {
+      const tc = typeCol[it.type] || '#94a3b8';
+      const opC = it.op_profit >= 0 ? '#22c55e' : '#f87171';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:5px 7px;font-size:0.66rem;font-family:var(--font-mono);color:var(--text-bright);white-space:nowrap;">${h(it.q)}</td>
+        <td style="padding:5px 7px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);color:${opC};">${it.op_profit>=0?'+':''}${it.op_profit}조</td>
+        <td style="padding:5px 7px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);color:var(--text);">${fmt(it.price)}</td>
+        <td style="padding:5px 7px;"><span style="font-size:0.56rem;padding:1px 7px;border-radius:8px;background:${tc}1f;color:${tc};font-weight:700;white-space:nowrap;">${h(it.tag)}</span>
+          <div style="font-size:0.56rem;color:var(--text-muted);line-height:1.4;margin-top:2px;">${h(it.desc)}</div></td>
+      </tr>`;
+    }).join('');
+    const watch = (c.watch || []).map(w => `<span style="font-size:0.58rem;padding:2px 8px;border-radius:10px;background:rgba(248,113,113,0.12);color:#fca5a5;">⚠ ${h(w)}</span>`).join(' ');
+    const html = `<section class="section-wrap" id="sk-cycle-section">
+      <div class="section-label" style="color:#fbbf24;">🔄 SK하이닉스 사이클 변곡점 <span style="font-size:0.62rem;color:var(--text-muted);">(주가는 실적·메모리가격을 1~2분기 선행)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(c.generated_at||'')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <span style="font-size:0.78rem;font-weight:800;color:${cyCol};">현재 국면: ${h(c.current_phase||'')}</span>
+          ${m.price?`<span style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);">현재 ${fmt(m.price)} · 52주고점 대비 ${m.pct_from_52wh>=0?'+':''}${m.pct_from_52wh}% · 3개월 ${m.mom_3m_pct>=0?'+':''}${m.mom_3m_pct}%</span>`:''}
+        </div>
+        <div style="font-size:0.64rem;color:${cyCol};font-weight:600;line-height:1.5;background:${cyCol}11;border-left:2px solid ${cyCol};padding:7px 10px;border-radius:5px;margin-bottom:10px;">${h(cy.text||'')}</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:420px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">분기</th>
+            <th style="padding:5px 7px;text-align:right;font-size:0.56rem;color:var(--text-muted);font-weight:500;">영업이익</th>
+            <th style="padding:5px 7px;text-align:right;font-size:0.56rem;color:var(--text-muted);font-weight:500;">분기말 종가</th>
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">국면 특징</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.66rem;color:#fbbf24;font-weight:600;line-height:1.55;margin-top:10px;">💡 ${h(c.lesson||'')}</div>
+        ${watch?`<div style="margin-top:9px;"><div style="font-size:0.58rem;color:var(--text-muted);margin-bottom:4px;">🔍 사이클 전환 점검 신호</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${watch}</div></div>`:''}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(c.note||'')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('sk-cycle-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('sk-forecast-section') || document.getElementById('prediction-log-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   function renderSkForecast(sf) {
     if (!sf || !sf.today) return;
     const t = sf.today, m = sf.model || {}, p = sf.peers || {}, acc = sf.accuracy || {};
@@ -10685,6 +10737,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./samsung_forecast.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(sf => { if (sf) renderSkForecast(sf); });
+      // Load SK Cycle (SK하이닉스 사이클 변곡점 — 주가가 실적·메모리가격 선행)
+      fetch('./sk_cycle.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(c => { if (c) renderSkCycle(c); });
       // Load Asia Semiconductor Monitor (아시아 반도체 당일 동조 — 디커플링 선행동력)
       fetch('./asia_semi.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
