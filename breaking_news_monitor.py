@@ -89,12 +89,18 @@ URGENT_KEYWORDS = {
                "record operating profit", "posts record", "earnings beat", "profit surge",
                "micron earnings", "micron results", "micron guidance", "samsung memory",
                "hbm demand", "hbm sold out", "hbm capacity", "dram inventory",
-               "memory downturn", "memory upcycle", "memory supercycle", "dxi index"],
+               "memory downturn", "memory upcycle", "memory supercycle", "dxi index",
+               # SK하이닉스 美 ADR 상장 catalyst
+               "sk hynix adr", "hynix adr", "sk hynix listing", "sk hynix us listing",
+               "sk hynix nyse", "sk hynix ipo", "sk hynix share issuance", "hxscl"],
         "ko": ["디램 가격", "디램값", "낸드 가격", "낸드값", "메모리 가격", "메모리값",
                "메모리 가격 인상", "메모리 가격 하락", "고정거래가", "현물가격", "감산", "증산",
                "재고 소진", "재고 급증", "sk하이닉스 실적", "sk하이닉스 영업이익", "하이닉스 어닝",
                "하이닉스 최대 실적", "마이크론 실적", "삼성전자 메모리", "hbm 수요", "hbm 완판",
-               "hbm 증설", "메모리 다운사이클", "메모리 업사이클", "디램 사이클", "메모리 슈퍼사이클"],
+               "hbm 증설", "메모리 다운사이클", "메모리 업사이클", "디램 사이클", "메모리 슈퍼사이클",
+               # SK하이닉스 美 ADR 상장 catalyst
+               "하이닉스 adr", "하이닉스 상장", "하이닉스 뉴욕", "하이닉스 미국 상장",
+               "하이닉스 나스닥", "하이닉스 신주", "하이닉스 증자", "adr 상장", "ads 상장"],
     },
     "중앙은행_긴급": {
         "en": ["emergency rate cut", "emergency rate hike", "unscheduled meeting",
