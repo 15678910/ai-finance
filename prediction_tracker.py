@@ -225,11 +225,18 @@ def main():
 
     fresh = {"base": round(baseL, 2), "locked_at": now_k.strftime("%Y-%m-%d %H:%M KST"),
              "reg": None, "fut": None, "ens": None}
-    if len(reg) >= WIN and L in sr and L in nr:
+
+    # 미국 휴일(예: Juneteenth 6/19)엔 ^SOX/^NDX에 해당 KOSPI 날짜(L)가 없어 회귀가 None이 됐음.
+    # → 정확한 날짜 매칭 대신 'L 이하 최신' 미국 수익률을 사용(가장 최근 미국 세션 = 유효 야간신호).
+    def _last_le(dmap, day):
+        ks = [k for k in dmap if k <= day]
+        return dmap[max(ks)] if ks else None
+    sL, nL = _last_le(sr, L), _last_le(nr, L)
+    if len(reg) >= WIN and sL is not None and nL is not None:
         bS, bN = fit_beta(reg[-WIN:])
-        move = bS * sr[L] + bN * nr[L]
+        move = bS * sL + bN * nL
         fresh["reg"] = {"pred": round(baseL * (1 + move), 0), "pct": round(move * 100, 2),
-                        "sox_ret": round(sr[L] * 100, 2), "ndx_ret": round(nr[L] * 100, 2)}
+                        "sox_ret": round(sL * 100, 2), "ndx_ret": round(nL * 100, 2)}
     if nq is not None and len(fpairs) >= WINF:
         try:
             sub = nq[nq.index <= pd.Timestamp.utcnow()]
