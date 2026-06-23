@@ -103,6 +103,94 @@ def main():
         quarters.sort(key=lambda q: q["date"], reverse=True)
         quarters = quarters[:8]
 
+        # ── #1·#2 보완: 예정(다음) 분기 컨센서스 (선행 EPS·매출 추정) ──
+        next_earn = None
+        try:
+            ee = t.earnings_estimate          # 0q=이번(예정) 분기
+            rev = t.revenue_estimate
+            eps_e = float(ee.loc["0q", "avg"]) if (ee is not None and "0q" in ee.index and "avg" in ee.columns) else None
+            rev_e = float(rev.loc["0q", "avg"]) if (rev is not None and "0q" in rev.index and "avg" in rev.columns) else None
+            nd = None
+            try:
+                cal = t.calendar or {}
+                ed_cal = cal.get("Earnings Date")
+                if ed_cal:
+                    nd = str(ed_cal[0])[:10] if isinstance(ed_cal, (list, tuple)) else str(ed_cal)[:10]
+            except Exception:
+                pass
+            if eps_e is not None or rev_e is not None:
+                next_earn = {"date": nd, "eps_est": round(eps_e, 2) if eps_e is not None else None,
+                             "rev_est": round(rev_e / rev_div, 2) if rev_e else None}
+                # 예정 분기를 표 맨 위에 추가(실제 미발표)
+                if not any(q.get("upcoming") for q in quarters):
+                    quarters.insert(0, {"date": nd or "예정", "eps_actual": None,
+                                        "eps_est": next_earn["eps_est"], "surprise_pct": None,
+                                        "beat": False, "rev_actual": None, "rev_est": next_earn["rev_est"],
+                                        "upcoming": True})
+        except Exception:
+            pass
+
+        # ── 배당 이력 ──
+        dividends = []
+        ttm_div = 0.0
+        try:
+            dv = t.dividends
+            if dv is not None and len(dv):
+                from datetime import datetime as _dt
+                recent = list(dv.items())[-8:]
+                dividends = [{"date": str(d)[:10], "amount": round(float(v), 2)} for d, v in recent]
+                # TTM 합계(최근 4건 근사)
+                ttm_div = round(sum(float(v) for _, v in list(dv.items())[-4:]), 2)
+        except Exception:
+            pass
+        # 배당수익률(TTM배당 ÷ 현재가)
+        div_yield = None
+        try:
+            fi = t.fast_info
+            px = float(getattr(fi, "last_price", 0) or 0)
+            if px > 0 and ttm_div > 0:
+                div_yield = round(ttm_div / px * 100, 2)
+        except Exception:
+            pass
+
+        # ── 옵션 체인 (미국 종목만 — 한국 주식은 무료 피드 미제공) ──
+        options = None
+        try:
+            exps = t.options
+            if exps:
+                exp = exps[0]
+                oc = t.option_chain(exp)
+                px = None
+                try:
+                    px = float(getattr(t.fast_info, "last_price", 0) or 0)
+                except Exception:
+                    pass
+
+                def near(df, is_call):
+                    df = df.sort_values("strike")
+                    if px:
+                        df["d"] = (df["strike"] - px).abs()
+                        atm_i = df["d"].idxmin()
+                        pos = df.index.get_loc(atm_i)
+                        df = df.iloc[max(0, pos - 4):pos + 5]
+                    else:
+                        df = df.iloc[len(df) // 2 - 4:len(df) // 2 + 5]
+                    rows = []
+                    for _, r in df.iterrows():
+                        rows.append({"strike": round(float(r["strike"]), 1),
+                                     "last": round(float(r.get("lastPrice", 0) or 0), 2),
+                                     "bid": round(float(r.get("bid", 0) or 0), 2),
+                                     "ask": round(float(r.get("ask", 0) or 0), 2),
+                                     "vol": int(r.get("volume", 0) or 0),
+                                     "oi": int(r.get("openInterest", 0) or 0),
+                                     "iv": round(float(r.get("impliedVolatility", 0) or 0) * 100, 1)})
+                    return rows
+                options = {"expiry": exp, "spot": round(px, 2) if px else None,
+                           "calls": near(oc.calls, True), "puts": near(oc.puts, False),
+                           "n_expiries": len(exps)}
+        except Exception as e:
+            print(f"  [WARN] {nm} 옵션 실패: {e}")
+
         # 적중 통계(실제 발표된 분기 중 컨센 상회 비율)
         graded = [q for q in quarters if q["eps_actual"] is not None and q["eps_est"] is not None]
         beat_rate = round(sum(1 for q in graded if q["beat"]) / len(graded) * 100) if graded else None
@@ -113,8 +201,11 @@ def main():
             "name": nm, "ticker": tk, "currency": cur, "eps_unit": eps_unit,
             "rev_unit": rev_unit, "quarters": quarters,
             "beat_rate": beat_rate, "avg_surprise_pct": avg_surprise, "n_graded": len(graded),
+            "next_earnings": next_earn,
+            "dividends": dividends, "ttm_div": ttm_div, "div_yield_pct": div_yield,
+            "options": options,
         })
-        print(f"  {nm}: {len(quarters)}개 분기 · 컨센 상회 {beat_rate}% · 평균 서프라이즈 {avg_surprise}%")
+        print(f"  {nm}: 분기 {len(quarters)} · 비트 {beat_rate}% · 배당 {len(dividends)}건(수익률 {div_yield}%) · 옵션 {'있음' if options else '없음'}")
 
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),

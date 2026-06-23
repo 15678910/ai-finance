@@ -8814,41 +8814,39 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const s = e.stocks[sel];
     const cur = s.currency || '';
     const fmtEps = v => v == null ? '—' : (cur === '$' ? cur + v.toFixed(2) : Math.round(v).toLocaleString() + (s.eps_unit || ''));
+    const tab = window.__earnTab == null ? (window.__earnTab = '실적') : window.__earnTab;
+    const fmtMoney = v => v == null ? '—' : (cur === '$' ? '$' + v.toFixed(2) : Math.round(v).toLocaleString() + '원');
     const tabs = e.stocks.map((st, i) => `<button onclick="window.__earnSel=${i};window.__renderEarnings(window.__earnData)" style="padding:5px 13px;border-radius:20px;font-size:0.72rem;cursor:pointer;font-weight:${i === sel ? 700 : 400};background:${i === sel ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${i === sel ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === sel ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.15)'};">${h(st.name)}</button>`).join(' ');
-    const qs = s.quarters.slice().reverse();
-    const epsVals = qs.flatMap(q => [q.eps_actual, q.eps_est]).filter(v => v != null);
-    const maxE = Math.max(0.01, ...epsVals.map(Math.abs));
-    const bars = qs.map(q => {
-      const ah = q.eps_actual != null ? Math.max(2, Math.abs(q.eps_actual) / maxE * 70) : 0;
-      const eh = q.eps_est != null ? Math.max(2, Math.abs(q.eps_est) / maxE * 70) : 0;
-      const ac = q.eps_actual == null ? '#475569' : q.beat ? '#22c55e' : '#f87171';
-      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:30px;">
-        <div style="display:flex;gap:2px;align-items:flex-end;height:74px;">
-          <div title="실제 ${fmtEps(q.eps_actual)}" style="width:9px;height:${ah}px;background:${ac};border-radius:2px 2px 0 0;"></div>
-          <div title="예측 ${fmtEps(q.eps_est)}" style="width:9px;height:${eh}px;background:#64748b;opacity:0.6;border-radius:2px 2px 0 0;"></div>
-        </div>
-        <div style="font-size:0.5rem;color:var(--text-muted);">${h(q.date.slice(2, 7).replace('-', '/'))}</div>
-      </div>`;
-    }).join('');
-    const rows = s.quarters.map(q => {
-      const sc = q.surprise_pct == null ? 'var(--text-muted)' : q.surprise_pct >= 0 ? '#22c55e' : '#f87171';
-      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-        <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(q.date)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}</td>
-        <td style="padding:4px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);font-weight:700;color:${q.eps_actual == null ? 'var(--text-muted)' : q.beat ? '#22c55e' : '#f87171'};">${fmtEps(q.eps_actual)}</td>
-        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${fmtEps(q.eps_est)}</td>
-        <td style="padding:4px 6px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sc};">${q.surprise_pct == null ? '—' : (q.surprise_pct >= 0 ? '+' : '') + q.surprise_pct + '%'}</td>
-        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text);">${q.rev_actual == null ? '—' : q.rev_actual + (s.rev_unit || '')}</td>
-      </tr>`;
-    }).join('');
-    const html = `<section class="section-wrap" id="earnings-section">
-      <div class="section-label" style="color:#22d3ee;">💵 실적 (EPS 실제 vs 컨센서스) <span style="font-size:0.62rem;color:var(--text-muted);">(분기 어닝 서프라이즈 · 비트/미스)</span>
-        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(e.generated_at || '')}</span></div>
-      <div class="glass-card" style="padding:14px 16px;">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${tabs}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <span style="font-size:0.8rem;font-weight:800;color:var(--text-bright);">${h(s.name)} <span style="font-size:0.6rem;color:var(--text-muted);">${h(s.ticker)}</span></span>
-          <span style="font-size:0.6rem;color:var(--text-muted);">컨센 상회 <b style="color:${s.beat_rate >= 70 ? '#22c55e' : '#fbbf24'};font-family:var(--font-mono);">${s.beat_rate == null ? '—' : s.beat_rate + '%'}</b> · 평균 서프 <b style="color:${(s.avg_surprise_pct || 0) >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${s.avg_surprise_pct == null ? '—' : (s.avg_surprise_pct >= 0 ? '+' : '') + s.avg_surprise_pct + '%'}</b></span>
-        </div>
+    const subTabs = ['실적', '배당', '옵션'].map(tb => `<button onclick="window.__earnTab='${tb}';window.__renderEarnings(window.__earnData)" style="padding:4px 12px;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:${tb === tab ? 700 : 400};background:${tb === tab ? 'rgba(255,255,255,0.08)' : 'transparent'};color:${tb === tab ? 'var(--text-bright)' : 'var(--text-muted)'};border:1px solid ${tb === tab ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'};">${tb}</button>`).join(' ');
+
+    function earnView() {
+      const qs = s.quarters.slice().reverse();
+      const epsVals = qs.flatMap(q => [q.eps_actual, q.eps_est]).filter(v => v != null);
+      const maxE = Math.max(0.01, ...epsVals.map(Math.abs));
+      const bars = qs.map(q => {
+        const ah = q.eps_actual != null ? Math.max(2, Math.abs(q.eps_actual) / maxE * 70) : 0;
+        const eh = q.eps_est != null ? Math.max(2, Math.abs(q.eps_est) / maxE * 70) : 0;
+        const ac = q.eps_actual == null ? '#475569' : q.beat ? '#22c55e' : '#f87171';
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:30px;">
+          <div style="display:flex;gap:2px;align-items:flex-end;height:74px;">
+            <div title="실제 ${fmtEps(q.eps_actual)}" style="width:9px;height:${ah}px;background:${ac};border-radius:2px 2px 0 0;"></div>
+            <div title="예측 ${fmtEps(q.eps_est)}" style="width:9px;height:${eh}px;background:#64748b;opacity:0.6;border-radius:2px 2px 0 0;"></div>
+          </div>
+          <div style="font-size:0.5rem;color:var(--text-muted);">${h(q.date.slice(2, 7).replace('-', '/'))}</div>
+        </div>`;
+      }).join('');
+      const rows = s.quarters.map(q => {
+        const sc = q.surprise_pct == null ? 'var(--text-muted)' : q.surprise_pct >= 0 ? '#22c55e' : '#f87171';
+        const revShow = q.rev_actual != null ? (q.rev_actual + (s.rev_unit || '')) : (q.rev_est != null ? '~' + q.rev_est + (s.rev_unit || '') : '—');
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(q.date)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);font-weight:700;color:${q.eps_actual == null ? 'var(--text-muted)' : q.beat ? '#22c55e' : '#f87171'};">${fmtEps(q.eps_actual)}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${fmtEps(q.eps_est)}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sc};">${q.surprise_pct == null ? '—' : (q.surprise_pct >= 0 ? '+' : '') + q.surprise_pct + '%'}</td>
+          <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text);">${revShow}</td>
+        </tr>`;
+      }).join('');
+      return `<div style="margin-bottom:8px;"><span style="font-size:0.6rem;color:var(--text-muted);">컨센 상회 <b style="color:${s.beat_rate >= 70 ? '#22c55e' : '#fbbf24'};font-family:var(--font-mono);">${s.beat_rate == null ? '—' : s.beat_rate + '%'}</b> · 평균 서프 <b style="color:${(s.avg_surprise_pct || 0) >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${s.avg_surprise_pct == null ? '—' : (s.avg_surprise_pct >= 0 ? '+' : '') + s.avg_surprise_pct + '%'}</b></span></div>
         <div style="display:flex;gap:3px;align-items:flex-end;padding:6px 0 2px;">${bars}</div>
         <div style="font-size:0.5rem;color:var(--text-muted);margin:4px 0 9px;"><span style="color:#22c55e;">■</span> 실제(비트) <span style="color:#f87171;">■</span> 실제(미스) <span style="color:#64748b;">■</span> 예측</div>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
@@ -8858,7 +8856,64 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">예측 EPS</th>
             <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">서프라이즈</th>
             <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">매출</th>
-          </tr></thead><tbody>${rows}</tbody></table></div>
+          </tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function divView() {
+      const dv = s.dividends || [];
+      if (!dv.length) return `<div style="font-size:0.7rem;color:var(--text-muted);padding:20px 0;text-align:center;">배당 이력 없음</div>`;
+      const maxD = Math.max(...dv.map(d => d.amount));
+      const bars = dv.map(d => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:30px;">
+          <div title="${fmtMoney(d.amount)}" style="width:14px;height:${Math.max(3, d.amount / maxD * 60)}px;background:#a78bfa;opacity:0.7;border-radius:2px 2px 0 0;"></div>
+          <div style="font-size:0.5rem;color:var(--text-muted);">${h(d.date.slice(2, 7).replace('-', '/'))}</div>
+        </div>`).join('');
+      const rows = dv.slice().reverse().map(d => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:4px 8px;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-bright);">${h(d.date)}</td>
+        <td style="padding:4px 8px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);color:#c4b5fd;">${fmtMoney(d.amount)}</td>
+      </tr>`).join('');
+      return `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;">
+          <span style="font-size:0.66rem;color:var(--text-muted);">배당수익률(TTM) <b style="color:#a78bfa;font-family:var(--font-mono);font-size:0.9rem;">${s.div_yield_pct == null ? '—' : s.div_yield_pct + '%'}</b></span>
+          <span style="font-size:0.66rem;color:var(--text-muted);">최근 4회 합계 <b style="color:var(--text);font-family:var(--font-mono);">${fmtMoney(s.ttm_div)}</b></span></div>
+        <div style="display:flex;gap:3px;align-items:flex-end;padding:6px 0 8px;">${bars}</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;max-width:320px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:4px 8px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">배당락일</th>
+            <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">주당 배당</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function optView() {
+      const o = s.options;
+      if (!o) return `<div style="font-size:0.68rem;color:var(--text-muted);padding:24px 8px;text-align:center;line-height:1.6;">🇰🇷 한국 주식 개별 옵션은 무료 데이터 피드(yfinance)에 제공되지 않습니다.<br>미국 종목(마이크론)에서만 옵션 체인을 볼 수 있습니다.</div>`;
+      const optRow = (r, isCall) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+        <td style="padding:3px 6px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${isCall ? '#22c55e' : '#f87171'};">${fmtMoney(r.last)}</td>
+        <td style="padding:3px 6px;text-align:center;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:var(--text-bright);">${r.strike}</td>
+        <td style="padding:3px 6px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-muted);">${r.vol || '—'}</td>
+        <td style="padding:3px 6px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-muted);">${r.oi || '—'}</td></tr>`;
+      const tbl = (rows, isCall, label) => `<div style="flex:1;min-width:210px;">
+          <div style="font-size:0.62rem;font-weight:700;color:${isCall ? '#22c55e' : '#f87171'};margin-bottom:3px;">${label}</div>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+              <th style="padding:3px 6px;text-align:right;font-size:0.5rem;color:var(--text-muted);font-weight:500;">최종가</th>
+              <th style="padding:3px 6px;text-align:center;font-size:0.5rem;color:var(--text-muted);font-weight:500;">행사가</th>
+              <th style="padding:3px 6px;text-align:right;font-size:0.5rem;color:var(--text-muted);font-weight:500;">거래량</th>
+              <th style="padding:3px 6px;text-align:right;font-size:0.5rem;color:var(--text-muted);font-weight:500;">미결제</th>
+            </tr></thead><tbody>${rows.map(r => optRow(r, isCall)).join('')}</tbody></table></div>`;
+      return `<div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:8px;">만기 <b style="color:var(--text);font-family:var(--font-mono);">${h(o.expiry)}</b> (총 ${o.n_expiries}개) · 현재가 <b style="color:var(--text);font-family:var(--font-mono);">${fmtMoney(o.spot)}</b> 부근 ATM ±4</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">${tbl(o.calls, true, '📈 콜(Call)')}${tbl(o.puts, false, '📉 풋(Put)')}</div>`;
+    }
+
+    const content = tab === '배당' ? divView() : tab === '옵션' ? optView() : earnView();
+    const html = `<section class="section-wrap" id="earnings-section">
+      <div class="section-label" style="color:#22d3ee;">💵 종목 상세 (실적·배당·옵션) <span style="font-size:0.62rem;color:var(--text-muted);">(분기 어닝·배당이력·옵션체인)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(e.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${tabs}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <span style="font-size:0.8rem;font-weight:800;color:var(--text-bright);">${h(s.name)} <span style="font-size:0.6rem;color:var(--text-muted);">${h(s.ticker)}</span></span>
+          <div style="display:flex;gap:5px;">${subTabs}</div>
+        </div>
+        ${content}
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(e.note || '')}</div>
       </div>
     </section>`;
