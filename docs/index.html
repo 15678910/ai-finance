@@ -7625,6 +7625,28 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       }
     });
 
+    // ── 좌우 순서 일치: 오른쪽 섹션을 사이드바 그룹 순서대로 물리적 재배치 ──
+    //    요소 '이동'(재생성 아님)이라 캔버스·스크롤 상태 보존. 이미 정렬돼 있으면 스킵.
+    try {
+      const targetByParent = new Map();
+      Object.values(groups).forEach(gi => gi.forEach(it => {
+        const el = it.el, p = el && el.parentNode;
+        if (!p) return;
+        if (!targetByParent.has(p)) targetByParent.set(p, []);
+        targetByParent.get(p).push(el);
+      }));
+      targetByParent.forEach((els, p) => {
+        const domSecs = Array.prototype.filter.call(p.children, c => els.indexOf(c) !== -1);
+        const same = domSecs.length === els.length && els.every((e, i) => e === domSecs[i]);
+        if (same) return;                       // 순서 동일 → 재배치 안 함(점프 방지)
+        const firstInDom = domSecs[0];
+        const marker = document.createComment('secorder');
+        p.insertBefore(marker, firstInDom);     // 섹션 블록 시작 위치 고정
+        els.forEach(el => p.insertBefore(el, marker));  // 목표 순서대로 이동
+        p.removeChild(marker);
+      });
+    } catch (e) { /* 재배치 실패 무시 */ }
+
     // HTML 빌드: 상단 탭 토글 [섹션 | 시그널], 기본 = 섹션
     const sigCount = (window.__dashboardData && window.__dashboardData.sao_signals
                       && window.__dashboardData.sao_signals.signals)
