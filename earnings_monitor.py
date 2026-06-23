@@ -110,20 +110,45 @@ def main():
             rev = t.revenue_estimate
             eps_e = float(ee.loc["0q", "avg"]) if (ee is not None and "0q" in ee.index and "avg" in ee.columns) else None
             rev_e = float(rev.loc["0q", "avg"]) if (rev is not None and "0q" in rev.index and "avg" in rev.columns) else None
-            nd = None
+            nd_raw = None
             try:
                 cal = t.calendar or {}
                 ed_cal = cal.get("Earnings Date")
                 if ed_cal:
-                    nd = str(ed_cal[0])[:10] if isinstance(ed_cal, (list, tuple)) else str(ed_cal)[:10]
+                    nd_raw = str(ed_cal[0])[:10] if isinstance(ed_cal, (list, tuple)) else str(ed_cal)[:10]
             except Exception:
                 pass
+            # 발표일 검증: 미래면 확정, 과거/결측이면 분기(~91일) 주기로 추정 — '과거를 예정'으로 표시 방지
+            today_d = now.date()
+            nd_final, nd_status = None, "tbd"
+            if nd_raw:
+                try:
+                    if datetime.strptime(nd_raw, "%Y-%m-%d").date() >= today_d:
+                        nd_final, nd_status = nd_raw, "confirmed"
+                except Exception:
+                    pass
+            act_dates = [str(q["date"]) for q in quarters if len(str(q.get("date", ""))) == 10]
+            if nd_final is None and act_dates:
+                try:
+                    est = datetime.strptime(max(act_dates), "%Y-%m-%d").date()
+                    while est < today_d:
+                        est = est + timedelta(days=91)
+                    nd_final, nd_status = est.strftime("%Y-%m-%d"), "estimated"
+                except Exception:
+                    pass
+            # 실제 분기 지연(최신 실제 발표가 150일+ 과거 = 무료 피드 반영 대기)
+            stale_q = False
+            if act_dates:
+                try:
+                    stale_q = (today_d - datetime.strptime(max(act_dates), "%Y-%m-%d").date()).days > 150
+                except Exception:
+                    pass
             if eps_e is not None or rev_e is not None:
-                next_earn = {"date": nd, "eps_est": round(eps_e, 2) if eps_e is not None else None,
+                next_earn = {"date": nd_final, "date_status": nd_status, "stale_actuals": stale_q,
+                             "eps_est": round(eps_e, 2) if eps_e is not None else None,
                              "rev_est": round(rev_e / rev_div, 2) if rev_e else None}
-                # 예정 분기를 표 맨 위에 추가(실제 미발표)
                 if not any(q.get("upcoming") for q in quarters):
-                    quarters.insert(0, {"date": nd or "예정", "eps_actual": None,
+                    quarters.insert(0, {"date": nd_final, "date_status": nd_status, "eps_actual": None,
                                         "eps_est": next_earn["eps_est"], "surprise_pct": None,
                                         "beat": False, "rev_actual": None, "rev_est": next_earn["rev_est"],
                                         "upcoming": True})

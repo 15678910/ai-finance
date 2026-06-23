@@ -8838,8 +8838,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const rows = s.quarters.map(q => {
         const sc = q.surprise_pct == null ? 'var(--text-muted)' : q.surprise_pct >= 0 ? '#22c55e' : '#f87171';
         const revShow = q.rev_actual != null ? (q.rev_actual + (s.rev_unit || '')) : (q.rev_est != null ? '~' + q.rev_est + (s.rev_unit || '') : '—');
+        const dLab = q.upcoming
+          ? (q.date ? (q.date_status === 'estimated' ? q.date + ' (추정)' : q.date) : '예정일 미정')
+          : q.date;
         return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-          <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(q.date)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}</td>
+          <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(dLab)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}</td>
           <td style="padding:4px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);font-weight:700;color:${q.eps_actual == null ? 'var(--text-muted)' : q.beat ? '#22c55e' : '#f87171'};">${fmtEps(q.eps_actual)}</td>
           <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${fmtEps(q.eps_est)}</td>
           <td style="padding:4px 6px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sc};">${q.surprise_pct == null ? '—' : (q.surprise_pct >= 0 ? '+' : '') + q.surprise_pct + '%'}</td>
@@ -8856,7 +8859,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">예측 EPS</th>
             <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">서프라이즈</th>
             <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">매출</th>
-          </tr></thead><tbody>${rows}</tbody></table></div>`;
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        ${(s.next_earnings && s.next_earnings.stale_actuals) ? `<div style="font-size:0.54rem;color:#fbbf24;margin-top:7px;line-height:1.5;">⚠️ 최신 분기 실적은 무료 피드(yfinance) 반영 대기 — 과거 분기까지만 표시됩니다(예정일은 분기 주기로 추정).</div>` : ''}`;
     }
 
     function divView() {
