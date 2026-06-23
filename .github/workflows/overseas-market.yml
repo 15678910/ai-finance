@@ -147,6 +147,13 @@ jobs:
         run: |
           python sk_cycle.py || echo "SK cycle had errors, continuing..."
 
+      # 실적 모니터 (분기 EPS·매출 실제 vs 컨센서스 — 마이크론·SK·삼성)
+      - name: Run earnings monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python earnings_monitor.py || echo "Earnings monitor had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:

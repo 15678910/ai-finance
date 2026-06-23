@@ -98,6 +98,15 @@ def main():
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "name": "SK하이닉스",
+        # 기록: 2026-06-23 폭락 (peak_watch 경고의 현실화)
+        "recent_shock": {
+            "date": "2026-06-23",
+            "title": "KOSPI -10% 폭락 (장중 서킷브레이커)",
+            "text": ("SK하이닉스 -12.5%·삼성전자 -12.3% 동시 급락. 원인=ADR 유상증자(신주발행) 희석 우려 + "
+                     "SK 연초 대비 +348% 극단 쏠림(6/22 삼성 제치고 시총 1위)의 되돌림 — 반도체 고유 사건. "
+                     "레버리지 ETF·변동성 디레버리징·서킷브레이커는 '원인'이 아니라 '증폭기'. "
+                     "sk_cycle '고점권 경계'와 ADR '유상증자 오버행' 경고가 현실화된 사례."),
+        },
         "current_phase": INFLECTIONS[-1]["tag"],
         "metrics": metrics,
         "cycle": cycle,

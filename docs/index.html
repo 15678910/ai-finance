@@ -8806,6 +8806,75 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  function renderEarnings(e) {
+    if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
+    window.__earnData = e;
+    if (window.__earnSel == null) window.__earnSel = 0;
+    const sel = Math.min(window.__earnSel, e.stocks.length - 1);
+    const s = e.stocks[sel];
+    const cur = s.currency || '';
+    const fmtEps = v => v == null ? '—' : (cur === '$' ? cur + v.toFixed(2) : Math.round(v).toLocaleString() + (s.eps_unit || ''));
+    const tabs = e.stocks.map((st, i) => `<button onclick="window.__earnSel=${i};window.__renderEarnings(window.__earnData)" style="padding:5px 13px;border-radius:20px;font-size:0.72rem;cursor:pointer;font-weight:${i === sel ? 700 : 400};background:${i === sel ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${i === sel ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === sel ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.15)'};">${h(st.name)}</button>`).join(' ');
+    const qs = s.quarters.slice().reverse();
+    const epsVals = qs.flatMap(q => [q.eps_actual, q.eps_est]).filter(v => v != null);
+    const maxE = Math.max(0.01, ...epsVals.map(Math.abs));
+    const bars = qs.map(q => {
+      const ah = q.eps_actual != null ? Math.max(2, Math.abs(q.eps_actual) / maxE * 70) : 0;
+      const eh = q.eps_est != null ? Math.max(2, Math.abs(q.eps_est) / maxE * 70) : 0;
+      const ac = q.eps_actual == null ? '#475569' : q.beat ? '#22c55e' : '#f87171';
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:30px;">
+        <div style="display:flex;gap:2px;align-items:flex-end;height:74px;">
+          <div title="실제 ${fmtEps(q.eps_actual)}" style="width:9px;height:${ah}px;background:${ac};border-radius:2px 2px 0 0;"></div>
+          <div title="예측 ${fmtEps(q.eps_est)}" style="width:9px;height:${eh}px;background:#64748b;opacity:0.6;border-radius:2px 2px 0 0;"></div>
+        </div>
+        <div style="font-size:0.5rem;color:var(--text-muted);">${h(q.date.slice(2, 7).replace('-', '/'))}</div>
+      </div>`;
+    }).join('');
+    const rows = s.quarters.map(q => {
+      const sc = q.surprise_pct == null ? 'var(--text-muted)' : q.surprise_pct >= 0 ? '#22c55e' : '#f87171';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(q.date)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);font-weight:700;color:${q.eps_actual == null ? 'var(--text-muted)' : q.beat ? '#22c55e' : '#f87171'};">${fmtEps(q.eps_actual)}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${fmtEps(q.eps_est)}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sc};">${q.surprise_pct == null ? '—' : (q.surprise_pct >= 0 ? '+' : '') + q.surprise_pct + '%'}</td>
+        <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text);">${q.rev_actual == null ? '—' : q.rev_actual + (s.rev_unit || '')}</td>
+      </tr>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="earnings-section">
+      <div class="section-label" style="color:#22d3ee;">💵 실적 (EPS 실제 vs 컨센서스) <span style="font-size:0.62rem;color:var(--text-muted);">(분기 어닝 서프라이즈 · 비트/미스)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(e.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${tabs}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <span style="font-size:0.8rem;font-weight:800;color:var(--text-bright);">${h(s.name)} <span style="font-size:0.6rem;color:var(--text-muted);">${h(s.ticker)}</span></span>
+          <span style="font-size:0.6rem;color:var(--text-muted);">컨센 상회 <b style="color:${s.beat_rate >= 70 ? '#22c55e' : '#fbbf24'};font-family:var(--font-mono);">${s.beat_rate == null ? '—' : s.beat_rate + '%'}</b> · 평균 서프 <b style="color:${(s.avg_surprise_pct || 0) >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${s.avg_surprise_pct == null ? '—' : (s.avg_surprise_pct >= 0 ? '+' : '') + s.avg_surprise_pct + '%'}</b></span>
+        </div>
+        <div style="display:flex;gap:3px;align-items:flex-end;padding:6px 0 2px;">${bars}</div>
+        <div style="font-size:0.5rem;color:var(--text-muted);margin:4px 0 9px;"><span style="color:#22c55e;">■</span> 실제(비트) <span style="color:#f87171;">■</span> 실제(미스) <span style="color:#64748b;">■</span> 예측</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:4px 6px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">발표일</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">실제 EPS</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">예측 EPS</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">서프라이즈</th>
+            <th style="padding:4px 6px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">매출</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(e.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('earnings-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('sk-cycle-section') || document.getElementById('samsung-forecast-section') || document.getElementById('sk-forecast-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderEarnings = renderEarnings;
+
   function renderSkCycle(c) {
     if (!c || !Array.isArray(c.inflections) || !c.inflections.length) return;
     const fmt = n => Math.round(n).toLocaleString();
@@ -8834,6 +8903,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${m.price?`<span style="font-size:0.6rem;color:var(--text-muted);font-family:var(--font-mono);">현재 ${fmt(m.price)} · 52주고점 대비 ${m.pct_from_52wh>=0?'+':''}${m.pct_from_52wh}% · 3개월 ${m.mom_3m_pct>=0?'+':''}${m.mom_3m_pct}%</span>`:''}
         </div>
         <div style="font-size:0.64rem;color:${cyCol};font-weight:600;line-height:1.5;background:${cyCol}11;border-left:2px solid ${cyCol};padding:7px 10px;border-radius:5px;margin-bottom:10px;">${h(cy.text||'')}</div>
+        ${c.recent_shock ? `<div style="font-size:0.62rem;color:#fca5a5;line-height:1.5;background:rgba(248,113,113,0.1);border-left:3px solid #f87171;padding:8px 11px;border-radius:5px;margin-bottom:10px;"><b style="color:#f87171;">🚨 ${h(c.recent_shock.date)} ${h(c.recent_shock.title)}</b><br>${h(c.recent_shock.text)}</div>` : ''}
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:420px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
             <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">분기</th>
@@ -10741,6 +10811,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./sk_cycle.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(c => { if (c) renderSkCycle(c); });
+      // Load Earnings (실적 — EPS 실제 vs 컨센서스, 마이크론·SK·삼성)
+      fetch('./earnings.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(e => { if (e) renderEarnings(e); });
       // Load Asia Semiconductor Monitor (아시아 반도체 당일 동조 — 디커플링 선행동력)
       fetch('./asia_semi.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
