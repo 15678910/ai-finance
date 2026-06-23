@@ -8806,6 +8806,62 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  function renderAiValueGap(d) {
+    if (!d || !Array.isArray(d.items) || !d.items.length) return;
+    const maxPe = Math.max(10, ...d.items.map(i => i.fwd_pe || 0));
+    const bar = (it) => {
+      const pe = it.fwd_pe;
+      const col = it.korea ? '#f87171' : it.group === '발주처' ? '#60a5fa' : '#22d3ee';
+      const w = pe ? Math.min(100, pe / maxPe * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin:2px 0;">
+        <div style="width:120px;font-size:0.64rem;color:${it.korea ? '#fca5a5' : 'var(--text)'};white-space:nowrap;font-weight:${it.korea ? 700 : 400};">${it.flag} ${h(it.name)}</div>
+        <div style="flex:1;height:14px;background:rgba(255,255,255,0.04);border-radius:4px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${w}%;background:${col};opacity:${it.korea ? 0.8 : 0.5};border-radius:4px;"></div></div>
+        <div style="width:46px;text-align:right;font-size:0.68rem;font-weight:800;font-family:var(--font-mono);color:${col};">${pe != null ? pe : '—'}</div>
+        <div style="width:54px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-muted);">${it.mcap_usd_t != null ? '$' + it.mcap_usd_t + 'T' : ''}</div>
+      </div>`;
+    };
+    const grp = (g, label) => {
+      const its = d.items.filter(i => i.group === g);
+      if (!its.length) return '';
+      return `<div style="margin-top:8px;"><div style="font-size:0.58rem;color:var(--text-muted);margin-bottom:2px;">${label}</div>${its.map(bar).join('')}</div>`;
+    };
+    const th = d.thesis || {};
+    const roadmap = (th.roadmap || []).map(r => `<li style="margin:2px 0;">${h(r)}</li>`).join('');
+    const html = `<section class="section-wrap" id="ai-valuegap-section">
+      <div class="section-label" style="color:#f472b6;">🧬 AI 생태계 밸류에이션 갭 <span style="font-size:0.62rem;color:var(--text-muted);">(발주처 vs 공급처 · 한국 반도체 강제 저평가 · 선행 PER)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+          <span style="font-size:0.66rem;color:var(--text-muted);">발주처(수요) <b style="color:#60a5fa;font-family:var(--font-mono);">${d.demand_avg_fwd_pe}배</b> · 공급처(공급) <b style="color:#22d3ee;font-family:var(--font-mono);">${d.supply_avg_fwd_pe}배</b></span>
+          <span style="font-size:0.7rem;font-weight:800;color:#f87171;">🇰🇷 한국 할인율 <span style="font-family:var(--font-mono);font-size:1.05rem;">${d.korea_discount_pct}%</span> <span style="font-size:0.56rem;font-weight:400;color:var(--text-muted);">(한국 ${d.korea_avg_fwd_pe}배 vs 비한국 공급처 ${d.supply_exkorea_fwd_pe}배)</span></span>
+        </div>
+        ${grp('발주처', '📥 발주처 — 하이퍼스케일러(수요)')}
+        ${grp('공급처', '🏭 공급처 — AI 팩토리 부품(공급) · 🇰🇷=강제 저평가')}
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:5px;">막대=선행 PER(낮을수록 저평가) · 우측=시총($T) · 빨강=한국(이익 최대·PER 최저)</div>
+        <details style="margin-top:11px;">
+          <summary style="cursor:pointer;font-size:0.66rem;color:#f472b6;font-weight:700;">📑 논지 & 투자 로드맵 (브리핑) ▾</summary>
+          <div style="font-size:0.62rem;color:var(--text);line-height:1.6;margin-top:7px;background:rgba(244,114,182,0.06);border-left:2px solid #f472b6;padding:8px 11px;border-radius:5px;">
+            ${h(th.summary || '')}
+            <ul style="margin:7px 0 0;padding-left:16px;color:var(--text-muted);">${roadmap}</ul>
+            <div style="margin-top:7px;color:#fbbf24;">💡 ${h(th.conclusion || '')}</div>
+          </div>
+        </details>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')} (논지 출처: ${h((th.source) || '브리핑')})</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('ai-valuegap-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('earnings-section') || document.getElementById('sk-cycle-section') || document.getElementById('sk-forecast-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
     window.__earnData = e;
@@ -10874,6 +10930,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./earnings.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(e => { if (e) renderEarnings(e); });
+      // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
+      fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderAiValueGap(d); });
       // Load Asia Semiconductor Monitor (아시아 반도체 당일 동조 — 디커플링 선행동력)
       fetch('./asia_semi.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

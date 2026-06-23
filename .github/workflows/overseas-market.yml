@@ -154,6 +154,13 @@ jobs:
         run: |
           python earnings_monitor.py || echo "Earnings monitor had errors, continuing..."
 
+      # AI 생태계 밸류에이션 갭 (발주처 vs 공급처 PER — 한국 반도체 강제 저평가)
+      - name: Run AI value gap
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python ai_value_gap.py || echo "AI value gap had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:
