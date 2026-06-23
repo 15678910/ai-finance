@@ -8985,6 +8985,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="display:flex;gap:14px;flex-wrap:wrap;">${tbl(o.calls, true, '📈 콜(Call)')}${tbl(o.puts, false, '📉 풋(Put)')}</div>`;
     }
 
+    // 기업 프로필 스트립(현재가·목표가·PER·시총·매출·마진·의견) — 모든 종목, 특히 실적 이력 없는 신규주에 유용
+    const p = s.profile || {};
+    const upside = (p.target_price && p.price) ? ((p.target_price / p.price - 1) * 100).toFixed(1) : null;
+    const ratingKr = { strong_buy: '적극매수', buy: '매수', hold: '중립', sell: '매도', strong_sell: '적극매도', underperform: '수익률하회', outperform: '수익률상회' }[p.rating] || p.rating || '';
+    const pchip = (label, val) => (val == null || val === '') ? '' : `<span style="font-size:0.6rem;color:var(--text-muted);">${label} <b style="color:var(--text);font-family:var(--font-mono);">${val}</b></span>`;
+    const profileStrip = (p.price != null || p.fwd_pe != null || p.mcap != null) ? `<div style="display:flex;gap:13px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px 11px;background:rgba(255,255,255,0.03);border-radius:6px;">
+        ${p.price != null ? `<span style="font-size:0.74rem;font-weight:800;color:var(--text-bright);font-family:var(--font-mono);">${fmtMoney(p.price)}</span>` : ''}
+        ${upside != null ? `<span style="font-size:0.6rem;color:var(--text-muted);">목표 <b style="color:${parseFloat(upside) >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${fmtMoney(p.target_price)} (${parseFloat(upside) >= 0 ? '+' : ''}${upside}%)</b></span>` : ''}
+        ${pchip('선행PER', p.fwd_pe)}
+        ${pchip('시총', p.mcap != null ? (p.mcap + (p.mcap_unit || '')) : null)}
+        ${pchip('매출TTM', p.rev_ttm != null ? (p.rev_ttm + (s.rev_unit || '') + (p.rev_growth_pct != null ? ` (${p.rev_growth_pct >= 0 ? '+' : ''}${p.rev_growth_pct}%)` : '')) : null)}
+        ${pchip('마진', p.margin_pct != null ? (p.margin_pct + '%') : null)}
+        ${ratingKr ? `<span style="font-size:0.6rem;color:var(--text-muted);">의견 <b style="color:${(p.rating || '').includes('buy') ? '#22c55e' : (p.rating || '').includes('sell') ? '#f87171' : '#fbbf24'};">${h(ratingKr)}${p.analysts ? ` (${p.analysts})` : ''}</b></span>` : ''}
+      </div>` : '';
     const content = tab === '배당' ? divView() : tab === '옵션' ? optView() : earnView();
     const html = `<section class="section-wrap" id="earnings-section">
       <div class="section-label" style="color:#22d3ee;">💵 종목 상세 (실적·배당·옵션) <span style="font-size:0.62rem;color:var(--text-muted);">(분기 어닝·배당이력·옵션체인)</span>
@@ -8995,6 +9009,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="font-size:0.8rem;font-weight:800;color:var(--text-bright);">${h(s.name)} <span style="font-size:0.6rem;color:var(--text-muted);">${h(s.ticker)}</span></span>
           <div style="display:flex;gap:5px;">${subTabs}</div>
         </div>
+        ${profileStrip}
         ${content}
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(e.note || '')}</div>
       </div>

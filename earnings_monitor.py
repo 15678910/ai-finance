@@ -22,6 +22,7 @@ STOCKS = [
     ("마이크론", "MU", "$", "", 1e9, "B"),
     ("SK하이닉스", "000660.KS", "₩", "원", 1e12, "조"),
     ("삼성전자", "005930.KS", "₩", "원", 1e12, "조"),
+    ("세레브라스", "CBRS", "$", "", 1e9, "B"),
 ]
 
 # 큐레이션 보강 — yfinance 무료 피드가 지연으로 누락한 '검증된 공시' 분기를 채운다.
@@ -245,11 +246,35 @@ def main():
         avg_surprise = round(sum(q["surprise_pct"] for q in graded if q["surprise_pct"] is not None)
                              / max(1, len([q for q in graded if q["surprise_pct"] is not None])), 1) if graded else None
 
+        # ── 기업 프로필/재무 (재정 상황·분석 — 실적 이력 없는 신규주도 표시) ──
+        profile = {}
+        try:
+            info = t.info or {}
+            is_krw = tk.endswith(".KS")
+            mc = info.get("marketCap")
+            rt = info.get("totalRevenue")
+            profile = {
+                "fwd_pe": round(float(info["forwardPE"]), 1) if info.get("forwardPE") else None,
+                "trail_pe": round(float(info["trailingPE"]), 1) if info.get("trailingPE") else None,
+                "mcap": round(float(mc) / (1e12 if is_krw else 1e9), 2) if mc else None,
+                "mcap_unit": ("조" if is_krw else "$B"),
+                "rev_ttm": round(float(rt) / rev_div, 2) if rt else None,
+                "rev_growth_pct": round(float(info["revenueGrowth"]) * 100, 1) if info.get("revenueGrowth") is not None else None,
+                "margin_pct": round(float(info["profitMargins"]) * 100, 1) if info.get("profitMargins") is not None else None,
+                "target_price": round(float(info["targetMeanPrice"]), 2) if info.get("targetMeanPrice") else None,
+                "price": (round(float(info.get("currentPrice") or info.get("regularMarketPrice") or 0), 2) or None),
+                "rating": info.get("recommendationKey"),
+                "analysts": info.get("numberOfAnalystOpinions"),
+                "industry": info.get("industry"),
+            }
+        except Exception:
+            pass
+
         out_stocks.append({
             "name": nm, "ticker": tk, "currency": cur, "eps_unit": eps_unit,
             "rev_unit": rev_unit, "quarters": quarters,
             "beat_rate": beat_rate, "avg_surprise_pct": avg_surprise, "n_graded": len(graded),
-            "next_earnings": next_earn,
+            "next_earnings": next_earn, "profile": profile,
             "dividends": dividends, "ttm_div": ttm_div, "div_yield_pct": div_yield,
             "options": options,
         })
