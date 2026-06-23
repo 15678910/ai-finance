@@ -24,6 +24,15 @@ STOCKS = [
     ("삼성전자", "005930.KS", "₩", "원", 1e12, "조"),
 ]
 
+# 큐레이션 보강 — yfinance 무료 피드가 지연으로 누락한 '검증된 공시' 분기를 채운다.
+# rev_disp = 표시단위(KRW=조, USD=$B) 그대로. surprise_pct = 실제 EPS의 컨센 대비 %.
+# 출처: SK 1Q26 공시(매출 52.58조·영업이익 37.61조·EPS 57,228원·컨센 +52% 상회).
+CURATED_EARNINGS = {
+    "000660.KS": [
+        {"date": "2026-04-24", "eps_actual": 57228, "eps_est": 37650, "surprise_pct": 52.0, "rev_disp": 52.58},
+    ],
+}
+
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
@@ -100,6 +109,20 @@ def main():
                     "rev_actual": round(rev / rev_div, 2) if rev else None,
                     "upcoming": (ea is None and ee is not None),
                 })
+        # 큐레이션 보강 병합(검증 공시) — 같은 분기 있으면 덮어쓰고, 없으면 추가
+        for ce in CURATED_EARNINGS.get(tk, []):
+            ekey = ce["date"][:7]
+            qd = {"date": ce["date"], "eps_actual": ce.get("eps_actual"), "eps_est": ce.get("eps_est"),
+                  "surprise_pct": ce.get("surprise_pct"),
+                  "beat": (ce.get("eps_actual") is not None and ce.get("eps_est") is not None
+                           and ce["eps_actual"] >= ce["eps_est"]),
+                  "rev_actual": ce.get("rev_disp"), "upcoming": False, "curated": True}
+            ex = next((q for q in quarters if str(q.get("date", ""))[:7] == ekey), None)
+            if ex:
+                ex.update(qd)
+            else:
+                quarters.append(qd)
+
         quarters.sort(key=lambda q: q["date"], reverse=True)
         quarters = quarters[:8]
 
@@ -235,8 +258,8 @@ def main():
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "stocks": out_stocks,
-        "note": ("분기 EPS·매출 실제 vs 컨센서스(서프라이즈%). yfinance 무료 데이터 — "
-                 "최근 분기·매출 컨센서스는 지연/결측 가능. 비트=실제 EPS ≥ 예측. 통계용·투자자문 아님."),
+        "note": ("분기 EPS·매출 실제 vs 컨센서스(서프라이즈%). yfinance 무료 데이터 + 일부 분기는 검증 공시로 보강('공시' 표식). "
+                 "무료 피드 지연으로 최근 분기·매출 컨센서스는 결측 가능. 비트=실제 EPS ≥ 예측. 통계용·투자자문 아님."),
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

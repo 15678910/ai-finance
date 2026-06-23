@@ -8842,7 +8842,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ? (q.date ? (q.date_status === 'estimated' ? q.date + ' (추정)' : q.date) : '예정일 미정')
           : q.date;
         return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-          <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(dLab)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}</td>
+          <td style="padding:4px 6px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">${h(dLab)}${q.upcoming ? ' <span style="color:#fbbf24;font-size:0.5rem;">예정</span>' : ''}${q.curated ? ' <span style="color:#22d3ee;font-size:0.5rem;" title="검증 공시로 보강">공시</span>' : ''}</td>
           <td style="padding:4px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);font-weight:700;color:${q.eps_actual == null ? 'var(--text-muted)' : q.beat ? '#22c55e' : '#f87171'};">${fmtEps(q.eps_actual)}</td>
           <td style="padding:4px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${fmtEps(q.eps_est)}</td>
           <td style="padding:4px 6px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sc};">${q.surprise_pct == null ? '—' : (q.surprise_pct >= 0 ? '+' : '') + q.surprise_pct + '%'}</td>
