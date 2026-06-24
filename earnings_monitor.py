@@ -32,6 +32,10 @@ CURATED_EARNINGS = {
     "000660.KS": [
         {"date": "2026-04-24", "eps_actual": 57228, "eps_est": 37650, "surprise_pct": 52.0, "rev_disp": 52.58},
     ],
+    # 마이크론 FY3Q26(2026-06-24 마감후 공시): 매출 $41.46B(기록)·EPS $25.11 vs 컨센 $20.20(+24.3%)·Q4 가이던스 ~$50B
+    "MU": [
+        {"date": "2026-06-24", "eps_actual": 25.11, "eps_est": 20.20, "surprise_pct": 24.3, "rev_disp": 41.46},
+    ],
 }
 
 
