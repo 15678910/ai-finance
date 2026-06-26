@@ -8835,18 +8835,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const mkt = (label, val, chg, unit) => {
       const c = chg == null ? 'var(--text-muted)' : (chg >= 0 ? '#f87171' : '#22c55e'); // 상승=원/달러·DXY·VIX 악화
       return `<div style="flex:1;min-width:84px;text-align:center;padding:8px 6px;background:rgba(255,255,255,0.03);border-radius:6px;">
-        <div style="font-size:0.56rem;color:var(--text-muted);">${label}</div>
-        <div style="font-size:0.92rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);line-height:1.2;">${val != null ? val : '—'}${unit || ''}</div>
-        ${chg != null ? `<div style="font-size:0.52rem;color:${c};">${chg >= 0 ? '+' : ''}${chg}${unit === '%' ? '%p' : '%'}(5일)</div>` : ''}</div>`;
+        <div style="font-size:0.68rem;color:var(--text-muted);">${label}</div>
+        <div style="font-size:1.15rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);line-height:1.2;">${val != null ? val : '—'}${unit || ''}</div>
+        ${chg != null ? `<div style="font-size:0.62rem;color:${c};">${chg >= 0 ? '+' : ''}${chg}${unit === '%' ? '%p' : '%'}(5일)</div>` : ''}</div>`;
     };
     const fEok = d.foreign_5d_eok;
     const fTril = fEok != null ? (fEok / 10000).toFixed(1) : null;
     const indRows = d.indicators.map(it => {
-      const badge = it.measurable ? `<span style="color:#22c55e;font-size:0.5rem;">실측</span>` : `<span style="color:#94a3b8;font-size:0.5rem;">프록시/정성</span>`;
+      const badge = it.measurable ? `<span style="color:#22c55e;font-size:0.58rem;">실측</span>` : `<span style="color:#94a3b8;font-size:0.58rem;">프록시/정성</span>`;
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-        <td style="padding:5px 7px;font-size:0.64rem;color:var(--text-bright);white-space:nowrap;">${h(it.n)} ${badge}</td>
-        <td style="padding:5px 7px;font-size:0.6rem;color:var(--text);font-family:var(--font-mono);">${h(it.proxy)}</td>
-        <td style="padding:5px 7px;font-size:0.56rem;color:#fca5a5;line-height:1.4;">${h(it.warn)}</td>
+        <td style="padding:6px 7px;font-size:0.76rem;color:var(--text-bright);white-space:nowrap;">${h(it.n)} ${badge}</td>
+        <td style="padding:6px 7px;font-size:0.7rem;color:var(--text);font-family:var(--font-mono);">${h(it.proxy)}</td>
+        <td style="padding:6px 7px;font-size:0.66rem;color:#fca5a5;line-height:1.45;">${h(it.warn)}</td>
       </tr>`;
     }).join('');
     const safeguards = ((d.korea && d.korea.safeguards) || []).map(s => `<li style="margin:1px 0;">${h(s)}</li>`).join('');
@@ -8855,8 +8855,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(d.generated_at || '')}</span></div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding:8px 11px;border-radius:6px;background:${sc}14;border-left:3px solid ${sc};">
-          <span style="font-size:0.86rem;font-weight:800;color:${sc};">외환 유동성: ${h(d.status)}</span>
-          <span style="font-size:0.56rem;color:var(--text-muted);font-family:var(--font-mono);">스트레스 ${d.stress_score} · ${h((d.score_parts || []).join(' · '))}</span>
+          <span style="font-size:1.0rem;font-weight:800;color:${sc};">외환 유동성: ${h(d.status)}</span>
+          <span style="font-size:0.64rem;color:var(--text-muted);font-family:var(--font-mono);">스트레스 ${d.stress_score} · ${h((d.score_parts || []).join(' · '))}</span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
           ${mkt('USD/KRW', m.usdkrw, m.usdkrw_5d, '')}
@@ -8864,25 +8864,25 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${mkt('美 10Y', m.ust10y, m.ust10y_5d, '%')}
           ${mkt('VIX', m.vix, m.vix_5d, '')}
           <div style="flex:1;min-width:84px;text-align:center;padding:8px 6px;background:rgba(255,255,255,0.03);border-radius:6px;">
-            <div style="font-size:0.56rem;color:var(--text-muted);">외국인 5일</div>
-            <div style="font-size:0.92rem;font-weight:800;font-family:var(--font-mono);color:${fTril != null && fTril < 0 ? '#f87171' : '#22c55e'};line-height:1.2;">${fTril != null ? (fTril >= 0 ? '+' : '') + fTril + '조' : '—'}</div>
-            <div style="font-size:0.52rem;color:var(--text-muted);">반도체 수급</div></div>
+            <div style="font-size:0.68rem;color:var(--text-muted);">외국인 5일</div>
+            <div style="font-size:1.15rem;font-weight:800;font-family:var(--font-mono);color:${fTril != null && fTril < 0 ? '#f87171' : '#22c55e'};line-height:1.2;">${fTril != null ? (fTril >= 0 ? '+' : '') + fTril + '조' : '—'}</div>
+            <div style="font-size:0.62rem;color:var(--text-muted);">반도체 수급</div></div>
         </div>
         <div style="overflow-x:auto;margin-top:8px;"><table style="width:100%;border-collapse:collapse;min-width:440px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
-            <th style="padding:5px 7px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">6대 지표</th>
-            <th style="padding:5px 7px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">현재(프록시)</th>
-            <th style="padding:5px 7px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">위기 신호</th>
+            <th style="padding:6px 7px;text-align:left;font-size:0.64rem;color:var(--text-muted);font-weight:500;">6대 지표</th>
+            <th style="padding:6px 7px;text-align:left;font-size:0.64rem;color:var(--text-muted);font-weight:500;">현재(프록시)</th>
+            <th style="padding:6px 7px;text-align:left;font-size:0.64rem;color:var(--text-muted);font-weight:500;">위기 신호</th>
           </tr></thead><tbody>${indRows}</tbody></table></div>
         <details style="margin-top:11px;">
-          <summary style="cursor:pointer;font-size:0.66rem;color:#38bdf8;font-weight:700;">🇰🇷 한국 현황 & 안전판 · 논지 ▾</summary>
-          <div style="font-size:0.62rem;color:var(--text);line-height:1.6;margin-top:7px;background:rgba(56,189,248,0.06);border-left:2px solid #38bdf8;padding:8px 11px;border-radius:5px;">
+          <summary style="cursor:pointer;font-size:0.76rem;color:#38bdf8;font-weight:700;">🇰🇷 한국 현황 & 안전판 · 논지 ▾</summary>
+          <div style="font-size:0.7rem;color:var(--text);line-height:1.65;margin-top:7px;background:rgba(56,189,248,0.06);border-left:2px solid #38bdf8;padding:9px 12px;border-radius:5px;">
             <b>${h((d.korea && d.korea.liquidity) || '')}</b>
             <ul style="margin:6px 0 0;padding-left:16px;color:var(--text-muted);">${safeguards}</ul>
             <div style="margin-top:7px;color:var(--text-muted);">${h(d.thesis || '')}</div>
           </div>
         </details>
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
+        <div style="font-size:0.62rem;color:var(--text-muted);margin-top:9px;line-height:1.55;">※ ${h(d.note || '')}</div>
       </div>
     </section>`;
     const existing = document.getElementById('fx-swap-section');
