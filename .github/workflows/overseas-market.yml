@@ -161,6 +161,13 @@ jobs:
         run: |
           python ai_value_gap.py || echo "AI value gap had errors, continuing..."
 
+      # 외환위기 조기경보 (FX 스왑 그림자부채 6대 지표 — credit_spread·semi_decoupling 읽음 → 이후 실행)
+      - name: Run FX swap monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python fx_swap_monitor.py || echo "FX swap monitor had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:
