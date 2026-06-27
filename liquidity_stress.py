@@ -45,7 +45,7 @@ def _fallback(sid):
             with open(os.path.join(BASE_DIR, "docs", "credit_spread.json"), encoding="utf-8") as f:
                 cs = json.load(f)
             for rr in cs.get("results", []):
-                if "하이일드" in str(rr.get("name", "")) and rr.get("latest_value") is not None:
+                if (rr.get("id") == "BAMLH0A0HYM2" or "하이일드" in str(rr.get("name", ""))) and rr.get("latest_value") is not None:
                     return [{"date": rr.get("latest_date") or "", "value": float(rr["latest_value"])}]
     except Exception as e:
         print(f"    [fallback 실패] {sid}: {e}")
