@@ -32,6 +32,26 @@ INDICATORS = [
 ]
 
 
+def _fallback(sid):
+    """FRED 타임아웃 대비 대체 소스 — VIX→yfinance, HY OAS→credit_spread.json. 전부 실패해 파일 미갱신되는 사고 방지."""
+    try:
+        if sid == "VIXCLS":
+            import yfinance as yf
+            import warnings
+            warnings.filterwarnings("ignore")
+            s = yf.Ticker("^VIX").history(period="3mo")["Close"].dropna()
+            return [{"date": str(d.date()), "value": float(v)} for d, v in s.items()]
+        if sid == "BAMLH0A0HYM2":
+            with open(os.path.join(BASE_DIR, "docs", "credit_spread.json"), encoding="utf-8") as f:
+                cs = json.load(f)
+            for rr in cs.get("results", []):
+                if "하이일드" in str(rr.get("name", "")) and rr.get("latest_value") is not None:
+                    return [{"date": rr.get("latest_date") or "", "value": float(rr["latest_value"])}]
+    except Exception as e:
+        print(f"    [fallback 실패] {sid}: {e}")
+    return None
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -56,6 +76,10 @@ def main():
     reds = ambers = 0
     for sid, name, g, r, desc in INDICATORS:
         rows = fetch_fred_series(sid, since=since)
+        if not rows:
+            rows = _fallback(sid)            # FRED 타임아웃 대비 대체 소스
+            if rows:
+                print(f"  [대체] {sid} ← 대체 소스(yfinance/credit_spread) 사용")
         if not rows:
             print(f"  [SKIP] {sid} 데이터 없음")
             continue
