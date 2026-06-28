@@ -7614,7 +7614,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const l = item.label;
       if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트/.test(l)) {
         groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가/.test(l)) {
+      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트/.test(l)) {
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
         groups['미국·거시'].push(item);
@@ -8952,6 +8952,57 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
     scheduleNavRebuild();
   }
+
+  function renderAnalystReports(d) {
+    if (!d || !Array.isArray(d.stocks) || !d.stocks.length) return;
+    window.__arData = d;
+    if (window.__arSel == null) window.__arSel = 0;
+    const sel = Math.min(window.__arSel, d.stocks.length - 1);
+    const s = d.stocks[sel];
+    const fmt = n => n == null ? '—' : Math.round(n).toLocaleString();
+    const opCol = o => o === '매수' ? '#22c55e' : o === '매도' ? '#f87171' : o === '중립' ? '#fbbf24' : 'var(--text-muted)';
+    const tabs = d.stocks.map((st, i) => `<button onclick="window.__arSel=${i};window.__renderAnalystReports(window.__arData)" style="padding:5px 13px;border-radius:20px;font-size:0.72rem;cursor:pointer;font-weight:${i === sel ? 700 : 400};background:${i === sel ? 'rgba(96,165,250,0.2)' : 'transparent'};color:${i === sel ? '#60a5fa' : 'var(--text-muted)'};border:1px solid ${i === sel ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.15)'};">${h(st.name)}</button>`).join(' ');
+    const opChips = Object.entries(s.opinion_counts || {}).map(([k, v]) => `<span style="font-size:0.6rem;color:${opCol(k)};">${h(k)} ${v}</span>`).join(' · ');
+    const rows = (s.reports || []).map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <td style="padding:5px 7px;font-size:0.66rem;font-family:var(--font-mono);color:var(--text-muted);white-space:nowrap;">${h(r.date)}</td>
+      <td style="padding:5px 7px;font-size:0.68rem;color:var(--text);white-space:nowrap;">${h(r.broker)}</td>
+      <td style="padding:5px 7px;text-align:right;font-size:0.68rem;font-family:var(--font-mono);color:var(--text-bright);">${r.target ? fmt(r.target) : '—'}</td>
+      <td style="padding:5px 7px;text-align:center;font-size:0.64rem;font-weight:700;color:${opCol(r.opinion)};">${h(r.opinion || '')}</td>
+      <td style="padding:5px 7px;font-size:0.66rem;color:var(--text);">${h(r.title)}</td>
+    </tr>`).join('');
+    const html = `<section class="section-wrap" id="analyst-reports-section">
+      <div class="section-label" style="color:#60a5fa;">📑 국내 증권사 리포트 <span style="font-size:0.62rem;color:var(--text-muted);">(목표주가·투자의견 — 네이버 금융 리서치)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${tabs}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+          <span style="font-size:0.62rem;color:var(--text-muted);">현재 <b style="color:var(--text);font-family:var(--font-mono);">${fmt(s.current_price)}</b></span>
+          <span style="font-size:0.72rem;font-weight:800;color:#60a5fa;">목표 컨센 <span style="font-family:var(--font-mono);">${fmt(s.consensus_target)}</span>원 ${s.upside_pct != null ? `<span style="color:${s.upside_pct >= 0 ? '#22c55e' : '#f87171'};font-size:0.66rem;">(${s.upside_pct >= 0 ? '+' : ''}${s.upside_pct}%)</span>` : ''}</span>
+          <span style="font-size:0.62rem;color:var(--text-muted);">의견: ${opChips || '—'} <span style="opacity:0.6;">(${s.n_reports}건)</span></span>
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:440px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">작성일</th>
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">증권사</th>
+            <th style="padding:5px 7px;text-align:right;font-size:0.56rem;color:var(--text-muted);font-weight:500;">목표가</th>
+            <th style="padding:5px 7px;text-align:center;font-size:0.56rem;color:var(--text-muted);font-weight:500;">의견</th>
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">제목</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('analyst-reports-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('earnings-section') || document.getElementById('ai-valuegap-section') || document.getElementById('sk-cycle-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderAnalystReports = renderAnalystReports;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11036,6 +11087,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./earnings.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(e => { if (e) renderEarnings(e); });
+      // Load Analyst Reports (국내 증권사 리포트 — 목표주가·투자의견)
+      fetch('./analyst_reports.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderAnalystReports(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
