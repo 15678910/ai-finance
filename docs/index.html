@@ -6765,6 +6765,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function mountTvWidget(containerId, idx) {
     const el = document.getElementById(containerId);
     if (!el || !window.TradingView || !window.TradingView.widget) return;
+    el.__tvCfg = idx;            // 활성 탭 설정(리사이즈 재마운트용)
+    el.__tvW = el.clientWidth;   // 마운트 시점 폭 기록 — 폭 변화 감지 기준
     el.innerHTML = '';
     try {
       new TradingView.widget({
@@ -6784,12 +6786,38 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     } catch (e) { /* tv.js 미준비 */ }
   }
 
+  // 컨테이너 폭이 바뀌면 활성 위젯을 재마운트 → autosize가 새 폭으로 재측정(우측 여백 방지)
+  function attachTvAutofit(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el || el.__tvFit || !window.ResizeObserver) return;
+    el.__tvFit = true;
+    let t;
+    new ResizeObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (el.__tvCfg && Math.abs(el.clientWidth - (el.__tvW || 0)) > 24) {
+          mountTvWidget(containerId, el.__tvCfg);   // 폭 변화 시에만 재마운트(자체 재마운트는 폭 불변 → 루프 없음)
+        }
+      }, 300);
+    }).observe(el);
+  }
+
   // tv.js 로드 후 기본 탭 위젯 마운트
   function initTvWidgets() {
     const go = () => {
       const g = window.__tvGroups || {};
-      if (g.sox && document.getElementById('tv-sox-container')) mountTvWidget('tv-sox-container', g.sox[0]);
-      if (g.idx && document.getElementById('tv-idx-container')) mountTvWidget('tv-idx-container', g.idx[0]);
+      ['tv-sox-container', 'tv-idx-container'].forEach((cid, k) => {
+        const tabs = k === 0 ? g.sox : g.idx;
+        if (tabs && document.getElementById(cid)) {
+          mountTvWidget(cid, tabs[0]);
+          attachTvAutofit(cid);
+          // 초기 레이아웃이 덜 잡혀 좁게 측정된 경우 대비 — 0.7초 뒤 폭 확정되면 1회 재맞춤
+          setTimeout(() => {
+            const el = document.getElementById(cid);
+            if (el && el.__tvCfg && Math.abs(el.clientWidth - (el.__tvW || 0)) > 24) mountTvWidget(cid, el.__tvCfg);
+          }, 700);
+        }
+      });
     };
     if (window.TradingView && window.TradingView.widget) { go(); return; }
     let s = document.getElementById('tvjs-loader');
