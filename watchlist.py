@@ -122,8 +122,11 @@ def main():
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "market_status": market_status,
         "event": {
-            "title": "대통령 'AI 3대 메가프로젝트' 발표",
-            "when": "2026-06-29 14:00 KST",
+            "title": "대통령 '대도약 3대 메가프로젝트' 발표 (반도체·피지컬AI·데이터센터)",
+            "when": "2026-06-29 14:00 KST · 발표 완료",
+            "scale": "향후 10년 최대 2,000조원 투자",
+            "regions": "반도체=호남(제2 클러스터, 삼성·SK 참여) · AI데이터센터=충청·강원 · 피지컬AI벨트=영남",
+            "support": "전력·용수·부지 공급 + 인허가 단축 + 전기요금 체계 개편 + 청와대 직할 담당관",
             "themes": ["반도체 메가프로젝트", "피지컬 AI·로봇", "GW급 AI 데이터센터"],
         },
         "themes": out_themes,
