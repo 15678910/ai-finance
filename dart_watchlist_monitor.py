@@ -122,6 +122,8 @@ def main():
             if not KW.search(rnm):
                 continue
             rcept = (d.get("rcept_no") or "").strip()
+            if not re.fullmatch(r"\d{14}", rcept):   # DART 접수번호=14자리 숫자. 변조·결측값이 URL/JSON에 들어가는 것 차단.
+                continue
             found.append({
                 "stock_code": sc, "name": name_of.get(sc, corp_name),
                 "report_nm": rnm, "rcept_dt": (d.get("rcept_dt") or "").strip(),
