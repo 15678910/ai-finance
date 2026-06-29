@@ -7644,7 +7644,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const l = item.label;
       if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트/.test(l)) {
         groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목/.test(l)) {
+      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시/.test(l)) {
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
         groups['미국·거시'].push(item);
@@ -9089,6 +9089,45 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderWatchlist = renderWatchlist;
+
+  // 📢 관심종목 DART 수주·투자 공시 (실제 계약·시설투자 추적)
+  function renderDartDisclosures(d) {
+    if (!d || !Array.isArray(d.disclosures)) return;
+    const tagCol = nm => /공급계약|단일판매|수주/.test(nm) ? '#22c55e'
+      : /시설투자|증설|취득|착공|투자/.test(nm) ? '#60a5fa' : 'var(--text-muted)';
+    const rows = d.disclosures.map(x => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <td style="padding:5px 7px;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-muted);white-space:nowrap;">${h(x.rcept_dt || '')}</td>
+      <td style="padding:5px 7px;font-size:0.7rem;color:var(--text-bright);font-weight:600;white-space:nowrap;">${h(x.name || '')}</td>
+      <td style="padding:5px 7px;font-size:0.66rem;"><a href="${h(x.url || '#')}" target="_blank" rel="noopener" style="color:${tagCol(x.report_nm || '')};text-decoration:none;">${h(x.report_nm || '')} ↗</a></td>
+    </tr>`).join('');
+    const body = d.disclosures.length
+      ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:380px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">접수일</th>
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">종목</th>
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">공시명 (클릭→DART 원문)</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>`
+      : `<div style="font-size:0.7rem;color:var(--text-muted);padding:10px 4px;">최근 ${''}관심종목 수주·투자 공시가 아직 없습니다. 신규 공급계약·시설투자 공시가 뜨면 여기에 표시되고 텔레그램으로 알립니다.</div>`;
+    const html = `<section class="section-wrap" id="dart-disclosures-section">
+      <div class="section-label" style="color:#34d399;">📢 관심종목 수주·투자 공시 <span style="font-size:0.62rem;color:var(--text-muted);">(DART — 단일판매·공급계약·시설투자)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신 ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:13px 16px;">
+        ${body}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('dart-disclosures-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('watchlist-section') || document.getElementById('analyst-reports-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderDartDisclosures = renderDartDisclosures;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11181,6 +11220,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./watchlist.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderWatchlist(d); });
+      // Load DART Disclosures (관심종목 수주·투자 공시)
+      fetch('./dart_disclosures.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderDartDisclosures(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

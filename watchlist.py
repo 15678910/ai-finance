@@ -41,6 +41,22 @@ THEMES = [
 ]
 
 
+# 플랫 종목 리스트(상장 종목만, 코드 검증 완료) — 다른 모듈 재사용용. SK·삼성 우선.
+def _flat_listed():
+    out = []
+    for _, _, subs in THEMES:
+        for _, lst in subs:
+            for name, code in lst:
+                if code:
+                    out.append((name, code))
+    head = [(n, c) for n, c in out if c in ("000660", "005930")]
+    rest = [(n, c) for n, c in out if c not in ("000660", "005930")]
+    return head + rest
+
+
+WATCHLIST_STOCKS = _flat_listed()   # [(종목명, 코드), ...] 24종목(LS전선 비상장 제외)
+
+
 def fetch_quotes(codes):
     """네이버 실시간 폴링 API 배치 조회 → {code: dict}."""
     url = "https://polling.finance.naver.com/api/realtime/domestic/stock/" + ",".join(codes)

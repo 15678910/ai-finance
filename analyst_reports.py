@@ -22,8 +22,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "analyst_reports.json")
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
-STOCKS = [("SK하이닉스", "000660"), ("삼성전자", "005930")]
-MAX_REPORTS = 10   # 종목별 상세 조회 상한(워크플로 속도)
+# 관심종목 25개 전체(상장 24) — 대통령 3대 메가프로젝트 수혜 바스켓. SK·삼성 우선.
+try:
+    from watchlist import WATCHLIST_STOCKS
+    _head = [("SK하이닉스", "000660"), ("삼성전자", "005930")]
+    _rest = [(n, c) for n, c in WATCHLIST_STOCKS if c not in ("000660", "005930")]
+    STOCKS = _head + _rest
+except Exception:
+    STOCKS = [("SK하이닉스", "000660"), ("삼성전자", "005930")]
+MAX_REPORTS = 6    # 종목별 상세 조회 상한(25종목으로 늘어 속도 고려 — 대형주 외 소형주는 리포트 적음)
 
 
 def _fetch(url):
@@ -124,6 +131,15 @@ def main():
 
     for name, code in STOCKS:
         reports = fetch_reports(code)
+        price = _price(code)
+
+        # 파싱 오류 가드: 현재가 대비 비현실적 목표가(0.3~4배 밖)는 오인식으로 보고 제거.
+        #   예) 신성이엔지 '목표 2,250'(현재 18,990) — 목표가 아닌 다른 숫자를 잡은 케이스.
+        if price:
+            for r in reports:
+                if r["target"] and not (0.3 * price <= r["target"] <= 4.0 * price):
+                    r["target"] = None
+
         targets = [r["target"] for r in reports if r["target"]]
         consensus = round(sum(targets) / len(targets)) if targets else None
         from collections import Counter
@@ -145,7 +161,6 @@ def main():
             if r["target"]:
                 prev_targets[f"{code}:{r['broker']}"] = r["target"]
 
-        price = _price(code)
         upside = round((consensus / price - 1) * 100, 1) if (consensus and price) else None
         out_stocks.append({
             "name": name, "code": code, "consensus_target": consensus,
