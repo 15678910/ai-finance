@@ -40,6 +40,13 @@ jobs:
         run: |
           python investor_flow_intraday.py
 
+      # 관심종목 바스켓 실시간 시세 (대통령 AI 메가프로젝트 수혜 테마 — 장중 갱신)
+      - name: Run watchlist monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python watchlist.py || echo "Watchlist had errors, continuing..."
+
       - name: Commit results
         if: always()
         run: |

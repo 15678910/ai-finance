@@ -7644,7 +7644,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const l = item.label;
       if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트/.test(l)) {
         groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트/.test(l)) {
+      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목/.test(l)) {
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
         groups['미국·거시'].push(item);
@@ -9033,6 +9033,61 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderAnalystReports = renderAnalystReports;
+
+  // ⭐ 내 관심종목 — 대통령 'AI 메가프로젝트' 발표 수혜 테마 바스켓(실시간 시세)
+  function renderWatchlist(d) {
+    if (!d || !Array.isArray(d.themes) || !d.themes.length) return;
+    const pc = v => v == null ? 'var(--text-muted)' : (v >= 0 ? '#4ade80' : '#f87171');
+    const sg = v => (v != null && v >= 0 ? '+' : '');
+    const fmtP = n => n == null ? '—' : Math.round(n).toLocaleString();
+    const mkStock = s => {
+      if (s.listed === false) {
+        return `<div title="${h(s.note || '')}" style="padding:6px 9px;border-radius:7px;background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.15);min-width:74px;">
+          <div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">${h(s.name)}</div>
+          <div style="font-size:0.55rem;color:var(--text-muted);">비상장</div></div>`;
+      }
+      const cp = s.change_pct;
+      return `<a href="https://finance.naver.com/item/main.naver?code=${s.code}" target="_blank" rel="noopener" style="text-decoration:none;display:block;padding:6px 9px;border-radius:7px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${pc(cp)};min-width:84px;">
+        <div style="font-size:0.7rem;color:var(--text);font-weight:600;white-space:nowrap;">${h(s.name)}</div>
+        <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-bright);">${fmtP(s.price)}</div>
+        <div style="font-family:var(--font-mono);font-size:0.66rem;color:${pc(cp)};font-weight:700;">${cp == null ? '—' : sg(cp) + cp.toFixed(2) + '%'}</div>
+      </a>`;
+    };
+    const themes = d.themes.map(t => {
+      const subs = (t.subs || []).map(sb => `
+        <div style="margin-bottom:8px;">
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.03em;">${h(sb.sub)}</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;">${(sb.stocks || []).map(mkStock).join('')}</div>
+        </div>`).join('');
+      return `<div class="glass-card" style="padding:13px 15px;margin-bottom:11px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:0.86rem;font-weight:800;color:var(--text-bright);">${t.emoji || ''} ${h(t.theme)}</div>
+          <div style="font-size:0.78rem;font-weight:800;color:${pc(t.avg_change_pct)};font-family:var(--font-mono);">평균 ${t.avg_change_pct == null ? '—' : sg(t.avg_change_pct) + t.avg_change_pct + '%'}</div>
+        </div>${subs}</div>`;
+    }).join('');
+    const ev = d.event || {};
+    const statusTxt = d.market_status === 'OPEN' ? '🟢 장중' : (/CLOSE/.test(d.market_status || '') ? '🔴 장마감' : (d.market_status || ''));
+    const html = `<section class="section-wrap" id="watchlist-section">
+      <div class="section-label" style="color:#fbbf24;">⭐ 내 관심종목 <span style="font-size:0.62rem;color:var(--text-muted);">(${h(ev.title || '')} 수혜 바스켓)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">${statusTxt} · 갱신 ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:11px 14px;margin-bottom:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.22);">
+        <div style="font-size:0.7rem;color:var(--text);line-height:1.5;">📢 <b>${h(ev.title || '')}</b> — ${h(ev.when || '')} 예정. 발표 예측 수혜 3대 테마를 실시간 시세로 추적합니다. <span style="color:var(--text-muted);font-size:0.6rem;">(종목 클릭 → 네이버 금융)</span></div>
+      </div>
+      ${themes}
+      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;line-height:1.5;">※ ${h(d.note || '')}</div>
+    </section>`;
+    const existing = document.getElementById('watchlist-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('analyst-reports-section') || document.getElementById('earnings-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderWatchlist = renderWatchlist;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11121,6 +11176,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./analyst_reports.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderAnalystReports(d); });
+      // Load Watchlist (관심종목 — 대통령 AI 메가프로젝트 수혜 바스켓)
+      fetch('./watchlist.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderWatchlist(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

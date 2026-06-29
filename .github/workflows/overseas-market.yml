@@ -177,6 +177,13 @@ jobs:
         run: |
           python analyst_reports.py || echo "Analyst reports had errors, continuing..."
 
+      # 관심종목 바스켓 실시간 시세 (대통령 AI 메가프로젝트 수혜 — 장외/개장전 갱신)
+      - name: Run watchlist monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python watchlist.py || echo "Watchlist had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:
