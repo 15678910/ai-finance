@@ -10819,7 +10819,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     const vertChart = `<div class="glass-card anim-item" style="padding:14px 18px;overflow-x:auto;">
       <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">
-        20대 주요 품목별 수출액(억달러) · 증감률 · 아래→위: 수출규모
+        주요 ${(td.products||[]).length}대 품목별 수출액(억달러) · 증감률 · 아래→위: 수출규모
       </div>
       <svg viewBox="0 0 ${totalW} ${SVG_H}" width="${totalW}" height="${SVG_H}"
            style="display:block;min-width:${totalW}px;">
@@ -10843,7 +10843,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ${kpis}
       ${vertChart}
       <div style="font-size:0.62rem;color:var(--text-muted);margin-top:6px;text-align:right;">
-        🚨 시뮬레이션·분석용. 투자 결정 금지. 자료: 산업통상자원부
+        🚨 시뮬레이션·분석용. 투자 결정 금지. 자료: ${h(td.source || '관세청 무역통계 OpenAPI')}
       </div>
     </section>`;
 
