@@ -10769,12 +10769,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const totalW = ML + sorted.length * (BAR_W + GAP) - GAP + MR;
     const SVG_H = MT + CH + MB;
 
-    // Y축 그리드
-    const yTicks = [0, 5, 10, 15, 20, 25, 30, 35, 40];
-    const yScl = (v) => CH - (v / maxExport) * CH;
+    // Y축 그리드 — 최대값에 맞춰 눈금 동적 생성(고정 0~40억이면 큰 값에서 라벨이 뭉쳐 안 보임)
+    const niceStep = (rng) => {
+      const raw = (rng || 1) / 5;
+      const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+      const n = raw / pow;
+      return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow;
+    };
+    const yStep = niceStep(maxExport);
+    const axisMax = Math.max(yStep, Math.ceil(maxExport / yStep) * yStep);
+    const yTicks = [];
+    for (let v = 0; v <= axisMax + 0.001; v += yStep) yTicks.push(Math.round(v));
+    const yScl = (v) => CH - (v / axisMax) * CH;
 
     let gridSvg = yTicks
-      .filter(v => v <= maxExport + 2)
       .map(v => {
         const y = MT + yScl(v);
         return `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${totalW - MR}" y2="${y.toFixed(1)}"
@@ -10785,7 +10793,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     let barsSvg = sorted.map((p, i) => {
       const x    = ML + i * (BAR_W + GAP);
-      const bH   = Math.max(3, (p.export_bn / maxExport) * CH);
+      const bH   = Math.max(3, (p.export_bn / axisMax) * CH);
       const by   = MT + CH - bH;
       const cc   = p.yoy_pct >= 0 ? (p.yoy_pct >= 20 ? '#22c55e' : '#4ade80') : (p.yoy_pct >= -5 ? '#fbbf24' : '#f87171');
       const opacity = p.yoy_pct >= 0 ? 0.88 : 0.65;
