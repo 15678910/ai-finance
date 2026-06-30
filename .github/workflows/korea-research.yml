@@ -1,0 +1,75 @@
+name: Korea Research (Analyst + Calendar)
+
+# overseas-market에서 분리: 무겁고(증권사 리포트 24종목 상세) 느리게 변하는(실적/배당 일정)
+# 작업을 별도로 — overseas-market의 5분 타임아웃 초과(데이터 정체) 방지.
+on:
+  schedule:
+    - cron: '0 23,7,11 * * *'   # UTC 23:00,07:00,11:00 = KST 08:00,16:00,20:00
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas requests
+
+      # 국내 증권사 리포트 (네이버 리서치 — 목표주가·투자의견 + 신규/목표가변경 텔레그램)
+      - name: Run analyst reports
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python analyst_reports.py || echo "Analyst reports had errors, continuing..."
+
+      # 주요 일정 캘린더 (삼성·SK 등 실적발표일·배당락일 — yfinance 자동)
+      - name: Run earnings calendar
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python earnings_calendar.py || echo "Earnings calendar had errors, continuing..."
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add docs/ 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update Korea research (analyst + calendar) [automated]"
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+          echo "Push failed after 5 attempts"
+          exit 1

@@ -22,7 +22,7 @@ permissions:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15   # 스텝 증가로 5분 초과 → 취소되던 문제(데이터 16h 정체) 수정. 무거운 analyst·earnings는 korea-research.yml로 분리.
 
     env:
       TZ: Asia/Seoul
@@ -168,14 +168,8 @@ jobs:
         run: |
           python fx_swap_monitor.py || echo "FX swap monitor had errors, continuing..."
 
-      # 국내 증권사 리포트 (네이버 리서치 — 목표주가·투자의견 + 신규/목표가변경 텔레그램)
-      - name: Run analyst reports
-        env:
-          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
-          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
-          PYTHONIOENCODING: utf-8
-        run: |
-          python analyst_reports.py || echo "Analyst reports had errors, continuing..."
+      # (국내 증권사 리포트 analyst_reports.py·주요일정 earnings_calendar.py는
+      #  무겁고 느리게 변해 korea-research.yml로 분리 — 5분 타임아웃 초과 방지)
 
       # 관심종목 바스켓 실시간 시세 (대통령 AI 메가프로젝트 수혜 — 장외/개장전 갱신)
       - name: Run watchlist monitor
@@ -190,13 +184,6 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: |
           python vkospi_monitor.py || echo "VKOSPI monitor had errors, continuing..."
-
-      # 주요 일정 캘린더 (삼성·SK 등 실적발표일·배당락일 — yfinance 자동)
-      - name: Run earnings calendar
-        env:
-          PYTHONIOENCODING: utf-8
-        run: |
-          python earnings_calendar.py || echo "Earnings calendar had errors, continuing..."
 
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
