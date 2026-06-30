@@ -26,17 +26,18 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "trade_data.json")
 ENDPOINT = "http://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList"
 
-# 주요 HS 4단위 품목 (이름, HS부호, 카테고리) — renderTradeData catColor 키와 일치
+# 주요 품목 (이름, [HS 4단위 코드들], 카테고리) — 산업부 MTI 분류 근사 위해 관련 HS 합산.
+#   예) 반도체=집적회로(8542)+개별소자(8541), 컴퓨터=본체(8471)+SSD(8523, 한국 수출 대부분).
 HS_ITEMS = [
-    ("반도체", "8542", "IT/전자"),
-    ("컴퓨터", "8471", "IT/전자"),
-    ("무선통신기기", "8517", "IT/전자"),
-    ("승용차", "8703", "자동차"),
-    ("자동차부품", "8708", "자동차"),
-    ("석유제품", "2710", "에너지/화학"),
-    ("선박", "8901", "조선"),
+    ("반도체", ["8541", "8542"], "IT/전자"),
+    ("컴퓨터·SSD", ["8471", "8523"], "IT/전자"),
+    ("무선통신기기", ["8517"], "IT/전자"),
+    ("승용차", ["8703"], "자동차"),
+    ("자동차부품", ["8708"], "자동차"),
+    ("석유제품", ["2710"], "에너지/화학"),
+    ("선박", ["8901", "8904", "8905"], "조선"),
 ]
-HS_ITEMS_MAP = {name: hs for name, hs, _ in HS_ITEMS}
+HS_ITEMS_MAP = {name: "+".join(codes) for name, codes, _ in HS_ITEMS}
 
 # 관세청 nitemtrade expDlr은 '달러' 단위(raw 샘플 확인: 185527777403=$185.5B) → 억달러=값/1e8.
 SCALE_TO_EOK = 1 / 1e8
@@ -183,13 +184,23 @@ def main():
                 s["bal"] = (s["exp"] - s["imp"])
         return totals or sums
 
+    def _merge(a, b):
+        for ym, v in b.items():
+            t = a.setdefault(ym, {"exp": 0.0, "imp": 0.0, "bal": 0.0})
+            t["exp"] += v.get("exp") or 0
+            t["imp"] += v.get("imp") or 0
+            t["bal"] = t["exp"] - t["imp"]
+        return a
+
     products, prod_series, raw_logged = [], {}, False
-    for name, hs, cat in HS_ITEMS:
-        rows = fetch(api_key, hs, w1s, end) + fetch(api_key, hs, w2s, w2e)
-        if rows and not raw_logged:
-            print(f"  [raw 샘플 {name}({hs})] rows={len(rows)} 첫행={rows[0]}")  # 필드·단위 보정용
-            raw_logged = True
-        bm = _by_month(rows)
+    for name, codes, cat in HS_ITEMS:
+        bm = {}
+        for hs in codes:                                  # 품목 = 여러 HS 합산
+            rows = fetch(api_key, hs, w1s, end) + fetch(api_key, hs, w2s, w2e)
+            if rows and not raw_logged:
+                print(f"  [raw 샘플 {name}({hs})] rows={len(rows)} 첫행={rows[0]}")
+                raw_logged = True
+            _merge(bm, _by_month(rows))
         prod_series[name] = bm
         latest_m = max(bm) if bm else None
         if not latest_m:
