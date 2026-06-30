@@ -1,0 +1,60 @@
+name: Trade Data (Customs OpenAPI)
+
+# 수출입 동향 자동 갱신 — 관세청 무역통계 OpenAPI.
+# 발표 주기: 월간(익월 1일경) + 10일·20일 잠정치 → 월초/중순 며칠만 실행하면 충분.
+on:
+  schedule:
+    - cron: '0 1 1,2,3,11,21 * *'   # UTC 01:00 = KST 10:00, 매월 1·2·3·11·21일
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run trade monitor (Customs OpenAPI)
+        env:
+          CUSTOMS_API_KEY: ${{ secrets.CUSTOMS_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python trade_monitor.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add docs/ 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update trade data (Customs OpenAPI) [automated]"
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+          echo "Push failed after 5 attempts"
+          exit 1
