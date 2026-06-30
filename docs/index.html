@@ -2527,6 +2527,11 @@ body {
       window.__tvGroups = window.__tvGroups || {};
       window.__tvGroups.idx = tvIndices;
 
+      // ── KOSPI 변동성지수(VKOSPI) 실시간 카드 (한국판 VIX) ──
+      // TradingView 무료 임베드는 KRX 지수(VKOSPI) 차단 → CNBC 데이터로 수치+스파크라인 카드
+      html += `<div class="glass-card anim-item" id="vkospi-card" style="margin-top:14px;padding:14px 16px;">
+        <div style="font-size:0.7rem;color:var(--text-muted);">😱 KOSPI 변동성지수 (VKOSPI) — 데이터 로딩…</div></div>`;
+
       // 알림 메시지
       if (om.alerts && om.alerts.length > 0) {
         html += `<div style="margin-top:14px;background:rgba(239,68,68,0.05);border-left:3px solid var(--red,#f87171);padding:10px 14px;border-radius:4px;">
@@ -9129,6 +9134,60 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderDartDisclosures = renderDartDisclosures;
 
+  // 😱 KOSPI 변동성지수(VKOSPI) 카드 — 값·일변화·상태밴드·스파크라인·52주 위치
+  function renderVkospi(d) {
+    if (d) { window.__vkospiData = d; window.__vkospiTry = 0; }
+    d = window.__vkospiData;
+    const card = document.getElementById('vkospi-card');
+    if (!card) {   // 해외시장 패널이 아직 안 그려진 레이스 → 캐시값으로 잠시 후 재시도(최대 ~12초)
+      if ((window.__vkospiTry = (window.__vkospiTry || 0) + 1) <= 20) setTimeout(() => renderVkospi(), 600);
+      return;
+    }
+    if (!d || d.value == null) return;
+    const up = (d.change || 0) >= 0;
+    // 공포지수: 상승=위험↑(빨강), 하락=진정(초록)
+    const chgCol = up ? '#f87171' : '#4ade80';
+    const ser = Array.isArray(d.series) ? d.series.map(s => s.close) : [];
+    let spark = '';
+    if (ser.length > 1) {
+      const w = 280, hh = 44, mn = Math.min(...ser), mx = Math.max(...ser), rg = (mx - mn) || 1;
+      const pts = ser.map((v, i) => `${(i / (ser.length - 1) * w).toFixed(1)},${(hh - (v - mn) / rg * (hh - 4) - 2).toFixed(1)}`).join(' ');
+      spark = `<svg width="100%" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" style="display:block;">
+        <polyline points="${pts}" fill="none" stroke="${d.color || '#fbbf24'}" stroke-width="1.6"/>
+      </svg>`;
+    }
+    // 52주 위치 게이지
+    let rangeBar = '';
+    if (d.lo_52w != null && d.hi_52w != null && d.hi_52w > d.lo_52w) {
+      const pos = Math.max(0, Math.min(100, (d.value - d.lo_52w) / (d.hi_52w - d.lo_52w) * 100));
+      rangeBar = `<div style="margin-top:8px;">
+        <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(90deg,#4ade80,#fbbf24,#fb923c,#f87171);">
+          <div style="position:absolute;top:-3px;left:${pos.toFixed(1)}%;width:3px;height:12px;background:#fff;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 4px rgba(0,0,0,0.6);"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.54rem;color:var(--text-muted);margin-top:3px;">
+          <span>52주 저 ${d.lo_52w}</span><span>52주 고 ${d.hi_52w}</span></div>
+      </div>`;
+    }
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-muted);">😱 KOSPI 변동성지수 (VKOSPI) <span style="font-size:0.58rem;opacity:0.7;">한국판 VIX</span></div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:3px;">
+            <span style="font-size:1.7rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${d.value}</span>
+            <span style="font-size:0.8rem;font-weight:700;font-family:var(--font-mono);color:${chgCol};">${up ? '▲' : '▼'} ${Math.abs(d.change).toFixed(2)} (${up ? '+' : ''}${d.change_pct}%)</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.92rem;font-weight:800;color:${d.color};">${h(d.status || '')}</div>
+          <div style="font-size:0.56rem;color:var(--text-muted);max-width:170px;">${h(d.desc || '')}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">${spark}</div>
+      ${rangeBar}
+      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">기준일 ${h(d.asof || '')} · 갱신 ${h(d.generated_at || '')} · ${h(d.note || '')}</div>`;
+  }
+  window.__renderVkospi = renderVkospi;
+
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
     window.__earnData = e;
@@ -11224,6 +11283,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./dart_disclosures.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderDartDisclosures(d); });
+      // Load VKOSPI (KOSPI 변동성지수 — 한국판 VIX)
+      fetch('./vkospi.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderVkospi(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

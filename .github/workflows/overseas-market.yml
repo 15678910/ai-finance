@@ -184,6 +184,13 @@ jobs:
         run: |
           python watchlist.py || echo "Watchlist had errors, continuing..."
 
+      # KOSPI 변동성지수 VKOSPI (한국판 VIX — CNBC .KSVKOSPI)
+      - name: Run VKOSPI monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python vkospi_monitor.py || echo "VKOSPI monitor had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:
