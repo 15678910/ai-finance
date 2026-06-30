@@ -154,8 +154,10 @@ def main():
 
     now = datetime.now(KST)
     end = _yymm(now)
-    strt = _yymm(_months_back(now, 14))   # 최신월 + 전년동월 YoY 확보
-    print(f"[관세청] {strt}~{end} 조회 (품목별)")
+    # API 제약: 조회기간 1년 이내 → 두 창으로 분할(최근 12개월 + 전년동월 YoY 기준).
+    w1s = _yymm(_months_back(now, 11))                                  # 최근 12개월
+    w2s, w2e = _yymm(_months_back(now, 13)), _yymm(_months_back(now, 12))  # 전년동월 부근
+    print(f"[관세청] {w1s}~{end} + {w2s}~{w2e} 조회 (품목별)")
 
     def _month(d):
         return (d.get("year") or d.get("yymm") or d.get("baseYymm") or "").replace("-", "").replace(".", "")[:6]
@@ -183,7 +185,7 @@ def main():
 
     products, prod_series, raw_logged = [], {}, False
     for name, hs, cat in HS_ITEMS:
-        rows = fetch(api_key, hs, strt, end)
+        rows = fetch(api_key, hs, w1s, end) + fetch(api_key, hs, w2s, w2e)
         if rows and not raw_logged:
             print(f"  [raw 샘플 {name}({hs})] rows={len(rows)} 첫행={rows[0]}")  # 필드·단위 보정용
             raw_logged = True
