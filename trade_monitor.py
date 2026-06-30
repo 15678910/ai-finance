@@ -36,6 +36,7 @@ HS_ITEMS = [
     ("석유제품", "2710", "에너지/화학"),
     ("선박", "8901", "조선"),
 ]
+HS_ITEMS_MAP = {name: hs for name, hs, _ in HS_ITEMS}
 
 # 관세청 금액 단위 보정: nitemtrade expDlr이 '천달러'면 억달러=값/1e5, '달러'면 값/1e8.
 # 첫 실행 raw 로그를 보고 둘 중 하나로 확정.
@@ -152,72 +153,70 @@ def main():
         return 0
 
     now = datetime.now(KST)
-    # 최근 14개월 범위 (최신월 + 전년동월 YoY 확보)
     end = _yymm(now)
-    strt = _yymm(_months_back(now, 14))
-    print(f"[관세청] {strt}~{end} 조회")
+    strt = _yymm(_months_back(now, 14))   # 최신월 + 전년동월 YoY 확보
+    print(f"[관세청] {strt}~{end} 조회 (품목별)")
 
-    # ── 1) 총계(전체) — hsSgn 공란 ──
-    total_rows = fetch(api_key, "", strt, end)
-    # 월별 총계만 추출(statKor에 '총계' 또는 hsCd 공란)
-    by_month = {}   # 'YYYYMM' -> {exp, imp, bal}
-    for d in total_rows:
-        nm = d.get("statKor", "") or d.get("statCd", "")
-        hs = d.get("hsCd", "") or d.get("hsSgn", "")
-        if "총계" in nm or hs in ("", "00", "0", "총계"):
-            ym = (d.get("year") or d.get("yymm") or "").replace("-", "").replace(".", "")[:6]
-            if ym:
-                by_month[ym] = {
-                    "exp": _num(d, "expDlr", "expUsd", "expAmt"),
-                    "imp": _num(d, "impDlr", "impUsd", "impAmt"),
-                    "bal": _num(d, "balPayments", "balPaymentsDlr", "trBal"),
-                }
-    if total_rows[:1]:
-        print(f"  [raw 총계 샘플] {total_rows[0]}")   # 단위·필드 보정용
+    def _month(d):
+        return (d.get("year") or d.get("yymm") or d.get("baseYymm") or "").replace("-", "").replace(".", "")[:6]
 
-    months = sorted(by_month.keys())
-    if not months:
-        print("[ERROR] 총계 데이터 없음 — 필드명/엔드포인트 보정 필요(위 raw 샘플 참조). 기존 파일 보존.")
-        return 1
-    latest = months[-1]
-    cur = by_month[latest]
-    prev_year = by_month.get(str(int(latest) - 100))   # 전년 동월
-    exp_eok = _eok(cur["exp"])
-    yoy = round((cur["exp"] / prev_year["exp"] - 1) * 100, 1) if (prev_year and prev_year.get("exp")) else None
+    def _is_total_row(d):
+        return any("총계" in str(v) for v in d.values())
 
-    # 월별 추이(최근 6개월 총수출 억달러)
-    monthly_trend = [{"month": f"{m[:4]}-{m[4:6]}", "total": _eok(by_month[m]["exp"])}
-                     for m in months[-6:] if by_month[m].get("exp") is not None]
+    def _by_month(rows):
+        """HS 한 품목의 월별 {exp,imp,bal} — 총계행 우선, 없으면 국가별 합산."""
+        totals, sums = {}, {}
+        for d in rows:
+            ym = _month(d)
+            if not ym:
+                continue
+            e, i, b = (_num(d, "expDlr", "expUsd", "expAmt", "expDlrAmt"),
+                       _num(d, "impDlr", "impUsd", "impAmt", "impDlrAmt"),
+                       _num(d, "balPayments", "balPaymentsDlr", "trBal"))
+            if _is_total_row(d):
+                totals[ym] = {"exp": e, "imp": i, "bal": b}
+            else:
+                s = sums.setdefault(ym, {"exp": 0.0, "imp": 0.0, "bal": 0.0})
+                s["exp"] += e or 0; s["imp"] += i or 0
+                s["bal"] = (s["exp"] - s["imp"])
+        return totals or sums
 
-    # ── 2) 품목별 수출·YoY ──
-    products = []
+    products, prod_series, raw_logged = [], {}, False
     for name, hs, cat in HS_ITEMS:
         rows = fetch(api_key, hs, strt, end)
-        pm = {}
-        for d in rows:
-            ym = (d.get("year") or d.get("yymm") or "").replace("-", "").replace(".", "")[:6]
-            if ym:
-                pm[ym] = _num(d, "expDlr", "expUsd", "expAmt")
-        cur_v = pm.get(latest)
-        py_v = pm.get(str(int(latest) - 100))
-        if cur_v is None:
+        if rows and not raw_logged:
+            print(f"  [raw 샘플 {name}({hs})] rows={len(rows)} 첫행={rows[0]}")  # 필드·단위 보정용
+            raw_logged = True
+        bm = _by_month(rows)
+        prod_series[name] = bm
+        latest_m = max(bm) if bm else None
+        if not latest_m:
             continue
-        p_yoy = round((cur_v / py_v - 1) * 100, 1) if py_v else None
+        cur_v = bm[latest_m]["exp"]
+        py_v = bm.get(str(int(latest_m) - 100), {}).get("exp")
+        p_yoy = round((cur_v / py_v - 1) * 100, 1) if (cur_v and py_v) else None
         products.append({"name": name, "export_bn": _eok(cur_v), "yoy_pct": p_yoy,
-                         "record": None, "category": cat})
-    products.sort(key=lambda p: (p["export_bn"] or 0), reverse=True)
+                         "record": None, "category": cat, "_m": latest_m})
 
-    # 자동 인사이트(숫자 기반 — 분석 날조 금지)
-    insights = []
-    if products:
-        top = products[0]
-        insights.append(f"{top['name']} 수출 {top['export_bn']}억달러"
-                        + (f" ({top['yoy_pct']:+.1f}% YoY)" if top['yoy_pct'] is not None else "") + " — 최대 품목")
-    if exp_eok is not None:
-        insights.append(f"{latest[:4]}년 {int(latest[4:6])}월 총수출 {exp_eok}억달러"
-                        + (f" ({yoy:+.1f}% YoY)" if yoy is not None else ""))
-    if cur.get("bal") is not None:
-        insights.append(f"무역수지 {_eok(cur['bal'])}억달러")
+    if not products:
+        print("[ERROR] 품목 데이터 없음 — 위 raw 샘플로 필드명 보정 필요. 기존 파일 보존.")
+        return 1
+
+    latest = max(p["_m"] for p in products)
+    products.sort(key=lambda p: (p["export_bn"] or 0), reverse=True)
+    for p in products:
+        p.pop("_m", None)
+
+    # 헤드라인 = 반도체(HS8542) 우선, 없으면 최대 품목
+    head = next((p for p in products if p["name"] == "반도체"), products[0])
+    head_bm = prod_series.get(head["name"], {})
+    sorted_m = sorted(head_bm.keys())
+    monthly_trend = [{"month": f"{m[:4]}-{m[4:6]}", "total": _eok(head_bm[m]["exp"])}
+                     for m in sorted_m[-6:] if head_bm[m].get("exp") is not None]
+
+    insights = [f"{p['name']} 수출 {p['export_bn']}억달러"
+                + (f" ({p['yoy_pct']:+.1f}% YoY)" if p['yoy_pct'] is not None else "")
+                for p in products[:3]]
 
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
@@ -225,20 +224,21 @@ def main():
         "period": f"{latest[:4]}-{latest[4:6]}",
         "period_label": f"{latest[:4]}년 {int(latest[4:6])}월",
         "summary": {
-            "total_export_bn": exp_eok,
-            "total_export_str": f"{exp_eok:,.1f}억달러" if exp_eok is not None else "—",
-            "yoy_pct": yoy, "mom_pct": None, "record": None,
-            "note": "관세청 OpenAPI 자동 수집(HS 4단위 기준 — MOTIE 품목분류와 다를 수 있음).",
+            "headline_label": f"{head['name']} 수출 (HS {dict(HS_ITEMS_MAP).get(head['name'],'')})",
+            "total_export_bn": head["export_bn"],
+            "total_export_str": f"{head['export_bn']:,.1f}억달러" if head["export_bn"] is not None else "—",
+            "yoy_pct": head["yoy_pct"], "mom_pct": None, "record": None,
+            "note": "관세청 OpenAPI 자동 수집(HS 4단위 기준 — 산업부 MTI 품목분류·국가총계와 다를 수 있음).",
         },
         "products": products,
         "insights": insights,
-        "risk_factors": ["HS 4단위 기준이라 산업부 MTI 품목분류와 수치가 다를 수 있음 — 추세 참고용."],
+        "risk_factors": ["HS 4단위 기준 — 산업부 MTI 품목분류와 수치 상이. 국가 총수출 총계는 별도 API 필요(추세 참고용)."],
         "monthly_trend": monthly_trend,
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
-    print(f"[OK] {OUTPUT_FILE}  {out['period_label']} 총수출 {exp_eok}억달러 · 품목 {len(products)}")
+    print(f"[OK] {OUTPUT_FILE}  {out['period_label']} · {head['name']} {head['export_bn']}억달러 · 품목 {len(products)}")
     return 0
 
 
