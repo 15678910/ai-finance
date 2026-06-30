@@ -19,7 +19,7 @@ KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "vkospi.json")
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-CHART_URL = "https://ts-api.cnbc.com/harmony/app/charts/6M.json?symbol=.KSVKOSPI"
+CHART_URL = "https://ts-api.cnbc.com/harmony/app/charts/1Y.json?symbol=.KSVKOSPI"
 
 
 def _band(v):
@@ -35,7 +35,8 @@ def _band(v):
     return "🔴 공포", "#f87171", "극단적 변동성 — 패닉·급락 동반 구간"
 
 
-def fetch_series():
+def fetch_bars():
+    """CNBC 일별 OHLC 바 → [{t, open, high, low, close}]."""
     req = urllib.request.Request(CHART_URL, headers={"User-Agent": UA})
     raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "replace")
     bars = json.loads(raw).get("barData", {}).get("priceBars", [])
@@ -45,10 +46,28 @@ def fetch_series():
             tt = str(b.get("tradeTime", ""))[:8]            # YYYYMMDD
             close = float(b.get("close"))
             if tt and close > 0:
-                out.append({"t": f"{tt[:4]}-{tt[4:6]}-{tt[6:8]}", "close": round(close, 2)})
+                out.append({
+                    "t": f"{tt[:4]}-{tt[4:6]}-{tt[6:8]}", "close": round(close, 2),
+                    "open": _f(b.get("open")), "high": _f(b.get("high")), "low": _f(b.get("low")),
+                })
         except (TypeError, ValueError):
             continue
     return out
+
+
+def _f(v):
+    try:
+        return round(float(v), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ret(series, n):
+    """n거래일 전 종가 대비 수익률(%) — Investing의 기간수익률."""
+    if len(series) > n:
+        base = series[-1 - n]["close"]
+        return round((series[-1]["close"] / base - 1) * 100, 2) if base else None
+    return None
 
 
 def main():
@@ -60,7 +79,7 @@ def main():
 
     now = datetime.now(KST)
     try:
-        series = fetch_series()
+        series = fetch_bars()
     except Exception as e:
         print(f"[ERROR] VKOSPI 수집 실패: {e}")
         return 1
@@ -75,17 +94,22 @@ def main():
     chg_pct = round(chg / prev["close"] * 100, 2) if prev["close"] else None
     status, color, desc = _band(value)
 
-    recent = series[-60:]                 # 스파크라인용 최근 60거래일
     win = [s["close"] for s in series[-252:]]   # 최근 52주
     hi52, lo52 = (round(max(win), 2), round(min(win), 2)) if win else (None, None)
+
+    # 기간수익률(Investing 스타일): 1일·1주·1달·3달·6달·1년
+    returns = {"d1": _ret(series, 1), "w1": _ret(series, 5), "m1": _ret(series, 21),
+               "m3": _ret(series, 63), "m6": _ret(series, 126), "y1": _ret(series, 252)}
 
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "asof": latest["t"],
         "value": value, "change": chg, "change_pct": chg_pct,
         "status": status, "color": color, "desc": desc,
+        "today_high": latest.get("high"), "today_low": latest.get("low"), "today_open": latest.get("open"),
         "hi_52w": hi52, "lo_52w": lo52,
-        "series": recent,
+        "returns": returns,
+        "series": [{"t": s["t"], "close": s["close"]} for s in series[-252:]],   # 1년 면적차트용
         "note": ("VKOSPI=코스피200 변동성지수(한국판 VIX). 출처 CNBC(.KSVKOSPI). "
                  "밴드: <20 안정·20~30 보통·30~40 경계·>40 공포. 정보용·투자자문 아님."),
     }

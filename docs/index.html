@@ -9148,19 +9148,39 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // 공포지수: 상승=위험↑(빨강), 하락=진정(초록)
     const chgCol = up ? '#f87171' : '#4ade80';
     const ser = Array.isArray(d.series) ? d.series.map(s => s.close) : [];
-    let spark = '';
+    // 면적차트(1년)
+    let chart = '';
     if (ser.length > 1) {
-      const w = 280, hh = 44, mn = Math.min(...ser), mx = Math.max(...ser), rg = (mx - mn) || 1;
-      const pts = ser.map((v, i) => `${(i / (ser.length - 1) * w).toFixed(1)},${(hh - (v - mn) / rg * (hh - 4) - 2).toFixed(1)}`).join(' ');
-      spark = `<svg width="100%" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" style="display:block;">
-        <polyline points="${pts}" fill="none" stroke="${d.color || '#fbbf24'}" stroke-width="1.6"/>
+      const w = 560, hh = 90, mn = Math.min(...ser), mx = Math.max(...ser), rg = (mx - mn) || 1;
+      const line = ser.map((v, i) => `${(i / (ser.length - 1) * w).toFixed(1)},${(hh - (v - mn) / rg * (hh - 8) - 4).toFixed(1)}`).join(' ');
+      chart = `<svg width="100%" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" style="display:block;">
+        <polygon points="0,${hh} ${line} ${w},${hh}" fill="${d.color || '#fbbf24'}" fill-opacity="0.12"/>
+        <polyline points="${line}" fill="none" stroke="${d.color || '#fbbf24'}" stroke-width="1.4"/>
       </svg>`;
+    }
+    // 기간수익률(Investing 스타일) — 변동성↑=빨강, ↓=초록
+    const R = d.returns || {};
+    const rcol = v => v == null ? 'var(--text-muted)' : (v >= 0 ? '#f87171' : '#4ade80');
+    const rcell = (lab, v) => `<div style="text-align:center;flex:1;min-width:42px;">
+      <div style="font-size:0.5rem;color:var(--text-muted);">${lab}</div>
+      <div style="font-size:0.64rem;font-weight:700;font-family:var(--font-mono);color:${rcol(v)};">${v == null ? '—' : (v >= 0 ? '+' : '') + v + '%'}</div></div>`;
+    const returnsRow = `<div style="display:flex;gap:2px;margin-top:9px;padding:7px 3px;background:rgba(255,255,255,0.03);border-radius:7px;">
+      ${rcell('1일', R.d1)}${rcell('1주', R.w1)}${rcell('1달', R.m1)}${rcell('3달', R.m3)}${rcell('6달', R.m6)}${rcell('1년', R.y1)}</div>`;
+    // 금일 변동(저~고)
+    let todayBar = '';
+    if (d.today_low != null && d.today_high != null && d.today_high > d.today_low) {
+      const pos = Math.max(0, Math.min(100, (d.value - d.today_low) / (d.today_high - d.today_low) * 100));
+      todayBar = `<div style="margin-top:9px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-bottom:2px;"><span>금일 ${d.today_low}</span><span>금일 ${d.today_high}</span></div>
+        <div style="position:relative;height:5px;border-radius:3px;background:rgba(255,255,255,0.12);">
+          <div style="position:absolute;top:-2px;left:${pos.toFixed(1)}%;width:3px;height:9px;background:${d.color};border-radius:2px;transform:translateX(-50%);"></div>
+        </div></div>`;
     }
     // 52주 위치 게이지
     let rangeBar = '';
     if (d.lo_52w != null && d.hi_52w != null && d.hi_52w > d.lo_52w) {
       const pos = Math.max(0, Math.min(100, (d.value - d.lo_52w) / (d.hi_52w - d.lo_52w) * 100));
-      rangeBar = `<div style="margin-top:8px;">
+      rangeBar = `<div style="margin-top:7px;">
         <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(90deg,#4ade80,#fbbf24,#fb923c,#f87171);">
           <div style="position:absolute;top:-3px;left:${pos.toFixed(1)}%;width:3px;height:12px;background:#fff;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 4px rgba(0,0,0,0.6);"></div>
         </div>
@@ -9182,7 +9202,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <div style="font-size:0.56rem;color:var(--text-muted);max-width:170px;">${h(d.desc || '')}</div>
         </div>
       </div>
-      <div style="margin-top:10px;">${spark}</div>
+      <div style="margin-top:10px;">${chart}</div>
+      ${returnsRow}
+      ${todayBar}
       ${rangeBar}
       <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">기준일 ${h(d.asof || '')} · 갱신 ${h(d.generated_at || '')} · ${h(d.note || '')}</div>`;
   }
