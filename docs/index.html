@@ -7647,7 +7647,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     };
     items.forEach(item => {
       const l = item.label;
-      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트/.test(l)) {
+      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정/.test(l)) {
         groups['시장 개요'].push(item);
       } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시/.test(l)) {
         groups['한국 시장'].push(item);
@@ -9209,6 +9209,40 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">기준일 ${h(d.asof || '')} · 갱신 ${h(d.generated_at || '')} · ${h(d.note || '')}</div>`;
   }
   window.__renderVkospi = renderVkospi;
+
+  // 📌 주요 일정 — 핵심종목 실적발표일·배당락일 D-day (yfinance 자동)
+  function renderKeyEvents(d) {
+    if (!d || !Array.isArray(d.events) || !d.events.length) return;
+    const ddCol = n => n <= 3 ? '#f87171' : n <= 7 ? '#fb923c' : n <= 30 ? '#22d3ee' : 'var(--text-muted)';
+    const tyCol = t => t === '실적발표' ? '#60a5fa' : '#a78bfa';
+    const dlabel = n => n === 0 ? 'D-DAY' : n > 0 ? 'D-' + n : 'D+' + (-n);
+    const rows = d.events.map(e => `<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="min-width:52px;text-align:center;font-family:var(--font-mono);font-size:0.7rem;font-weight:800;color:${ddCol(e.dday)};">${dlabel(e.dday)}</span>
+      <span style="min-width:74px;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-muted);">${h(e.date)}</span>
+      <span style="flex:1;font-size:0.72rem;color:var(--text-bright);font-weight:600;">${h(e.name)}</span>
+      <span style="font-size:0.62rem;font-weight:700;color:${tyCol(e.type)};">${h(e.type)}</span>
+      ${e.estimated ? '<span style="font-size:0.52rem;color:var(--text-muted);border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:1px 4px;">추정</span>' : ''}
+    </div>`).join('');
+    const html = `<section class="section-wrap" id="key-events-section">
+      <div class="section-label" style="color:#fbbf24;">📌 주요 일정 <span style="font-size:0.62rem;color:var(--text-muted);">(핵심종목 실적발표·배당락 D-day — yfinance 자동)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신 ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:11px 15px;">
+        ${rows}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('key-events-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('watchlist-section') || document.getElementById('analyst-reports-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderKeyEvents = renderKeyEvents;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11309,6 +11343,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./vkospi.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderVkospi(d); });
+      // Load Key Events (핵심종목 실적·배당 D-day)
+      fetch('./key_events.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderKeyEvents(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

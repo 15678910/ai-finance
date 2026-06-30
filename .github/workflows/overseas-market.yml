@@ -191,6 +191,13 @@ jobs:
         run: |
           python vkospi_monitor.py || echo "VKOSPI monitor had errors, continuing..."
 
+      # 주요 일정 캘린더 (삼성·SK 등 실적발표일·배당락일 — yfinance 자동)
+      - name: Run earnings calendar
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python earnings_calendar.py || echo "Earnings calendar had errors, continuing..."
+
       # 아시아 반도체 섹터 당일 모니터 (TSMC·일본 반도체 동조 — 디커플링 선행동력)
       - name: Run Asia semiconductor monitor
         env:
