@@ -82,7 +82,12 @@ def _try(url):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         raw = urllib.request.urlopen(req, timeout=20).read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
-        return None, f"HTTP {e.code}"
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "replace")[:200]   # data.go.kr은 401 본문에 사유 명시
+        except Exception:
+            pass
+        return None, f"HTTP {e.code} · {body}"
     except Exception as e:
         return None, str(e)[:80]
     up = raw.upper()
