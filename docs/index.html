@@ -9214,7 +9214,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderKeyEvents(d) {
     if (!d || !Array.isArray(d.events) || !d.events.length) return;
     const ddCol = n => n <= 3 ? '#f87171' : n <= 7 ? '#fb923c' : n <= 30 ? '#22d3ee' : 'var(--text-muted)';
-    const tyCol = t => t === '실적발표' ? '#60a5fa' : '#a78bfa';
+    const tyCol = t => /잠정/.test(t) ? '#34d399' : /실적/.test(t) ? '#60a5fa' : '#a78bfa';
     const dlabel = n => n === 0 ? 'D-DAY' : n > 0 ? 'D-' + n : 'D+' + (-n);
     const rows = d.events.map(e => `<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.05);">
       <span style="min-width:52px;text-align:center;font-family:var(--font-mono);font-size:0.7rem;font-weight:800;color:${ddCol(e.dday)};">${dlabel(e.dday)}</span>

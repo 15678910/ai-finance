@@ -26,6 +26,14 @@ STOCKS = [
     ("효성중공업", "298040.KS"),
 ]
 
+# 잠정실적(가이던스) 오버레이 — yfinance는 '확정실적일'만 줘서 분기초 잠정실적을 놓침.
+#   한국 대형주는 분기말 약 7영업일 후 잠정실적(영업이익 가이던스)을 먼저 공시.
+#   과거가 되면 분기(3개월) 주기로 자동 롤포워드(추정 플래그). (date_anchor는 최근 확정 1건)
+CURATED_PRELIM = [
+    # (이름, 티커, 기준 잠정실적일, 비고)
+    ("삼성전자", "005930.KS", "2026-07-07", "2분기 잠정실적(영업이익 가이던스) — 분기초 발표"),
+]
+
 
 def _add_months(d, months):
     m = d.month - 1 + months
@@ -85,13 +93,13 @@ def main():
             print(f"  [WARN] {name} calendar 실패: {e}")
             continue
 
-        # 실적발표일
+        # 실적발표일 — yfinance가 주는 건 '확정실적'(전체 실적). 잠정실적은 아래 오버레이로 보완.
         ed = _as_date(cal.get("Earnings Date"))
         if ed:
             d2, est = _roll_future(ed, today)
             eps = cal.get("Earnings Average")
             events.append({
-                "name": name, "ticker": tk, "type": "실적발표",
+                "name": name, "ticker": tk, "type": "확정실적",
                 "date": d2.isoformat(), "dday": (d2 - today).days, "estimated": est,
                 "eps_est": round(eps) if isinstance(eps, (int, float)) else None,
             })
@@ -105,6 +113,19 @@ def main():
                 "eps_est": None,
             })
         print(f"  {name}: 실적 {ed} · 배당락 {xd}")
+
+    # 잠정실적(가이던스) 오버레이 — 분기초 발표. 과거면 분기 주기로 자동 롤포워드.
+    for name, tk, anchor, memo in CURATED_PRELIM:
+        ad = _as_date(anchor)
+        if not ad:
+            continue
+        d2, est = _roll_future(ad, today)
+        events.append({
+            "name": name, "ticker": tk, "type": "잠정실적",
+            "date": d2.isoformat(), "dday": (d2 - today).days, "estimated": est,
+            "eps_est": None, "memo": memo,
+        })
+        print(f"  {name}: 잠정실적 {ad} → {d2}{' (추정)' if est else ''}")
 
     # 다가오는 순(D-day 오름차순). 과거(굴림 실패분)도 포함하되 뒤로.
     events.sort(key=lambda e: e["dday"])
