@@ -38,9 +38,8 @@ HS_ITEMS = [
 ]
 HS_ITEMS_MAP = {name: hs for name, hs, _ in HS_ITEMS}
 
-# 관세청 금액 단위 보정: nitemtrade expDlr이 '천달러'면 억달러=값/1e5, '달러'면 값/1e8.
-# 첫 실행 raw 로그를 보고 둘 중 하나로 확정.
-SCALE_TO_EOK = 1 / 1e5   # 기본: 천달러 가정
+# 관세청 nitemtrade expDlr은 '달러' 단위(raw 샘플 확인: 185527777403=$185.5B) → 억달러=값/1e8.
+SCALE_TO_EOK = 1 / 1e8
 
 
 def _key():
@@ -156,11 +155,12 @@ def main():
     end = _yymm(now)
     # API 제약: 조회기간 1년 이내 → 두 창으로 분할(최근 12개월 + 전년동월 YoY 기준).
     w1s = _yymm(_months_back(now, 11))                                  # 최근 12개월
-    w2s, w2e = _yymm(_months_back(now, 13)), _yymm(_months_back(now, 12))  # 전년동월 부근
+    w2s, w2e = _yymm(_months_back(now, 14)), _yymm(_months_back(now, 12))  # 전년동월 부근(최신월 -12 커버)
     print(f"[관세청] {w1s}~{end} + {w2s}~{w2e} 조회 (품목별)")
 
     def _month(d):
-        return (d.get("year") or d.get("yymm") or d.get("baseYymm") or "").replace("-", "").replace(".", "")[:6]
+        v = (d.get("year") or d.get("yymm") or d.get("baseYymm") or "").replace("-", "").replace(".", "")[:6]
+        return v if (v.isdigit() and len(v) == 6) else ""   # year='총계'(전기간 합계) 행 제외
 
     def _is_total_row(d):
         return any("총계" in str(v) for v in d.values())
