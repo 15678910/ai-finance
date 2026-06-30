@@ -72,7 +72,8 @@ _KEY_RAW = {"mode": None}   # None=미정, True=raw 부착, False=quote
 
 def _build_url(api_key, base, raw):
     qs = urllib.parse.urlencode(base)
-    sk = api_key if raw else urllib.parse.quote(api_key, safe="")
+    # 정규화: Encoding 키든 Decoding 키든 unquote→quote로 올바른 인코딩 형태 통일.
+    sk = api_key if raw else urllib.parse.quote(urllib.parse.unquote(api_key), safe="")
     return f"{ENDPOINT}?serviceKey={sk}&{qs}"
 
 
@@ -108,7 +109,8 @@ def _try(url):
 def fetch(api_key, hs, strt, end):
     """getNitemtradeList 호출 → [item dict]. hs=''면 총계 포함 전체. 키 인코딩 자동 감지."""
     base = {"strtYymm": strt, "endYymm": end, "cntyCd": "", "hsSgn": hs}
-    modes = [_KEY_RAW["mode"]] if _KEY_RAW["mode"] is not None else [True, False]
+    # 정규화(False) 먼저, 안 되면 raw(True) 폴백
+    modes = [_KEY_RAW["mode"]] if _KEY_RAW["mode"] is not None else [False, True]
     last = ""
     for raw in modes:
         items, err = _try(_build_url(api_key, base, raw))
