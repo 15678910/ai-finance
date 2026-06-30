@@ -17,6 +17,7 @@ import os
 import sys
 import urllib.request
 import urllib.parse
+import urllib.error
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 
@@ -64,30 +65,56 @@ def _months_back(base, n):
     return datetime(y, m, 1, tzinfo=KST)
 
 
-def fetch(api_key, hs, strt, end):
-    """getNitemtradeList 호출 → [item dict]. hs=''면 총계 포함 전체."""
-    params = {"serviceKey": api_key, "strtYymm": strt, "endYymm": end,
-              "cntyCd": "", "hsSgn": hs}
-    url = ENDPOINT + "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    raw = urllib.request.urlopen(req, timeout=20).read().decode("utf-8", "replace")
+# 서비스키 인코딩 자동 감지: Encoding 키는 raw 그대로, Decoding 키는 quote 필요.
+#   어느 쪽을 등록했는지 모르므로 첫 호출에서 둘 다 시도 후 성공 방식을 고정.
+_KEY_RAW = {"mode": None}   # None=미정, True=raw 부착, False=quote
+
+
+def _build_url(api_key, base, raw):
+    qs = urllib.parse.urlencode(base)
+    sk = api_key if raw else urllib.parse.quote(api_key, safe="")
+    return f"{ENDPOINT}?serviceKey={sk}&{qs}"
+
+
+def _try(url):
+    """(items, errmsg). data.go.kr 인증오류 본문도 실패로 처리."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        raw = urllib.request.urlopen(req, timeout=20).read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        return None, f"HTTP {e.code}"
+    except Exception as e:
+        return None, str(e)[:80]
+    up = raw.upper()
+    if any(k in up for k in ("NOT_REGISTERED", "SERVICE_KEY_IS", "LIMITED_NUMBER", "DEADLINE", "ACCESS_DENIED")):
+        auth = raw[:140]
+        return None, f"인증오류 {auth}"
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
-        print(f"    [파싱 실패] hs={hs} resp head: {raw[:160]}")
-        return []
-    # 결과 코드 확인
-    rc = root.findtext(".//resultCode") or root.findtext(".//header/resultCode")
+        return None, f"파싱실패 {raw[:120]}"
+    rc = root.findtext(".//resultCode") or root.findtext(".//returnReasonCode")
     if rc not in (None, "00", "0"):
-        msg = root.findtext(".//resultMsg") or root.findtext(".//returnAuthMsg") or ""
-        print(f"    [API 오류] hs={hs} code={rc} msg={msg} head={raw[:120]}")
-        return []
-    out = []
-    for it in root.iter("item"):
-        d = {c.tag: (c.text or "").strip() for c in it}
-        if d:
-            out.append(d)
-    return out
+        return None, f"code={rc} {root.findtext('.//resultMsg') or root.findtext('.//returnAuthMsg') or raw[:100]}"
+    items = [{c.tag: (c.text or "").strip() for c in it} for it in root.iter("item")]
+    return items, None
+
+
+def fetch(api_key, hs, strt, end):
+    """getNitemtradeList 호출 → [item dict]. hs=''면 총계 포함 전체. 키 인코딩 자동 감지."""
+    base = {"strtYymm": strt, "endYymm": end, "cntyCd": "", "hsSgn": hs}
+    modes = [_KEY_RAW["mode"]] if _KEY_RAW["mode"] is not None else [True, False]
+    last = ""
+    for raw in modes:
+        items, err = _try(_build_url(api_key, base, raw))
+        if err is None:
+            if _KEY_RAW["mode"] is None:
+                _KEY_RAW["mode"] = raw
+                print(f"    [키 인코딩] {'raw(Encoding 키)' if raw else 'quote(Decoding 키)'} 사용")
+            return items or []
+        last = err
+    print(f"    [실패] hs={hs}: {last}")
+    return []
 
 
 def _num(d, *keys):
