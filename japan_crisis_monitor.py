@@ -405,6 +405,19 @@ def check_alerts(data: dict, state: dict) -> list:
         })
         mark_alert_sent(state, "usd_jpy_160")
 
+    # USD/JPY 일간 1.5%+ 급락(엔 급강세 반전) — 엔캐리 청산 '시작' 조기 의심 신호
+    #   (1주 -5%보다 빠름. 개별 트레이더의 '지금 이익 실현' 심리가 집단 청산으로 번지는 도화선)
+    yen_1d = usd_jpy.get("change_1d") or 0
+    if yen_1d <= -1.5 and not is_recent_alert(state, "yen_carry_unwind_1d", hours=8):
+        alerts.append({
+            "severity": "긴급",
+            "title": "엔 급강세 반전 — 엔캐리 청산 시작 의심",
+            "message": (f"🔴 USD/JPY 일간 {yen_1d:.2f}% 급락(엔 급강세 반전) · 캐리 압력 {carry['score']}/100. "
+                        f"엔캐리 청산 시작 가능성 — 한국 반도체·고베타주 리스크오프 급락 대비. "
+                        f"※ '엔 강세 + 위험자산(나스닥·SOX·반도체) 동반 매도'를 함께 확인."),
+        })
+        mark_alert_sent(state, "yen_carry_unwind_1d")
+
     # 엔화 1주 5% 이상 강세 (캐리 청산)
     if yen_1w < -5 and not is_recent_alert(state, "yen_strong", hours=12):
         alerts.append({
