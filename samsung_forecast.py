@@ -128,9 +128,19 @@ def main():
 
     def betas(win):
         F = np.array([r["fov"] for r in win])
+        C = np.array([r["c_ret"] for r in win])
         den = float(F @ F) or 1e-9
-        bC = float((F @ np.array([r["c_ret"] for r in win])) / den)
+        bC = float((F @ C) / den)
         bG = float((F @ np.array([r["g_ret"] for r in win])) / den)
+        # [v1.2] 디커플링 방향 보정: 창 내 선물↔종가 상관 r²이 낮으면 베타를 flat 쪽으로 수축.
+        try:
+            cc = np.corrcoef(F, C)[0, 1]
+            r2w = 0.0 if np.isnan(cc) else float(cc * cc)
+        except Exception:
+            r2w = 0.0
+        k = 0.25 + 0.75 * r2w
+        bC *= k
+        bG *= k
         uw = float(np.median([r["uw"] for r in win]))
         dw = float(np.median([r["dw"] for r in win]))
         return bC, bG, uw, dw
