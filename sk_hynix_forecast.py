@@ -25,6 +25,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "sk_hynix_forecast.json")
 CODE = "000660"  # SK하이닉스
 W = 25           # 워크포워드 윈도우
+BAND_MULT = 1.5  # [v1.1] 예측 밴드(고/저) 배수 — 중앙값 꼬리폭이 변동성 큰 날 종가를 못 담아
+                 #        범위적중 20% → PQI 자동진단 권고로 확대(1.0→1.5). 채점·예측 동일 적용.
 
 
 def naver_ohlc(code, days=120):
@@ -137,8 +139,8 @@ def main():
         base, fov = r["base"], r["fov"]
         p_open = base * (1 + bG * fov)
         p_close = base * (1 + bC * fov)
-        p_high = max(p_open, p_close) * (1 + uw)
-        p_low = min(p_open, p_close) * (1 + dw)
+        p_high = max(p_open, p_close) * (1 + uw * BAND_MULT)
+        p_low = min(p_open, p_close) * (1 + dw * BAND_MULT)
         actual = r["c"]
         err = (actual / p_close - 1) * 100
         entries.append({
@@ -171,8 +173,8 @@ def main():
         sig = (f_now / f0 - 1) if (f0 and f0 > 0) else 0.0
         op = last_close * (1 + b_gap * sig)
         cl = last_close * (1 + b_close * sig)
-        hi = max(op, cl) * (1 + up_wick)
-        lo = min(op, cl) * (1 + dn_wick)
+        hi = max(op, cl) * (1 + up_wick * BAND_MULT)
+        lo = min(op, cl) * (1 + dn_wick * BAND_MULT)
         return {
             "target_date": target_label, "status": status,
             "locked_at": now.strftime("%Y-%m-%d %H:%M KST"),

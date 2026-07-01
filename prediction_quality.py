@@ -24,8 +24,8 @@ DOCS = os.path.join(BASE_DIR, "docs")
 OUTPUT_FILE = os.path.join(DOCS, "prediction_quality.json")
 
 # 모델 로직을 바꿀 때마다 올린다 → 버전별 PQI가 기준표에 기록됨(변경 전/후 비교).
-MODEL_VERSION = "v1.0"
-VERSION_NOTE = "기준선(baseline) — 선물+회귀+앙상블, OHLC σ 1.0, 디커플링 미보정"
+MODEL_VERSION = "v1.1"
+VERSION_NOTE = "밴드 확대 — OHLC 예측 밴드 σ 1.0→1.5(SK·삼성). 범위적중·급오차 개선 목표"
 
 
 def _load(name):
