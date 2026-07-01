@@ -4,7 +4,8 @@ name: Trade Data (Customs OpenAPI)
 # 발표 주기: 월간(익월 1일경) + 10일·20일 잠정치 → 월초/중순 며칠만 실행하면 충분.
 on:
   schedule:
-    - cron: '0 1 1,2,3,11,21 * *'   # UTC 01:00 = KST 10:00, 매월 1·2·3·11·21일
+    # 관세청 API는 MOTIE보다 늦게(월 중순경) 전월치 반영 → 중순에 촘촘히 조회해 즉시 포착.
+    - cron: '0 1 1,2,3,11,12,13,14,15,16,17,21 * *'   # UTC 01:00 = KST 10:00
   workflow_dispatch:
 
 concurrency:
