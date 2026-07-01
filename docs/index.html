@@ -9136,7 +9136,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // 😱 KOSPI 변동성지수(VKOSPI) 카드 — 값·일변화·상태밴드·스파크라인·52주 위치
   function renderVkospi(d) {
-    if (d) { window.__vkospiData = d; window.__vkospiTry = 0; }
+    if (d) { window.__vkospiData = d; window.__vkospiTry = 0; if (!d.live) window.__vkospiDailyData = d; }
     d = window.__vkospiData;
     const card = document.getElementById('vkospi-card');
     if (!card) {   // 해외시장 패널이 아직 안 그려진 레이스 → 캐시값으로 잠시 후 재시도(최대 ~12초)
@@ -9195,6 +9195,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <div style="display:flex;align-items:baseline;gap:8px;margin-top:3px;">
             <span style="font-size:1.7rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${d.value}</span>
             <span style="font-size:0.8rem;font-weight:700;font-family:var(--font-mono);color:${chgCol};">${up ? '▲' : '▼'} ${Math.abs(d.change).toFixed(2)} (${up ? '+' : ''}${d.change_pct}%)</span>
+            ${d.live ? '<span style="font-size:0.56rem;font-weight:800;color:#f87171;background:rgba(248,113,113,0.16);border-radius:5px;padding:2px 6px;">🔴 LIVE</span>' : ''}
           </div>
         </div>
         <div style="text-align:right;">
@@ -9206,9 +9207,61 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ${returnsRow}
       ${todayBar}
       ${rangeBar}
-      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">기준일 ${h(d.asof || '')} · 갱신 ${h(d.generated_at || '')} · ${h(d.note || '')}</div>`;
+      <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">${d.live && d.asof_live ? '🔴 장중 ' + h(d.asof_live) + ' 기준(실시간)' : '기준일 ' + h(d.asof || '')} · 갱신 ${h(d.generated_at || '')} · ${h(d.note || '')}</div>`;
   }
   window.__renderVkospi = renderVkospi;
+
+  // VKOSPI 실시간 폴링 — 장중(KST 평일 09:00~15:40) CNBC 인트라데이(.KSVKOSPI, CORS 허용)를
+  // 브라우저가 직접 60초마다 조회 → 워크플로를 기다리지 않고 분단위 갱신. 장외엔 일별 종가 유지.
+  function _krxOpenNow() {
+    const n = new Date();
+    const k = new Date(n.getTime() + (n.getTimezoneOffset() + 540) * 60000);  // KST
+    const day = k.getDay(), hm = k.getHours() * 60 + k.getMinutes();
+    return day >= 1 && day <= 5 && hm >= 540 && hm <= 940;   // 09:00~15:40
+  }
+  function _vkPrevClose() {
+    const dd = window.__vkospiDailyData;
+    if (!dd) return null;
+    const today = new Date(new Date().getTime() + (new Date().getTimezoneOffset() + 540) * 60000)
+      .toISOString().slice(0, 10);
+    const ser = Array.isArray(dd.series) ? dd.series : [];
+    for (let i = ser.length - 1; i >= 0; i--) if (ser[i].t < today) return ser[i].close;  // 오늘 이전 마지막 종가
+    return dd.value;
+  }
+  async function _vkospiPoll() {
+    if (!_krxOpenNow()) return;
+    try {
+      const r = await fetch('https://ts-api.cnbc.com/harmony/app/charts/1D.json?symbol=.KSVKOSPI', { cache: 'no-store' });
+      const j = await r.json();
+      const bars = (((j || {}).barData) || {}).priceBars || [];
+      if (!bars.length) return;                       // 아직 인트라데이 바 없음
+      const live = parseFloat(bars[bars.length - 1].close);
+      const base = _vkPrevClose();
+      if (!(live > 0) || !window.__vkospiDailyData) return;
+      const chg = base ? +(live - base).toFixed(2) : 0;
+      const b = _vkBand(live);
+      const k = new Date(new Date().getTime() + (new Date().getTimezoneOffset() + 540) * 60000);
+      const hm = ('0' + k.getHours()).slice(-2) + ':' + ('0' + k.getMinutes()).slice(-2);
+      renderVkospi({
+        ...window.__vkospiDailyData, live: true, asof_live: hm,
+        value: +live.toFixed(2), change: chg,
+        change_pct: base ? +(chg / base * 100).toFixed(2) : null,
+        status: b.status, color: b.color, desc: b.desc,
+      });
+    } catch (e) { /* 네트워크/CORS 실패 시 일별 유지 */ }
+  }
+  function _vkBand(v) {
+    if (v < 20) return { status: '🟢 안정', color: '#4ade80', desc: '변동성 낮음 — 시장 평온' };
+    if (v < 30) return { status: '🟡 보통', color: '#fbbf24', desc: '통상 범위 — 경계 전 단계' };
+    if (v < 40) return { status: '🟠 경계', color: '#fb923c', desc: '변동성 확대 — 위험회피 심리' };
+    return { status: '🔴 공포', color: '#f87171', desc: '극단적 변동성 — 패닉·급락 동반 구간' };
+  }
+  function startVkospiLive() {
+    if (window.__vkospiLiveStarted) return;
+    window.__vkospiLiveStarted = true;
+    _vkospiPoll();
+    setInterval(_vkospiPoll, 60000);   // 60초
+  }
 
   // 📌 주요 일정 — 핵심종목 실적발표일·배당락일 D-day (yfinance 자동)
   function renderKeyEvents(d) {
@@ -11350,7 +11403,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // Load VKOSPI (KOSPI 변동성지수 — 한국판 VIX)
       fetch('./vkospi.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) renderVkospi(d); });
+        .then(d => { if (d) { renderVkospi(d); startVkospiLive(); } });
       // Load Key Events (핵심종목 실적·배당 D-day)
       fetch('./key_events.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
