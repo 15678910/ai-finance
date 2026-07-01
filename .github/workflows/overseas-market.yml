@@ -216,6 +216,15 @@ jobs:
         run: |
           python composite_signal.py || echo "Composite signal had errors, continuing..."
 
+      # 예측 평가지수(PQI) + 자동 진단·보완 권고 (prediction_log·forecast 채점 이후 실행)
+      - name: Run prediction quality
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python prediction_quality.py || echo "Prediction quality had errors, continuing..."
+
       # overseas_market.json을 data.json에 병합 (대시보드는 data.json을 읽음)
       # 이 단계가 없으면 시세는 수집돼도 화면·갱신시각이 멈춤
       - name: Regenerate dashboard data.json

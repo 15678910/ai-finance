@@ -7653,7 +7653,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측 적중|적중 기록|종합 예측 신호/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측 적중|적중 기록|종합 예측 신호|예측 평가지수/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -9292,6 +9292,79 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderCompositeSignal = renderCompositeSignal;
+
+  // 🎯 예측 평가지수(PQI) + 자동 진단·보완 권고 + 변경 전/후 기준표
+  function renderPredictionQuality(d) {
+    if (!d || d.pqi_overall == null) return;
+    const gc = d.grade_color === 'green' ? '#4ade80' : d.grade_color === 'amber' ? '#fbbf24' : d.grade_color === 'orange' ? '#fb923c' : '#f87171';
+    const tArrow = d.trend == null ? '' : (d.trend >= 0 ? '▲' : '▼');
+    const tCol = d.trend == null ? 'var(--text-muted)' : (d.trend >= 0 ? '#4ade80' : '#f87171');
+    const mbar = m => {
+      const w = Math.max(2, Math.min(100, m.pqi));
+      const c = m.pqi >= 58 ? '#4ade80' : m.pqi >= 48 ? '#fbbf24' : m.pqi >= 38 ? '#fb923c' : '#f87171';
+      return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+        <span style="min-width:80px;font-size:0.64rem;color:var(--text-muted);">${h(m.name)}</span>
+        <div style="flex:1;height:7px;background:rgba(255,255,255,0.06);border-radius:4px;"><div style="width:${w}%;height:7px;background:${c};border-radius:4px;"></div></div>
+        <span style="min-width:34px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);font-weight:700;color:${c};">${m.pqi}</span></div>`;
+    };
+    const pcol = p => p === 1 ? '#f87171' : p === 2 ? '#fb923c' : '#94a3b8';
+    const recs = (d.recommendations || []).map(r => `<div style="padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:0.56rem;font-weight:800;color:${pcol(r.priority)};border:1px solid ${pcol(r.priority)};border-radius:4px;padding:0 5px;">P${r.priority}</span>
+        <span style="font-size:0.52rem;font-weight:700;color:${r.auto_safe ? '#22d3ee' : '#a78bfa'};background:${r.auto_safe ? 'rgba(34,211,238,0.12)' : 'rgba(167,139,250,0.12)'};border-radius:4px;padding:1px 5px;">${r.auto_safe ? '⚙️ 자동가능' : '👤 검토'}</span>
+        <span style="font-size:0.68rem;color:var(--text-bright);font-weight:600;">${h(r.issue)}</span>
+      </div>
+      <div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;line-height:1.5;">원인: ${h(r.cause)}<br>→ 보완: <span style="color:var(--text);">${h(r.fix)}</span></div>
+    </div>`).join('');
+    const vt = (d.version_table || []).map((v, i, arr) => {
+      const dl = i > 0 ? +(v.avg_pqi - arr[i - 1].avg_pqi).toFixed(1) : null;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:4px 7px;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-bright);font-weight:700;">${h(v.version)}</td>
+        <td style="padding:4px 7px;text-align:right;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:${v.avg_pqi >= 58 ? '#4ade80' : v.avg_pqi >= 48 ? '#fbbf24' : '#fb923c'};">${v.avg_pqi}</td>
+        <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${dl == null ? 'var(--text-muted)' : dl >= 0 ? '#4ade80' : '#f87171'};">${dl == null ? '—' : (dl >= 0 ? '+' : '') + dl}</td>
+        <td style="padding:4px 7px;font-size:0.56rem;color:var(--text-muted);">${h(v.note || '')} <span style="opacity:0.6;">(${v.n_days}일)</span></td>
+      </tr>`;
+    }).join('');
+    const dg = d.diagnosis || {};
+    const html = `<section class="section-wrap" id="prediction-quality-section">
+      <div class="section-label" style="color:#f472b6;">🎯 예측 평가지수 (PQI) <span style="font-size:0.62rem;color:var(--text-muted);">(자기평가 + 자동 진단·보완 권고)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신 ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;">
+          <div style="min-width:150px;">
+            <div style="font-size:0.6rem;color:var(--text-muted);">예측 품질 지수 <span style="opacity:0.7;">(버전 ${h(d.model_version || '')})</span></div>
+            <div style="font-size:2rem;font-weight:800;color:${gc};font-family:var(--font-mono);">${d.pqi_overall}<span style="font-size:0.9rem;color:var(--text-muted);">/100</span></div>
+            <div style="font-size:0.8rem;font-weight:700;color:${gc};">${h(d.grade || '')} ${d.trend != null ? `<span style="font-size:0.66rem;color:${tCol};">추세 ${tArrow}${Math.abs(d.trend)}</span>` : ''}</div>
+          </div>
+          <div style="flex:1;min-width:200px;">${(d.models || []).map(mbar).join('')}
+            <div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;">방향 ${dg.dir_avg}% · MAE ${dg.mae_avg}% · 범위 ${dg.range_avg != null ? dg.range_avg + '%' : '—'} · 급오차(±3%↑) ${dg.big_miss_avg}%</div>
+          </div>
+        </div>
+        <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin:11px 0 3px;">🔧 자동 진단·보완 권고 <span style="font-size:0.54rem;color:var(--text-muted);font-weight:400;">(⚙️=기계적 자동가능 · 👤=모델변경 검토)</span></div>
+        ${recs}
+        <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin:11px 0 3px;">📋 변경 전/후 기준표 ${d.delta_vs_prev_version != null ? `<span style="font-size:0.6rem;color:${d.delta_vs_prev_version >= 0 ? '#4ade80' : '#f87171'};">최신 버전 이전 대비 ${d.delta_vs_prev_version >= 0 ? '+' : ''}${d.delta_vs_prev_version}</span>` : ''}</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:4px 7px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">버전</th>
+            <th style="padding:4px 7px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">평균 PQI</th>
+            <th style="padding:4px 7px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">Δ</th>
+            <th style="padding:4px 7px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">비고</th>
+          </tr></thead><tbody>${vt || '<tr><td colspan="4" style="padding:8px;font-size:0.62rem;color:var(--text-muted);">기록 누적 중 — 버전 변경 시 전/후 비교 표시</td></tr>'}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('prediction-quality-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('prediction-log-section') || document.getElementById('composite-signal-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderPredictionQuality = renderPredictionQuality;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11408,6 +11481,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./composite_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderCompositeSignal(d); });
+      // Load Prediction Quality (예측 평가지수 PQI + 자동 진단·보완 권고)
+      fetch('./prediction_quality.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderPredictionQuality(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

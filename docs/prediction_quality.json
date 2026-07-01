@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-07-01 22:25:17 KST",
+  "model_version": "v1.0",
+  "pqi_overall": 47.9,
+  "grade": "🟠 미흡",
+  "grade_color": "orange",
+  "trend": -14.9,
+  "models": [
+    {
+      "name": "KOSPI(선물)",
+      "dir": 53,
+      "mae": 3.17,
+      "range": null,
+      "n": 15,
+      "pqi": 58.6,
+      "pqi_recent": 44.6,
+      "pqi_prev": 54.4,
+      "big_miss_frac": 53
+    },
+    {
+      "name": "SK하이닉스",
+      "dir": 60,
+      "mae": 5.61,
+      "range": 20,
+      "n": 15,
+      "pqi": 42.0,
+      "pqi_recent": 35.1,
+      "pqi_prev": 57.2,
+      "big_miss_frac": 60
+    },
+    {
+      "name": "삼성전자",
+      "dir": 53,
+      "mae": 4.75,
+      "range": 20,
+      "n": 15,
+      "pqi": 43.1,
+      "pqi_recent": 36.2,
+      "pqi_prev": 49.0,
+      "big_miss_frac": 60
+    }
+  ],
+  "diagnosis": {
+    "dir_avg": 55.3,
+    "mae_avg": 4.51,
+    "range_avg": 20.0,
+    "big_miss_avg": 57.7
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "issue": "범위 적중 낮음 (20%)",
+      "cause": "예측 OHLC 밴드가 현재 변동성 레짐 대비 협소",
+      "fix": "밴드 σ 배수 확대 (예: 1.0→1.4)",
+      "auto_safe": true
+    },
+    {
+      "priority": 1,
+      "issue": "급오차일(±3%↑) 빈발 (58%)",
+      "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
+      "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
+      "auto_safe": true
+    },
+    {
+      "priority": 1,
+      "issue": "PQI 하락 추세 (-14.9)",
+      "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
+      "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
+      "auto_safe": false
+    },
+    {
+      "priority": 2,
+      "issue": "종가 오차 큼 (MAE 4.5%)",
+      "cause": "고변동성 레짐 + 20일 베타가 급변 미추종",
+      "fix": "베타 추정창 단축(20→10) 또는 변동성 가중 회귀",
+      "auto_safe": false
+    }
+  ],
+  "version_table": [
+    {
+      "version": "v1.0",
+      "note": "기준선(baseline) — 선물+회귀+앙상블, OHLC σ 1.0, 디커플링 미보정",
+      "avg_pqi": 47.9,
+      "start_date": "2026-07-01",
+      "last_date": "2026-07-01",
+      "n_days": 1
+    }
+  ],
+  "delta_vs_prev_version": null,
+  "note": "PQI=0.45·방향+0.35·크기(MAE역)+0.20·범위 (모델 평균). 지수 하락 시 규칙기반 자동 진단·권고. auto_safe=밴드확대 등 기계적 보정만 자동 후보, 모델 로직 변경은 검토 후 적용. 통계 자기평가."
+}
