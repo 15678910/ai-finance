@@ -206,6 +206,16 @@ jobs:
         run: |
           python strategy_backtest.py || echo "Strategy backtest had errors, continuing..."
 
+      # 종합 예측 신호 보드 (선물·VKOSPI·과열·디커플링·외인·감정 등 12요소 종합 → 디커플링 경고)
+      #   다른 지표 JSON들을 읽으므로 그것들 생성 이후에 실행
+      - name: Run composite signal
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python composite_signal.py || echo "Composite signal had errors, continuing..."
+
       # overseas_market.json을 data.json에 병합 (대시보드는 data.json을 읽음)
       # 이 단계가 없으면 시세는 수집돼도 화면·갱신시각이 멈춤
       - name: Regenerate dashboard data.json

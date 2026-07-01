@@ -30,7 +30,7 @@ MONITORED = [
     ("samsung_forecast.json", 12), ("asia_semi.json", 12), ("sk_cycle.json", 14),
     ("earnings.json", 30), ("ai_value_gap.json", 30), ("fx_swap.json", 14),
     ("analyst_reports.json", 30), ("watchlist.json", 14), ("dart_disclosures.json", 16),
-    ("vkospi.json", 14), ("key_events.json", 30),
+    ("vkospi.json", 14), ("key_events.json", 30), ("composite_signal.json", 12),
     ("consensus_gap.json", 12), ("semi_decoupling.json", 12), ("yen_sensitivity.json", 12),
     ("event_radar.json", 14),
     # 일일 워크플로

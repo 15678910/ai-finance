@@ -7653,7 +7653,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
         groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측 적중|적중 기록/.test(l)) {
+      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측 적중|적중 기록|종합 예측 신호/.test(l)) {
         groups['분석·평가'].push(item);
       } else {
         groups['기타'].push(item);
@@ -9244,6 +9244,54 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderKeyEvents = renderKeyEvents;
+
+  // 🧭 종합 예측 신호 보드 — 다요소 방향 종합 + 디커플링 경고
+  function renderCompositeSignal(d) {
+    if (!d || !Array.isArray(d.factors) || !d.factors.length) return;
+    const sc = d.bias_color === 'green' ? '#4ade80' : d.bias_color === 'red' ? '#f87171' : '#94a3b8';
+    const vcol = v => v > 0.1 ? '#4ade80' : v < -0.1 ? '#f87171' : '#94a3b8';
+    const voteBar = v => {
+      const mag = Math.min(Math.abs(v), 2) / 2 * 50;   // 반폭 %
+      const left = v >= 0 ? 50 : 50 - mag, w = Math.max(1.5, mag);
+      return `<div style="position:relative;height:8px;width:70px;background:rgba(255,255,255,0.06);border-radius:4px;flex-shrink:0;">
+        <div style="position:absolute;left:50%;top:0;width:1px;height:8px;background:rgba(255,255,255,0.25);"></div>
+        <div style="position:absolute;left:${left}%;top:1px;height:6px;width:${w}%;background:${vcol(v)};border-radius:3px;"></div></div>`;
+    };
+    const rows = d.factors.map(f => `<div style="display:flex;align-items:center;gap:8px;padding:5px 3px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="min-width:118px;font-size:0.68rem;color:var(--text);font-weight:600;">${h(f.name)}</span>
+      <span style="flex:1;font-size:0.61rem;color:var(--text-muted);min-width:60px;">${h(f.value || '')} · ${h(f.signal || '')}</span>
+      <span style="font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:${vcol(f.vote)};min-width:32px;text-align:right;">${f.vote >= 0 ? '+' : ''}${f.vote}</span>
+      ${voteBar(f.vote)}
+    </div>`).join('');
+    const warn = d.decoupling_warn ? `<div style="margin:8px 0;padding:8px 12px;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.4);border-radius:8px;font-size:0.68rem;color:#fb923c;font-weight:600;line-height:1.5;">${h(d.warn_msg || '⚠️ 디커플링 경고')}</div>` : '';
+    const html = `<section class="section-wrap" id="composite-signal-section">
+      <div class="section-label" style="color:#a78bfa;">🧭 종합 예측 신호 보드 <span style="font-size:0.62rem;color:var(--text-muted);">(다요소 방향 종합 → 다음 거래일 편향)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신 ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:0.6rem;color:var(--text-muted);">다음 거래일 방향 편향 <span style="opacity:0.7;">(기준 ${h(d.base_date || '')})</span></div>
+            <div style="font-size:1.3rem;font-weight:800;color:${sc};">${h(d.bias || '')} <span style="font-size:0.78rem;font-family:var(--font-mono);color:var(--text-muted);">score ${d.score >= 0 ? '+' : ''}${d.score}</span></div>
+          </div>
+          <div style="text-align:right;font-size:0.66rem;color:var(--text-muted);line-height:1.6;">개장 전 선물: <b style="color:var(--text);">${h(d.futures_bias || '')}</b>${d.futures_pct != null ? ` (${d.futures_pct >= 0 ? '+' : ''}${d.futures_pct}%)` : ''}<br>종합 12요소: <b style="color:${sc};">${h(d.bias || '')}</b></div>
+        </div>
+        ${warn}
+        <div style="margin-top:4px;">${rows}</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">막대: 요소별 방향 −2(하방)~+2(상방). ※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('composite-signal-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('kospi-scenario-section') || document.getElementById('prediction-log-section');
+      if (anchor) anchor.insertAdjacentElement('beforebegin', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderCompositeSignal = renderCompositeSignal;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11356,6 +11404,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./key_events.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderKeyEvents(d); });
+      // Load Composite Signal (종합 예측 신호 보드 — 다요소 방향 종합 + 디커플링 경고)
+      fetch('./composite_signal.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderCompositeSignal(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
