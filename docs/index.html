@@ -9478,7 +9478,31 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     pf.history.push({ date: today, pnl: Math.round(tot.pnl), value: Math.round(tot.value), buy: Math.round(tot.buy), principal: pf.principal, byStock: __pfByStock(comp) });
     pf.history = pf.history.slice(-400); __pfSave(pf); renderPortfolio();
   };
-  window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, holdings: [], history: [] }); renderPortfolio(); } };
+  window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, holdings: [], history: [], txns: [], deposits: [] }); renderPortfolio(); } };
+  window.__pfExport = function () {   // 백업: 포트폴리오 전체를 JSON 파일로 저장
+    const data = localStorage.getItem(PF_KEY) || JSON.stringify(__pfLoad());
+    const blob = new Blob([data], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'portfolio_backup_' + __pfToday().replace(/-/g, '') + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  window.__pfImport = function () {   // 복원: 백업 JSON 파일 불러오기
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = e => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const o = JSON.parse(rd.result);
+          if (!o || typeof o !== 'object') throw 0;
+          __pfSave({ principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [], txns: Array.isArray(o.txns) ? o.txns : [], deposits: Array.isArray(o.deposits) ? o.deposits : [] });
+          renderPortfolio(); alert('✅ 복원 완료!');
+        } catch (err) { alert('파일을 읽을 수 없습니다. 백업(portfolio_backup...json) 파일이 맞는지 확인하세요.'); }
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  };
   window.__pfSetView = function (v) { window.__pfView = v; renderPortfolio(); };
   window.__pfDeposit = function () {
     const pf = __pfLoad();
@@ -9641,7 +9665,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <button onclick="__pfSetPrincipal()" ${_deps.length ? 'disabled' : ''} style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;${_deps.length ? 'opacity:0.4;' : ''}">설정</button>
           <span style="color:var(--text-muted);margin-left:10px;">기록</span>
           <button onclick="__pfSnapshot()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📸 오늘 손익 기록</button>
-          <button onclick="__pfClear()" style="font-size:0.58rem;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:5px 8px;cursor:pointer;margin-left:auto;">전체 초기화</button>
+          <button onclick="__pfExport()" title="포트폴리오를 JSON 파일로 저장" style="font-size:0.6rem;background:rgba(74,222,128,0.14);color:#4ade80;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;margin-left:auto;">💾 백업</button>
+          <button onclick="__pfImport()" title="백업 JSON 파일 불러오기" style="font-size:0.6rem;background:rgba(96,165,250,0.14);color:#60a5fa;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📂 복원</button>
+          <button onclick="__pfClear()" style="font-size:0.58rem;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:5px 8px;cursor:pointer;">전체 초기화</button>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:7px;">
           <input id="pf-code" placeholder="종목코드 6자리 (예:005930)" style="width:150px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
