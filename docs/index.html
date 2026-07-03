@@ -9407,7 +9407,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
   // 📒 내 포트폴리오 손익 — 원금·보유종목은 브라우저(localStorage)에만 저장(프라이버시).
   //   현재가는 공개 시세(data.json sectors 130종목) 매칭. 수수료 0.05% 왕복. 날짜별 손익 기록.
-  const PF_KEY = '__portfolio_v1', PF_FEE = 0.0005;
+  const PF_KEY = '__portfolio_v1', PF_FEE = 0.0005, PF_TAX = 0.0018;  // 수수료 0.05%(편도), 증권거래세 0.18%(매도)
   function __pfLoad() { try { const o = JSON.parse(localStorage.getItem(PF_KEY)) || {}; return { principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [] }; } catch (e) { return { principal: 0, holdings: [], history: [] }; } }
   function __pfSave(pf) { try { localStorage.setItem(PF_KEY, JSON.stringify(pf)); } catch (e) { } }
   function __pfPrices() {
@@ -9425,12 +9425,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const cur = info ? info.price : (h.manualPrice != null ? +h.manualPrice : null);
       const name = h.name || (info && info.name) || h.code;
       const buyAmt = buy * qty; let val = null, pnl = null, ret = null; const hasCur = cur != null;
-      if (hasCur) { val = cur * qty; const fee = buyAmt * PF_FEE + val * PF_FEE; pnl = val - buyAmt - fee; ret = buyAmt ? pnl / buyAmt * 100 : 0; tBuy += buyAmt; tVal += val; tPnl += pnl; }
+      if (hasCur) { val = cur * qty; const fee = buyAmt * PF_FEE + val * PF_FEE + val * PF_TAX; pnl = val - buyAmt - fee; ret = buyAmt ? pnl / buyAmt * 100 : 0; tBuy += buyAmt; tVal += val; tPnl += pnl; }
       else { tBuy += buyAmt; }
       rows.push({ i, code: h.code, name, qty, buy, buyAmt, cur, val, pnl, ret, hasCur, live: !!info });
     });
     return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, ret: tBuy ? tPnl / tBuy * 100 : 0, cash: pf.principal ? pf.principal - tBuy : null, vsPrincipal: pf.principal ? tPnl / pf.principal * 100 : null } };
   }
+  function __pfByStock(comp) { const o = {}; comp.rows.forEach(r => { if (r.hasCur) o[r.code] = Math.round(r.pnl); }); return o; }
   window.__pfSetPrincipal = function () { const pf = __pfLoad(); pf.principal = +(document.getElementById('pf-principal').value.replace(/[,\s]/g, '')) || 0; __pfSave(pf); renderPortfolio(); };
   window.__pfAdd = function () {
     const pf = __pfLoad();
@@ -9445,11 +9446,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   window.__pfDel = function (i) { const pf = __pfLoad(); pf.holdings.splice(i, 1); __pfSave(pf); renderPortfolio(); };
   window.__pfManual = function (i) { const pf = __pfLoad(); const v = +(document.getElementById('pf-manual-' + i).value.replace(/[,\s]/g, '')) || 0; if (v > 0 && pf.holdings[i]) { pf.holdings[i].manualPrice = v; __pfSave(pf); renderPortfolio(); } };
   window.__pfSnapshot = function () {
-    const pf = __pfLoad(), { tot } = __pfCompute(pf);
+    const pf = __pfLoad(), comp = __pfCompute(pf), tot = comp.tot;
     const today = new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000).toISOString().slice(0, 10);
     pf.history = pf.history.filter(x => x.date !== today);
-    pf.history.push({ date: today, pnl: Math.round(tot.pnl), value: Math.round(tot.value), principal: pf.principal });
-    pf.history = pf.history.slice(-120); __pfSave(pf); renderPortfolio();
+    pf.history.push({ date: today, pnl: Math.round(tot.pnl), value: Math.round(tot.value), buy: Math.round(tot.buy), principal: pf.principal, byStock: __pfByStock(comp) });
+    pf.history = pf.history.slice(-400); __pfSave(pf); renderPortfolio();
   };
   window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, holdings: [], history: [] }); renderPortfolio(); } };
   window.__pfSetView = function (v) { window.__pfView = v; renderPortfolio(); };
@@ -9469,7 +9470,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const _k = new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000);
     const _today = _k.toISOString().slice(0, 10);
     if ((_k.getHours() * 60 + _k.getMinutes()) >= 940 && pf.holdings.length && !pf.history.some(x => x.date === _today)) {
-      pf.history.push({ date: _today, pnl: Math.round(comp0.tot.pnl), value: Math.round(comp0.tot.value), principal: pf.principal });
+      pf.history.push({ date: _today, pnl: Math.round(comp0.tot.pnl), value: Math.round(comp0.tot.value), buy: Math.round(comp0.tot.buy), principal: pf.principal, byStock: __pfByStock(comp0) });
       pf.history = pf.history.slice(-400); __pfSave(pf);
     }
     const { rows, tot } = comp0;
@@ -9495,35 +9496,49 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3"/>
         <polyline points="${pts}" fill="none" stroke="${tot.pnl >= 0 ? '#4ade80' : '#f87171'}" stroke-width="1.6"/></svg>`;
     }
-    // 손익계산서 (일별/월별/년별 탭)
-    const stViews = __pfStatements(pf), stView = window.__pfView || '일별';
-    const stData = (stViews[stView] || []).slice(-36).reverse();
+    // 손익계산서 — 종목별 + 총액, 매수금액·평가금액·기간손익·누적손익. 탭=비교기준(일별=전일/월별=전월/년별=전년)
+    const stView = window.__pfView || '일별';
+    const _H = [...pf.history].sort((a, b) => a.date < b.date ? -1 : 1);
+    const _kl = stView === '일별' ? 10 : stView === '월별' ? 7 : 4;
+    const _cut = _today.slice(0, _kl);
+    const _before = _H.filter(x => x.date.slice(0, _kl) < _cut);
+    const _ref = _before.length ? _before[_before.length - 1] : null;
+    const _refBy = (_ref && _ref.byStock) || {};
+    const _stStocks = rows.filter(r => r.hasCur).map(r => ({ name: r.name, code: r.code, buyAmt: r.buyAmt, val: r.val, cum: r.pnl, period: r.pnl - (_refBy[r.code] != null ? _refBy[r.code] : 0) }));
+    const _stTot = _stStocks.reduce((a, s) => ({ buyAmt: a.buyAmt + s.buyAmt, val: a.val + s.val, cum: a.cum + s.cum, period: a.period + s.period }), { buyAmt: 0, val: 0, cum: 0, period: 0 });
     const stTabs = ['일별', '월별', '년별'].map(v => `<button onclick="__pfSetView('${v}')" style="padding:3px 12px;border-radius:6px;font-size:0.66rem;cursor:pointer;font-weight:${v === stView ? 700 : 400};background:${v === stView ? 'rgba(244,114,182,0.18)' : 'transparent'};color:${v === stView ? '#f472b6' : 'var(--text-muted)'};border:1px solid ${v === stView ? 'rgba(244,114,182,0.5)' : 'rgba(255,255,255,0.12)'};">${v}</button>`).join(' ');
-    const stRows = stData.map(s => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-      <td style="padding:4px 8px;font-size:0.66rem;font-family:var(--font-mono);color:var(--text-bright);">${h(s.period)}</td>
-      <td style="padding:4px 8px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);color:var(--text);">${__pfNum(s.value)}</td>
-      <td style="padding:4px 8px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);font-weight:700;color:${sgn(s.delta)};">${s.delta == null ? '—' : (s.delta >= 0 ? '+' : '') + __pfNum(s.delta)}</td>
-      <td style="padding:4px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${sgn(s.cum)};">${s.cum == null ? '—' : (s.cum >= 0 ? '+' : '') + __pfNum(s.cum)}</td>
-    </tr>`).join('');
-    const stmt = pf.history.length ? `<div style="margin-top:14px;">
+    const _refLabel = _ref ? ({ '일별': '전일', '월별': '전월', '년별': '전년' })[stView] + '(' + _ref.date + ') 대비' : '기록 시작 이후';
+    const _pnlTd = (v, bold) => `<td style="padding:5px 8px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);color:${sgn(v)};font-weight:${bold ? 800 : 700};">${v == null ? '—' : (v >= 0 ? '+' : '') + __pfNum(v)}</td>`;
+    const _mkRow = (nm, cd, s, bold) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);${bold ? 'background:rgba(244,114,182,0.07);' : ''}">
+      <td style="padding:5px 8px;font-size:0.66rem;color:var(--text-bright);font-weight:${bold ? 800 : 600};white-space:nowrap;">${h(nm)}${cd ? `<span style="font-size:0.5rem;color:var(--text-muted);font-family:var(--font-mono);"> ${cd}</span>` : ''}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:0.63rem;font-family:var(--font-mono);color:var(--text-muted);">${__pfNum(s.buyAmt)}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:0.63rem;font-family:var(--font-mono);color:var(--text);">${__pfNum(s.val)}</td>
+      ${_pnlTd(s.period, bold)}${_pnlTd(s.cum, bold)}
+    </tr>`;
+    const stmt = _stStocks.length ? `<div style="margin-top:14px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
         <span style="font-size:0.66rem;color:#f472b6;font-weight:700;">🧾 손익계산서</span>${stTabs}
+        <span style="font-size:0.54rem;color:var(--text-muted);">(기간손익 = ${_refLabel})</span>
       </div>
-      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:340px;">
-        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
-          <th style="padding:4px 8px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">${stView === '일별' ? '날짜' : stView === '월별' ? '월' : '연도'}</th>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:400px;">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
+          <th style="padding:4px 8px;text-align:left;font-size:0.54rem;color:var(--text-muted);font-weight:500;">종목</th>
+          <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">매수금액</th>
           <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">평가금액</th>
           <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">${stView}손익</th>
           <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">누적손익</th>
-        </tr></thead><tbody>${stRows}</tbody></table></div>
-      <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 기록(스냅샷) 기준. 마감 후 접속 시 자동 기록되며, ${stView}손익=직전 기록 대비 순손익 변화.</div>
+        </tr></thead><tbody>
+          ${_mkRow('총액', '', _stTot, true)}
+          ${_stStocks.map(s => _mkRow(s.name, s.code, s)).join('')}
+        </tbody></table></div>
+      <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 기간손익=${_refLabel} 순손익 변화(종목별). 마감 후 접속 시 자동 기록. 현재가 수동입력 종목만 집계.</div>
     </div>` : '';
     const html = `<section class="section-wrap" id="portfolio-section">
       <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
           <div class="glass-card" style="padding:9px 14px;min-width:130px;border-left:3px solid #f472b6;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">순손익 (수수료 반영)</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">순손익 (수수료+거래세 반영)</div>
             <div style="font-size:1.4rem;font-weight:800;font-family:var(--font-mono);color:${sgn(tot.pnl)};">${pn(tot.pnl)}<span style="font-size:0.7rem;">원</span></div>
             <div style="font-size:0.64rem;color:${sgn(tot.ret)};">${tot.buy ? (tot.ret >= 0 ? '+' : '') + tot.ret.toFixed(2) + '% (매수금 대비)' : ''}</div>
           </div>
@@ -9559,7 +9574,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${chart ? `<div style="margin-top:12px;"><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 기록)</div>${chart}
           <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div></div>` : ''}
         ${stmt}
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 대시보드 시세(주요 130종목, 워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 반영, 증권거래세는 미반영. 정보용·투자자문 아님.</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 대시보드 시세(주요 130종목, 워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 + 증권거래세 0.18%(매도) 반영. 정보용·투자자문 아님.</div>
       </div>
     </section>`;
     const existing = document.getElementById('portfolio-section');
