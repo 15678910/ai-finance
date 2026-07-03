@@ -9438,7 +9438,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, realized, total, principal: prin, ret: tBuy ? tPnl / tBuy * 100 : 0, cash: prin ? prin - tBuy : null, vsPrincipal: prin ? total / prin * 100 : null } };
   }
   function __pfByStock(comp) { const o = {}; comp.rows.forEach(r => { if (r.hasCur) o[r.code] = Math.round(r.pnl); }); return o; }
-  window.__pfSetPrincipal = function () { const pf = __pfLoad(); pf.principal = +(document.getElementById('pf-principal').value.replace(/[,\s]/g, '')) || 0; __pfSave(pf); renderPortfolio(); };
+  window.__pfSetPrincipal = function () {
+    const pf = __pfLoad();
+    const v = +(document.getElementById('pf-principal').value.replace(/[,\s]/g, '')) || 0;
+    if (pf.deposits && pf.deposits.length) {
+      if (!confirm('입금 내역이 있으면 원금은 입금 합계로 자동 계산됩니다.\n수동 원금(' + v.toLocaleString() + '원)을 쓰려면 입금 내역을 지워야 합니다. 입금 내역을 지우고 수동 원금으로 설정할까요?')) return;
+      pf.deposits = [];
+    }
+    pf.principal = v; __pfSave(pf); renderPortfolio();
+  };
   window.__pfAdd = function () {
     const pf = __pfLoad();
     const code = (document.getElementById('pf-code').value || '').replace(/\D/g, '').slice(0, 6);
@@ -9694,8 +9702,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${depBlock}
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.64rem;">
           <span style="color:var(--text-muted);">원금(수동)</span>
-          <input id="pf-principal" value="${pf.principal || ''}" placeholder="원금(원)" ${_deps.length ? 'disabled title="입금내역 사용 중 — 위 입금 합계가 원금"' : ''} style="width:120px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;${_deps.length ? 'opacity:0.4;' : ''}"/>
-          <button onclick="__pfSetPrincipal()" ${_deps.length ? 'disabled' : ''} style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;${_deps.length ? 'opacity:0.4;' : ''}">설정</button>
+          <input id="pf-principal" value="${pf.principal || ''}" placeholder="원금(원)" title="${_deps.length ? '입금내역 사용 중 — 설정 시 입금내역을 비우고 이 값을 원금으로' : '원금 직접 입력'}" style="width:120px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
+          <button onclick="__pfSetPrincipal()" style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
           <span style="color:var(--text-muted);margin-left:10px;">기록</span>
           <button onclick="__pfSnapshot()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📸 오늘 손익 기록</button>
           ${__pfFSA() ? `<button onclick="__pfLink()" title="파일에 자동저장 — 데이터 삭제에도 파일은 유지, 재연결로 복원(크롬·엣지)" style="font-size:0.6rem;background:${window.__pfFH ? 'rgba(74,222,128,0.22)' : 'rgba(251,191,36,0.16)'};color:${window.__pfFH ? '#4ade80' : '#fbbf24'};border:none;border-radius:5px;padding:5px 10px;cursor:pointer;margin-left:auto;font-weight:600;">📎 ${window.__pfFH ? '자동저장 ON' : '파일 자동저장'}</button>` : ''}
