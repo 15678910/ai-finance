@@ -171,6 +171,15 @@ jobs:
       # (국내 증권사 리포트 analyst_reports.py·주요일정 earnings_calendar.py는
       #  무겁고 느리게 변해 korea-research.yml로 분리 — 5분 타임아웃 초과 방지)
 
+      # 메모리 가격 뉴스 추적 (DRAM·HBM·DDR5 가격 방향 — 가격뉴스 자동수집 + 텔레그램)
+      - name: Run memory price monitor
+        env:
+          TELEGRAM_FINANCE_BOT_TOKEN: ${{ secrets.TELEGRAM_FINANCE_BOT_TOKEN }}
+          TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python memory_price_monitor.py || echo "Memory price monitor had errors, continuing..."
+
       # 관심종목 바스켓 실시간 시세 (대통령 AI 메가프로젝트 수혜 — 장외/개장전 갱신)
       - name: Run watchlist monitor
         env:

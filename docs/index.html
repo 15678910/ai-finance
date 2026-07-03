@@ -7649,7 +7649,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const l = item.label;
       if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정/.test(l)) {
         groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시/.test(l)) {
+      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시|메모리 가격/.test(l)) {
         groups['한국 시장'].push(item);
       } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
         groups['미국·거시'].push(item);
@@ -9365,6 +9365,44 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderPredictionQuality = renderPredictionQuality;
+
+  // 💾 메모리 가격 뉴스 추적 — DRAM·HBM·DDR5 가격 방향(뉴스 기반)
+  function renderMemoryPrice(d) {
+    if (!d || !Array.isArray(d.articles)) return;
+    const mc = d.momentum_color === 'green' ? '#4ade80' : d.momentum_color === 'red' ? '#f87171' : '#94a3b8';
+    const dmeta = dir => dir === 'up' ? ['▲', '#4ade80', '가격↑'] : dir === 'down' ? ['▼', '#f87171', '가격↓'] : dir === 'mixed' ? ['↕', '#fbbf24', '혼조'] : ['·', 'var(--text-muted)', ''];
+    const rows = d.articles.map(a => {
+      const [ar, col, lab] = dmeta(a.direction);
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <span style="min-width:16px;text-align:center;font-size:0.72rem;color:${col};font-weight:800;">${ar}</span>
+        <span style="min-width:66px;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${h(a.date || '')}</span>
+        <a href="${h(a.url || '#')}" target="_blank" rel="noopener" style="flex:1;font-size:0.68rem;color:var(--text);text-decoration:none;line-height:1.4;">${h(a.title)} <span style="color:var(--text-muted);font-size:0.56rem;">${h(a.source || '')} ↗</span></a>
+      </div>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="memory-price-section">
+      <div class="section-label" style="color:#22d3ee;">💾 메모리 가격 뉴스 <span style="font-size:0.62rem;color:var(--text-muted);">(DRAM·HBM·DDR5·LPDDR·NAND — 뉴스 기반 방향)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신 ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+          <div style="font-size:1.05rem;font-weight:800;color:${mc};">${h(d.momentum || '')}</div>
+          <div style="font-size:0.66rem;color:var(--text-muted);">최근 뉴스 <span style="color:#4ade80;font-weight:700;">▲${d.up_count}</span> · <span style="color:#f87171;font-weight:700;">▼${d.down_count}</span> <span style="opacity:0.6;">(총 ${d.n})</span></div>
+        </div>
+        <div>${rows}</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('memory-price-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('sk-cycle-section') || document.getElementById('earnings-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderMemoryPrice = renderMemoryPrice;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11485,6 +11523,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./prediction_quality.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderPredictionQuality(d); });
+      // Load Memory Price News (메모리 가격 뉴스 — DRAM·HBM·DDR5 방향)
+      fetch('./memory_price.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) renderMemoryPrice(d); });
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
