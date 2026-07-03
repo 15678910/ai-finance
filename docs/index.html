@@ -9535,12 +9535,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__pfAutoloadFile = __pfAutoloadFile;
   window.__pfSetView = function (v) { window.__pfView = v; renderPortfolio(); };
-  window.__pfDeposit = function () {
+  window.__pfDeposit = function (sign) {
     const pf = __pfLoad();
     const dEl = document.getElementById('pf-dep-date'), aEl = document.getElementById('pf-dep-amt');
     const date = (dEl && dEl.value) || __pfToday();
-    const amount = +((aEl && aEl.value || '').replace(/[,\s]/g, ''));
-    if (!(amount !== 0)) { alert('입금액을 입력하세요. (출금은 음수로 입력)'); return; }
+    let amount = Math.abs(+((aEl && aEl.value || '').replace(/[,\s]/g, '')));
+    if (!(amount > 0)) { alert('금액을 입력하세요.'); return; }
+    amount = (sign === -1) ? -amount : amount;   // 출금은 음수로 저장
     pf.deposits.push({ date, amount });
     pf.deposits.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     __pfSave(pf); renderPortfolio();
@@ -9653,8 +9654,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.64rem;${_deps.length ? 'margin-bottom:6px;' : ''}">
         <span style="color:#f472b6;font-weight:700;">💰 원금 입금</span>
         <input id="pf-dep-date" type="date" value="${_today}" title="입금일자" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:3px 6px;font-size:0.62rem;"/>
-        <input id="pf-dep-amt" placeholder="입금액(원) · 출금은 음수" style="width:150px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
-        <button onclick="__pfDeposit()" style="font-size:0.62rem;background:rgba(244,114,182,0.18);color:#f472b6;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">+ 입금</button>
+        <input id="pf-dep-amt" placeholder="금액(원)" style="width:120px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
+        <button onclick="__pfDeposit(1)" style="font-size:0.62rem;background:rgba(74,222,128,0.18);color:#4ade80;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">+ 입금</button>
+        <button onclick="__pfDeposit(-1)" style="font-size:0.62rem;background:rgba(251,191,36,0.18);color:#fbbf24;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">− 출금</button>
         <span style="color:var(--text-muted);margin-left:auto;">원금 합계 <b style="color:var(--text-bright);font-family:var(--font-mono);">${__pfNum(_depTot)}</b>원</span>
       </div>
       ${_deps.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:220px;"><tbody>${[..._deps].reverse().map((d, di) => { const oi = _deps.length - 1 - di; return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
