@@ -9408,7 +9408,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   // 📒 내 포트폴리오 손익 — 원금·보유종목은 브라우저(localStorage)에만 저장(프라이버시).
   //   현재가는 공개 시세(data.json sectors 130종목) 매칭. 수수료 0.05% 왕복. 날짜별 손익 기록.
   const PF_KEY = '__portfolio_v1', PF_FEE = 0.0005, PF_TAX = 0.0018;  // 수수료 0.05%(편도), 증권거래세 0.18%(매도)
-  function __pfLoad() { try { const o = JSON.parse(localStorage.getItem(PF_KEY)) || {}; return { principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [], txns: Array.isArray(o.txns) ? o.txns : [], deposits: Array.isArray(o.deposits) ? o.deposits : [] }; } catch (e) { return { principal: 0, holdings: [], history: [], txns: [], deposits: [] }; } }
+  function __pfLoad() { try { const o = JSON.parse(localStorage.getItem(PF_KEY)) || {}; return { principal: +o.principal || 0, cash: (o.cash == null || o.cash === '' || isNaN(+o.cash)) ? null : +o.cash, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [], txns: Array.isArray(o.txns) ? o.txns : [], deposits: Array.isArray(o.deposits) ? o.deposits : [] }; } catch (e) { return { principal: 0, cash: null, holdings: [], history: [], txns: [], deposits: [] }; } }
   function __pfToday() { return new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000).toISOString().slice(0, 10); }
   function __pfPrincipal(pf) { return (pf.deposits && pf.deposits.length) ? pf.deposits.reduce((a, d) => a + (+d.amount || 0), 0) : (+pf.principal || 0); }  // 입금내역 있으면 합계, 없으면 수동 원금
   function __pfRealized(pf) { return (pf.txns || []).filter(t => t.type === 'sell').reduce((a, t) => a + (+t.realized || 0), 0); }
@@ -9435,7 +9435,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       rows.push({ i, code: h.code, name, qty, buy, buyAmt, cur, val, pnl, ret, hasCur, live: !!info });
     });
     const realized = __pfRealized(pf), total = tPnl + realized, prin = __pfPrincipal(pf);
-    return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, realized, total, principal: prin, ret: tBuy ? tPnl / tBuy * 100 : 0, cash: prin ? prin - tBuy : null, vsPrincipal: prin ? total / prin * 100 : null } };
+    const manualCash = (pf.cash == null) ? null : +pf.cash;            // 사용자가 입력한 실제 잔금
+    const cash = manualCash != null ? manualCash : (prin ? prin - tBuy : null);  // 없으면 총원금−매수금으로 추정
+    const netAssets = tVal + (cash != null ? cash : 0);               // 총자산 = 평가금 + 현금
+    const vsP = prin ? (netAssets - prin) : null;                     // 원금 대비 순손익 = 총자산 − 총원금
+    const vsPrate = (prin && vsP != null) ? vsP / prin * 100 : null;
+    return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, realized, total, principal: prin, ret: tBuy ? tPnl / tBuy * 100 : 0, cash, cashManual: manualCash != null, netAssets, vsP, vsPrate, vsPrincipal: prin ? total / prin * 100 : null } };
   }
   function __pfByStock(comp) { const o = {}; comp.rows.forEach(r => { if (r.hasCur) o[r.code] = Math.round(r.pnl); }); return o; }
   window.__pfSetPrincipal = function () {
@@ -9446,6 +9451,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       pf.deposits = [];
     }
     pf.principal = v; __pfSave(pf); renderPortfolio();
+  };
+  window.__pfSetCash = function () {
+    const pf = __pfLoad();
+    const el = document.getElementById('pf-cash'); const raw = (el && el.value || '').replace(/[,\s원]/g, '');
+    if (raw === '') { pf.cash = null; __pfSave(pf); renderPortfolio(); return; }   // 비우고 설정 → 추정값으로 복귀
+    const v = +raw; if (isNaN(v)) { alert('현금(잔금)을 숫자로 입력하세요. (예: 92245)'); return; }
+    pf.cash = v; __pfSave(pf); renderPortfolio();
   };
   window.__pfAdd = function () {
     const pf = __pfLoad();
@@ -9486,7 +9498,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     pf.history.push({ date: today, pnl: Math.round(tot.pnl), value: Math.round(tot.value), buy: Math.round(tot.buy), principal: pf.principal, byStock: __pfByStock(comp) });
     pf.history = pf.history.slice(-400); __pfSave(pf); renderPortfolio();
   };
-  window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, holdings: [], history: [], txns: [], deposits: [] }); renderPortfolio(); } };
+  window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, cash: null, holdings: [], history: [], txns: [], deposits: [] }); renderPortfolio(); } };
   window.__pfExport = function () {   // 백업: 포트폴리오 전체를 JSON 파일로 저장
     const data = localStorage.getItem(PF_KEY) || JSON.stringify(__pfLoad());
     const blob = new Blob([data], { type: 'application/json' });
@@ -9503,7 +9515,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         try {
           const o = JSON.parse(rd.result);
           if (!o || typeof o !== 'object') throw 0;
-          __pfSave({ principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [], txns: Array.isArray(o.txns) ? o.txns : [], deposits: Array.isArray(o.deposits) ? o.deposits : [] });
+          __pfSave({ principal: +o.principal || 0, cash: (o.cash == null || isNaN(+o.cash)) ? null : +o.cash, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [], txns: Array.isArray(o.txns) ? o.txns : [], deposits: Array.isArray(o.deposits) ? o.deposits : [] });
           renderPortfolio(); alert('✅ 복원 완료!');
         } catch (err) { alert('파일을 읽을 수 없습니다. 백업(portfolio_backup...json) 파일이 맞는지 확인하세요.'); }
       };
@@ -9523,7 +9535,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     try {
       const fh = await window.showSaveFilePicker({ suggestedName: 'portfolio.json', types: [{ description: '포트폴리오 백업', accept: { 'application/json': ['.json'] } }] });
       const cur = __pfLoad(), empty = !__pfHasData(cur);
-      try { const f = await fh.getFile(); const t = await f.text(); if (t) { const o = JSON.parse(t); if (__pfHasData(o) && empty) __pfSave({ principal: +o.principal || 0, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); } } catch (e) { }
+      try { const f = await fh.getFile(); const t = await f.text(); if (t) { const o = JSON.parse(t); if (__pfHasData(o) && empty) __pfSave({ principal: +o.principal || 0, cash: (o.cash == null || isNaN(+o.cash)) ? null : +o.cash, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); } } catch (e) { }
       window.__pfFH = fh; __pfHSet(fh); await __pfWriteFile(); renderPortfolio();
       alert('✅ 자동저장 연결! 변경할 때마다 이 파일에 자동 저장됩니다.\n데이터가 지워져도 이 파일을 다시 연결하면 그대로 복원됩니다.');
     } catch (e) { }
@@ -9536,7 +9548,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         if (p !== 'granted') return;   // 권한 재요청은 사용자 클릭 필요 → 버튼으로
         window.__pfFH = fh;
         const f = await fh.getFile(); const t = await f.text();
-        if (__pfHasData(__pfLoad()) === false && t) { const o = JSON.parse(t); if (__pfHasData(o)) __pfSave({ principal: +o.principal || 0, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); }
+        if (__pfHasData(__pfLoad()) === false && t) { const o = JSON.parse(t); if (__pfHasData(o)) __pfSave({ principal: +o.principal || 0, cash: (o.cash == null || isNaN(+o.cash)) ? null : +o.cash, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); }
         renderPortfolio();
       } catch (e) { }
     });
@@ -9673,21 +9685,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <td style="padding:3px 8px;text-align:center;"><button onclick="__pfDelDeposit(${oi})" title="삭제" style="font-size:0.6rem;background:transparent;color:var(--text-muted);border:none;cursor:pointer;">×</button></td>
       </tr>`; }).join('')}</tbody></table></div>` : '<div style="font-size:0.54rem;color:var(--text-muted);">입금일자·입금액을 넣으면 원금이 자동 합산됩니다. (아래 수동 \'원금\'보다 우선)</div>'}
     </div>`;
-    // 📊 회계 산식 — 원금·매수금·평가금 관계를 = 등식으로 명시
-    //   원금 대비 순손익 = 평가금(현재가) − 총원금  (매수금이 아닌 '실제 넣은 돈' 기준)
+    // 📊 회계 산식 — 원금·매수금·평가금·현금 관계를 = 등식으로 명시
+    //   총자산 = 평가금 + 현금  /  원금 대비 순손익 = 총자산 − 총원금 (실현이익 포함)
     const _P = tot.principal, _B = tot.buy, _V = tot.value;
-    const _cash = tot.cash;                                            // 현금(잔금) = 총원금 − 매수금
-    const _evalNoFee = (_V != null && _B != null) ? _V - _B : null;    // 평가손익(수수료 전) = 평가금 − 매수금
+    const _cash = tot.cash, _cashManual = tot.cashManual;             // 현금(잔금): 수동 입력 or 총원금−매수금 추정
+    const _netAssets = tot.netAssets;                                 // 총자산 = 평가금 + 현금
+    const _evalNoFee = (_V != null && _B != null) ? _V - _B : null;   // 평가손익(수수료 전) = 평가금 − 매수금
     const _fee = (_evalNoFee != null) ? _evalNoFee - tot.total + tot.realized : 0;  // 예상 왕복 수수료
-    const _net = tot.total;                                            // 순손익 = 평가손익 − 수수료 + 실현
-    const _vsP = (_V != null && _P) ? _V - _P : null;                  // 원금 대비 순손익 = 평가금 − 총원금
-    const _vsPrate = (_P && _vsP != null) ? _vsP / _P * 100 : null;
+    const _vsP = tot.vsP, _vsPrate = tot.vsPrate;                     // 원금 대비 순손익 = 총자산 − 총원금
     const _eq = (lab, rhs, col) => `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:1.5px 0;font-size:0.6rem;line-height:1.35;">
       <span style="color:var(--text-muted);white-space:nowrap;">${lab}</span>
       <span style="font-family:var(--font-mono);font-weight:600;white-space:nowrap;color:${col || 'var(--text-bright)'};">${rhs}</span></div>`;
     const _div = `<div style="border-top:1px solid rgba(255,255,255,0.1);margin:5px 0;"></div>`;
     const pnlBox = `<div class="glass-card" style="padding:14px 18px;border-left:3px solid #f472b6;display:flex;flex-direction:column;">
-      <div style="font-size:0.64rem;color:var(--text-muted);">원금 대비 순손익 <span style="opacity:0.65;">(평가금 − 총원금)</span></div>
+      <div style="font-size:0.64rem;color:var(--text-muted);">원금 대비 순손익 <span style="opacity:0.65;">(총자산 − 총원금)</span></div>
       <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsP)};line-height:1.15;">${_vsP == null ? '—' : pn(_vsP)}<span style="font-size:0.8rem;">원</span></div>
       <div style="font-size:1.2rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsPrate)};margin-top:1px;">${_vsPrate == null ? '원금 설정 필요' : (_vsPrate >= 0 ? '+' : '') + _vsPrate.toFixed(2) + '%'}</div>
       ${_div}
@@ -9695,14 +9706,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ${_eq('총원금', '= ' + (_P ? __pfNum(_P) : '—'))}
       ${_eq('매수금', '= ' + __pfNum(_B))}
       ${_eq('평가금(현재가)', '= ' + __pfNum(_V))}
+      ${_eq('현금(잔금)', (_cashManual ? '= ' : '총원금 − 매수금 = ') + (_cash == null ? '—' : __pfNum(_cash)) + (_cashManual ? '' : ' (추정)'), sgn(_cash))}
       ${_div}
-      ${_eq('현금(잔금)', '총원금 − 매수금 = ' + (_cash == null ? '—' : __pfNum(_cash)), sgn(_cash))}
+      ${_eq('총자산', '평가금 + 현금 = ' + (_netAssets == null ? '—' : __pfNum(_netAssets)))}
       ${_eq('평가손익', '평가금 − 매수금 = ' + (_evalNoFee == null ? '—' : pn(_evalNoFee)), sgn(_evalNoFee))}
       ${_eq('수수료(예상)', '= ' + pn(-Math.round(_fee)), sgn(-_fee))}
       ${_eq('실현손익', '= ' + pn(tot.realized), sgn(tot.realized))}
-      ${_eq('순손익', '평가손익 − 수수료 + 실현 = ' + pn(_net), sgn(_net))}
       ${_div}
-      ${_eq('원금대비 순손익', '평가금 − 총원금 = ' + (_vsP == null ? '—' : pn(_vsP)), sgn(_vsP))}
+      ${_eq('원금대비 순손익', '총자산 − 총원금 = ' + (_vsP == null ? '—' : pn(_vsP)), sgn(_vsP))}
     </div>`;
     const html = `<section class="section-wrap" id="portfolio-section">
       <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
@@ -9715,6 +9726,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="color:var(--text-muted);">원금(수동)</span>
           <input id="pf-principal" value="${pf.principal || ''}" placeholder="원금(원)" title="${_deps.length ? '입금내역 사용 중 — 설정 시 입금내역을 비우고 이 값을 원금으로' : '원금 직접 입력'}" style="width:120px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
           <button onclick="__pfSetPrincipal()" style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
+          <span style="color:var(--text-muted);margin-left:10px;">현금(잔금)</span>
+          <input id="pf-cash" value="${pf.cash == null ? '' : pf.cash}" placeholder="실제 잔금(원)" title="증권사 실제 예수금(잔금)을 입력. 비우고 설정하면 '총원금−매수금'으로 자동 추정" style="width:110px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
+          <button onclick="__pfSetCash()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
           <span style="color:var(--text-muted);margin-left:10px;">기록</span>
           <button onclick="__pfSnapshot()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📸 오늘 손익 기록</button>
           ${__pfFSA() ? `<button onclick="__pfLink()" title="파일에 자동저장 — 데이터 삭제에도 파일은 유지, 재연결로 복원(크롬·엣지)" style="font-size:0.6rem;background:${window.__pfFH ? 'rgba(74,222,128,0.22)' : 'rgba(251,191,36,0.16)'};color:${window.__pfFH ? '#4ade80' : '#fbbf24'};border:none;border-radius:5px;padding:5px 10px;cursor:pointer;margin-left:auto;font-weight:600;">📎 ${window.__pfFH ? '자동저장 ON' : '파일 자동저장'}</button>` : ''}
