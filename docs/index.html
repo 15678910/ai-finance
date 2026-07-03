@@ -7491,6 +7491,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         if (newGen && newGen !== __lastGeneratedAt) {
           // 데이터 변경 감지 → 사이드바 재빌드
           window.__dashboardData = newData;
+          try { if (!/^pf-/.test((document.activeElement || {}).id || '')) renderPortfolio(); } catch (e) { }  // 포트폴리오 시세 갱신(입력 중이면 스킵)
           __lastGeneratedAt = newGen;
           buildSidebarNav();
           // 라이브 갱신 시 트리맵·히트맵도 재렌더 — 인스펙터(최신)와 시점 불일치(트리맵 정체) 방지
@@ -9403,6 +9404,134 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderMemoryPrice = renderMemoryPrice;
+
+  // 📒 내 포트폴리오 손익 — 원금·보유종목은 브라우저(localStorage)에만 저장(프라이버시).
+  //   현재가는 공개 시세(data.json sectors 130종목) 매칭. 수수료 0.05% 왕복. 날짜별 손익 기록.
+  const PF_KEY = '__portfolio_v1', PF_FEE = 0.0005;
+  function __pfLoad() { try { const o = JSON.parse(localStorage.getItem(PF_KEY)) || {}; return { principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [] }; } catch (e) { return { principal: 0, holdings: [], history: [] }; } }
+  function __pfSave(pf) { try { localStorage.setItem(PF_KEY, JSON.stringify(pf)); } catch (e) { } }
+  function __pfPrices() {
+    const m = {}, dd = window.__dashboardData || {};
+    const add = (t, n, p) => { if (t && p != null) { const c = String(t).replace(/\.K[SQ]$/i, ''); if (!m[c]) m[c] = { name: n || c, price: +p }; } };
+    (dd.sectors || []).forEach(s => (s.stocks || []).forEach(st => add(st.ticker, st.name, st.price)));
+    ((dd.market_cap_rankings || {}).domestic || []).forEach(st => add(st.ticker, st.name, st.price));
+    return m;
+  }
+  function __pfNum(v) { return (v == null || isNaN(v)) ? '—' : Math.round(v).toLocaleString(); }
+  function __pfCompute(pf) {
+    const pm = __pfPrices(), rows = []; let tBuy = 0, tVal = 0, tPnl = 0;
+    pf.holdings.forEach((h, i) => {
+      const qty = +h.qty || 0, buy = +h.buyPrice || 0, info = pm[h.code];
+      const cur = info ? info.price : (h.manualPrice != null ? +h.manualPrice : null);
+      const name = h.name || (info && info.name) || h.code;
+      const buyAmt = buy * qty; let val = null, pnl = null, ret = null; const hasCur = cur != null;
+      if (hasCur) { val = cur * qty; const fee = buyAmt * PF_FEE + val * PF_FEE; pnl = val - buyAmt - fee; ret = buyAmt ? pnl / buyAmt * 100 : 0; tBuy += buyAmt; tVal += val; tPnl += pnl; }
+      else { tBuy += buyAmt; }
+      rows.push({ i, code: h.code, name, qty, buy, buyAmt, cur, val, pnl, ret, hasCur, live: !!info });
+    });
+    return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, ret: tBuy ? tPnl / tBuy * 100 : 0, cash: pf.principal ? pf.principal - tBuy : null, vsPrincipal: pf.principal ? tPnl / pf.principal * 100 : null } };
+  }
+  window.__pfSetPrincipal = function () { const pf = __pfLoad(); pf.principal = +(document.getElementById('pf-principal').value.replace(/[,\s]/g, '')) || 0; __pfSave(pf); renderPortfolio(); };
+  window.__pfAdd = function () {
+    const pf = __pfLoad();
+    const code = (document.getElementById('pf-code').value || '').replace(/\D/g, '').slice(0, 6);
+    const buy = +(document.getElementById('pf-buy').value.replace(/[,\s]/g, '')) || 0;
+    const qty = +(document.getElementById('pf-qty').value.replace(/[,\s]/g, '')) || 0;
+    if (code.length !== 6 || buy <= 0 || qty <= 0) { alert('종목코드(6자리)·매수단가·수량을 정확히 입력하세요.'); return; }
+    const info = __pfPrices()[code];
+    pf.holdings.push({ code, name: info ? info.name : code, buyPrice: buy, qty });
+    __pfSave(pf); renderPortfolio();
+  };
+  window.__pfDel = function (i) { const pf = __pfLoad(); pf.holdings.splice(i, 1); __pfSave(pf); renderPortfolio(); };
+  window.__pfManual = function (i) { const pf = __pfLoad(); const v = +(document.getElementById('pf-manual-' + i).value.replace(/[,\s]/g, '')) || 0; if (v > 0 && pf.holdings[i]) { pf.holdings[i].manualPrice = v; __pfSave(pf); renderPortfolio(); } };
+  window.__pfSnapshot = function () {
+    const pf = __pfLoad(), { tot } = __pfCompute(pf);
+    const today = new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000).toISOString().slice(0, 10);
+    pf.history = pf.history.filter(x => x.date !== today);
+    pf.history.push({ date: today, pnl: Math.round(tot.pnl), value: Math.round(tot.value), principal: pf.principal });
+    pf.history = pf.history.slice(-120); __pfSave(pf); renderPortfolio();
+  };
+  window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, holdings: [], history: [] }); renderPortfolio(); } };
+
+  function renderPortfolio() {
+    const pf = __pfLoad(), { rows, tot } = __pfCompute(pf);
+    const sgn = v => v == null ? 'var(--text-muted)' : v >= 0 ? '#4ade80' : '#f87171';
+    const pn = v => v == null ? '—' : (v >= 0 ? '+' : '') + __pfNum(v);
+    const hRows = rows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <td style="padding:5px 6px;font-size:0.66rem;color:var(--text-bright);white-space:nowrap;">${h(r.name)}<div style="font-size:0.52rem;color:var(--text-muted);font-family:var(--font-mono);">${h(r.code)}</div></td>
+      <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);">${__pfNum(r.qty)}</td>
+      <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);">${__pfNum(r.buy)}</td>
+      <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-bright);">${r.hasCur ? __pfNum(r.cur) + (r.live ? '' : '<span style="color:#fbbf24;font-size:0.5rem;">수동</span>') : `<input id="pf-manual-${r.i}" placeholder="현재가" style="width:60px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:4px;padding:1px 4px;font-size:0.6rem;"/><button onclick="__pfManual(${r.i})" style="font-size:0.5rem;background:rgba(34,211,238,0.15);color:#22d3ee;border:none;border-radius:3px;padding:1px 4px;cursor:pointer;margin-left:2px;">적용</button>`}</td>
+      <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);">${__pfNum(r.buyAmt)}</td>
+      <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);color:${sgn(r.pnl)};font-weight:700;">${pn(r.pnl)}</td>
+      <td style="padding:5px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${sgn(r.ret)};">${r.ret == null ? '—' : (r.ret >= 0 ? '+' : '') + r.ret.toFixed(1) + '%'}</td>
+      <td style="padding:5px 6px;text-align:center;"><button onclick="__pfDel(${r.i})" style="font-size:0.56rem;background:rgba(248,113,113,0.14);color:#f87171;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;">삭제</button></td>
+    </tr>`).join('');
+    // 날짜별 손익 미니차트
+    const hist = pf.history.slice(-30); let chart = '';
+    if (hist.length >= 2) {
+      const vs = hist.map(x => x.pnl), mn = Math.min(...vs, 0), mx = Math.max(...vs, 0), rg = (mx - mn) || 1, W = 460, H = 60;
+      const pts = hist.map((x, i) => `${(i / (hist.length - 1) * W).toFixed(1)},${(H - (x.pnl - mn) / rg * (H - 6) - 3).toFixed(1)}`).join(' ');
+      const zeroY = (H - (0 - mn) / rg * (H - 6) - 3).toFixed(1);
+      chart = `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;">
+        <line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3"/>
+        <polyline points="${pts}" fill="none" stroke="${tot.pnl >= 0 ? '#4ade80' : '#f87171'}" stroke-width="1.6"/></svg>`;
+    }
+    const html = `<section class="section-wrap" id="portfolio-section">
+      <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="glass-card" style="padding:9px 14px;min-width:130px;border-left:3px solid #f472b6;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">순손익 (수수료 반영)</div>
+            <div style="font-size:1.4rem;font-weight:800;font-family:var(--font-mono);color:${sgn(tot.pnl)};">${pn(tot.pnl)}<span style="font-size:0.7rem;">원</span></div>
+            <div style="font-size:0.64rem;color:${sgn(tot.ret)};">${tot.buy ? (tot.ret >= 0 ? '+' : '') + tot.ret.toFixed(2) + '% (매수금 대비)' : ''}</div>
+          </div>
+          <div class="glass-card" style="padding:9px 14px;min-width:110px;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">원금 대비</div>
+            <div style="font-size:1.05rem;font-weight:700;font-family:var(--font-mono);color:${sgn(tot.vsPrincipal)};">${tot.vsPrincipal == null ? '원금 미설정' : (tot.vsPrincipal >= 0 ? '+' : '') + tot.vsPrincipal.toFixed(2) + '%'}</div>
+            <div style="font-size:0.56rem;color:var(--text-muted);">현금 ${tot.cash == null ? '—' : __pfNum(tot.cash)}</div>
+          </div>
+          <div class="glass-card" style="padding:9px 14px;min-width:110px;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">매수금 / 평가금</div>
+            <div style="font-size:0.78rem;font-family:var(--font-mono);color:var(--text-bright);">${__pfNum(tot.buy)}</div>
+            <div style="font-size:0.78rem;font-family:var(--font-mono);color:var(--text);">→ ${__pfNum(tot.value)}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.64rem;">
+          <span style="color:var(--text-muted);">원금</span>
+          <input id="pf-principal" value="${pf.principal || ''}" placeholder="원금(원)" style="width:120px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
+          <button onclick="__pfSetPrincipal()" style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
+          <span style="color:var(--text-muted);margin-left:10px;">기록</span>
+          <button onclick="__pfSnapshot()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📸 오늘 손익 기록</button>
+          <button onclick="__pfClear()" style="font-size:0.58rem;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:5px 8px;cursor:pointer;margin-left:auto;">전체 초기화</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:7px;">
+          <input id="pf-code" placeholder="종목코드 6자리 (예:005930)" style="width:150px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
+          <input id="pf-buy" placeholder="매수단가" style="width:90px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
+          <input id="pf-qty" placeholder="수량" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
+          <button onclick="__pfAdd()" style="font-size:0.62rem;background:rgba(74,222,128,0.16);color:#4ade80;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">+ 종목 추가</button>
+        </div>
+        ${rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            ${['종목', '수량', '매수가', '현재가', '매수금', '순손익', '수익률', ''].map(t => `<th style="padding:5px 6px;text-align:${t === '종목' || t === '' ? 'left' : 'right'};font-size:0.54rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
+          </tr></thead><tbody>${hRows}</tbody></table></div>` : '<div style="font-size:0.66rem;color:var(--text-muted);padding:10px 4px;">보유 종목을 추가하세요. 코드가 시세 목록(주요 130종목)에 없으면 현재가를 수동 입력할 수 있습니다.</div>'}
+        ${chart ? `<div style="margin-top:12px;"><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 · '오늘 손익 기록' 누른 날만)</div>${chart}
+          <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div></div>` : ''}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 대시보드 시세(주요 130종목, 워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 반영, 증권거래세는 미반영. 정보용·투자자문 아님.</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('portfolio-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('watchlist-section') || document.getElementById('kospi-scenario-section');
+      if (anchor) anchor.insertAdjacentElement('beforebegin', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+  window.__renderPortfolio = renderPortfolio;
 
   function renderEarnings(e) {
     if (!e || !Array.isArray(e.stocks) || !e.stocks.length) return;
@@ -11527,6 +11656,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./memory_price.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderMemoryPrice(d); });
+      // 내 포트폴리오 손익 (fetch 불필요 — localStorage + data.json 매칭). 지연 호출로 시세 로드 후 렌더.
+      setTimeout(() => { try { renderPortfolio(); } catch (e) { } }, 1200);
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
