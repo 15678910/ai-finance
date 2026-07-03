@@ -9673,16 +9673,36 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <td style="padding:3px 8px;text-align:center;"><button onclick="__pfDelDeposit(${oi})" title="삭제" style="font-size:0.6rem;background:transparent;color:var(--text-muted);border:none;cursor:pointer;">×</button></td>
       </tr>`; }).join('')}</tbody></table></div>` : '<div style="font-size:0.54rem;color:var(--text-muted);">입금일자·입금액을 넣으면 원금이 자동 합산됩니다. (아래 수동 \'원금\'보다 우선)</div>'}
     </div>`;
-    // 📊 실시간 회계 요약 — 원금 → (실현+평가) → 총 순손익 → 순손익률 → 총 자산
-    const _P = tot.principal, _rate = tot.vsPrincipal;
-    const _aRow = (lab, val, o) => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;${o && o.br ? 'border-top:1px solid rgba(255,255,255,0.14);margin-top:4px;padding-top:5px;' : ''}">
-      <span style="font-size:${o && o.big ? '0.72rem' : '0.62rem'};color:${o && o.big ? 'var(--text)' : 'var(--text-muted)'};font-weight:${o && o.big ? 700 : 400};">${lab}</span>
-      <span style="font-size:${o && o.big ? '1.0rem' : '0.68rem'};font-family:var(--font-mono);font-weight:${o && o.big ? 800 : 600};color:${o && o.col ? o.col : 'var(--text-bright)'};">${val}</span></div>`;
-    const pnlBox = `<div class="glass-card" style="padding:14px 18px;border-left:3px solid #f472b6;display:flex;flex-direction:column;justify-content:center;">
-      <div style="font-size:0.64rem;color:var(--text-muted);">원금 대비 순손익</div>
-      <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);color:${sgn(tot.total)};line-height:1.15;">${pn(tot.total)}<span style="font-size:0.8rem;">원</span></div>
-      <div style="font-size:1.25rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_rate)};margin-top:2px;">${_rate == null ? '원금 설정 필요' : (_rate >= 0 ? '+' : '') + _rate.toFixed(2) + '%'}<span style="font-size:0.62rem;color:var(--text-muted);font-weight:400;"> 순손익률</span></div>
-      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:7px;line-height:1.6;">총 원금 <b style="color:var(--text);">${_P ? __pfNum(_P) : '—'}</b> · 총 자산 <b style="color:var(--text);">${_P ? __pfNum(_P + tot.total) : '—'}</b><br>매수금 ${__pfNum(tot.buy)} · 현금(잔금) ${tot.cash == null ? '—' : __pfNum(tot.cash)}</div>
+    // 📊 회계 산식 — 원금·매수금·평가금 관계를 = 등식으로 명시
+    //   원금 대비 순손익 = 평가금(현재가) − 총원금  (매수금이 아닌 '실제 넣은 돈' 기준)
+    const _P = tot.principal, _B = tot.buy, _V = tot.value;
+    const _cash = tot.cash;                                            // 현금(잔금) = 총원금 − 매수금
+    const _evalNoFee = (_V != null && _B != null) ? _V - _B : null;    // 평가손익(수수료 전) = 평가금 − 매수금
+    const _fee = (_evalNoFee != null) ? _evalNoFee - tot.total + tot.realized : 0;  // 예상 왕복 수수료
+    const _net = tot.total;                                            // 순손익 = 평가손익 − 수수료 + 실현
+    const _vsP = (_V != null && _P) ? _V - _P : null;                  // 원금 대비 순손익 = 평가금 − 총원금
+    const _vsPrate = (_P && _vsP != null) ? _vsP / _P * 100 : null;
+    const _eq = (lab, rhs, col) => `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:1.5px 0;font-size:0.6rem;line-height:1.35;">
+      <span style="color:var(--text-muted);white-space:nowrap;">${lab}</span>
+      <span style="font-family:var(--font-mono);font-weight:600;white-space:nowrap;color:${col || 'var(--text-bright)'};">${rhs}</span></div>`;
+    const _div = `<div style="border-top:1px solid rgba(255,255,255,0.1);margin:5px 0;"></div>`;
+    const pnlBox = `<div class="glass-card" style="padding:14px 18px;border-left:3px solid #f472b6;display:flex;flex-direction:column;">
+      <div style="font-size:0.64rem;color:var(--text-muted);">원금 대비 순손익 <span style="opacity:0.65;">(평가금 − 총원금)</span></div>
+      <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsP)};line-height:1.15;">${_vsP == null ? '—' : pn(_vsP)}<span style="font-size:0.8rem;">원</span></div>
+      <div style="font-size:1.2rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsPrate)};margin-top:1px;">${_vsPrate == null ? '원금 설정 필요' : (_vsPrate >= 0 ? '+' : '') + _vsPrate.toFixed(2) + '%'}</div>
+      ${_div}
+      <div style="font-size:0.56rem;color:#f472b6;font-weight:700;margin-bottom:2px;">📊 회계 산식</div>
+      ${_eq('총원금', '= ' + (_P ? __pfNum(_P) : '—'))}
+      ${_eq('매수금', '= ' + __pfNum(_B))}
+      ${_eq('평가금(현재가)', '= ' + __pfNum(_V))}
+      ${_div}
+      ${_eq('현금(잔금)', '총원금 − 매수금 = ' + (_cash == null ? '—' : __pfNum(_cash)), sgn(_cash))}
+      ${_eq('평가손익', '평가금 − 매수금 = ' + (_evalNoFee == null ? '—' : pn(_evalNoFee)), sgn(_evalNoFee))}
+      ${_eq('수수료(예상)', '= ' + pn(-Math.round(_fee)), sgn(-_fee))}
+      ${_eq('실현손익', '= ' + pn(tot.realized), sgn(tot.realized))}
+      ${_eq('순손익', '평가손익 − 수수료 + 실현 = ' + pn(_net), sgn(_net))}
+      ${_div}
+      ${_eq('원금대비 순손익', '평가금 − 총원금 = ' + (_vsP == null ? '—' : pn(_vsP)), sgn(_vsP))}
     </div>`;
     const html = `<section class="section-wrap" id="portfolio-section">
       <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
