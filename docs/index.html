@@ -9408,7 +9408,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   // 📒 내 포트폴리오 손익 — 원금·보유종목은 브라우저(localStorage)에만 저장(프라이버시).
   //   현재가는 공개 시세(data.json sectors 130종목) 매칭. 수수료 0.05% 왕복. 날짜별 손익 기록.
   const PF_KEY = '__portfolio_v1', PF_FEE = 0.0005, PF_TAX = 0.0018;  // 수수료 0.05%(편도), 증권거래세 0.18%(매도)
-  function __pfLoad() { try { const o = JSON.parse(localStorage.getItem(PF_KEY)) || {}; return { principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [] }; } catch (e) { return { principal: 0, holdings: [], history: [] }; } }
+  function __pfLoad() { try { const o = JSON.parse(localStorage.getItem(PF_KEY)) || {}; return { principal: +o.principal || 0, holdings: Array.isArray(o.holdings) ? o.holdings : [], history: Array.isArray(o.history) ? o.history : [], txns: Array.isArray(o.txns) ? o.txns : [] }; } catch (e) { return { principal: 0, holdings: [], history: [], txns: [] }; } }
+  function __pfToday() { return new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000).toISOString().slice(0, 10); }
+  function __pfRealized(pf) { return (pf.txns || []).filter(t => t.type === 'sell').reduce((a, t) => a + (+t.realized || 0), 0); }
   function __pfSave(pf) { try { localStorage.setItem(PF_KEY, JSON.stringify(pf)); } catch (e) { } }
   function __pfPrices() {
     const m = {}, dd = window.__dashboardData || {};
@@ -9431,7 +9433,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       else { tBuy += buyAmt; }
       rows.push({ i, code: h.code, name, qty, buy, buyAmt, cur, val, pnl, ret, hasCur, live: !!info });
     });
-    return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, ret: tBuy ? tPnl / tBuy * 100 : 0, cash: pf.principal ? pf.principal - tBuy : null, vsPrincipal: pf.principal ? tPnl / pf.principal * 100 : null } };
+    const realized = __pfRealized(pf), total = tPnl + realized;
+    return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, realized, total, ret: tBuy ? tPnl / tBuy * 100 : 0, cash: pf.principal ? pf.principal - tBuy : null, vsPrincipal: pf.principal ? total / pf.principal * 100 : null } };
   }
   function __pfByStock(comp) { const o = {}; comp.rows.forEach(r => { if (r.hasCur) o[r.code] = Math.round(r.pnl); }); return o; }
   window.__pfSetPrincipal = function () { const pf = __pfLoad(); pf.principal = +(document.getElementById('pf-principal').value.replace(/[,\s]/g, '')) || 0; __pfSave(pf); renderPortfolio(); };
@@ -9441,10 +9444,28 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const buy = +(document.getElementById('pf-buy').value.replace(/[,\s]/g, '')) || 0;
     const qty = +(document.getElementById('pf-qty').value.replace(/[,\s]/g, '')) || 0;
     if (code.length !== 6 || buy <= 0 || qty <= 0) { alert('종목코드(6자리)·매수단가·수량을 정확히 입력하세요.'); return; }
-    const info = __pfPrices()[code];
-    pf.holdings.push({ code, name: info ? info.name : code, buyPrice: buy, qty });
+    const info = __pfPrices()[code], nm = info ? info.name : code;
+    const ex = pf.holdings.find(hd => hd.code === code);
+    if (ex) { const tq = ex.qty + qty; ex.buyPrice = Math.round((ex.buyPrice * ex.qty + buy * qty) / tq); ex.qty = tq; }  // 평단 재계산
+    else pf.holdings.push({ code, name: nm, buyPrice: buy, qty });
+    pf.txns.push({ date: __pfToday(), code, name: nm, type: 'buy', price: buy, qty, amt: buy * qty, fee: Math.round(buy * qty * PF_FEE), realized: 0 });
     __pfSave(pf); renderPortfolio();
   };
+  window.__pfSell = function (i) {
+    const pf = __pfLoad(), hd = pf.holdings[i]; if (!hd) return;
+    const info = __pfPrices()[hd.code];
+    const sp = +((prompt('📕 매도 단가(원) — ' + hd.name, info ? String(info.price) : '') || '').replace(/[,\s]/g, ''));
+    if (!(sp > 0)) return;
+    const sq = +((prompt('매도 수량 (보유 ' + hd.qty + '주)', String(hd.qty)) || '').replace(/[,\s]/g, ''));
+    if (!(sq > 0) || sq > hd.qty) { alert('수량이 올바르지 않습니다.'); return; }
+    const buyPortion = hd.buyPrice * sq, sellAmt = sp * sq;
+    const fee = buyPortion * PF_FEE + sellAmt * PF_FEE + sellAmt * PF_TAX;   // 매수·매도 수수료 + 매도 거래세
+    const realized = Math.round(sellAmt - buyPortion - fee);
+    pf.txns.push({ date: __pfToday(), code: hd.code, name: hd.name, type: 'sell', price: sp, qty: sq, amt: Math.round(sellAmt), fee: Math.round(fee), realized });
+    hd.qty -= sq; if (hd.qty <= 0) pf.holdings.splice(i, 1);
+    __pfSave(pf); renderPortfolio();
+  };
+  window.__pfDelTxn = function (i) { const pf = __pfLoad(); pf.txns.splice(i, 1); __pfSave(pf); renderPortfolio(); };
   window.__pfDel = function (i) { const pf = __pfLoad(); pf.holdings.splice(i, 1); __pfSave(pf); renderPortfolio(); };
   window.__pfManual = function (i) { const pf = __pfLoad(); const v = +(document.getElementById('pf-manual-' + i).value.replace(/[,\s]/g, '')) || 0; if (v > 0 && pf.holdings[i]) { pf.holdings[i].manualPrice = v; __pfSave(pf); renderPortfolio(); } };
   window.__pfSnapshot = function () {
@@ -9486,7 +9507,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);">${__pfNum(r.buyAmt)}</td>
       <td style="padding:5px 6px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);color:${sgn(r.pnl)};font-weight:700;">${pn(r.pnl)}</td>
       <td style="padding:5px 6px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${sgn(r.ret)};">${r.ret == null ? '—' : (r.ret >= 0 ? '+' : '') + r.ret.toFixed(1) + '%'}</td>
-      <td style="padding:5px 6px;text-align:center;"><button onclick="__pfDel(${r.i})" style="font-size:0.56rem;background:rgba(248,113,113,0.14);color:#f87171;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;">삭제</button></td>
+      <td style="padding:5px 6px;text-align:center;white-space:nowrap;"><button onclick="__pfSell(${r.i})" style="font-size:0.56rem;background:rgba(96,165,250,0.16);color:#60a5fa;border:none;border-radius:4px;padding:2px 7px;cursor:pointer;margin-right:3px;">매도</button><button onclick="__pfDel(${r.i})" style="font-size:0.56rem;background:rgba(248,113,113,0.14);color:#f87171;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;">삭제</button></td>
     </tr>`).join('');
     // 날짜별 손익 미니차트
     const hist = pf.history.slice(-30); let chart = '';
@@ -9516,6 +9537,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <td style="padding:5px 8px;text-align:right;font-size:0.63rem;font-family:var(--font-mono);color:var(--text-muted);">${__pfNum(s.buyAmt)}</td>
       <td style="padding:5px 8px;text-align:right;font-size:0.63rem;font-family:var(--font-mono);color:var(--text);">${__pfNum(s.val)}</td>
       ${_pnlTd(s.period, bold)}${_pnlTd(s.cum, bold)}
+      <td style="padding:5px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${sgn(s.cum)};font-weight:${bold ? 800 : 400};">${s.buyAmt ? (s.cum >= 0 ? '+' : '') + (s.cum / s.buyAmt * 100).toFixed(1) + '%' : '—'}</td>
     </tr>`;
     const stmt = _stStocks.length ? `<div style="margin-top:14px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
@@ -9529,30 +9551,57 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">평가금액</th>
           <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">${stView}손익</th>
           <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">누적손익</th>
+          <th style="padding:4px 8px;text-align:right;font-size:0.54rem;color:var(--text-muted);font-weight:500;">수익률</th>
         </tr></thead><tbody>
           ${_mkRow('총액', '', _stTot, true)}
           ${_stStocks.map(s => _mkRow(s.name, s.code, s)).join('')}
         </tbody></table></div>
       <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 기간손익=${_refLabel} 순손익 변화(종목별). 마감 후 접속 시 자동 기록. 현재가 수동입력 종목만 집계.</div>
     </div>` : '';
+    // 거래내역(매매일지) — 매수·매도 기록 + 실현손익
+    const _txns = [...(pf.txns || [])]; const _txv = _txns.slice(-40).reverse();
+    const txnTable = _txv.length ? `<div style="margin-top:14px;">
+      <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin-bottom:6px;">📕 거래내역 (매매일지 · 최근 ${_txv.length}건)</div>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:460px;">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
+          ${['날짜', '종목', '구분', '단가', '수량', '거래금액', '수수료·세', '실현손익', ''].map((t, k) => `<th style="padding:4px 7px;text-align:${k <= 2 ? 'left' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
+        </tr></thead><tbody>${_txv.map((t, di) => { const oi = _txns.length - 1 - di, sell = t.type === 'sell'; return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:4px 7px;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${h(t.date)}</td>
+          <td style="padding:4px 7px;font-size:0.64rem;color:var(--text-bright);white-space:nowrap;">${h(t.name)}</td>
+          <td style="padding:4px 7px;font-size:0.62rem;font-weight:700;color:${sell ? '#60a5fa' : '#4ade80'};">${sell ? '매도' : '매수'}</td>
+          <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${__pfNum(t.price)}</td>
+          <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${__pfNum(t.qty)}</td>
+          <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${__pfNum(t.amt)}</td>
+          <td style="padding:4px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${__pfNum(t.fee)}</td>
+          <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${sell ? sgn(t.realized) : 'var(--text-muted)'};">${sell ? (t.realized >= 0 ? '+' : '') + __pfNum(t.realized) : '—'}</td>
+          <td style="padding:4px 7px;text-align:center;"><button onclick="__pfDelTxn(${oi})" title="기록 삭제" style="font-size:0.6rem;background:transparent;color:var(--text-muted);border:none;cursor:pointer;">×</button></td>
+        </tr>`; }).join('')}</tbody></table></div>
+      <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 매도 시 실현손익=매도금−매수원가−수수료(왕복)−거래세(0.18%). '매도' 버튼으로 기록하면 보유수량 차감·평단 유지.</div>
+    </div>` : '';
     const html = `<section class="section-wrap" id="portfolio-section">
       <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
       <div class="glass-card" style="padding:14px 16px;">
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
-          <div class="glass-card" style="padding:9px 14px;min-width:130px;border-left:3px solid #f472b6;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">순손익 (수수료+거래세 반영)</div>
-            <div style="font-size:1.4rem;font-weight:800;font-family:var(--font-mono);color:${sgn(tot.pnl)};">${pn(tot.pnl)}<span style="font-size:0.7rem;">원</span></div>
-            <div style="font-size:0.64rem;color:${sgn(tot.ret)};">${tot.buy ? (tot.ret >= 0 ? '+' : '') + tot.ret.toFixed(2) + '% (매수금 대비)' : ''}</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="glass-card" style="padding:9px 14px;min-width:140px;border-left:3px solid #f472b6;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">총손익 (실현+평가)</div>
+            <div style="font-size:1.4rem;font-weight:800;font-family:var(--font-mono);color:${sgn(tot.total)};">${pn(tot.total)}<span style="font-size:0.7rem;">원</span></div>
+            <div style="font-size:0.62rem;color:${sgn(tot.vsPrincipal)};">${tot.vsPrincipal == null ? '원금 미설정' : (tot.vsPrincipal >= 0 ? '+' : '') + tot.vsPrincipal.toFixed(2) + '% (원금 대비)'}</div>
+          </div>
+          <div class="glass-card" style="padding:9px 14px;min-width:120px;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">평가손익 (보유)</div>
+            <div style="font-size:1.0rem;font-weight:700;font-family:var(--font-mono);color:${sgn(tot.pnl)};">${pn(tot.pnl)}</div>
+            <div style="font-size:0.6rem;color:${sgn(tot.ret)};">${tot.buy ? (tot.ret >= 0 ? '+' : '') + tot.ret.toFixed(2) + '% (매수금)' : ''}</div>
           </div>
           <div class="glass-card" style="padding:9px 14px;min-width:110px;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">원금 대비</div>
-            <div style="font-size:1.05rem;font-weight:700;font-family:var(--font-mono);color:${sgn(tot.vsPrincipal)};">${tot.vsPrincipal == null ? '원금 미설정' : (tot.vsPrincipal >= 0 ? '+' : '') + tot.vsPrincipal.toFixed(2) + '%'}</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">실현손익 (매도)</div>
+            <div style="font-size:1.0rem;font-weight:700;font-family:var(--font-mono);color:${sgn(tot.realized)};">${pn(tot.realized)}</div>
+            <div style="font-size:0.56rem;color:var(--text-muted);">매도 ${(pf.txns || []).filter(t => t.type === 'sell').length}건</div>
+          </div>
+          <div class="glass-card" style="padding:9px 14px;min-width:120px;">
+            <div style="font-size:0.58rem;color:var(--text-muted);">매수금 → 평가금</div>
+            <div style="font-size:0.76rem;font-family:var(--font-mono);color:var(--text-bright);">${__pfNum(tot.buy)}</div>
+            <div style="font-size:0.76rem;font-family:var(--font-mono);color:var(--text);">→ ${__pfNum(tot.value)}</div>
             <div style="font-size:0.56rem;color:var(--text-muted);">현금 ${tot.cash == null ? '—' : __pfNum(tot.cash)}</div>
-          </div>
-          <div class="glass-card" style="padding:9px 14px;min-width:110px;">
-            <div style="font-size:0.58rem;color:var(--text-muted);">매수금 / 평가금</div>
-            <div style="font-size:0.78rem;font-family:var(--font-mono);color:var(--text-bright);">${__pfNum(tot.buy)}</div>
-            <div style="font-size:0.78rem;font-family:var(--font-mono);color:var(--text);">→ ${__pfNum(tot.value)}</div>
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.64rem;">
@@ -9576,6 +9625,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${chart ? `<div style="margin-top:12px;"><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 기록)</div>${chart}
           <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div></div>` : ''}
         ${stmt}
+        ${txnTable}
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 코스피·코스닥 상위 ~1400종목 시세(워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 + 증권거래세 0.18%(매도) 반영. 정보용·투자자문 아님.</div>
       </div>
     </section>`;
