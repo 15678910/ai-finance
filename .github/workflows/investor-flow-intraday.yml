@@ -54,6 +54,13 @@ jobs:
         run: |
           python vkospi_monitor.py || echo "VKOSPI monitor had errors, continuing..."
 
+      # 넓은 시세 파일 (장중 갱신 — 포트폴리오 손익 자동 매칭 현재가)
+      - name: Run portfolio quotes
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python portfolio_quotes.py || echo "Portfolio quotes had errors, continuing..."
+
       - name: Commit results
         if: always()
         run: |

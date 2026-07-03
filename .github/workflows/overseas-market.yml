@@ -171,6 +171,13 @@ jobs:
       # (국내 증권사 리포트 analyst_reports.py·주요일정 earnings_calendar.py는
       #  무겁고 느리게 변해 korea-research.yml로 분리 — 5분 타임아웃 초과 방지)
 
+      # 넓은 시세 파일 (코스피+코스닥 상위 ~1400 — 포트폴리오 손익 자동 매칭용, 가격만 공개)
+      - name: Run portfolio quotes
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python portfolio_quotes.py || echo "Portfolio quotes had errors, continuing..."
+
       # 메모리 가격 뉴스 추적 (DRAM·HBM·DDR5 가격 방향 — 가격뉴스 자동수집 + 텔레그램)
       - name: Run memory price monitor
         env:

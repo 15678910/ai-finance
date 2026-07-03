@@ -9415,6 +9415,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const add = (t, n, p) => { if (t && p != null) { const c = String(t).replace(/\.K[SQ]$/i, ''); if (!m[c]) m[c] = { name: n || c, price: +p }; } };
     (dd.sectors || []).forEach(s => (s.stocks || []).forEach(st => add(st.ticker, st.name, st.price)));
     ((dd.market_cap_rankings || {}).domestic || []).forEach(st => add(st.ticker, st.name, st.price));
+    const wq = window.__quotes || {};   // 넓은 시세(코스피·코스닥 상위 ~1400) — 나머지 채움
+    for (const c in wq) { if (!m[c] && wq[c] && wq[c].p != null) m[c] = { name: wq[c].n || c, price: +wq[c].p }; }
     return m;
   }
   function __pfNum(v) { return (v == null || isNaN(v)) ? '—' : Math.round(v).toLocaleString(); }
@@ -9574,7 +9576,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${chart ? `<div style="margin-top:12px;"><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 기록)</div>${chart}
           <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div></div>` : ''}
         ${stmt}
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 대시보드 시세(주요 130종목, 워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 + 증권거래세 0.18%(매도) 반영. 정보용·투자자문 아님.</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 코스피·코스닥 상위 ~1400종목 시세(워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 + 증권거래세 0.18%(매도) 반영. 정보용·투자자문 아님.</div>
       </div>
     </section>`;
     const existing = document.getElementById('portfolio-section');
@@ -11713,8 +11715,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./memory_price.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderMemoryPrice(d); });
-      // 내 포트폴리오 손익 (fetch 불필요 — localStorage + data.json 매칭). 지연 호출로 시세 로드 후 렌더.
-      setTimeout(() => { try { renderPortfolio(); } catch (e) { } }, 1200);
+      // 내 포트폴리오 손익 — 넓은 시세(quotes.json) 로드 후 렌더(localStorage + 시세 매칭)
+      fetch('./quotes.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { window.__quotes = (d && d.q) || {}; try { renderPortfolio(); } catch (e) { } });
+      setTimeout(() => { try { renderPortfolio(); } catch (e) { } }, 1500);
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
