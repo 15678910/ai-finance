@@ -9412,7 +9412,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function __pfToday() { return new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000).toISOString().slice(0, 10); }
   function __pfPrincipal(pf) { return (pf.deposits && pf.deposits.length) ? pf.deposits.reduce((a, d) => a + (+d.amount || 0), 0) : (+pf.principal || 0); }  // 입금내역 있으면 합계, 없으면 수동 원금
   function __pfRealized(pf) { return (pf.txns || []).filter(t => t.type === 'sell').reduce((a, t) => a + (+t.realized || 0), 0); }
-  function __pfSave(pf) { try { localStorage.setItem(PF_KEY, JSON.stringify(pf)); } catch (e) { } }
+  function __pfSave(pf) { try { localStorage.setItem(PF_KEY, JSON.stringify(pf)); } catch (e) { } if (window.__pfFH) { try { __pfWriteFile(); } catch (e) { } } }
   function __pfPrices() {
     const m = {}, dd = window.__dashboardData || {};
     const add = (t, n, p) => { if (t && p != null) { const c = String(t).replace(/\.K[SQ]$/i, ''); if (!m[c]) m[c] = { name: n || c, price: +p }; } };
@@ -9503,6 +9503,37 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     };
     inp.click();
   };
+  // 파일 자동저장 (File System Access — 크롬/엣지). 브라우저 데이터 삭제에도 디스크 파일은 유지 → 재연결로 복원.
+  function __pfFSA() { return !!window.showSaveFilePicker; }
+  function __pfIdb(cb) { try { const r = indexedDB.open('__pf_fh', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => cb(r.result); r.onerror = () => cb(null); } catch (e) { cb(null); } }
+  function __pfHGet(cb) { __pfIdb(db => { if (!db) return cb(null); try { const t = db.transaction('kv').objectStore('kv').get('fh'); t.onsuccess = () => cb(t.result || null); t.onerror = () => cb(null); } catch (e) { cb(null); } }); }
+  function __pfHSet(v) { __pfIdb(db => { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(v, 'fh'); } catch (e) { } }); }
+  async function __pfWriteFile() { try { if (!window.__pfFH) return; const w = await window.__pfFH.createWritable(); await w.write(localStorage.getItem(PF_KEY) || '{}'); await w.close(); } catch (e) { } }
+  function __pfHasData(o) { return !!(o && ((o.holdings && o.holdings.length) || (o.deposits && o.deposits.length) || (o.txns && o.txns.length))); }
+  window.__pfLink = async function () {
+    if (!__pfFSA()) { alert('이 브라우저는 파일 자동저장 미지원(크롬·엣지 데스크톱 권장). 대신 💾 백업/📂 복원을 쓰세요.'); return; }
+    try {
+      const fh = await window.showSaveFilePicker({ suggestedName: 'portfolio.json', types: [{ description: '포트폴리오 백업', accept: { 'application/json': ['.json'] } }] });
+      const cur = __pfLoad(), empty = !__pfHasData(cur);
+      try { const f = await fh.getFile(); const t = await f.text(); if (t) { const o = JSON.parse(t); if (__pfHasData(o) && empty) __pfSave({ principal: +o.principal || 0, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); } } catch (e) { }
+      window.__pfFH = fh; __pfHSet(fh); await __pfWriteFile(); renderPortfolio();
+      alert('✅ 자동저장 연결! 변경할 때마다 이 파일에 자동 저장됩니다.\n데이터가 지워져도 이 파일을 다시 연결하면 그대로 복원됩니다.');
+    } catch (e) { }
+  };
+  async function __pfAutoloadFile() {
+    __pfHGet(async fh => {
+      if (!fh) return;
+      try {
+        const p = await fh.queryPermission({ mode: 'readwrite' });
+        if (p !== 'granted') return;   // 권한 재요청은 사용자 클릭 필요 → 버튼으로
+        window.__pfFH = fh;
+        const f = await fh.getFile(); const t = await f.text();
+        if (__pfHasData(__pfLoad()) === false && t) { const o = JSON.parse(t); if (__pfHasData(o)) __pfSave({ principal: +o.principal || 0, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); }
+        renderPortfolio();
+      } catch (e) { }
+    });
+  }
+  window.__pfAutoloadFile = __pfAutoloadFile;
   window.__pfSetView = function (v) { window.__pfView = v; renderPortfolio(); };
   window.__pfDeposit = function () {
     const pf = __pfLoad();
@@ -9665,7 +9696,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <button onclick="__pfSetPrincipal()" ${_deps.length ? 'disabled' : ''} style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;${_deps.length ? 'opacity:0.4;' : ''}">설정</button>
           <span style="color:var(--text-muted);margin-left:10px;">기록</span>
           <button onclick="__pfSnapshot()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📸 오늘 손익 기록</button>
-          <button onclick="__pfExport()" title="포트폴리오를 JSON 파일로 저장" style="font-size:0.6rem;background:rgba(74,222,128,0.14);color:#4ade80;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;margin-left:auto;">💾 백업</button>
+          ${__pfFSA() ? `<button onclick="__pfLink()" title="파일에 자동저장 — 데이터 삭제에도 파일은 유지, 재연결로 복원(크롬·엣지)" style="font-size:0.6rem;background:${window.__pfFH ? 'rgba(74,222,128,0.22)' : 'rgba(251,191,36,0.16)'};color:${window.__pfFH ? '#4ade80' : '#fbbf24'};border:none;border-radius:5px;padding:5px 10px;cursor:pointer;margin-left:auto;font-weight:600;">📎 ${window.__pfFH ? '자동저장 ON' : '파일 자동저장'}</button>` : ''}
+          <button onclick="__pfExport()" title="포트폴리오를 JSON 파일로 저장" style="font-size:0.6rem;background:rgba(74,222,128,0.14);color:#4ade80;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;${__pfFSA() ? '' : 'margin-left:auto;'}">💾 백업</button>
           <button onclick="__pfImport()" title="백업 JSON 파일 불러오기" style="font-size:0.6rem;background:rgba(96,165,250,0.14);color:#60a5fa;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📂 복원</button>
           <button onclick="__pfClear()" style="font-size:0.58rem;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:5px 8px;cursor:pointer;">전체 초기화</button>
         </div>
@@ -11828,6 +11860,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { window.__quotes = (d && d.q) || {}; try { renderPortfolio(); } catch (e) { } });
       setTimeout(() => { try { renderPortfolio(); } catch (e) { } }, 1500);
+      try { __pfAutoloadFile(); } catch (e) { }   // 자동저장 파일 연결돼 있으면(권한 유지 시) 파일에서 복원
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
