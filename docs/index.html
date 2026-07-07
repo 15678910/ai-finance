@@ -9420,8 +9420,40 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     ((dd.market_cap_rankings || {}).domestic || []).forEach(st => add(st.ticker, st.name, st.price));
     const wq = window.__quotes || {};   // 넓은 시세(코스피·코스닥 상위 ~1400) — 나머지 채움
     for (const c in wq) { if (!m[c] && wq[c] && wq[c].p != null) m[c] = { name: wq[c].n || c, price: +wq[c].p }; }
+    const lv = window.__pfLive || {};   // 실시간 시세(보유종목, 프록시 폴링) — 최우선 덮어쓰기
+    for (const c in lv) { if (lv[c] && lv[c].price != null && !isNaN(+lv[c].price)) m[c] = { name: lv[c].name || (m[c] && m[c].name) || c, price: +lv[c].price }; }
     return m;
   }
+  // ─── 실시간 시세 폴링 (보유종목만, 개장~20:00) — 네이버 통합시세 프록시(Cloudflare Worker) ───
+  // ↓↓↓ 배포한 Worker URL을 여기에 넣으세요. 비워두면 실시간 OFF(기존 quotes.json 시세만 사용).
+  const PF_LIVE_PROXY = 'https://naver-stock.lacoiffure828.workers.dev';   // 네이버 통합시세 프록시(Cloudflare Worker) — 보유종목 실시간 갱신
+  const PF_LIVE_MS = 20000;   // 폴링 주기(ms) — 20초
+  window.__pfLive = window.__pfLive || {};
+  function __pfInTradingWindow() {
+    const kst = new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000);   // KST(UTC+9)
+    const day = kst.getDay(), hr = kst.getHours();
+    return day >= 1 && day <= 5 && hr >= 8 && hr < 20;   // 평일 08:00~20:00 (NXT 프리~애프터마켓)
+  }
+  async function __pfPollLive() {
+    if (!PF_LIVE_PROXY) return;
+    const codes = [...new Set((__pfLoad().holdings || []).map(h => h.code).filter(c => /^\d{6}$/.test(c)))];
+    if (!codes.length) return;
+    try {
+      const r = await fetch(PF_LIVE_PROXY + '?codes=' + codes.join(','), { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      let n = 0;
+      for (const c in j) { if (j[c] && j[c].price != null && !isNaN(+j[c].price)) { window.__pfLive[c] = { price: +j[c].price, name: j[c].name, session: j[c].session, rate: j[c].rate }; n++; } }
+      if (n) { window.__pfLiveAt = new Date(); if (!/^pf-/.test((document.activeElement || {}).id || '')) { try { renderPortfolio(); } catch (e) { } } }
+    } catch (e) { /* 네트워크/프록시 오류 무시 → 다음 주기 재시도 */ }
+  }
+  function __pfStartLive() {
+    if (!PF_LIVE_PROXY || window.__pfLiveTimer) return;
+    const tick = () => { if (__pfInTradingWindow()) __pfPollLive(); };
+    tick();                                     // 즉시 1회
+    window.__pfLiveTimer = setInterval(tick, PF_LIVE_MS);
+  }
+  window.__pfStartLive = __pfStartLive;
   function __pfNum(v) { return (v == null || isNaN(v)) ? '—' : Math.round(v).toLocaleString(); }
   function __pfCompute(pf) {
     const pm = __pfPrices(), rows = []; let tBuy = 0, tVal = 0, tPnl = 0;
@@ -9730,7 +9762,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ${_eq('전월대비 순손익', _base == null ? '전월말 자산 입력 필요' : ('총자산 − 전월말 = ' + pn(_mom) + (_momRate == null ? '' : ' (' + (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%)')), sgn(_mom))}
     </div>`;
     const html = `<section class="section-wrap" id="portfolio-section">
-      <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
+      <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span>${PF_LIVE_PROXY ? `<span style="font-size:0.6rem;margin-left:8px;color:${window.__pfLiveAt ? '#22d3ee' : 'var(--text-muted)'};" title="네이버 통합시세(NXT 포함) · 평일 08:00~20:00 자동 갱신">${window.__pfLiveAt ? '🔴 실시간 ' + window.__pfLiveAt.toLocaleTimeString('ko-KR') : '⏳ 실시간 연결 중…'}</span>` : ''}</div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch;margin-bottom:6px;">
           ${depBlock}
@@ -11912,6 +11944,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { window.__quotes = (d && d.q) || {}; try { renderPortfolio(); } catch (e) { } });
       setTimeout(() => { try { renderPortfolio(); } catch (e) { } }, 1500);
+      try { __pfStartLive(); } catch (e) { }   // 실시간 시세 폴링 시작(보유종목, 개장~20:00)
       try { __pfAutoloadFile(); } catch (e) { }   // 자동저장 파일 연결돼 있으면(권한 유지 시) 파일에서 복원
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
