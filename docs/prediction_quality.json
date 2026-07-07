@@ -1,76 +1,83 @@
 {
-  "generated_at": "2026-07-07 11:08:55 KST",
+  "generated_at": "2026-07-07 19:20:29 KST",
   "model_version": "v1.2",
-  "pqi_overall": 41.7,
-  "grade": "🟠 미흡",
-  "grade_color": "orange",
-  "trend": 2.9,
+  "pqi_overall": 36.0,
+  "grade": "🔴 취약",
+  "grade_color": "red",
+  "trend": -10.7,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 47,
-      "mae": 3.73,
+      "dir": 40,
+      "mae": 3.97,
       "range": null,
       "n": 15,
-      "pqi": 51.7,
-      "pqi_recent": 40.4,
-      "pqi_prev": 37.2,
-      "big_miss_frac": 60
-    },
-    {
-      "name": "SK하이닉스",
-      "dir": 53,
-      "mae": 6.31,
-      "range": 27,
-      "n": 15,
-      "pqi": 36.8,
-      "pqi_recent": 30.2,
-      "pqi_prev": 35.6,
+      "pqi": 46.3,
+      "pqi_recent": 32.8,
+      "pqi_prev": 44.5,
       "big_miss_frac": 67
     },
     {
-      "name": "삼성전자",
+      "name": "SK하이닉스",
       "dir": 47,
-      "mae": 5.25,
-      "range": 13,
+      "mae": 6.58,
+      "range": 20,
       "n": 15,
-      "pqi": 36.5,
-      "pqi_recent": 37.5,
-      "pqi_prev": 26.5,
+      "pqi": 31.4,
+      "pqi_recent": 24.7,
+      "pqi_prev": 42.1,
       "big_miss_frac": 73
+    },
+    {
+      "name": "삼성전자",
+      "dir": 40,
+      "mae": 5.66,
+      "range": 7,
+      "n": 15,
+      "pqi": 30.2,
+      "pqi_recent": 29.1,
+      "pqi_prev": 32.2,
+      "big_miss_frac": 80
     }
   ],
   "diagnosis": {
-    "dir_avg": 49.0,
-    "mae_avg": 5.1,
-    "range_avg": 20.0,
-    "big_miss_avg": 66.7
+    "dir_avg": 42.3,
+    "mae_avg": 5.4,
+    "range_avg": 13.5,
+    "big_miss_avg": 73.3
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "범위 적중 낮음 (20%)",
+      "issue": "범위 적중 낮음 (14%)",
       "cause": "예측 OHLC 밴드가 현재 변동성 레짐 대비 협소",
       "fix": "밴드 σ 배수 확대 (예: 1.0→1.4)",
       "auto_safe": true
     },
     {
       "priority": 1,
-      "issue": "방향 적중 낮음 (49% · 동전 수준)",
+      "issue": "방향 적중 낮음 (42% · 동전 수준)",
       "cause": "선물 편중 → 디커플링·차익실현 날 방향 오류",
       "fix": "디커플링 경고일은 종합신호(composite)로 방향 보정",
       "auto_safe": false
     },
     {
       "priority": 1,
-      "issue": "급오차일(±3%↑) 빈발 (67%)",
+      "issue": "급오차일(±3%↑) 빈발 (73%)",
       "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
       "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
       "auto_safe": true
     },
     {
+      "priority": 1,
+      "issue": "PQI 하락 추세 (-10.7)",
+      "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
+      "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
+      "auto_safe": false
+    },
+    {
       "priority": 2,
-      "issue": "종가 오차 큼 (MAE 5.1%)",
+      "issue": "종가 오차 큼 (MAE 5.4%)",
       "cause": "고변동성 레짐 + 20일 베타가 급변 미추종",
       "fix": "베타 추정창 단축(20→10) 또는 변동성 가중 회귀",
       "auto_safe": false
@@ -96,12 +103,12 @@
     {
       "version": "v1.2",
       "note": "디커플링 방향 보정 — 창 내 선물↔종가 r² 낮으면 베타 수축(k=0.25+0.75·r²)",
-      "avg_pqi": 46.0,
+      "avg_pqi": 45.8,
       "start_date": "2026-07-01",
       "last_date": "2026-07-07",
-      "n_days": 66
+      "n_days": 67
     }
   ],
-  "delta_vs_prev_version": -2.8,
+  "delta_vs_prev_version": -3.0,
   "note": "PQI=0.45·방향+0.35·크기(MAE역)+0.20·범위 (모델 평균). 지수 하락 시 규칙기반 자동 진단·권고. auto_safe=밴드확대 등 기계적 보정만 자동 후보, 모델 로직 변경은 검토 후 적용. 통계 자기평가."
 }
