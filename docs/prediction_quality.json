@@ -1,47 +1,47 @@
 {
-  "generated_at": "2026-07-08 10:50:02 KST",
+  "generated_at": "2026-07-08 18:22:34 KST",
   "model_version": "v1.2",
-  "pqi_overall": 36.0,
-  "grade": "🔴 취약",
-  "grade_color": "red",
-  "trend": -10.7,
+  "pqi_overall": 39.3,
+  "grade": "🟠 미흡",
+  "grade_color": "orange",
+  "trend": -8.4,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 40,
-      "mae": 3.97,
+      "dir": 47,
+      "mae": 3.94,
       "range": null,
       "n": 15,
-      "pqi": 46.3,
-      "pqi_recent": 32.8,
-      "pqi_prev": 44.5,
+      "pqi": 50.4,
+      "pqi_recent": 36.6,
+      "pqi_prev": 47.0,
       "big_miss_frac": 67
     },
     {
       "name": "SK하이닉스",
-      "dir": 47,
-      "mae": 6.58,
+      "dir": 53,
+      "mae": 6.42,
       "range": 20,
       "n": 15,
-      "pqi": 31.4,
-      "pqi_recent": 24.7,
-      "pqi_prev": 42.1,
+      "pqi": 34.9,
+      "pqi_recent": 28.8,
+      "pqi_prev": 45.9,
       "big_miss_frac": 73
     },
     {
       "name": "삼성전자",
-      "dir": 40,
-      "mae": 5.66,
+      "dir": 47,
+      "mae": 5.83,
       "range": 7,
       "n": 15,
-      "pqi": 30.2,
-      "pqi_recent": 29.1,
-      "pqi_prev": 32.2,
+      "pqi": 32.5,
+      "pqi_recent": 35.0,
+      "pqi_prev": 32.8,
       "big_miss_frac": 80
     }
   ],
   "diagnosis": {
-    "dir_avg": 42.3,
+    "dir_avg": 49.0,
     "mae_avg": 5.4,
     "range_avg": 13.5,
     "big_miss_avg": 73.3
@@ -56,7 +56,7 @@
     },
     {
       "priority": 1,
-      "issue": "방향 적중 낮음 (42% · 동전 수준)",
+      "issue": "방향 적중 낮음 (49% · 동전 수준)",
       "cause": "선물 편중 → 디커플링·차익실현 날 방향 오류",
       "fix": "디커플링 경고일은 종합신호(composite)로 방향 보정",
       "auto_safe": false
@@ -70,7 +70,7 @@
     },
     {
       "priority": 1,
-      "issue": "PQI 하락 추세 (-10.7)",
+      "issue": "PQI 하락 추세 (-8.4)",
       "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
       "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
       "auto_safe": false
@@ -103,12 +103,12 @@
     {
       "version": "v1.2",
       "note": "디커플링 방향 보정 — 창 내 선물↔종가 r² 낮으면 베타 수축(k=0.25+0.75·r²)",
-      "avg_pqi": 44.7,
+      "avg_pqi": 44.6,
       "start_date": "2026-07-01",
       "last_date": "2026-07-08",
-      "n_days": 76
+      "n_days": 77
     }
   ],
-  "delta_vs_prev_version": -4.1,
+  "delta_vs_prev_version": -4.2,
   "note": "PQI=0.45·방향+0.35·크기(MAE역)+0.20·범위 (모델 평균). 지수 하락 시 규칙기반 자동 진단·권고. auto_safe=밴드확대 등 기계적 보정만 자동 후보, 모델 로직 변경은 검토 후 적용. 통계 자기평가."
 }
