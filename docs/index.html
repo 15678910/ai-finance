@@ -7648,7 +7648,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     };
     items.forEach(item => {
       const l = item.label;
-      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정/.test(l)) {
+      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정|밸류에이션/.test(l)) {
         groups['시장 개요'].push(item);
       } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시|메모리 가격/.test(l)) {
         groups['한국 시장'].push(item);
@@ -9245,6 +9245,83 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
   window.__renderKeyEvents = renderKeyEvents;
+
+  // ── 📐 코스피 밸류에이션 (PER·PBR) — 수동 갱신 카드 (KRX 무료 자동수집 차단 → 사용자가 KRX/네이버 수치 입력) ──
+  const KV_KEY = '__kospi_val_v1';
+  function __kvLoad() { try { return JSON.parse(localStorage.getItem(KV_KEY)) || {}; } catch (e) { return {}; } }
+  function __kvSaveObj(o) { try { localStorage.setItem(KV_KEY, JSON.stringify(o)); } catch (e) { } }
+  window.__kvSet = function () {
+    const g = id => { const el = document.getElementById(id); const v = el ? (el.value || '').replace(/[,\s배%원]/g, '') : ''; return (v === '' || isNaN(+v)) ? null : +v; };
+    const dEl = document.getElementById('kv-date');
+    __kvSaveObj({ fwdPer: g('kv-fwd'), ttmPer: g('kv-ttm'), pbr: g('kv-pbr'), divYield: g('kv-div'), asof: (dEl && dEl.value) || null });
+    renderKospiVal();
+  };
+  function renderKospiVal() {
+    const GFC = 6.27, NORMAL_LO = 10, NORMAL_HI = 11, LO = 5, HI = 14;   // 6.27=2008 금융위기 선행PER 역대최저
+    let kv = __kvLoad();
+    if (!kv || Object.keys(kv).length === 0) kv = { fwdPer: 6.65, ttmPer: null, pbr: null, divYield: null, asof: '2026-07-08' };  // 최초 예시값(웹 검색 기준, 갱신 권장)
+    const fwd = kv.fwdPer, ttm = kv.ttmPer, pbr = kv.pbr, dv = kv.divYield, asof = kv.asof || '';
+    const pct = v => Math.max(0, Math.min(100, (v - LO) / (HI - LO) * 100));
+    const iv = fwd == null ? { t: '값 입력 필요', c: 'var(--text-muted)' }
+      : fwd < 7 ? { t: '역대급 저평가 (금융위기 바닥권)', c: '#4ade80' }
+      : fwd < 9 ? { t: '저평가', c: '#22d3ee' }
+      : fwd <= 11.5 ? { t: '정상 범위', c: '#fbbf24' }
+      : { t: '고평가', c: '#f87171' };
+    const gL = pct(GFC), nL = pct(NORMAL_LO), nR = pct(NORMAL_HI), ptr = fwd == null ? null : pct(fwd);
+    const gauge = `<div style="position:relative;height:40px;margin:10px 2px 2px;">
+      <div style="position:absolute;top:18px;left:0;right:0;height:8px;border-radius:4px;background:linear-gradient(90deg,#4ade80 0%,#22d3ee 28%,#fbbf24 62%,#f87171 100%);"></div>
+      <div style="position:absolute;top:15px;left:${nL}%;width:${nR - nL}%;height:14px;border:1px dashed rgba(251,191,36,0.7);border-radius:3px;" title="정상범위 10~11배"></div>
+      <div style="position:absolute;top:10px;left:${gL}%;width:2px;height:22px;background:#f87171;"></div>
+      <div style="position:absolute;top:1px;left:${gL}%;transform:translateX(-50%);font-size:0.5rem;color:#f87171;white-space:nowrap;">6.27 위기최저</div>
+      ${ptr == null ? '' : `<div style="position:absolute;top:27px;left:${ptr}%;transform:translateX(-50%);font-size:0.62rem;color:${iv.c};">▲</div><div style="position:absolute;top:31px;left:${ptr}%;transform:translateX(-50%);font-size:0.52rem;color:var(--text-bright);white-space:nowrap;font-family:var(--font-mono);">${fwd}</div>`}
+      <div style="position:absolute;top:26px;left:0;font-size:0.48rem;color:var(--text-muted);">${LO}</div>
+      <div style="position:absolute;top:26px;right:0;font-size:0.48rem;color:var(--text-muted);">${HI}</div>
+    </div>`;
+    const INP = 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 6px;font-size:0.62rem;';
+    const cell = (lab, val, unit, sub, col) => `<div style="flex:1;min-width:86px;text-align:center;padding:6px 4px;background:rgba(255,255,255,0.03);border-radius:8px;">
+      <div style="font-size:0.54rem;color:var(--text-muted);">${lab}</div>
+      <div style="font-size:1.05rem;font-weight:800;font-family:var(--font-mono);color:${col || 'var(--text-bright)'};">${val == null ? '—' : val + unit}</div>
+      ${sub ? `<div style="font-size:0.48rem;color:var(--text-muted);">${sub}</div>` : ''}</div>`;
+    const html = `<section class="section-wrap" id="kospi-val-section">
+      <div class="section-label" style="color:#a78bfa;">📐 코스피 밸류에이션 (PER·PBR) <span style="font-size:0.62rem;color:var(--text-muted);">(수동 갱신 — KRX/네이버에서 보고 입력)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.62rem;">
+          <span style="color:var(--text-muted);">선행PER</span><input id="kv-fwd" value="${fwd == null ? '' : fwd}" placeholder="예:6.65" style="width:62px;${INP}"/>
+          <span style="color:var(--text-muted);">후행PER</span><input id="kv-ttm" value="${ttm == null ? '' : ttm}" placeholder="후행" style="width:62px;${INP}"/>
+          <span style="color:var(--text-muted);">PBR</span><input id="kv-pbr" value="${pbr == null ? '' : pbr}" placeholder="예:0.9" style="width:56px;${INP}"/>
+          <span style="color:var(--text-muted);">배당%</span><input id="kv-div" value="${dv == null ? '' : dv}" placeholder="%" style="width:46px;${INP}"/>
+          <input id="kv-date" type="date" value="${asof}" title="기준일" style="${INP}"/>
+          <button onclick="__kvSet()" style="font-size:0.6rem;background:rgba(167,139,250,0.18);color:#a78bfa;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">저장</button>
+          <a href="https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020506" target="_blank" rel="noopener" style="font-size:0.56rem;color:#22d3ee;margin-left:auto;">KRX↗</a>
+          <a href="https://finance.naver.com/sise/" target="_blank" rel="noopener" style="font-size:0.56rem;color:#22d3ee;">네이버↗</a>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);color:${iv.c};line-height:1.1;">${fwd == null ? '—' : fwd}<span style="font-size:0.8rem;color:var(--text-muted);">배</span></div>
+          <div style="font-size:0.64rem;color:var(--text-muted);">선행 PER${asof ? ` · ${asof} 기준` : ''}</div>
+        </div>
+        <div style="font-size:0.72rem;font-weight:700;color:${iv.c};margin-bottom:2px;">${iv.t}</div>
+        ${gauge}
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          ${cell('후행 PER', ttm, '배', '실적 기준')}
+          ${cell('PBR', pbr, '배', pbr != null && pbr < 1 ? '⚠️ 순자산 이하' : '장부가 대비', pbr != null && pbr < 1 ? '#4ade80' : null)}
+          ${cell('배당수익률', dv, '%', '')}
+        </div>
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:9px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          💡 <b style="color:#f87171;">6.27배</b> = 2008 글로벌 금융위기 당시 코스피 선행 PER <b>역대 최저(바닥)</b>. 현재 이 바닥권에 근접 = <b>코리아 디스카운트</b> 극단 (정상 10~11배 · 미국 S&P500 20배+).<br>
+          PBR &lt; 1 = 주가가 기업 순자산(장부가)보다 낮음 → 저평가 신호이나 '싼 데는 이유'(밸류 트랩)도 유의.<br>
+          🚨 <b>수동 입력 지표</b> — KRX/네이버에서 확인 후 갱신하세요. 정보 제공용 · 투자 판단은 본인 책임.
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('kospi-val-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const vk = document.getElementById('vkospi-card');
+    const anchor = (vk && vk.closest('.section-wrap')) || document.getElementById('portfolio-section') || document.getElementById('watchlist-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.__renderKospiVal = renderKospiVal;
 
   // 🧭 종합 예측 신호 보드 — 다요소 방향 종합 + 디커플링 경고
   function renderCompositeSignal(d) {
@@ -11944,6 +12021,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { window.__quotes = (d && d.q) || {}; try { renderPortfolio(); } catch (e) { } });
       setTimeout(() => { try { renderPortfolio(); } catch (e) { } }, 1500);
+      try { renderKospiVal(); } catch (e) { }
+      setTimeout(() => { try { renderKospiVal(); } catch (e) { } }, 1600);
       try { __pfStartLive(); } catch (e) { }   // 실시간 시세 폴링 시작(보유종목, 개장~20:00)
       try { __pfAutoloadFile(); } catch (e) { }   // 자동저장 파일 연결돼 있으면(권한 유지 시) 파일에서 복원
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
