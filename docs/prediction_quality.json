@@ -1,83 +1,76 @@
 {
-  "generated_at": "2026-07-09 11:02:03 KST",
+  "generated_at": "2026-07-09 19:20:33 KST",
   "model_version": "v1.2",
-  "pqi_overall": 39.3,
+  "pqi_overall": 44.2,
   "grade": "🟠 미흡",
   "grade_color": "orange",
-  "trend": -8.4,
+  "trend": -13.8,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 47,
-      "mae": 3.94,
+      "dir": 53,
+      "mae": 3.67,
       "range": null,
       "n": 15,
-      "pqi": 50.4,
-      "pqi_recent": 36.6,
-      "pqi_prev": 47.0,
-      "big_miss_frac": 67
+      "pqi": 55.5,
+      "pqi_recent": 37.4,
+      "pqi_prev": 53.5,
+      "big_miss_frac": 60
     },
     {
       "name": "SK하이닉스",
-      "dir": 53,
-      "mae": 6.42,
+      "dir": 60,
+      "mae": 6.27,
       "range": 20,
       "n": 15,
-      "pqi": 34.9,
-      "pqi_recent": 28.8,
-      "pqi_prev": 45.9,
+      "pqi": 38.8,
+      "pqi_recent": 22.6,
+      "pqi_prev": 47.3,
       "big_miss_frac": 73
     },
     {
       "name": "삼성전자",
-      "dir": 47,
-      "mae": 5.83,
-      "range": 7,
+      "dir": 53,
+      "mae": 5.44,
+      "range": 13,
       "n": 15,
-      "pqi": 32.5,
-      "pqi_recent": 35.0,
-      "pqi_prev": 32.8,
-      "big_miss_frac": 80
+      "pqi": 38.3,
+      "pqi_recent": 39.3,
+      "pqi_prev": 39.8,
+      "big_miss_frac": 73
     }
   ],
   "diagnosis": {
-    "dir_avg": 49.0,
-    "mae_avg": 5.4,
-    "range_avg": 13.5,
-    "big_miss_avg": 73.3
+    "dir_avg": 55.3,
+    "mae_avg": 5.13,
+    "range_avg": 16.5,
+    "big_miss_avg": 68.7
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "범위 적중 낮음 (14%)",
+      "issue": "범위 적중 낮음 (16%)",
       "cause": "예측 OHLC 밴드가 현재 변동성 레짐 대비 협소",
       "fix": "밴드 σ 배수 확대 (예: 1.0→1.4)",
       "auto_safe": true
     },
     {
       "priority": 1,
-      "issue": "방향 적중 낮음 (49% · 동전 수준)",
-      "cause": "선물 편중 → 디커플링·차익실현 날 방향 오류",
-      "fix": "디커플링 경고일은 종합신호(composite)로 방향 보정",
-      "auto_safe": false
-    },
-    {
-      "priority": 1,
-      "issue": "급오차일(±3%↑) 빈발 (73%)",
+      "issue": "급오차일(±3%↑) 빈발 (69%)",
       "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
       "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
       "auto_safe": true
     },
     {
       "priority": 1,
-      "issue": "PQI 하락 추세 (-8.4)",
+      "issue": "PQI 하락 추세 (-13.8)",
       "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
       "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
       "auto_safe": false
     },
     {
       "priority": 2,
-      "issue": "종가 오차 큼 (MAE 5.4%)",
+      "issue": "종가 오차 큼 (MAE 5.1%)",
       "cause": "고변동성 레짐 + 20일 베타가 급변 미추종",
       "fix": "베타 추정창 단축(20→10) 또는 변동성 가중 회귀",
       "auto_safe": false
@@ -106,7 +99,7 @@
       "avg_pqi": 43.9,
       "start_date": "2026-07-01",
       "last_date": "2026-07-09",
-      "n_days": 88
+      "n_days": 89
     }
   ],
   "delta_vs_prev_version": -4.9,
