@@ -29,6 +29,8 @@ COUNTRIES = [
     ("US", "미국", "🇺🇸", "#60a5fa", ["GGGDTAUSA188N", "GFDEGDQ188S"], "GGGDTPUSA188N"),
     ("KR", "한국", "🇰🇷", "#f472b6", ["GGGDTAKRA188N"], "GGGDTPKRA188N"),
     ("JP", "일본", "🇯🇵", "#fbbf24", ["GGGDTAJPA188N"], "GGGDTPJPA188N"),
+    ("CN", "중국", "🇨🇳", "#f87171", ["GGGDTACNA188N"], "GGGDTPCNA188N"),
+    ("DE", "독일", "🇩🇪", "#a78bfa", ["GGGDTADEA188N"], "GGGDTPDEA188N"),
 ]
 
 
