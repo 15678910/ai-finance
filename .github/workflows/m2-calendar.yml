@@ -37,6 +37,13 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python economic_calendar.py
 
+      # 성장 대비 부채 비율 (미국·한국·일본 정부부채/GDP — FRED/IMF)
+      - name: Collect debt-to-GDP
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: python debt_gdp_monitor.py || echo "debt_gdp had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"
