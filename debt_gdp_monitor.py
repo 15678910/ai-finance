@@ -23,11 +23,12 @@ KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "debt_gdp.json")
 
-# 국가별 (표시명, 국기, 색, FRED 시리즈 후보[우선순위순])
+# 국가별 (코드, 표시명, 국기, 색, 확정치 시리즈 후보[우선순위], 전망 시리즈)
+#   확정: GGGDTA*(IMF 일반정부 실적/추정)  ·  전망: GGGDTP*(IMF 예측, 2025~)
 COUNTRIES = [
-    ("US", "미국", "🇺🇸", "#60a5fa", ["GGGDTAUSA188N", "GFDEGDQ188S"]),
-    ("KR", "한국", "🇰🇷", "#f472b6", ["GGGDTAKRA188N"]),
-    ("JP", "일본", "🇯🇵", "#fbbf24", ["GGGDTAJPA188N"]),
+    ("US", "미국", "🇺🇸", "#60a5fa", ["GGGDTAUSA188N", "GFDEGDQ188S"], "GGGDTPUSA188N"),
+    ("KR", "한국", "🇰🇷", "#f472b6", ["GGGDTAKRA188N"], "GGGDTPKRA188N"),
+    ("JP", "일본", "🇯🇵", "#fbbf24", ["GGGDTAJPA188N"], "GGGDTPJPA188N"),
 ]
 
 
@@ -84,7 +85,7 @@ def main():
 
     now = datetime.now(KST)
     countries = []
-    for code, name, flag, color, series_ids in COUNTRIES:
+    for code, name, flag, color, series_ids, proj_id in COUNTRIES:
         obs, used = [], None
         for sid in series_ids:
             obs = fred_observations(api_key, sid)
@@ -92,31 +93,50 @@ def main():
                 used = sid
                 break
         if not obs:
-            print(f"  [WARN] {name}: 데이터 없음(시도 {series_ids})")
+            print(f"  [WARN] {name}: 확정 데이터 없음(시도 {series_ids})")
             continue
         by_year = annualize(obs)
         series = [[y, round(by_year[y], 1)] for y in sorted(by_year)]
-        latest_year = series[-1][0]
-        latest = series[-1][1]
+        latest_year, latest = series[-1][0], series[-1][1]
+        # ① IMF 전망(GGGDTP): 마지막 확정연도 이후만, 연속되게 확정 끝점부터 시작
+        proj = []
+        proj_by_year = annualize(fred_observations(api_key, proj_id)) if proj_id else {}
+        future = [y for y in sorted(proj_by_year) if y > latest_year]
+        if future:
+            proj = [[latest_year, latest]] + [[y, round(proj_by_year[y], 1)] for y in future]
+        proj_latest = proj[-1] if len(proj) > 1 else None
         countries.append({
             "code": code, "name": name, "flag": flag, "color": color,
             "series_id": used, "latest": latest, "latest_year": latest_year,
-            "series": series,
+            "series": series, "proj": proj,
+            "proj_latest": (proj_latest[1] if proj_latest else None),
+            "proj_latest_year": (proj_latest[0] if proj_latest else None),
         })
-        print(f"  {flag} {name}: {latest}% ({latest_year}) · {len(series)}년치 [{used}]")
+        pt = f" · 전망 {proj_latest[1]}%({proj_latest[0]})" if proj_latest else ""
+        print(f"  {flag} {name}: {latest}% ({latest_year}) · {len(series)}년치 [{used}]{pt}")
 
     if not countries:
         print("[ERROR] 수집 실패 — 기존 파일 보존.")
         return 1
 
-    # 공통 연도 범위(차트 x축)
-    all_years = sorted({p[0] for c in countries for p in c["series"]})
+    # ② 미국 분기 연방부채/GDP (GFDEGDQ188S — 가장 최신 시점)
+    us_quarterly = None
+    usq = fred_observations(api_key, "GFDEGDQ188S", years_back=3)
+    if usq:
+        d0, v0 = usq[-1]
+        us_quarterly = {"value": round(v0, 1), "date": d0, "series_id": "GFDEGDQ188S"}
+        print(f"  🇺🇸 미국 분기(연방부채): {v0:.1f}% ({d0})")
+
+    # 공통 연도 범위(확정+전망 포함)
+    all_years = sorted({p[0] for c in countries for p in c["series"]}
+                       | {p[0] for c in countries for p in c.get("proj", [])})
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "countries": countries,
+        "us_quarterly": us_quarterly,
         "year_min": all_years[0], "year_max": all_years[-1],
-        "note": ("각국 일반정부 총부채/GDP(%). 미국=IMF 일반정부(없으면 연방부채/GDP 분기), "
-                 "한국·일본=IMF 일반정부(연간). 성장 대비 부채가 클수록 재정·금리·통화 리스크↑. "
+        "note": ("각국 일반정부 총부채/GDP(%). 실선=확정(IMF 일반정부), 점선=IMF 전망(2025~). "
+                 "미국 분기값=연방부채/GDP(GFDEGDQ188S, 최신). 성장 대비 부채↑ = 재정·금리·통화 리스크↑. "
                  "FRED/IMF 공개데이터 · 워크플로 갱신 · 투자자문 아님."),
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
