@@ -9259,7 +9259,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderKospiVal() {
     const GFC = 6.27, NORMAL_LO = 10, NORMAL_HI = 11, LO = 5, HI = 14;   // 6.27=2008 금융위기 선행PER 역대최저
     let kv = __kvLoad();
-    if (!kv || Object.keys(kv).length === 0) kv = { fwdPer: 6.65, ttmPer: null, pbr: null, divYield: null, asof: '2026-07-08' };  // 최초 예시값(웹 검색 기준, 갱신 권장)
+    const _kvToday = (typeof __pfToday === 'function') ? __pfToday() : new Date().toISOString().slice(0, 10);
+    if (!kv || Object.keys(kv).length === 0) kv = { fwdPer: 6.65, ttmPer: null, pbr: null, divYield: null, asof: _kvToday };  // 최초 예시값(선행PER은 웹 검색 기준·갱신 권장), 날짜=오늘
     const fwd = kv.fwdPer, ttm = kv.ttmPer, pbr = kv.pbr, dv = kv.divYield, asof = kv.asof || '';
     const pct = v => Math.max(0, Math.min(100, (v - LO) / (HI - LO) * 100));
     const iv = fwd == null ? { t: '값 입력 필요', c: 'var(--text-muted)' }
@@ -9290,7 +9291,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="color:var(--text-muted);">후행PER</span><input id="kv-ttm" value="${ttm == null ? '' : ttm}" placeholder="후행" style="width:62px;${INP}"/>
           <span style="color:var(--text-muted);">PBR</span><input id="kv-pbr" value="${pbr == null ? '' : pbr}" placeholder="예:0.9" style="width:56px;${INP}"/>
           <span style="color:var(--text-muted);">배당%</span><input id="kv-div" value="${dv == null ? '' : dv}" placeholder="%" style="width:46px;${INP}"/>
-          <input id="kv-date" type="date" value="${asof}" title="기준일" style="${INP}"/>
+          <input id="kv-date" type="date" value="${_kvToday}" title="기준일 (기본=오늘, 저장 시 이 날짜로 기록)" style="${INP}"/>
           <button onclick="__kvSet()" style="font-size:0.6rem;background:rgba(167,139,250,0.18);color:#a78bfa;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">저장</button>
           <a href="https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020506" target="_blank" rel="noopener" style="font-size:0.56rem;color:#22d3ee;margin-left:auto;">KRX↗</a>
           <a href="https://finance.naver.com/sise/" target="_blank" rel="noopener" style="font-size:0.56rem;color:#22d3ee;">네이버↗</a>
