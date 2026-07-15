@@ -44,6 +44,12 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python debt_gdp_monitor.py || echo "debt_gdp had errors, continuing..."
 
+      # 코스피 밸류에이션 (후행PER·PBR·배당수익률 — KRX·KOFIA via INDEXerGO)
+      - name: Collect KOSPI valuation
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python kospi_valuation_monitor.py || echo "kospi_valuation had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"

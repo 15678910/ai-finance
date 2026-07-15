@@ -9246,22 +9246,25 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderKeyEvents = renderKeyEvents;
 
-  // ── 📐 코스피 밸류에이션 (PER·PBR) — 수동 갱신 카드 (KRX 무료 자동수집 차단 → 사용자가 KRX/네이버 수치 입력) ──
+  // ── 📐 코스피 밸류에이션 — 후행PER·PBR·배당=자동수집(KRX·KOFIA via INDEXerGO), 선행PER만 수동(증권사 컨센서스라 무료원 없음) ──
   const KV_KEY = '__kospi_val_v1';
   function __kvLoad() { try { return JSON.parse(localStorage.getItem(KV_KEY)) || {}; } catch (e) { return {}; } }
   function __kvSaveObj(o) { try { localStorage.setItem(KV_KEY, JSON.stringify(o)); } catch (e) { } }
-  window.__kvSet = function () {
-    const g = id => { const el = document.getElementById(id); const v = el ? (el.value || '').replace(/[,\s배%원]/g, '') : ''; return (v === '' || isNaN(+v)) ? null : +v; };
+  window.__kvSet = function () {   // 선행 PER만 수동 저장
+    const el = document.getElementById('kv-fwd'); const raw = (el && el.value || '').replace(/[,\s배%]/g, '');
     const dEl = document.getElementById('kv-date');
-    __kvSaveObj({ fwdPer: g('kv-fwd'), ttmPer: g('kv-ttm'), pbr: g('kv-pbr'), divYield: g('kv-div'), asof: (dEl && dEl.value) || null });
+    const v = (raw === '' || isNaN(+raw)) ? null : +raw;
+    __kvSaveObj({ fwdPer: v, asof: (dEl && dEl.value) || null });
     renderKospiVal();
   };
   function renderKospiVal() {
     const GFC = 6.27, NORMAL_LO = 10, NORMAL_HI = 11, LO = 5, HI = 14;   // 6.27=2008 금융위기 선행PER 역대최저
     let kv = __kvLoad();
     const _kvToday = (typeof __pfToday === 'function') ? __pfToday() : new Date().toISOString().slice(0, 10);
-    if (!kv || Object.keys(kv).length === 0) kv = { fwdPer: 6.65, ttmPer: null, pbr: null, divYield: null, asof: _kvToday };  // 최초 예시값(선행PER은 웹 검색 기준·갱신 권장), 날짜=오늘
-    const fwd = kv.fwdPer, ttm = kv.ttmPer, pbr = kv.pbr, dv = kv.divYield, asof = kv.asof || '';
+    if (!kv || Object.keys(kv).length === 0) kv = { fwdPer: 6.65, asof: _kvToday };  // 선행PER 최초 예시값(증권사 컨센서스 기준·갱신 권장)
+    const fwd = kv.fwdPer, asof = kv.asof || '';
+    const auto = window.__kvAuto || {};                       // 자동 수집(KRX·KOFIA): 후행PER·PBR·배당수익률
+    const ttm = auto.per, pbr = auto.pbr, dv = auto.div_yield, autoAsof = auto.asof || '';
     const pct = v => Math.max(0, Math.min(100, (v - LO) / (HI - LO) * 100));
     const iv = fwd == null ? { t: '값 입력 필요', c: 'var(--text-muted)' }
       : fwd < 7 ? { t: '역대급 저평가 (금융위기 바닥권)', c: '#4ade80' }
@@ -9284,16 +9287,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div style="font-size:1.05rem;font-weight:800;font-family:var(--font-mono);color:${col || 'var(--text-bright)'};">${val == null ? '—' : val + unit}</div>
       ${sub ? `<div style="font-size:0.48rem;color:var(--text-muted);">${sub}</div>` : ''}</div>`;
     const html = `<section class="section-wrap" id="kospi-val-section">
-      <div class="section-label" style="color:#a78bfa;">📐 코스피 밸류에이션 (PER·PBR) <span style="font-size:0.62rem;color:var(--text-muted);">(수동 갱신 — KRX/네이버에서 보고 입력)</span></div>
+      <div class="section-label" style="color:#a78bfa;">📐 코스피 밸류에이션 (PER·PBR) <span style="font-size:0.62rem;color:var(--text-muted);">(후행PER·PBR·배당 자동 — KRX·KOFIA / 선행PER만 수동)</span></div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.62rem;">
-          <span style="color:var(--text-muted);">선행PER</span><input id="kv-fwd" value="${fwd == null ? '' : fwd}" placeholder="예:6.65" style="width:62px;${INP}"/>
-          <span style="color:var(--text-muted);">후행PER</span><input id="kv-ttm" value="${ttm == null ? '' : ttm}" placeholder="후행" style="width:62px;${INP}"/>
-          <span style="color:var(--text-muted);">PBR</span><input id="kv-pbr" value="${pbr == null ? '' : pbr}" placeholder="예:0.9" style="width:56px;${INP}"/>
-          <span style="color:var(--text-muted);">배당%</span><input id="kv-div" value="${dv == null ? '' : dv}" placeholder="%" style="width:46px;${INP}"/>
-          <input id="kv-date" type="date" value="${_kvToday}" title="기준일 (기본=오늘, 저장 시 이 날짜로 기록)" style="${INP}"/>
+          <span style="color:#fbbf24;font-weight:700;">선행PER(수동)</span><input id="kv-fwd" value="${fwd == null ? '' : fwd}" placeholder="예:6.65" title="증권사 컨센서스 기준 12개월 선행 PER — 뉴스·리포트에서 확인 후 입력" style="width:62px;${INP}"/>
+          <input id="kv-date" type="date" value="${_kvToday}" title="선행PER 기준일 (기본=오늘)" style="${INP}"/>
           <button onclick="__kvSet()" style="font-size:0.6rem;background:rgba(167,139,250,0.18);color:#a78bfa;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">저장</button>
-          <a href="https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201010107" target="_blank" rel="noopener" title="KRX 정보데이터시스템 → PER/PBR/배당수익률(지수). 여기서 후행PER·PBR·배당수익률 확인" style="font-size:0.56rem;color:#22d3ee;margin-left:auto;font-weight:700;">📊 KRX에서 후행PER·PBR·배당 보기↗</a>
+          <span style="font-size:0.54rem;color:#4ade80;margin-left:auto;">✅ 후행PER·PBR·배당은 <b>자동 수집</b>${autoAsof ? ` (${autoAsof} 마감)` : ''}</span>
         </div>
         <div style="display:flex;align-items:baseline;gap:8px;">
           <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);color:${iv.c};line-height:1.1;">${fwd == null ? '—' : fwd}<span style="font-size:0.8rem;color:var(--text-muted);">배</span></div>
@@ -9302,15 +9302,16 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="font-size:0.72rem;font-weight:700;color:${iv.c};margin-bottom:2px;">${iv.t}</div>
         ${gauge}
         <div style="display:flex;gap:6px;margin-top:8px;">
-          ${cell('후행 PER', ttm, '배', '실적 기준')}
-          ${cell('PBR', pbr, '배', pbr != null && pbr < 1 ? '⚠️ 순자산 이하' : '장부가 대비', pbr != null && pbr < 1 ? '#4ade80' : null)}
-          ${cell('배당수익률', dv, '%', '')}
+          ${cell('후행 PER <span style="color:#4ade80;">자동</span>', ttm, '배', '실적 기준')}
+          ${cell('PBR <span style="color:#4ade80;">자동</span>', pbr, '배', pbr != null && pbr < 1 ? '⚠️ 순자산 이하' : '장부가 대비', pbr != null && pbr < 1 ? '#4ade80' : null)}
+          ${cell('배당수익률 <span style="color:#4ade80;">자동</span>', dv, '%', '')}
         </div>
         <div style="font-size:0.56rem;color:var(--text-muted);margin-top:9px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
           💡 <b style="color:#f87171;">6.27배</b> = 2008 글로벌 금융위기 당시 코스피 선행 PER <b>역대 최저(바닥)</b>. 현재 이 바닥권에 근접 = <b>코리아 디스카운트</b> 극단 (정상 10~11배 · 미국 S&P500 20배+).<br>
           PBR &lt; 1 = 주가가 기업 순자산(장부가)보다 낮음 → 저평가 신호이나 '싼 데는 이유'(밸류 트랩)도 유의.<br>
-          📍 <b>어디서 찾나</b> — <b style="color:#22d3ee;">후행PER·PBR·배당수익률</b>: 위 <b>KRX 링크</b> 클릭 → 지수 <b>코스피</b> 선택 → 오늘 날짜 조회. &nbsp;<b style="color:#fbbf24;">선행PER</b>: KRX 미제공(<b>증권사 컨센서스</b>) → 뉴스·증권사 리포트에서 확인. 네이버 금융은 지수 PER/PBR 미제공.<br>
-          🚨 <b>수동 입력 지표</b> — 값은 직접 입력해야 하며 자동 갱신 아님. 정보 제공용 · 투자 판단은 본인 책임.
+          📍 <b style="color:#4ade80;">후행PER·PBR·배당수익률 = 자동 수집</b> (원출처 <b>KRX·KOFIA</b>, 매일 마감 기준) — 직접 입력 불필요. ${auto.source_url ? `<a href="${h(auto.source_url)}" target="_blank" rel="noopener" style="color:#22d3ee;">원본 보기↗</a>` : ''}<br>
+          ✍️ <b style="color:#fbbf24;">선행PER만 수동</b> — 증권사 컨센서스(FnGuide) 기반이라 무료 공개원이 없어 뉴스·리포트에서 확인 후 입력 (자주 안 바뀌므로 가끔만 갱신). <span style="color:var(--text-muted);">※ KRX 사이트는 보안프로그램(nProtect)을 요구해 직접 조회가 어렵습니다.</span><br>
+          🚨 일 1회 마감 기준(실시간 아님) · 정보 제공용 · 투자 판단은 본인 책임.
         </div>
       </div>
     </section>`;
@@ -12079,6 +12080,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./debt_gdp.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderDebtGdp(d); } catch (e) { } } });
+      // 코스피 밸류에이션 — 후행PER·PBR·배당 자동 수집(KRX·KOFIA)
+      fetch('./kospi_valuation.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { window.__kvAuto = d; try { renderKospiVal(); } catch (e) { } } });
       // 내 포트폴리오 손익 — 넓은 시세(quotes.json) 로드 후 렌더(localStorage + 시세 매칭)
       fetch('./quotes.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
