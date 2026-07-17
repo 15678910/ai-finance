@@ -37,7 +37,7 @@ MONITORED = [
     # 일일 워크플로
     ("credit_spread.json", 30), ("liquidity_stress.json", 30),
     ("economic_calendar.json", 36), ("m2_data.json", 36), ("debt_gdp.json", 40),
-    ("kospi_valuation.json", 40),
+    ("kospi_valuation.json", 40), ("fear_greed.json", 30),
 ]
 
 

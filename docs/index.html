@@ -7648,7 +7648,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     };
     items.forEach(item => {
       const l = item.label;
-      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정|밸류에이션|부채 비율/.test(l)) {
+      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정|밸류에이션|부채 비율|공포·탐욕/.test(l)) {
         groups['시장 개요'].push(item);
       } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시|메모리 가격/.test(l)) {
         groups['한국 시장'].push(item);
@@ -9382,6 +9382,58 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else (document.getElementById('app') || document.body).appendChild(node);
   }
   window.__renderDebtGdp = renderDebtGdp;
+
+  // ── 😱🤑 공포·탐욕지수 (Fear & Greed) — 미국증시(CNN) + 크립토(alternative.me) ──
+  function renderFearGreed(d) {
+    if (d) window.__fgData = d;
+    d = window.__fgData;
+    if (!d || (!d.us && !d.crypto)) return;
+    const fgColor = v => v == null ? 'var(--text-muted)' : v < 25 ? '#ef4444' : v < 45 ? '#fb923c' : v <= 55 ? '#fbbf24' : v <= 75 ? '#a3e635' : '#4ade80';
+    const fgKo = v => v == null ? '—' : v < 25 ? '극단적 공포' : v < 45 ? '공포' : v <= 55 ? '중립' : v <= 75 ? '탐욕' : '극단적 탐욕';
+    const rColor = r => !r ? 'var(--text-muted)' : /extreme fear/i.test(r) ? '#ef4444' : /extreme greed/i.test(r) ? '#4ade80' : /neutral/i.test(r) ? '#fbbf24' : /greed/i.test(r) ? '#a3e635' : /fear/i.test(r) ? '#fb923c' : 'var(--text-muted)';
+    const gauge = v => `<div style="position:relative;height:24px;margin:7px 0 2px;">
+      <div style="position:absolute;top:9px;left:0;right:0;height:8px;border-radius:4px;background:linear-gradient(90deg,#ef4444 0%,#fb923c 25%,#fbbf24 50%,#a3e635 75%,#4ade80 100%);"></div>
+      ${v == null ? '' : `<div style="position:absolute;top:0;left:${Math.max(0, Math.min(100, v))}%;transform:translateX(-50%);font-size:0.62rem;color:var(--text-bright);">▼</div>`}
+      <div style="position:absolute;top:15px;left:0;font-size:0.46rem;color:var(--text-muted);">0 공포</div>
+      <div style="position:absolute;top:15px;right:0;font-size:0.46rem;color:var(--text-muted);">탐욕 100</div></div>`;
+    const spark = (arr, col) => {
+      if (!arr || arr.length < 2) return '';
+      const W = 140, H = 26, mn = Math.min(...arr), mx = Math.max(...arr), rg = (mx - mn) || 1;
+      const pts = arr.map((v, i) => `${(i / (arr.length - 1) * W).toFixed(1)},${(H - 2 - (v - mn) / rg * (H - 4)).toFixed(1)}`).join(' ');
+      return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:26px;margin-top:2px;"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5"/></svg>`;
+    };
+    const usCard = (o) => { if (!o) return ''; const v = o.score, c = fgColor(v);
+      const comps = (o.components || []).map(k => `<span style="font-size:0.5rem;padding:1px 6px;border-radius:8px;background:${rColor(k.rating)}22;color:${rColor(k.rating)};">${h(k.name)}</span>`).join('');
+      return `<div style="flex:1;min-width:240px;padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:10px;border-top:3px solid ${c};">
+        <div style="font-size:0.66rem;color:var(--text-muted);margin-bottom:1px;">🇺🇸 미국증시 (CNN)</div>
+        <div style="display:flex;align-items:baseline;gap:8px;"><div style="font-size:2rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${v == null ? '—' : v}</div><div style="font-size:0.8rem;font-weight:700;color:${c};">${fgKo(v)}</div></div>
+        ${gauge(v)}${spark(o.series, c)}
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">전일 ${o.prev_close} · 1주전 ${o.week} · 1달전 ${o.month} · 1년전 ${o.year}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${comps}</div></div>`; };
+    const cryptoCard = (o) => { if (!o) return ''; const v = o.value, c = fgColor(v);
+      return `<div style="flex:1;min-width:240px;padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:10px;border-top:3px solid ${c};">
+        <div style="font-size:0.66rem;color:var(--text-muted);margin-bottom:1px;">₿ 크립토 (alternative.me)</div>
+        <div style="display:flex;align-items:baseline;gap:8px;"><div style="font-size:2rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${v == null ? '—' : v}</div><div style="font-size:0.8rem;font-weight:700;color:${c};">${fgKo(v)}</div></div>
+        ${gauge(v)}${spark(o.series, c)}
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">어제 ${o.yesterday} · 1주전 ${o.week}</div></div>`; };
+    const html = `<section class="section-wrap" id="fear-greed-section">
+      <div class="section-label" style="color:#f59e0b;">😱🤑 공포·탐욕지수 (Fear &amp; Greed) <span style="font-size:0.62rem;color:var(--text-muted);">— 미국증시(CNN)·크립토 · 0=공포(역발상 기회)·100=탐욕(과열)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${usCard(d.us)}${cryptoCard(d.crypto)}</div>
+        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:9px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          💡 <b>공포·탐욕지수</b>는 <b>시장 전체 심리</b>를 하나로 (미국=풋콜·VIX·정크본드·안전자산 등 7개 종합). <b>역발상</b> 관점: 극단적 공포(&lt;25)=매수 기회, 극단적 탐욕(&gt;75)=과열 주의.<br>
+          위 '과열 게이지'(자산별 가격통계)와 <b>상호보완</b> — 이건 심리, 저건 개별자산 통계. ${h(d.note || '')} · <span>${h(d.generated_at || '')}</span>
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('fear-greed-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('debt-gdp-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.__renderFearGreed = renderFearGreed;
 
   // 🧭 종합 예측 신호 보드 — 다요소 방향 종합 + 디커플링 경고
   function renderCompositeSignal(d) {
@@ -12104,6 +12156,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./kospi_valuation.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { window.__kvAuto = d; try { renderKospiVal(); } catch (e) { } } });
+      // 공포·탐욕지수 — 미국증시(CNN) + 크립토
+      fetch('./fear_greed.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderFearGreed(d); } catch (e) { } } });
       // 내 포트폴리오 손익 — 넓은 시세(quotes.json) 로드 후 렌더(localStorage + 시세 매칭)
       fetch('./quotes.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

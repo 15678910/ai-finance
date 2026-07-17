@@ -50,6 +50,12 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python kospi_valuation_monitor.py || echo "kospi_valuation had errors, continuing..."
 
+      # 공포·탐욕지수 (미국증시 CNN + 크립토 alternative.me)
+      - name: Collect Fear & Greed
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python fear_greed_monitor.py || echo "fear_greed had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"
