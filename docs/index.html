@@ -8558,8 +8558,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const existing = document.getElementById('kospi-scenario-section');
     if (existing) { existing.outerHTML = html; }
     else {
-      // 공포·탐욕지수(있으면) 아래, 없으면 과열게이지 아래에 배치 — 공포탐욕이 과열게이지 바로 밑을 차지하도록
-      const oh = document.getElementById('fear-greed-section') || document.getElementById('overheating-section');
+      // 과열게이지 바로 아래에 배치 (없으면 append)
+      const oh = document.getElementById('overheating-section');
       const tmp = document.createElement('div'); tmp.innerHTML = html;
       const node = tmp.firstElementChild;
       if (oh) oh.insertAdjacentElement('afterend', node);
@@ -9416,25 +9416,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="display:flex;align-items:baseline;gap:8px;"><div style="font-size:2rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${v == null ? '—' : v}</div><div style="font-size:0.8rem;font-weight:700;color:${c};">${fgKo(v)}</div></div>
         ${gauge(v)}${spark(o.series, c)}
         <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">어제 ${o.yesterday} · 1주전 ${o.week}</div></div>`; };
-    const html = `<section class="section-wrap" id="fear-greed-section">
-      <div class="section-label" style="color:#f59e0b;">😱🤑 공포·탐욕지수 (Fear &amp; Greed) <span style="font-size:0.62rem;color:var(--text-muted);">— 미국증시(CNN)·크립토 · 0=공포(역발상 기회)·100=탐욕(과열)</span></div>
+    const html = `<div class="section-label" style="color:#f59e0b;">😱🤑 공포·탐욕지수 (Fear &amp; Greed) <span style="font-size:0.62rem;color:var(--text-muted);">— 미국증시(CNN)·크립토 · 0=공포(역발상 기회)·100=탐욕(과열)</span></div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">${usCard(d.us)}${cryptoCard(d.crypto)}</div>
         <div style="font-size:0.56rem;color:var(--text-muted);margin-top:9px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
           💡 <b>공포·탐욕지수</b>는 <b>시장 전체 심리</b>를 하나로 (미국=풋콜·VIX·정크본드·안전자산 등 7개 종합). <b>역발상</b> 관점: 극단적 공포(&lt;25)=매수 기회, 극단적 탐욕(&gt;75)=과열 주의.<br>
           위 '과열 게이지'(자산별 가격통계)와 <b>상호보완</b> — 이건 심리, 저건 개별자산 통계. ${h(d.note || '')} · <span>${h(d.generated_at || '')}</span>
         </div>
-      </div>
-    </section>`;
-    const old = document.getElementById('fear-greed-section'); if (old) old.remove();
-    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
-    const oh = document.getElementById('overheating-section');
-    if (oh && oh.parentNode) { oh.parentNode.insertBefore(node, oh.nextSibling); }   // 과열 게이지 바로 아래
-    else {   // 과열 게이지 아직 미로드 → 임시 위치(뒤에 renderOverheating이 재배치)
-      const a = document.getElementById('debt-gdp-section') || document.getElementById('portfolio-section');
-      if (a && a.parentNode) a.parentNode.insertBefore(node, a.nextSibling);
-      else (document.getElementById('app') || document.body).appendChild(node);
-    }
+      </div>`;
+    // 과열 게이지 섹션 내부 마운트(#fg-inline)에 고정 렌더 — 위치 경쟁·진동 원천 차단
+    const mount = document.getElementById('fg-inline');
+    if (!mount) return;   // 과열 게이지 아직 미로드 → renderOverheating이 렌더 후 호출
+    mount.innerHTML = html;
   }
   window.__renderFearGreed = renderFearGreed;
 
@@ -10953,6 +10946,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ※ heat = 50 + 13·z50 + 5·모멘텀z + 0.25·200일이격(상한80). 🟢매수-1.5σ / ⚠️+${dangerZ}σ = 이번 붕괴 직전 실제 고점대 · 흰점=현재 · 점선원=최근고점.<br>
         🚨 통계 추정. 투자 결정 단독 사용 금지.
       </div>
+      <div id="fg-inline" style="margin-top:16px;"></div>
     </section>`;
 
     const existing = document.getElementById('overheating-section');
@@ -10960,13 +10954,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
     scheduleNavRebuild();
     const ohSec = document.getElementById('overheating-section');
-    // 공포·탐욕지수를 과열게이지 바로 아래로 이동 (이미 로드된 경우)
-    const fgSec = document.getElementById('fear-greed-section');
-    if (fgSec && ohSec && ohSec.nextElementSibling !== fgSec) ohSec.insertAdjacentElement('afterend', fgSec);
-    // KOSPI 시나리오를 그 아래로
+    // 공포·탐욕지수를 과열 게이지 섹션 내부(#fg-inline)에 채움 — 데이터 있으면
+    try { if (window.__fgData) renderFearGreed(); } catch (e) { }
+    // KOSPI 시나리오를 과열게이지 바로 아래로
     const sc = document.getElementById('kospi-scenario-section');
-    const afterFg = fgSec || ohSec;
-    if (sc && afterFg && afterFg.nextElementSibling !== sc) afterFg.insertAdjacentElement('afterend', sc);
+    if (sc && ohSec && ohSec.nextElementSibling !== sc) ohSec.insertAdjacentElement('afterend', sc);
   }
 
   // ─── 😱 시장감정지수 (Fear & Greed) ─────────────────────
@@ -12167,8 +12159,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./fear_greed.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderFearGreed(d); } catch (e) { } } });
-      // 공포·탐욕지수를 과열게이지 바로 아래로 지속 유지 (패널 로딩·폴링 타이밍 경쟁 방지)
-      setInterval(() => { try { const oh = document.getElementById('overheating-section'), fg = document.getElementById('fear-greed-section'); if (oh && fg && oh.nextElementSibling !== fg) oh.insertAdjacentElement('afterend', fg); } catch (e) { } }, 1500);
       // 내 포트폴리오 손익 — 넓은 시세(quotes.json) 로드 후 렌더(localStorage + 시세 매칭)
       fetch('./quotes.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
