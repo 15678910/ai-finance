@@ -9405,7 +9405,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const usCard = (o) => { if (!o) return ''; const v = o.score, c = fgColor(v);
       const comps = (o.components || []).map(k => `<span style="font-size:0.5rem;padding:1px 6px;border-radius:8px;background:${rColor(k.rating)}22;color:${rColor(k.rating)};">${h(k.name)}</span>`).join('');
       return `<div style="flex:1;min-width:240px;padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:10px;border-top:3px solid ${c};">
-        <div style="font-size:0.66rem;color:var(--text-muted);margin-bottom:1px;">🇺🇸 미국증시 (CNN)</div>
+        <div style="font-size:0.66rem;color:var(--text-muted);margin-bottom:1px;">🇺🇸 미국증시 <b style="color:#4ade80;">CNN 공식</b></div>
         <div style="display:flex;align-items:baseline;gap:8px;"><div style="font-size:2rem;font-weight:800;font-family:var(--font-mono);color:${c};line-height:1;">${v == null ? '—' : v}</div><div style="font-size:0.8rem;font-weight:700;color:${c};">${fgKo(v)}</div></div>
         ${gauge(v)}${spark(o.series, c)}
         <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">전일 ${o.prev_close} · 1주전 ${o.week} · 1달전 ${o.month} · 1년전 ${o.year}</div>
@@ -9426,14 +9426,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </div>
       </div>
     </section>`;
-    const existing = document.getElementById('fear-greed-section');
-    if (existing) { existing.outerHTML = html; return; }
-    const oh = document.getElementById('overheating-section');
-    if (!oh && (window.__fgTry = (window.__fgTry || 0) + 1) <= 20) { setTimeout(() => renderFearGreed(), 500); return; }  // 과열 게이지 아래 배치 위해 대기
+    const old = document.getElementById('fear-greed-section'); if (old) old.remove();
     const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
-    const anchor = oh || document.getElementById('debt-gdp-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
-    else (document.getElementById('app') || document.body).appendChild(node);
+    const oh = document.getElementById('overheating-section');
+    if (oh && oh.parentNode) { oh.parentNode.insertBefore(node, oh.nextSibling); }   // 과열 게이지 바로 아래
+    else {   // 과열 게이지 아직 미로드 → 임시 위치(뒤에 renderOverheating이 재배치)
+      const a = document.getElementById('debt-gdp-section') || document.getElementById('portfolio-section');
+      if (a && a.parentNode) a.parentNode.insertBefore(node, a.nextSibling);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
   }
   window.__renderFearGreed = renderFearGreed;
 
@@ -10958,10 +10959,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (existing) { existing.outerHTML = html; }
     else { (document.getElementById('app') || document.body).insertAdjacentHTML('beforeend', html); }
     scheduleNavRebuild();
-    // KOSPI 시나리오를 과열게이지 바로 아래로 이동 (이미 로드된 경우)
-    const sc = document.getElementById('kospi-scenario-section');
     const ohSec = document.getElementById('overheating-section');
-    if (sc && ohSec && ohSec.nextElementSibling !== sc) ohSec.insertAdjacentElement('afterend', sc);
+    // 공포·탐욕지수를 과열게이지 바로 아래로 이동 (이미 로드된 경우)
+    const fgSec = document.getElementById('fear-greed-section');
+    if (fgSec && ohSec && ohSec.nextElementSibling !== fgSec) ohSec.insertAdjacentElement('afterend', fgSec);
+    // KOSPI 시나리오를 그 아래로
+    const sc = document.getElementById('kospi-scenario-section');
+    const afterFg = fgSec || ohSec;
+    if (sc && afterFg && afterFg.nextElementSibling !== sc) afterFg.insertAdjacentElement('afterend', sc);
   }
 
   // ─── 😱 시장감정지수 (Fear & Greed) ─────────────────────
@@ -12195,10 +12200,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./overheating.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(oh => { if (oh) renderOverheating(oh); });
-      // Load Market Sentiment Index (시장감정지수 Fear & Greed)
-      fetch('./sentiment.json?v=' + Date.now(), { cache: 'no-store' })
-        .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(se => { if (se) renderSentiment(se); });
+      // 시장감정지수(자체 composite) 패널 제거 — 공식 CNN 기반 '공포·탐욕지수' 패널로 일원화(수치 혼동 방지)
       // Load Holdings + Retail Avg Price (외국인 보유 + 개미 평단가)
       fetch('./holdings_estimate.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
