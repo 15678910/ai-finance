@@ -9879,9 +9879,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <span style="font-family:var(--font-mono);font-weight:600;white-space:nowrap;color:${col || 'var(--text-bright)'};">${rhs}</span></div>`;
     const _div = `<div style="border-top:1px solid rgba(255,255,255,0.1);margin:5px 0;"></div>`;
     const pnlBox = `<div class="glass-card" style="padding:14px 18px;border-left:3px solid #f472b6;display:flex;flex-direction:column;">
-      <div style="font-size:0.64rem;color:var(--text-muted);">원금 대비 순손익 <span style="opacity:0.65;">(총자산 − 총원금)</span></div>
-      <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsP)};line-height:1.15;">${_vsP == null ? '—' : pn(_vsP)}<span style="font-size:0.8rem;">원</span></div>
-      <div style="font-size:1.2rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsPrate)};margin-top:1px;">${_vsPrate == null ? '원금 설정 필요' : (_vsPrate >= 0 ? '+' : '') + _vsPrate.toFixed(2) + '%'}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">원금 대비 순손익 <span style="opacity:0.6;">(총자산−총원금)</span></div>
+          <div style="font-size:1.55rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsP)};line-height:1.1;">${_vsP == null ? '—' : pn(_vsP)}<span style="font-size:0.7rem;">원</span></div>
+          <div style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_vsPrate)};">${_vsPrate == null ? '원금 설정 필요' : (_vsPrate >= 0 ? '+' : '') + _vsPrate.toFixed(2) + '%'}</div>
+        </div>
+        <div style="border-left:1px solid rgba(255,255,255,0.1);padding-left:10px;">
+          <div style="font-size:0.6rem;color:var(--text-muted);">전월 대비 순손익 <span style="opacity:0.6;">(총자산−전월말)</span></div>
+          <div style="font-size:1.55rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_mom)};line-height:1.1;">${_mom == null ? '—' : pn(_mom)}<span style="font-size:0.7rem;">원</span></div>
+          <div style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_momRate)};">${_base == null ? '<span style="font-size:0.62rem;color:var(--text-muted);font-weight:400;">전월말 자산 설정</span>' : (_momRate == null ? '—' : (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%')}</div>
+        </div>
+      </div>
       ${_div}
       <div style="font-size:0.56rem;color:#f472b6;font-weight:700;margin-bottom:2px;">📊 회계 산식</div>
       ${_eq('총원금', '= ' + (_P ? __pfNum(_P) : '—'))}
