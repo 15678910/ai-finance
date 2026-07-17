@@ -9610,7 +9610,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const vsP = prin ? (netAssets - prin) : null;                     // 원금 대비 순손익 = 총자산 − 총원금
     const vsPrate = (prin && vsP != null) ? vsP / prin * 100 : null;
     const baseAsset = (pf.baseAsset == null) ? null : +pf.baseAsset;  // 전월말 계좌 평가액(직접 입력)
-    const momPnl = (baseAsset != null) ? (netAssets - baseAsset) : null;  // 전월 대비 순손익 = 현재 총자산 − 전월말 자산
+    const momPnl = (baseAsset != null) ? (netAssets - baseAsset) : null;  // 전월 대비 순손익 = 현재 총자산 − 전월말 총자산
     const momRate = (baseAsset && momPnl != null) ? momPnl / baseAsset * 100 : null;
     return { rows, tot: { buy: tBuy, value: tVal, pnl: tPnl, realized, total, principal: prin, ret: tBuy ? tPnl / tBuy * 100 : 0, cash, cashManual: manualCash != null, netAssets, vsP, vsPrate, baseAsset, momPnl, momRate, vsPrincipal: prin ? total / prin * 100 : null } };
   }
@@ -9635,7 +9635,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const pf = __pfLoad();
     const el = document.getElementById('pf-base'); const raw = (el && el.value || '').replace(/[,\s원]/g, '');
     if (raw === '') { pf.baseAsset = null; __pfSave(pf); renderPortfolio(); return; }   // 비우고 설정 → 전월대비 해제
-    const v = +raw; if (isNaN(v)) { alert('전월말 자산(계좌 평가액)을 숫자로 입력하세요.'); return; }
+    const v = +raw; if (isNaN(v)) { alert('전월말 총자산(계좌 평가액)을 숫자로 입력하세요.'); return; }
     pf.baseAsset = v; __pfSave(pf); renderPortfolio();
   };
   window.__pfAdd = function () {
@@ -9888,7 +9888,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="border-left:1px solid rgba(255,255,255,0.1);padding-left:10px;">
           <div style="font-size:0.6rem;color:var(--text-muted);">전월 대비 순손익 <span style="opacity:0.6;">(총자산−전월말)</span></div>
           <div style="font-size:1.55rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_mom)};line-height:1.1;">${_mom == null ? '—' : pn(_mom)}<span style="font-size:0.7rem;">원</span></div>
-          <div style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_momRate)};">${_base == null ? '<span style="font-size:0.62rem;color:var(--text-muted);font-weight:400;">전월말 자산 설정</span>' : (_momRate == null ? '—' : (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%')}</div>
+          <div style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${sgn(_momRate)};">${_base == null ? '<span style="font-size:0.62rem;color:var(--text-muted);font-weight:400;">전월말 총자산 설정</span>' : (_momRate == null ? '—' : (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%')}</div>
         </div>
       </div>
       ${_div}
@@ -9905,8 +9905,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ${_div}
       ${_eq('원금대비 순손익', '총자산 − 총원금 = ' + (_vsP == null ? '—' : pn(_vsP)), sgn(_vsP))}
       ${_div}
-      ${_eq('전월말 자산', (_base == null ? '미설정' : '= ' + __pfNum(_base)), _base == null ? 'var(--text-muted)' : 'var(--text-bright)')}
-      ${_eq('전월대비 순손익', _base == null ? '전월말 자산 입력 필요' : ('총자산 − 전월말 = ' + pn(_mom) + (_momRate == null ? '' : ' (' + (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%)')), sgn(_mom))}
+      ${_eq('전월말 총자산', (_base == null ? '미설정' : '= ' + __pfNum(_base)), _base == null ? 'var(--text-muted)' : 'var(--text-bright)')}
+      ${_eq('전월대비 순손익', _base == null ? '전월말 총자산 입력 필요' : ('총자산 − 전월말 = ' + pn(_mom) + (_momRate == null ? '' : ' (' + (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%)')), sgn(_mom))}
     </div>`;
     const html = `<section class="section-wrap" id="portfolio-section">
       <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span>${PF_LIVE_PROXY ? `<span style="font-size:0.6rem;margin-left:8px;color:${window.__pfLiveAt ? '#22d3ee' : 'var(--text-muted)'};" title="네이버 통합시세(NXT 포함) · 평일 08:00~20:00 자동 갱신">${window.__pfLiveAt ? '🔴 실시간 ' + window.__pfLiveAt.toLocaleTimeString('ko-KR') : '⏳ 실시간 연결 중…'}</span>` : ''}</div>
@@ -9922,8 +9922,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="color:var(--text-muted);margin-left:10px;">현금(잔금)</span>
           <input id="pf-cash" value="${pf.cash == null ? '' : pf.cash}" placeholder="실제 잔금(원)" title="증권사 실제 예수금(잔금)을 입력. 비우고 설정하면 '총원금−매수금'으로 자동 추정" style="width:110px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
           <button onclick="__pfSetCash()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
-          <span style="color:var(--text-muted);margin-left:10px;">전월말 자산</span>
-          <input id="pf-base" value="${pf.baseAsset == null ? '' : pf.baseAsset}" placeholder="전월말 계좌 평가액(원)" title="지난달 말 계좌 총평가액(주식+현금)을 입력하면 '전월 대비 순손익'이 계산됩니다. 비우면 전월대비 해제" style="width:130px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
+          <span style="color:var(--text-muted);margin-left:10px;">전월말 총자산</span>
+          <input id="pf-base" value="${pf.baseAsset == null ? '' : pf.baseAsset}" placeholder="전월말 총자산(주식+현금)" title="지난달 말 계좌 총자산(주식 평가금+현금)을 입력하면 '전월 대비 순손익 = 현재 총자산 − 전월말 총자산'이 계산됩니다. 비우면 전월대비 해제" style="width:130px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
           <button onclick="__pfSetBase()" style="font-size:0.6rem;background:rgba(167,139,250,0.16);color:#a78bfa;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
           <span style="color:var(--text-muted);margin-left:10px;">기록</span>
           <button onclick="__pfSnapshot()" style="font-size:0.6rem;background:rgba(34,211,238,0.16);color:#22d3ee;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📸 오늘 손익 기록</button>
