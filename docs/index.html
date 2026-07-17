@@ -9428,8 +9428,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     </section>`;
     const existing = document.getElementById('fear-greed-section');
     if (existing) { existing.outerHTML = html; return; }
+    const oh = document.getElementById('overheating-section');
+    if (!oh && (window.__fgTry = (window.__fgTry || 0) + 1) <= 20) { setTimeout(() => renderFearGreed(), 500); return; }  // 과열 게이지 아래 배치 위해 대기
     const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
-    const anchor = document.getElementById('debt-gdp-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
+    const anchor = oh || document.getElementById('debt-gdp-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
     else (document.getElementById('app') || document.body).appendChild(node);
   }
