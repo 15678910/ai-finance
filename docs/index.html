@@ -12167,6 +12167,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./fear_greed.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderFearGreed(d); } catch (e) { } } });
+      // 공포·탐욕지수를 과열게이지 바로 아래로 지속 유지 (패널 로딩·폴링 타이밍 경쟁 방지)
+      setInterval(() => { try { const oh = document.getElementById('overheating-section'), fg = document.getElementById('fear-greed-section'); if (oh && fg && oh.nextElementSibling !== fg) oh.insertAdjacentElement('afterend', fg); } catch (e) { } }, 1500);
       // 내 포트폴리오 손익 — 넓은 시세(quotes.json) 로드 후 렌더(localStorage + 시세 매칭)
       fetch('./quotes.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
