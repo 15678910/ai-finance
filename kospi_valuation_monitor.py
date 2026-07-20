@@ -34,10 +34,23 @@ ITEMS = [("per", "후행 PER", 20205), ("pbr", "PBR", 20206), ("div_yield", "배
 PAT = re.compile(r"(\d{4})\.(\d{2})\.(\d{2})\s*마감 기준\s*[^:]{1,12}:\s*([\d.]+)")
 
 
+HEADERS = {
+    "User-Agent": UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Referer": "https://www.indexergo.com/",
+    "Sec-Ch-Ua": '"Chromium";v="120", "Not(A:Brand";v="24", "Google Chrome";v="120"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "same-origin",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+
 def scrape(idx):
     """(asof 'YYYY-MM-DD', value float) — 실패 시 (None, None)."""
     try:
-        req = urllib.request.Request(URL.format(idx), headers={"User-Agent": UA})
+        req = urllib.request.Request(URL.format(idx), headers=HEADERS)
         html = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", errors="replace")
         t = re.sub(r"<script.*?</script>", "", html, flags=re.S)
         t = re.sub(r"<[^>]+>", " ", t)
