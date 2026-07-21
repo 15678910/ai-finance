@@ -11514,10 +11514,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       </svg>`;
     }
 
+    // 🎯 공식 속보 요약 (뉴스 파싱 — 산업부/관세청 공식 수치, HS 근사보다 정확)
+    const of = td.official_speed;
+    const ofCard = of ? `<div class="glass-card" style="padding:12px 18px;min-width:220px;border-left:3px solid #4ade80;">
+      <div style="font-size:0.62rem;color:#4ade80;font-weight:700;">🎯 공식 속보 ${of.period ? '(' + h(of.period) + ')' : ''} <span style="color:var(--text-muted);font-weight:400;">산업부/관세청</span></div>
+      ${of.export_bn != null ? `<div style="font-size:1.5rem;font-weight:800;color:var(--text-bright);line-height:1.2;">총수출 ${of.export_bn}<span style="font-size:0.8rem;">억달러</span></div>` : ''}
+      <div style="font-size:0.72rem;">${of.yoy_pct != null ? `<span style="color:#22c55e;font-weight:700;">+${of.yoy_pct}%</span> 증가` : ''}${of.semi_pct != null ? ` · 반도체 <b style="color:#22c55e;">+${of.semi_pct}%</b>` : ''}</div>
+      ${of.balance_bn != null ? `<div style="font-size:0.62rem;color:var(--text-muted);">무역수지 ${h(of.balance_label || '')} ${Math.abs(of.balance_bn)}억달러</div>` : ''}
+    </div>` : '';
+
     // 상단 KPI
     const kpis = `<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      ${ofCard}
       <div class="glass-card" style="padding:12px 18px;min-width:160px;border-left:3px solid #22d3ee;">
-        <div style="font-size:0.65rem;color:var(--text-muted);">📦 ${h(s.headline_label || '총 수출액')} (${h(td.period_label||'')})</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">📦 ${h(s.headline_label || '총 수출액')} (${h(td.period_label||'')}) <span style="font-size:0.54rem;color:#94a3b8;">HS기준·참고</span></div>
         <div style="font-size:1.6rem;font-weight:800;color:var(--text-bright);">${h(s.total_export_str||'')}</div>
         <div style="font-size:0.75rem;color:#22c55e;font-weight:600;">${s.yoy_pct >= 0 ? '+' : ''}${s.yoy_pct}% YoY</div>
         ${s.record ? `<div style="font-size:0.62rem;background:rgba(250,204,21,0.15);color:#fbbf24;padding:2px 7px;border-radius:8px;display:inline-block;margin-top:3px;">🏆 ${h(s.record)}</div>` : ''}

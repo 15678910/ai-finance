@@ -73,6 +73,30 @@ def fetch_speed_news():
     print(f"  [속보뉴스] {len(out[:5])}건")
     return out[:5]
 
+
+def extract_official(news):
+    """속보 뉴스 헤드라인에서 산업부/관세청 '공식 수치'를 파싱 — HS 근사보다 정확.
+    총수출(억달러)·증가율(%)·반도체 증가율(%)·무역수지(흑자/적자 억)·기간."""
+    titles = " · ".join(n["title"] for n in news)
+    o = {}
+    m = re.search(r"(\d{1,2})\s*월\s*1?\s*[~∼\-–]\s*(\d{1,2})\s*일", titles)      # 7월 1~20일
+    if m:
+        o["period"] = f"{int(m.group(1))}월 1~{int(m.group(2))}일"
+    m = re.search(r"수출[^0-9]{0,4}(\d{3,4})\s*억\s*달러", titles)                 # 수출 549억달러
+    if m:
+        o["export_bn"] = int(m.group(1))
+    m = re.search(r"(\d{1,3}(?:\.\d)?)\s*%\s*(?:증가|급증)", titles) or re.search(r"수출[^0-9]{0,8}(\d{1,3}(?:\.\d)?)\s*%\s*급증", titles)
+    if m:
+        o["yoy_pct"] = float(m.group(1))
+    m = re.search(r"반도체[^0-9]{0,6}(\d{1,3})\s*%", titles)                        # 반도체 180%
+    if m:
+        o["semi_pct"] = int(m.group(1))
+    m = re.search(r"(흑자|적자)\s*(\d{2,4})\s*억", titles)                          # 흑자 122억
+    if m:
+        o["balance_bn"] = (1 if m.group(1) == "흑자" else -1) * int(m.group(2))
+        o["balance_label"] = m.group(1)
+    return o or None
+
 # 주요 품목 (이름, [HS 4단위 코드들], 카테고리) — 산업부 MTI 분류 근사 위해 관련 HS 합산.
 #   예) 반도체=집적회로(8542)+개별소자(8541), 컴퓨터=본체(8471)+SSD(8523, 한국 수출 대부분).
 HS_ITEMS = [
@@ -286,6 +310,7 @@ def main():
                 + (f" ({p['yoy_pct']:+.1f}% YoY)" if p['yoy_pct'] is not None else "")
                 for p in products[:3]]
 
+    _news = fetch_speed_news()
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "source": "관세청 무역통계 OpenAPI (data.go.kr)",
@@ -302,7 +327,8 @@ def main():
         "insights": insights,
         "risk_factors": ["HS 4단위 기준 — 산업부 MTI 품목분류와 수치 상이. 국가 총수출 총계는 별도 API 필요(추세 참고용)."],
         "monthly_trend": monthly_trend,
-        "speed_news": fetch_speed_news(),   # 당월 잠정·속보 뉴스 (월간 확정 전 조기 신호)
+        "speed_news": _news,                       # 당월 잠정·속보 뉴스 (월간 확정 전 조기 신호)
+        "official_speed": extract_official(_news),  # 뉴스에서 파싱한 산업부/관세청 '공식 수치'(정확)
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
