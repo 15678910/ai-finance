@@ -14,17 +14,64 @@
 
 import json
 import os
+import re
 import sys
+import html as _html
 import urllib.request
 import urllib.parse
 import urllib.error
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "trade_data.json")
 ENDPOINT = "http://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+
+
+def fetch_speed_news():
+    """관세청·산업부 '당월 수출 잠정·속보' 뉴스 (Google News RSS) — 월간 확정 전 조기 신호."""
+    queries = ["한국 수출 잠정", "관세청 수출입 현황 속보", "이달 수출 증감 통관"]
+    seen, out = set(), []
+    for q in queries:
+        try:
+            url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q) +
+                   "&hl=ko&gl=KR&ceid=KR:ko")
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            raw = urllib.request.urlopen(req, timeout=12).read().decode("utf-8", "replace")
+        except Exception as e:
+            print(f"  [WARN] 속보뉴스 '{q}': {e}")
+            continue
+        for it in re.findall(r"<item>(.*?)</item>", raw, re.S)[:8]:
+            t = re.search(r"<title>(.*?)</title>", it, re.S)
+            l = re.search(r"<link>(.*?)</link>", it, re.S)
+            d = re.search(r"<pubDate>(.*?)</pubDate>", it)
+            s = re.search(r"<source[^>]*>(.*?)</source>", it, re.S)
+            if not t:
+                continue
+            src = _html.unescape(s.group(1)).strip() if s else ""
+            title = _html.unescape(re.sub(r"<[^>]+>", "", t.group(1))).strip()
+            title = re.sub(r"\s*-\s*" + re.escape(src) + r"\s*$", "", title) if src else title
+            if "수출" not in title:                       # 수출 관련만
+                continue
+            key = title[:24]
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                dt = parsedate_to_datetime(d.group(1)).astimezone(KST) if d else None
+            except Exception:
+                dt = None
+            out.append({"title": title, "url": (l.group(1).strip() if l else ""),
+                        "source": src, "date": dt.strftime("%m/%d") if dt else "",
+                        "ts": dt.timestamp() if dt else 0})
+    out.sort(key=lambda x: x["ts"], reverse=True)
+    for o in out:
+        o.pop("ts", None)
+    print(f"  [속보뉴스] {len(out[:5])}건")
+    return out[:5]
 
 # 주요 품목 (이름, [HS 4단위 코드들], 카테고리) — 산업부 MTI 분류 근사 위해 관련 HS 합산.
 #   예) 반도체=집적회로(8542)+개별소자(8541), 컴퓨터=본체(8471)+SSD(8523, 한국 수출 대부분).
@@ -255,6 +302,7 @@ def main():
         "insights": insights,
         "risk_factors": ["HS 4단위 기준 — 산업부 MTI 품목분류와 수치 상이. 국가 총수출 총계는 별도 API 필요(추세 참고용)."],
         "monthly_trend": monthly_trend,
+        "speed_news": fetch_speed_news(),   # 당월 잠정·속보 뉴스 (월간 확정 전 조기 신호)
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

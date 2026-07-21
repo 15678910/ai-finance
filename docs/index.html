@@ -11537,6 +11537,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="font-size:0.65rem;color:#f87171;font-weight:600;margin-bottom:4px;">⚠️ 리스크</div>
         ${(td.risk_factors||[]).map(r => `<div style="font-size:0.67rem;color:var(--text-muted);line-height:1.5;margin-bottom:3px;">• ${h(r)}</div>`).join('')}
       </div>
+      ${(td.speed_news && td.speed_news.length) ? `<div class="glass-card" style="padding:12px 18px;flex:1;min-width:260px;border-left:3px solid #f59e0b;">
+        <div style="font-size:0.65rem;color:#f59e0b;font-weight:700;margin-bottom:4px;">📰 이달 수출 속보 <span style="color:var(--text-muted);font-weight:400;">(당월 잠정 — 월간 확정 전 조기신호)</span></div>
+        ${td.speed_news.slice(0,4).map(n => `<div style="font-size:0.66rem;line-height:1.5;margin-bottom:3px;"><a href="${h(n.url)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;">${n.date ? `<span style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.58rem;">${h(n.date)}</span> ` : ''}${h(n.title)}</a> <span style="color:var(--text-muted);font-size:0.54rem;">${h(n.source||'')}</span></div>`).join('')}
+      </div>` : ''}
     </div>`;
 
     // 제품별 바 차트
