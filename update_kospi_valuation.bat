@@ -29,7 +29,7 @@ REM 3) commit + safe push (stash other changes, rebase-theirs, push)
 "%GIT%" add docs/kospi_valuation.json
 "%GIT%" commit -m "Update KOSPI valuation (local scheduler) [automated]" >> "%LOG%" 2>&1
 "%GIT%" stash push -u -m wip-kv >nul 2>&1
-"%GIT%" pull --rebase --strategy-option=theirs >> "%LOG%" 2>&1
+"%GIT%" -c merge.ours.driver=true pull --rebase -X theirs >> "%LOG%" 2>&1
 "%GIT%" push >> "%LOG%" 2>&1
 "%GIT%" stash drop >nul 2>&1
 echo [%date% %time%] PUSHED >> "%LOG%"
