@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests yfinance
+        run: pip install requests yfinance pykrx
 
       - name: Collect M2 data
         env:
@@ -44,9 +44,11 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python debt_gdp_monitor.py || echo "debt_gdp had errors, continuing..."
 
-      # 코스피 밸류에이션 (후행PER·PBR·배당수익률 — KRX·KOFIA via INDEXerGO)
+      # 코스피 밸류에이션 (후행PER·PBR·배당·선행PER — 1순위 KRX 로그인, 폴백 INDEXerGO)
       - name: Collect KOSPI valuation
         env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
           PYTHONIOENCODING: utf-8
         run: python kospi_valuation_monitor.py || echo "kospi_valuation had errors, continuing..."
 
