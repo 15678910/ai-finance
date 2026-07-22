@@ -1,62 +1,62 @@
 {
-  "generated_at": "2026-07-22 10:47:46 KST",
+  "generated_at": "2026-07-22 18:23:47 KST",
   "model_version": "v1.2",
-  "pqi_overall": 42.8,
+  "pqi_overall": 42.5,
   "grade": "🟠 미흡",
   "grade_color": "orange",
-  "trend": 5.8,
+  "trend": -2.5,
   "models": [
     {
       "name": "KOSPI(선물)",
       "dir": 53,
-      "mae": 3.92,
+      "mae": 3.83,
       "range": null,
       "n": 15,
-      "pqi": 53.9,
-      "pqi_recent": 44.5,
-      "pqi_prev": 37.4,
+      "pqi": 54.5,
+      "pqi_recent": 45.1,
+      "pqi_prev": 45.9,
       "big_miss_frac": 60
     },
     {
       "name": "SK하이닉스",
-      "dir": 47,
-      "mae": 6.54,
+      "dir": 40,
+      "mae": 6.55,
       "range": 20,
       "n": 15,
-      "pqi": 31.6,
-      "pqi_recent": 30.4,
-      "pqi_prev": 22.6,
+      "pqi": 28.4,
+      "pqi_recent": 30.7,
+      "pqi_prev": 27.9,
       "big_miss_frac": 80
     },
     {
       "name": "삼성전자",
       "dir": 60,
-      "mae": 5.45,
-      "range": 20,
+      "mae": 5.34,
+      "range": 27,
       "n": 15,
-      "pqi": 42.8,
-      "pqi_recent": 41.9,
-      "pqi_prev": 39.3,
+      "pqi": 44.7,
+      "pqi_recent": 42.8,
+      "pqi_prev": 52.3,
       "big_miss_frac": 73
     }
   ],
   "diagnosis": {
-    "dir_avg": 53.3,
-    "mae_avg": 5.3,
-    "range_avg": 20.0,
+    "dir_avg": 51.0,
+    "mae_avg": 5.24,
+    "range_avg": 23.5,
     "big_miss_avg": 71.0
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "범위 적중 낮음 (20%)",
+      "issue": "범위 적중 낮음 (24%)",
       "cause": "예측 OHLC 밴드가 현재 변동성 레짐 대비 협소",
       "fix": "밴드 σ 배수 확대 (예: 1.0→1.4)",
       "auto_safe": true
     },
     {
       "priority": 1,
-      "issue": "방향 적중 낮음 (53% · 동전 수준)",
+      "issue": "방향 적중 낮음 (51% · 동전 수준)",
       "cause": "선물 편중 → 디커플링·차익실현 날 방향 오류",
       "fix": "디커플링 경고일은 종합신호(composite)로 방향 보정",
       "auto_safe": false
@@ -70,7 +70,7 @@
     },
     {
       "priority": 2,
-      "issue": "종가 오차 큼 (MAE 5.3%)",
+      "issue": "종가 오차 큼 (MAE 5.2%)",
       "cause": "고변동성 레짐 + 20일 베타가 급변 미추종",
       "fix": "베타 추정창 단축(20→10) 또는 변동성 가중 회귀",
       "auto_safe": false
