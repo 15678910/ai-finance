@@ -9899,6 +9899,34 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </tr>`; }).join('')}</tbody></table></div>
       <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 매도 시 실현손익=매도금−매수원가−수수료(왕복)−거래세(0.18%). '매도' 버튼으로 기록하면 보유수량 차감·평단 유지.</div>`}
     </div>`;
+    // 📊 기간별 매수/매도 합계 (키움 [0390] 스타일) — 거래내역(txns) 집계, 손익계산서 탭(일별/월별/년별) 연동
+    let flowTable = '';
+    if (_txns.length) {
+      const keyOf = t => stView === '월별' ? String(t.date).slice(0, 7) : stView === '년별' ? String(t.date).slice(0, 4) : String(t.date);
+      const agg = {};
+      _txns.forEach(t => { const k = keyOf(t); (agg[k] = agg[k] || { buy: 0, sell: 0, realized: 0 }); if (t.type === 'sell') { agg[k].sell += (+t.amt || 0); agg[k].realized += (+t.realized || 0); } else agg[k].buy += (+t.amt || 0); });
+      const _rows = Object.keys(agg).sort().reverse().slice(0, 24);
+      const tB = _txns.filter(t => t.type !== 'sell').reduce((a, t) => a + (+t.amt || 0), 0);
+      const tS = _txns.filter(t => t.type === 'sell').reduce((a, t) => a + (+t.amt || 0), 0);
+      const tR = _txns.filter(t => t.type === 'sell').reduce((a, t) => a + (+t.realized || 0), 0);
+      flowTable = `<div style="margin-top:14px;">
+        <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin-bottom:5px;">📊 기간별 매수/매도 합계 <span style="font-size:0.54rem;color:var(--text-muted);font-weight:400;">(${stView} · 거래내역 집계 · 키움 [0390] 스타일)</span></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:0.62rem;">
+          <span style="color:var(--text-muted);">매수합계 <b style="color:#4ade80;font-family:var(--font-mono);">${__pfNum(tB)}</b></span>
+          <span style="color:var(--text-muted);">매도합계 <b style="color:#60a5fa;font-family:var(--font-mono);">${__pfNum(tS)}</b></span>
+          <span style="color:var(--text-muted);">실현손익 <b style="color:${sgn(tR)};font-family:var(--font-mono);">${tR >= 0 ? '+' : ''}${__pfNum(tR)}</b></span>
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:340px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">${['기간', '매수금액', '매도금액', '실현손익'].map((t, k) => `<th style="padding:4px 8px;text-align:${k === 0 ? 'left' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}</tr></thead>
+          <tbody>${_rows.map(k => { const a = agg[k]; return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:4px 8px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${h(k)}</td>
+            <td style="padding:4px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${a.buy ? '#4ade80' : 'var(--text-muted)'};">${a.buy ? __pfNum(a.buy) : '—'}</td>
+            <td style="padding:4px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${a.sell ? '#60a5fa' : 'var(--text-muted)'};">${a.sell ? __pfNum(a.sell) : '—'}</td>
+            <td style="padding:4px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${a.sell ? sgn(a.realized) : 'var(--text-muted)'};">${a.sell ? (a.realized >= 0 ? '+' : '') + __pfNum(a.realized) : '—'}</td>
+          </tr>`; }).join('')}</tbody></table></div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:4px;">※ 손익계산서 탭(일별/월별/년별)에 따라 집계 단위가 바뀝니다. 매수=거래금액, 매도=거래금액, 실현손익=수수료·세 반영.</div>
+      </div>`;
+    }
     // 원금 입금 내역 (입금일자·입금액 · 출금은 음수)
     const _deps = pf.deposits || [], _depTot = _deps.reduce((a, d) => a + (+d.amount || 0), 0);
     const depBlock = `<div style="margin-bottom:10px;padding:8px 10px;background:rgba(244,114,182,0.05);border:1px solid rgba(244,114,182,0.18);border-radius:7px;">
@@ -10004,6 +10032,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${chart ? `<div style="margin-top:12px;"><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 기록)</div>${chart}
           <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div></div>` : ''}
         ${stmt}
+        ${flowTable}
         ${txnTable}
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 코스피·코스닥 상위 ~1400종목 시세(워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 + 증권거래세 0.18%(매도) 반영. 정보용·투자자문 아님.</div>
       </div>
