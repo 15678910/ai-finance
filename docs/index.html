@@ -9711,10 +9711,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!(sp > 0)) return;
     const sq = +((prompt('매도 수량 (보유 ' + hd.qty + '주)', String(hd.qty)) || '').replace(/[,\s]/g, ''));
     if (!(sq > 0) || sq > hd.qty) { alert('수량이 올바르지 않습니다.'); return; }
+    let sd = (prompt('매도일 (YYYY-MM-DD)', __pfToday()) || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sd)) sd = __pfToday();   // 형식 틀리면 오늘
     const buyPortion = hd.buyPrice * sq, sellAmt = sp * sq;
     const fee = buyPortion * PF_FEE + sellAmt * PF_FEE + sellAmt * PF_TAX;   // 매수·매도 수수료 + 매도 거래세
     const realized = Math.round(sellAmt - buyPortion - fee);
-    pf.txns.push({ date: __pfToday(), code: hd.code, name: hd.name, type: 'sell', price: sp, qty: sq, amt: Math.round(sellAmt), fee: Math.round(fee), realized });
+    pf.txns.push({ date: sd, code: hd.code, name: hd.name, type: 'sell', price: sp, qty: sq, amt: Math.round(sellAmt), fee: Math.round(fee), realized });
+    pf.txns.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     hd.qty -= sq; if (hd.qty <= 0) pf.holdings.splice(i, 1);
     __pfSave(pf); renderPortfolio();
   };
