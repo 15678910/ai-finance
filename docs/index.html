@@ -7257,6 +7257,18 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         },
       });
     });
+    // 2b. 독립 카드 — section-wrap이 아니어서 위 색인에서 빠지는 카드들 (빠른검색 노출용)
+    [
+      { id: 'vkospi-card', title: '😱 KOSPI 변동성지수 (VKOSPI)', sub: '한국판 VIX · 공포 변동성 지수' },
+      { id: 'fg-inline', title: '😱 공포·탐욕지수 (Fear & Greed)', sub: '과열·차익실현 게이지 안에 표시' },
+    ].forEach(c => {
+      const el = document.getElementById(c.id);
+      if (!el) return;
+      items.push({
+        type: 'section', id: c.id, title: c.title, subtitle: c.sub, meta: 'CARD', emoji: '🗂️',
+        action: () => el.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      });
+    });
     // 3. 종목 (섹터 데이터 우선 — 애널리스트 분석 포함)
     const seenTickers = new Set();
     (data.sectors || []).forEach(sec => {
