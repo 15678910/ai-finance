@@ -76,6 +76,15 @@ def main():
         print(f"[ERROR] pykrx import 실패: {e}")
         return 1
 
+    # 로그인 사전 점검 — 실패 시 즉시 중단(종목마다 재시도해 계정 잠금되는 것 방지)
+    try:
+        from pykrx.website.comm.auth import login_krx
+        if not login_krx(os.environ["KRX_ID"], os.environ["KRX_PW"]):
+            print("[ERROR] KRX 로그인 거부 — ID/비밀번호를 확인하세요. (반복 시도 방지 위해 중단, 기존 파일 보존)")
+            return 1
+    except ImportError:
+        pass                            # pykrx 구조 변경 시 사전점검 생략
+
     now = datetime.now(KST)
     frm = (now - timedelta(days=45)).strftime("%Y%m%d")   # ~20영업일 확보
     to = now.strftime("%Y%m%d")
