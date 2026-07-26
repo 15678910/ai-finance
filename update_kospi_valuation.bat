@@ -1,10 +1,11 @@
 @echo off
 REM ============================================================
-REM  KOSPI valuation local auto-updater (Korean IP only)
+REM  Local auto-updater (Korean IP only) — daily 18:30 task
 REM  KRX / INDEXerGO block GitHub datacenter IPs, so this runs
-REM  on the local PC and pushes docs/kospi_valuation.json.
-REM  - If KRX_ID / KRX_PW user env vars exist -> KRX login source
-REM  - Otherwise -> INDEXerGO source (no credentials needed)
+REM  on the local PC and pushes the collected JSON files.
+REM   1) kospi_valuation_monitor.py -> docs/kospi_valuation.json
+REM   2) short_interest_monitor.py  -> docs/short_interest.json
+REM      (needs KRX_ID / KRX_PW user env vars; skips if unset)
 REM  Registered as Windows Scheduled Task "KOSPI Valuation Update".
 REM ============================================================
 setlocal
@@ -17,19 +18,21 @@ echo [%date% %time%] START >> "%LOG%"
 
 REM 1) collect
 "%PY%" kospi_valuation_monitor.py >> "%LOG%" 2>&1
+"%PY%" short_interest_monitor.py >> "%LOG%" 2>&1
 
-REM 2) skip if unchanged
-"%GIT%" diff --quiet -- docs/kospi_valuation.json
-if %errorlevel%==0 (
+REM 2) skip if nothing changed (porcelain covers modified + untracked)
+set "CHANGED="
+for /f %%i in ('"%GIT%" status --porcelain -- docs/kospi_valuation.json docs/short_interest.json') do set "CHANGED=1"
+if not defined CHANGED (
   echo [%date% %time%] no change, skip >> "%LOG%"
   goto end
 )
 
 REM 3) commit + safe push (stash other changes, rebase-theirs, push)
-"%GIT%" add docs/kospi_valuation.json
-"%GIT%" commit -m "Update KOSPI valuation (local scheduler) [automated]" >> "%LOG%" 2>&1
+"%GIT%" add docs/kospi_valuation.json docs/short_interest.json
+"%GIT%" commit -m "Update KOSPI valuation + short interest (local scheduler) [automated]" >> "%LOG%" 2>&1
 "%GIT%" stash push -u -m wip-kv >nul 2>&1
-"%GIT%" -c merge.ours.driver=true pull --rebase -X theirs >> "%LOG%" 2>&1
+"%GIT%" pull --rebase -X theirs >> "%LOG%" 2>&1
 "%GIT%" push >> "%LOG%" 2>&1
 "%GIT%" stash drop >nul 2>&1
 echo [%date% %time%] PUSHED >> "%LOG%"
