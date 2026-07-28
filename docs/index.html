@@ -10647,7 +10647,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     </div>`;
     // ── 원페이지 뷰 탭 (추세추종 보드 스타일) ──
     const PFV = window.__pfTab || 'hold';
-    const PFTABS = [['hold', '💼 보유·매매'], ['acct', '🧮 회계 요약'], ['chart', '📈 추이 차트'], ['month', '📅 월별 수익률'], ['stmt', '🧾 손익계산서'], ['txn', '📕 거래내역'], ['set', '⚙️ 관리·백업']];
+    const PFTABS = [['hold', '💼 보유·매매'], ['trend', '🧭 추세 신호'], ['acct', '🧮 회계 요약'], ['chart', '📈 추이 차트'], ['month', '📅 월별 수익률'], ['stmt', '🧾 손익계산서'], ['txn', '📕 거래내역'], ['set', '⚙️ 관리·백업']];
     const pfTabBar = PFTABS.map(([k, lab]) => `<button onclick="__pfSetTab('${k}')" style="padding:3px 10px;border-radius:6px;font-size:0.58rem;cursor:pointer;font-weight:${k === PFV ? 700 : 400};background:${k === PFV ? 'rgba(244,114,182,0.2)' : 'transparent'};color:${k === PFV ? '#f472b6' : 'var(--text-muted)'};border:1px solid ${k === PFV ? 'rgba(244,114,182,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
     // 항상 보이는 헤드라인 요약 (추세보드의 신호 요약줄 역할)
     const pfHead = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:0.62rem;">
@@ -10722,8 +10722,44 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       }
       if (!pfMonthlyBlock) pfMonthlyBlock = '<div style="font-size:0.64rem;color:var(--text-muted);padding:8px 2px;line-height:1.6;">월별 수익률은 <b>기록이 2개월 이상</b> 쌓이면 표시됩니다.<br>⚙️ 관리·백업 탭의 <b>📸 오늘 손익 기록</b>(마감 후 접속 시 자동 기록 포함)으로 매달 기록을 남겨 주세요.</div>';
     }
+    // 🧭 추세 신호 — 보유 종목에 추세추종 보드 신호 적용 (평단 vs 스탑 비교 + 보드 점프)
+    let pfTrendBlock = '';
+    {
+      const _ts = window.__tsData;
+      if (!_ts || !_ts.tickers) {
+        pfTrendBlock = '<div style="font-size:0.64rem;color:var(--text-muted);padding:8px 2px;">추세추종 보드 데이터 로딩 전입니다. 잠시 후 이 탭을 다시 눌러 주세요.</div>';
+      } else if (!(pf.holdings || []).length) {
+        pfTrendBlock = '<div style="font-size:0.64rem;color:var(--text-muted);padding:8px 2px;">보유 종목이 없습니다. 💼 보유·매매 탭에서 종목을 추가하면 여기에 추세 신호가 붙습니다.</div>';
+      } else {
+        const _vc2 = c => c === 'green' ? '#4ade80' : c === 'yellow' ? '#fbbf24' : '#f87171';
+        const _rows2 = (pf.holdings || []).map(hd => {
+          const ti = _ts.tickers.findIndex(t => (t.symbol || '').slice(0, 6) === hd.code || t.name === hd.name);
+          const t = ti >= 0 ? _ts.tickers[ti] : null;
+          const avg = +hd.buyPrice || null;
+          if (!t) return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:5px 7px;font-size:0.66rem;color:var(--text-bright);">${h(hd.name)}</td>
+            <td colspan="5" style="padding:5px 7px;font-size:0.58rem;color:var(--text-muted);">추세 보드 미등록 종목 — 등록을 원하면 요청하세요</td></tr>`;
+          const stopGap = (avg && t.st_line) ? (t.st_line / avg - 1) * 100 : null;   // 스탑이 내 평단 대비 어디쯤
+          const curGap = (avg && t.price) ? (t.price / avg - 1) * 100 : null;
+          return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:5px 7px;font-size:0.66rem;color:var(--text-bright);white-space:nowrap;">${h(t.name)}</td>
+            <td style="padding:5px 7px;"><span style="font-size:0.56rem;font-weight:700;color:${_vc2(t.verdict_color)};background:${_vc2(t.verdict_color)}1c;border-radius:10px;padding:2px 8px;white-space:nowrap;">${h(t.verdict)}</span></td>
+            <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${t.trend_up ? '<span style="color:#4ade80;">✓EMA200위</span>' : '<span style="color:#f87171;">✗아래</span>'} · ${t.st_long ? '<span style="color:#4ade80;">ST롱</span>' : '<span style="color:#f87171;">ST숏</span>'} · ADX ${t.adx}</td>
+            <td style="padding:5px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text);">${__pfNum(Math.round(t.st_line))}${stopGap != null ? ` <span style="font-size:0.52rem;color:var(--text-muted);">(평단${stopGap >= 0 ? '+' : ''}${stopGap.toFixed(1)}%)</span>` : ''}</td>
+            <td style="padding:5px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${curGap == null ? 'var(--text-muted)' : curGap >= 0 ? '#4ade80' : '#f87171'};">${curGap == null ? '—' : (curGap >= 0 ? '+' : '') + curGap.toFixed(1) + '%'}</td>
+            <td style="padding:5px 7px;text-align:center;"><button onclick="window.__tsTicker=${ti};window.__tsView='perf';renderTrendSignal();document.getElementById('trend-signal-section').scrollIntoView({behavior:'smooth',block:'start'})" style="font-size:0.54rem;background:rgba(34,211,238,0.14);color:#22d3ee;border:none;border-radius:5px;padding:3px 9px;cursor:pointer;">보드에서 보기</button></td>
+          </tr>`;
+        }).join('');
+        pfTrendBlock = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:560px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
+            ${['보유 종목', '현재 신호', '구성요소', '트레일링 스탑', '평단 대비 현재가', ''].map((x, k) => `<th style="padding:4px 7px;text-align:${k === 0 || k === 1 ? 'left' : k === 5 ? 'center' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${x}</th>`).join('')}
+          </tr></thead><tbody>${_rows2}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;line-height:1.65;">🧭 추세추종 보드(${h(_ts.asof || '')} 기준)의 신호를 <b>보유 종목에 매칭</b>한 것입니다. <b>트레일링 스탑</b>=Supertrend 청산 기준선 — 전략 관점에선 종가가 이 아래면 '청산 상태', 회복하면 재진입 신호. (평단±%)=스탑이 내 평단 대비 위치. 🚨 백테스트·몬테카를로 판정상 이 신호는 참고 정보이며 매매 지시가 아닙니다 — 자세한 성과는 '보드에서 보기'로 확인.</div>`;
+      }
+    }
     let pfContent = '';
     if (PFV === 'hold') pfContent = pfAddRow + pfHoldTable;
+    else if (PFV === 'trend') pfContent = pfTrendBlock;
     else if (PFV === 'acct') pfContent = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch;">${depBlock}${pnlBox}</div>`;
     else if (PFV === 'chart') pfContent = pfChartBlock;
     else if (PFV === 'month') pfContent = pfMonthlyBlock;
@@ -12915,7 +12951,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) { try { renderTrendSignal(d); } catch (e) { } } });
+        .then(d => { if (d) { try { renderTrendSignal(d); } catch (e) { } try { if (window.__pfTab === 'trend') renderPortfolio(); } catch (e) { } } });
       // 개인 매수 가격대 분포 데이터 — 추세추종 보드의 '개인 매수 분포' 뷰에서 사용 (독립 섹션은 중복이라 제거)
       fetch('./personal_buy_dist.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
