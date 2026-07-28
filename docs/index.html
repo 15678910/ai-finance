@@ -594,6 +594,33 @@ body {
   }
 }
 
+/* ─── 상단 헤더 카테고리 내비 (섹션 내비를 사이드바 → 헤더로 이동) ── */
+#topNav { position: fixed; top: 0; left: 300px; right: 0; z-index: 900;
+  display: flex; flex-wrap: wrap; gap: 3px; align-items: center;
+  background: rgba(7,10,18,0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(34,211,238,0.18); padding: 6px 12px; }
+.tn-cat { position: relative; }
+.tn-btn { background: transparent; border: 1px solid transparent; color: var(--text-muted);
+  font-size: 0.7rem; font-weight: 600; padding: 5px 11px; border-radius: 7px; cursor: pointer;
+  font-family: inherit; white-space: nowrap; }
+.tn-btn:hover { color: #22d3ee; background: rgba(34,211,238,0.08); }
+.tn-cat.open .tn-btn { color: #22d3ee; background: rgba(34,211,238,0.14); border-color: rgba(34,211,238,0.4); }
+.tn-menu { position: absolute; top: calc(100% + 4px); left: 0; min-width: 240px; max-height: 62vh;
+  overflow-y: auto; background: rgba(13,18,32,0.98); border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 10px; padding: 6px; display: none; z-index: 1000;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.6); }
+.tn-cat.open .tn-menu { display: block; }
+.tn-link { display: block; padding: 6px 10px; font-size: 0.68rem; color: var(--text);
+  border-radius: 6px; text-decoration: none; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 320px; }
+.tn-link:hover { background: rgba(34,211,238,0.12); color: #22d3ee; }
+.shell { padding-top: 54px; }
+.section-wrap { scroll-margin-top: 58px; }
+@media (max-width: 900px) {
+  #topNav { left: 0; padding-left: 54px; }
+  .tn-menu { position: fixed; left: 8px; right: 8px; max-width: none; }
+}
+
 /* ─── Glass Card Base ─────────────────────────────────── */
 .glass-card {
   background: var(--surface-glass);
@@ -1926,6 +1953,9 @@ body {
 
 <!-- 모바일 사이드바 오버레이 -->
 <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;"></div>
+
+<!-- 상단 헤더 카테고리 내비 (buildSidebarNav가 채움) -->
+<nav id="topNav" aria-label="카테고리 내비게이션"></nav>
 
 <!-- ⌘+K 명령 팔레트 (Sovereign Watch / Linear 스타일) -->
 <div id="cmdkOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1200;align-items:flex-start;justify-content:center;padding-top:14vh;">
@@ -7650,27 +7680,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       return;
     }
 
-    // 카테고리별 그룹화 (이모지 패턴 기반)
-    const groups = {
-      '시장 개요': [],
-      '한국 시장': [],
-      '미국·거시': [],
-      '분석·평가': [],
-      '기타': [],
-    };
+    // 카테고리별 그룹화 — 상단 헤더 내비용 (우선순위 순서 매칭: 위 카테고리가 먼저 가져감)
+    const CATS = [
+      ['시장 개요', /AI 인사이트|AI 투자 코멘트|매크로 환경/],
+      ['해외 시장', /해외 시장 동향|코스피 밸류에이션|성장 대비 부채|일본 경제 위기|섹터별 종목 분석|차트 분석|AI 생태계 밸류에이션/],
+      ['내 포트폴리오', /내 포트폴리오/],
+      ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
+      ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체/],
+      ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성|공포·탐욕/],
+      ['분석·평가', /IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측|적중|평가지수|성적표|백테스트|OHLC|사이클 변곡점|이벤트 사전영향|이벤트 기반/],
+      ['추세추종 보드', /추세추종 신호 보드|거장 매매 추적/],
+    ];
+    const groups = {};
+    CATS.forEach(([n]) => { groups[n] = []; });
+    groups['기타'] = [];
     items.forEach(item => {
-      const l = item.label;
-      if (/시장 개요|매크로 환경|해외 시장 동향|일본|지정학|섹터별|차트 분석|포트폴리오|AI 인사이트|AI 투자|이벤트 캘린더|주요 이벤트|주요 일정|밸류에이션|부채 비율|공포·탐욕/.test(l)) {
-        groups['시장 개요'].push(item);
-      } else if (/투자자 매매|장중|챌린저|반도체|한국 시장|섹터|시가총액 순위|ETF|수출입|무역|외국인 보유|평단가|증권사 리포트|관심종목|수주·투자 공시|메모리 가격/.test(l)) {
-        groups['한국 시장'].push(item);
-      } else if (/CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|일본/.test(l)) {
-        groups['미국·거시'].push(item);
-      } else if (/IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|핵심 논쟁|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측 적중|적중 기록|종합 예측 신호|예측 평가지수/.test(l)) {
-        groups['분석·평가'].push(item);
-      } else {
-        groups['기타'].push(item);
-      }
+      const hit = CATS.find(([, re]) => re.test(item.label));
+      groups[hit ? hit[0] : '기타'].push(item);
     });
 
     // ── 좌우 순서 일치: 오른쪽 섹션을 사이드바 그룹 순서대로 물리적 재배치 ──
@@ -7695,32 +7721,29 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       });
     } catch (e) { /* 재배치 실패 무시 */ }
 
-    // HTML 빌드: 상단 탭 토글 [섹션 | 시그널], 기본 = 섹션
+    // ── 상단 헤더 카테고리 내비 빌드 (드롭다운) ──
+    const tn = document.getElementById('topNav');
+    if (tn) {
+      let th = '';
+      Object.entries(groups).forEach(([groupName, groupItems]) => {
+        if (groupItems.length === 0) return;
+        th += `<div class="tn-cat"><button class="tn-btn" onclick="__tnToggle(this)">${escapeHtml(groupName)} <span style="font-size:0.55rem;opacity:0.6;">▾</span></button><div class="tn-menu">`
+          + groupItems.map(it => `<a class="tn-link" href="#${it.id}" onclick="return __tnGo('${it.id}')">${escapeHtml(it.label)}</a>`).join('')
+          + `</div></div>`;
+      });
+      th += `<button class="tn-btn" style="margin-left:auto;color:#a78bfa;" onclick="try{document.getElementById('cmdkTrigger').click()}catch(e){}">🔍 검색</button>`;
+      if (tn.__lastTopHtml !== th) { tn.__lastTopHtml = th; tn.innerHTML = th; }
+    }
+
+    // ── 사이드바 = 📡 시그널 전용 (섹션 내비는 헤더로 이동, 시그널은 인스펙터 연동이라 존치) ──
     const sigCount = (window.__dashboardData && window.__dashboardData.sao_signals
                       && window.__dashboardData.sao_signals.signals)
                       ? window.__dashboardData.sao_signals.signals.length : 0;
-    let html = `<div style="display:flex;gap:4px;padding:8px 8px 6px;position:sticky;top:0;background:var(--bg-sidebar,#0a0e14);z-index:5;border-bottom:1px solid rgba(255,255,255,0.06);">
-      <button id="sb-tab-sections" onclick="switchSidebarTab('sections')"
-        style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(167,139,250,0.4);
-          background:rgba(167,139,250,0.18);color:#a78bfa;font-size:0.7rem;font-weight:700;cursor:pointer;">🗂️ 섹션</button>
-      <button id="sb-tab-signals" onclick="switchSidebarTab('signals')"
-        style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(34,211,238,0.15);
-          background:transparent;color:var(--text-muted);font-size:0.7rem;font-weight:700;cursor:pointer;">📡 시그널 ${sigCount}</button>
+    let html = `<div style="display:flex;align-items:center;gap:6px;padding:9px 12px 7px;position:sticky;top:0;background:var(--bg-sidebar,#0a0e14);z-index:5;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <span style="font-size:0.72rem;font-weight:700;color:#22d3ee;">📡 시그널 <span style="font-family:var(--font-mono);">${sigCount}</span></span>
+      <span style="font-size:0.52rem;color:var(--text-muted);">카드 클릭 → 우측 인스펙터</span>
     </div>`;
-
-    // 섹션 페인 (기본 표시)
-    html += `<div id="sb-sections-pane" style="display:block;">`;
-    Object.entries(groups).forEach(([groupName, groupItems]) => {
-      if (groupItems.length === 0) return;
-      html += `<div class="sidebar-group-label">${groupName}</div>`;
-      groupItems.forEach(item => {
-        html += `<a class="sidebar-link" href="#${item.id}" data-target="${item.id}">${escapeHtml(item.label)}</a>`;
-      });
-    });
-    html += `</div>`;
-
-    // 시그널 페인 (기본 숨김)
-    html += `<div id="sb-signals-pane" style="display:none;">`;
+    html += `<div id="sb-signals-pane" style="display:block;">`;
     if (window.__dashboardData) {
       html += buildSidebarSignals(window.__dashboardData);
     }
@@ -7861,7 +7884,26 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
   };
 
-  // 사이드바 탭 전환 (섹션 ↔ 시그널)
+  // ── 상단 헤더 카테고리 내비 핸들러 ──
+  window.__tnToggle = function (btn) {
+    const cat = btn.parentElement;
+    const wasOpen = cat.classList.contains('open');
+    document.querySelectorAll('#topNav .tn-cat.open').forEach(c => c.classList.remove('open'));
+    if (!wasOpen) cat.classList.add('open');
+  };
+  window.__tnGo = function (id) {
+    document.querySelectorAll('#topNav .tn-cat.open').forEach(c => c.classList.remove('open'));
+    const t = document.getElementById(id);
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return false;
+  };
+  document.addEventListener('click', (e) => {   // 바깥 클릭 시 드롭다운 닫기
+    if (!e.target.closest('#topNav')) {
+      document.querySelectorAll('#topNav .tn-cat.open').forEach(c => c.classList.remove('open'));
+    }
+  });
+
+  // 사이드바 탭 전환 (섹션 ↔ 시그널) — 사이드바가 시그널 전용이 되어 현재는 미사용(호환 유지)
   window.switchSidebarTab = function(tab) {
     const secPane = document.getElementById('sb-sections-pane');
     const sigPane = document.getElementById('sb-signals-pane');
