@@ -1,0 +1,183 @@
+"""
+모닝 브리핑 — 대시보드 수집 데이터 종합분석 보고서 (매일 07:00 KST 텔레그램 발송)
+==================================================================================
+docs/*.json (밤사이 해외·예측·심리·추세신호·공매도·개인수급·밸류·일정·뉴스)을
+규칙 기반으로 종합해 한 편의 아침 보고서로 구성, 텔레그램으로 발송한다.
+LLM 미사용(무료·결정적). 각 데이터는 없으면 해당 섹션 생략(방어적).
+
+실행: GitHub Actions cron 22:00 UTC (= KST 07:00). 수동: python morning_report.py
+🚨 정보 요약 · 투자자문 아님.
+"""
+
+import json
+import os
+import sys
+from datetime import datetime, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DOCS = os.path.join(BASE_DIR, "docs")
+SITE = "https://15678910.github.io/ai-finance/"
+WD = ["월", "화", "수", "목", "금", "토", "일"]
+
+
+def L(name):
+    try:
+        with open(os.path.join(DOCS, f"{name}.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def pct(v):
+    try:
+        return f"{float(v):+.2f}%"
+    except Exception:
+        return "—"
+
+
+def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore
+        except Exception:
+            pass
+
+    now = datetime.now(KST)
+    S = []                                              # 섹션 리스트 (섹션별 문자열)
+
+    S.append(f"🌅 AI Finance 모닝 브리핑\n{now:%Y-%m-%d} ({WD[now.weekday()]}) 07:00 KST")
+
+    # ── 밤사이 해외 ──
+    ov = L("overseas_market")
+    mk = (ov.get("markets") or {})
+    lines = []
+    for grp in ("미국_지수", "미국_선물"):
+        for it in (mk.get(grp) or [])[:4]:
+            nm = it.get("name") or it.get("label") or "?"
+            ch = it.get("change_pct", it.get("chg_pct", it.get("chg")))
+            if ch is not None:
+                arrow = "🔺" if float(ch) >= 0 else "🔻"
+                lines.append(f"  {arrow} {nm} {pct(ch)}")
+    if lines:
+        S.append("🌎 밤사이 해외\n" + "\n".join(lines[:7]))
+
+    # ── 오늘 시초가·종합신호 ──
+    cs = L("composite_signal")
+    kp = ov.get("kospi_open_prediction")
+    lines = []
+    if kp:
+        lines.append(f"  시초가: {kp}")
+    if cs.get("bias"):
+        fut = f" (야간선물 {pct(cs.get('futures_pct'))})" if cs.get("futures_pct") is not None else ""
+        lines.append(f"  종합신호: {cs['bias']} · 점수 {cs.get('score')}{fut}")
+    if cs.get("decoupling_warn"):
+        lines.append(f"  ⚠️ {cs.get('warn_msg') or '디커플링 경고 — 선물신호 신뢰도 낮음'}")
+    if lines:
+        S.append("🔮 오늘 KOSPI\n" + "\n".join(lines))
+
+    # ── 시장 심리 ──
+    vk = L("vkospi")
+    fg = L("fear_greed")
+    lines = []
+    if vk.get("value") is not None:
+        lines.append(f"  VKOSPI {vk['value']} ({pct(vk.get('change_pct'))}) {vk.get('status', '')}")
+    us = fg.get("us") or {}
+    cr = fg.get("crypto") or {}
+    if us.get("score") is not None:
+        lines.append(f"  美 공포탐욕 {us['score']:.0f} ({us.get('rating', '')}) · 크립토 {cr.get('value', '—')} ({cr.get('rating', '')})")
+    if lines:
+        S.append("😱 시장 심리\n" + "\n".join(lines))
+
+    # ── 추세추종 신호 (9종목) ──
+    ts = L("trend_signal")
+    lines = []
+    emo = {"green": "🟢", "yellow": "🟡", "red": "🔴"}
+    for t in (ts.get("tickers") or []):
+        lines.append(f"  {emo.get(t.get('verdict_color'), '⚪')} {t.get('name')}: {t.get('verdict')}")
+    if lines:
+        S.append("🧭 추세추종 신호\n" + "\n".join(lines))
+
+    # ── 공매도 잔고 특이 (주의/경고 + 5일 급증만) ──
+    si = L("short_interest")
+    lines = []
+    for s in (si.get("stocks") or []):
+        if s.get("signal") in ("caution", "warning"):
+            tr = "▲" if s.get("trend") == "up" else "▼" if s.get("trend") == "down" else "—"
+            lines.append(f"  {'🔴' if s['signal'] == 'warning' else '🟡'} {s['name']} {s.get('ratio')}% ({tr}{s.get('chg_5d'):+}%p/5일)")
+        elif s.get("trend") == "up" and (s.get("chg_5d") or 0) >= 0.5:
+            lines.append(f"  ⚠️ {s['name']} 잔고 급증 {s.get('chg_5d'):+}%p/5일 (현재 {s.get('ratio')}%)")
+    if lines:
+        S.append(f"🩳 공매도 특이 (T+2 · {si.get('asof', '')})\n" + "\n".join(lines))
+
+    # ── 개인 수급 (물린물량 70%↑) ──
+    pb = L("personal_buy_dist")
+    lines = []
+    for s in (pb.get("stocks") or []):
+        if (s.get("above_frac") or 0) >= 70:
+            lines.append(f"  {s['name']}: 물린물량 {s['above_frac']}% (평단 대비 {s.get('vs_avg_pct'):+}%)")
+    if lines:
+        S.append("👥 개인 물림 주의 (매물대 부담)\n" + "\n".join(lines))
+
+    # ── 밸류에이션 ──
+    kv = L("kospi_valuation")
+    if kv.get("per") is not None:
+        S.append(f"📐 코스피 밸류 ({kv.get('asof', '')})\n  후행PER {kv.get('per')} · PBR {kv.get('pbr')} · 배당 {kv.get('div_yield')}%")
+
+    # ── 예측 성적 자기평가 ──
+    pq = L("prediction_quality")
+    if pq.get("pqi_overall") is not None:
+        S.append(f"🎯 예측 자기평가: PQI {pq['pqi_overall']} {pq.get('grade', '')}"
+                 + (f" (추세 {pq.get('trend'):+})" if pq.get("trend") is not None else ""))
+
+    # ── 오늘·내일 일정 ──
+    ec = L("economic_calendar")
+    today_s = now.strftime("%Y-%m-%d")
+    tomorrow_s = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+    evs = [e for e in (ec.get("events") or []) if e.get("date") in (today_s, tomorrow_s)]
+    evs.sort(key=lambda e: (e.get("date"), 0 if e.get("impact") == "HIGH" else 1))
+    lines = [f"  {'🔥' if e.get('impact') == 'HIGH' else '·'} [{('오늘' if e.get('date') == today_s else '내일')}] {e.get('title')}" for e in evs[:6]]
+    if lines:
+        S.append("📅 오늘·내일 주요 일정\n" + "\n".join(lines))
+
+    # ── 주요 뉴스 톱3 ──
+    mn = L("market_news")
+    items = (mn.get("items") or [])[:3]
+    if items:
+        S.append("📰 주요 뉴스\n" + "\n".join(f"  • {(it.get('title') or '')[:70]}" for it in items))
+
+    # ── 데이터 신선도 경고 ──
+    fr = L("freshness")
+    if fr.get("stale_count"):
+        S.append(f"🚨 데이터 정체 {fr['stale_count']}건 — 대시보드 배너 확인")
+
+    S.append(f"🔗 대시보드: {SITE}\n※ 자동 생성 요약 · 투자자문 아님")
+
+    report = "\n\n".join(S)
+    print(report)
+    print(f"\n[길이] {len(report)}자 · 섹션 {len(S)}개")
+
+    # 텔레그램 발송 (4096자 제한 → 섹션 경계로 분할)
+    try:
+        from core import send_message, get_secret
+        if not get_secret("TELEGRAM_FINANCE_BOT_TOKEN"):
+            print("[INFO] 텔레그램 토큰 없음 — 발송 생략(보고서 출력만).")
+            return 0
+        chunks, cur = [], ""
+        for sec in S:
+            if len(cur) + len(sec) + 2 > 3800:
+                chunks.append(cur)
+                cur = sec
+            else:
+                cur = (cur + "\n\n" + sec) if cur else sec
+        if cur:
+            chunks.append(cur)
+        ok = all(send_message(c) for c in chunks)
+        print(f"[{'OK' if ok else 'WARN'}] 텔레그램 {len(chunks)}건 발송{'' if ok else ' (일부 실패)'}")
+    except Exception as e:
+        print(f"[WARN] 발송 실패: {e}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
