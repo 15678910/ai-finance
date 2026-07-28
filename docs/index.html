@@ -610,6 +610,11 @@ body {
   border-radius: 10px; padding: 6px; display: none; z-index: 1000;
   box-shadow: 0 14px 40px rgba(0,0,0,0.6); }
 .tn-cat.open .tn-menu { display: block; }
+/* 호버 시 자동 열림 (데스크톱) — 터치는 클릭 토글(.open) 유지 */
+@media (hover: hover) {
+  .tn-cat:hover .tn-menu { display: block; }
+  .tn-cat:hover .tn-btn { color: #22d3ee; background: rgba(34,211,238,0.14); }
+}
 .tn-link { display: block; padding: 6px 10px; font-size: 0.68rem; color: var(--text);
   border-radius: 6px; text-decoration: none; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; max-width: 320px; }
@@ -617,9 +622,17 @@ body {
 .shell { padding-top: 54px; }
 .section-wrap { scroll-margin-top: 58px; }
 @media (max-width: 900px) {
-  #topNav { left: 0; padding-left: 54px; }
+  #topNav { left: 0; padding-left: 8px; }
   .tn-menu { position: fixed; left: 8px; right: 8px; max-width: none; }
 }
+
+/* ── 사이드바 제거 (시그널 목록 삭제 — 시그널 인스펙터는 🔍 검색(⌘K)으로 접근) ── */
+.sidebar, #sidebarToggle, #sidebarOverlay { display: none !important; }
+.shell { margin-left: auto !important; }
+#topNav { left: 0 !important; }
+.tn-brand { font-size: 0.78rem; font-weight: 800; color: var(--text-bright);
+  white-space: nowrap; margin-right: 6px; letter-spacing: 0.02em; }
+.tn-brand b { color: #22d3ee; }
 
 /* ─── Glass Card Base ─────────────────────────────────── */
 .glass-card {
@@ -2770,12 +2783,12 @@ body {
 
     // ─── 🗺️ Tactical Capital Map (4가지 시각화 뷰 토글) ──────────
     html += `<section class="section-wrap" style="margin-top:32px;" id="tactical-map">
-      <div class="section-label" style="color:#22d3ee;">🗺️ Tactical Capital Map <span style="font-size:0.65rem;color:var(--text-muted);">(4가지 뷰 — 사이드바 시그널 클릭과 연동)</span></div>
+      <div class="section-label" style="color:#22d3ee;">🗺️ Tactical Capital Map <span style="font-size:0.65rem;color:var(--text-muted);">(4가지 뷰 — 🔍 검색(⌘K) 시그널과 연동)</span></div>
 
       <div class="glass-card anim-item" style="padding:10px 14px;margin-bottom:12px;background:rgba(34,211,238,0.04);">
         <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">
           <b style="color:var(--text);">사용법:</b> 아래 뷰 탭을 클릭하여 시각화 전환.
-          좌측 사이드바의 SIGNALS 카드 클릭 → 우측 인스펙터에서 객체의 모든 정보 확인.
+          🔍 검색(⌘K)에서 시그널·종목 선택 → 우측 인스펙터에서 객체의 모든 정보 확인.
         </div>
       </div>
 
@@ -7724,7 +7737,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // ── 상단 헤더 카테고리 내비 빌드 (드롭다운) ──
     const tn = document.getElementById('topNav');
     if (tn) {
-      let th = '';
+      let th = `<span class="tn-brand">AI <b>Finance</b></span>
+        <button class="tn-btn" style="color:#00ff88;border-color:rgba(0,255,136,0.3);" title="홈 (초기 화면·인스펙터 리셋)"
+          onclick="try{document.getElementById('sidebarHome').click()}catch(e){window.scrollTo({top:0,behavior:'smooth'})}">🏠 HOME</button>`;
       Object.entries(groups).forEach(([groupName, groupItems]) => {
         if (groupItems.length === 0) return;
         th += `<div class="tn-cat"><button class="tn-btn" onclick="__tnToggle(this)">${escapeHtml(groupName)} <span style="font-size:0.55rem;opacity:0.6;">▾</span></button><div class="tn-menu">`
