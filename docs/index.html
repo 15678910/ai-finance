@@ -9560,11 +9560,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const closed = trades.filter(x => !x.open);
       const wins = closed.filter(x => x.ret_pct > 0).length;
       const losses = closed.length - wins;
-      const list = trades.slice();
+      const FILT = window.__tsTradeFilter || 'all';
+      let list = trades.slice();
+      if (FILT === 'win') list = list.filter(x => !x.open && x.ret_pct > 0);
+      else if (FILT === 'loss') list = list.filter(x => !x.open && x.ret_pct <= 0);
       if (SORT === 'best') list.sort((a, b) => b.ret_pct - a.ret_pct);
       else list.sort((a, b) => a.entry_d < b.entry_d ? 1 : -1);   // 최신순
-      const tile = (lab, val, col) => `<div style="flex:1;min-width:64px;text-align:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:6px 4px;">
-        <div style="font-size:0.5rem;color:var(--text-muted);">${lab}</div>
+      const tile = (lab, val, col, fkey) => `<div onclick="window.__tsTradeFilter='${fkey}';renderTrendSignal()" title="클릭 → 거래 목록·차트 마커 필터" style="flex:1;min-width:64px;text-align:center;background:${FILT === fkey ? 'rgba(34,211,238,0.14)' : 'rgba(255,255,255,0.04)'};border:1px solid ${FILT === fkey ? 'rgba(34,211,238,0.55)' : 'rgba(255,255,255,0.08)'};border-radius:8px;padding:6px 4px;cursor:pointer;transition:all 0.12s;">
+        <div style="font-size:0.5rem;color:${FILT === fkey ? '#22d3ee' : 'var(--text-muted)'};">${lab}</div>
         <div style="font-size:0.92rem;font-weight:800;font-family:var(--font-mono);color:${col};">${val}</div></div>`;
       const rows = list.map(x => `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 9px;margin-bottom:5px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
@@ -9597,8 +9600,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const dateAxis = _dd.length === _nB ? [0, Math.floor((_nB - 1) / 3), Math.floor(2 * (_nB - 1) / 3), _nB - 1].map((i, k) => `<text x="${Xi(i).toFixed(1)}" y="${H + 9}" font-size="6.5" fill="#7d8590" text-anchor="${k === 0 ? 'start' : k === 3 ? 'end' : 'middle'}">${_dd[i].slice(0, 7)}</text>`).join('')
         : `<text x="${pL}" y="${H + 9}" font-size="6.5" fill="#7d8590">${cv.d0}</text><text x="${W - pR}" y="${H + 9}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>`;
       window.__tcGeom = { W, H, pT, pB, pL, pR, n: _nB, mx, rg, bh: cv.bh, dd: _dd, price0: _p0 || 0 };
-      const marksL = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.6" fill="#22d3ee"><title>BUY·LONG</title></circle><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.6" fill="${mk.win ? '#4ade80' : '#f87171'}"><title>SELL·LONG</title></circle>`).join('');
-      const marksS = (t.markers_short || []).map(mk => `<rect x="${(X(mk.e) - 2.4).toFixed(1)}" y="${(yAt(mk.e) - 2.4).toFixed(1)}" width="4.8" height="4.8" fill="#f472b6" transform="rotate(45 ${X(mk.e).toFixed(1)} ${yAt(mk.e).toFixed(1)})"><title>SELL·SHORT(진입)</title></rect><rect x="${(X(mk.x) - 2.4).toFixed(1)}" y="${(yAt(mk.x) - 2.4).toFixed(1)}" width="4.8" height="4.8" fill="${mk.win ? '#4ade80' : '#f87171'}" stroke="#f472b6" stroke-width="0.8" transform="rotate(45 ${X(mk.x).toFixed(1)} ${yAt(mk.x).toFixed(1)})"><title>BUY·SHORT(커버)</title></rect>`).join('');
+      const _mkPass = mk => FILT === 'all' || (FILT === 'win') === !!mk.win;   // 타일 필터를 마커에도 적용
+      const marksL = t.markers.filter(_mkPass).map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.6" fill="#22d3ee"><title>BUY·LONG</title></circle><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.6" fill="${mk.win ? '#4ade80' : '#f87171'}"><title>SELL·LONG</title></circle>`).join('');
+      const marksS = (t.markers_short || []).filter(_mkPass).map(mk => `<rect x="${(X(mk.e) - 2.4).toFixed(1)}" y="${(yAt(mk.e) - 2.4).toFixed(1)}" width="4.8" height="4.8" fill="#f472b6" transform="rotate(45 ${X(mk.e).toFixed(1)} ${yAt(mk.e).toFixed(1)})"><title>SELL·SHORT(진입)</title></rect><rect x="${(X(mk.x) - 2.4).toFixed(1)}" y="${(yAt(mk.x) - 2.4).toFixed(1)}" width="4.8" height="4.8" fill="${mk.win ? '#4ade80' : '#f87171'}" stroke="#f472b6" stroke-width="0.8" transform="rotate(45 ${X(mk.x).toFixed(1)} ${yAt(mk.x).toFixed(1)})"><title>BUY·SHORT(커버)</title></rect>`).join('');
       // ADX 서브패널 (영상 스타일 — adx_min=20 기준선)
       let adxSvg = '';
       if (ov.adx && ov.adx.length > 1) {
@@ -9624,12 +9628,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
           <div style="flex:1;min-width:210px;max-width:300px;">
             <div style="display:flex;gap:5px;margin-bottom:5px;">
-              ${tile('WIN RATE', (closed.length ? Math.round(wins / closed.length * 100) : 0) + '%', '#e2e8f0')}
-              ${tile('WINS', wins, '#4ade80')}
-              ${tile('LOSSES', losses, '#f87171')}
+              ${tile('WIN RATE', (closed.length ? Math.round(wins / closed.length * 100) : 0) + '%', '#e2e8f0', 'all')}
+              ${tile('WINS', wins, '#4ade80', 'win')}
+              ${tile('LOSSES', losses, '#f87171', 'loss')}
             </div>
             <div style="font-size:0.53rem;color:var(--text-muted);margin-bottom:6px;font-family:var(--font-mono);">Longs | Shorts: <b style="color:#4ade80;">${longs.length}</b> | <b style="color:#f472b6;">${shorts.length}</b>${ss.win_rate != null ? ` · 숏 승률 ${ss.win_rate}% (${ss.total_return_pct >= 0 ? '+' : ''}${ss.total_return_pct}%)` : ''}</div>
-            <div style="max-height:265px;overflow-y:auto;padding-right:4px;">${rows}</div>
+            <div style="max-height:265px;overflow-y:auto;padding-right:4px;">${rows || '<div style="font-size:0.58rem;color:var(--text-muted);padding:8px 2px;">해당 조건의 거래가 없습니다. WIN RATE 타일을 눌러 전체로 돌아가세요.</div>'}</div>
           </div>
           <div style="flex:1.6;min-width:280px;">
             <div style="font-size:0.54rem;font-family:var(--font-mono);color:var(--text-muted);line-height:1.7;margin-bottom:3px;">
