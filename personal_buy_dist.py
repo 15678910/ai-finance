@@ -23,6 +23,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "personal_buy_dist.json")
 
 WATCH = [
+    ("KOSPI", "KOSPI"),                  # 시장 전체 개인 순매수 × 지수 종가 (특수 처리)
     ("000660", "SK하이닉스"),
     ("108490", "로보티즈"),
     ("005930", "삼성전자"),
@@ -67,8 +68,12 @@ def main():
     stocks, asof = [], None
     for code, name in WATCH:
         try:
-            vol = stock.get_market_trading_volume_by_date(frm, to, code)   # 투자자별 순매수량
-            ohl = stock.get_market_ohlcv_by_date(frm, to, code)            # 일별 종가
+            if code == "KOSPI":                                            # 시장 전체 + 지수 종가
+                vol = stock.get_market_trading_volume_by_date(frm, to, "KOSPI")
+                ohl = stock.get_index_ohlcv_by_date(frm, to, "1001")
+            else:
+                vol = stock.get_market_trading_volume_by_date(frm, to, code)   # 투자자별 순매수량
+                ohl = stock.get_market_ohlcv_by_date(frm, to, code)            # 일별 종가
         except Exception as e:
             print(f"  [WARN] {name}({code}) 조회 실패: {e}")
             continue
