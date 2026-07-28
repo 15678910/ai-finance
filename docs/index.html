@@ -619,8 +619,8 @@ body {
   border-radius: 6px; text-decoration: none; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; max-width: 320px; }
 .tn-link:hover { background: rgba(34,211,238,0.12); color: #22d3ee; }
-.shell { padding-top: 54px; }
-.section-wrap { scroll-margin-top: 58px; }
+.shell { padding-top: calc(var(--tnH, 46px) + 10px); }   /* 헤더 실제 높이(--tnH)에 맞춰 자동 */
+.section-wrap { scroll-margin-top: calc(var(--tnH, 46px) + 14px); }
 @media (max-width: 900px) {
   #topNav { left: 0; padding-left: 8px; }
   .tn-menu { position: fixed; left: 8px; right: 8px; max-width: none; }
@@ -7748,6 +7748,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       });
       th += `<button class="tn-btn" style="margin-left:auto;color:#a78bfa;" onclick="try{document.getElementById('cmdkTrigger').click()}catch(e){}">🔍 검색</button>`;
       if (tn.__lastTopHtml !== th) { tn.__lastTopHtml = th; tn.innerHTML = th; }
+      // 헤더 실제 높이 → CSS 변수(--tnH): 본문 여백·스크롤 보정 자동화 (줄바꿈 대응)
+      try { document.documentElement.style.setProperty('--tnH', tn.offsetHeight + 'px'); } catch (e) { }
     }
 
     // ── 사이드바 = 📡 시그널 전용 (섹션 내비는 헤더로 이동, 시그널은 인스펙터 연동이라 존치) ──
@@ -7916,6 +7918,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!e.target.closest('#topNav')) {
       document.querySelectorAll('#topNav .tn-cat.open').forEach(c => c.classList.remove('open'));
     }
+  });
+  window.addEventListener('resize', () => {     // 창 크기 변경 시 헤더 높이 재계산
+    const tn = document.getElementById('topNav');
+    if (tn) try { document.documentElement.style.setProperty('--tnH', tn.offsetHeight + 'px'); } catch (e) { }
   });
 
   // 사이드바 탭 전환 (섹션 ↔ 시그널) — 사이드바가 시그널 전용이 되어 현재는 미사용(호환 유지)
