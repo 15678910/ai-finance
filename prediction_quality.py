@@ -9,12 +9,20 @@
 PQI = 0.45·방향적중 + 0.35·크기점수(MAE역) + 0.20·범위적중  (모델별 → 종합 평균)
 보완 권고: auto_safe=True(밴드 σ 확대 등 기계적)만 자동적용 후보, 나머지는 검토 후 적용.
 
++ 통계 유의성 검증(RST·몬테카를로) — '적중률이 동전던지기보다 통계적으로 나은가'
+  · RST: 방향적중의 단측 이항검정 p-값 (귀무가설 = 50% 동전던지기)
+  · 몬테카를로: 동전던지기 시뮬레이션 2,000회 null 분포에서 실제 성적의 백분위
+  · 부트스트랩: 적중률 90% 신뢰구간
+  → 알고트레이딩 검증 방법론(Rule Significance Test)을 예측모델 자기평가에 적용.
+
 출력: docs/prediction_quality.json
 🚨 통계 자기평가. 투자자문 아님.
 """
 
 import json
+import math
 import os
+import random
 import sys
 from datetime import datetime, timezone, timedelta
 
@@ -55,6 +63,47 @@ def _grade(pqi):
     if pqi >= 38:
         return "🟠 미흡", "orange"
     return "🔴 취약", "red"
+
+
+def _binom_p_onesided(n, k, p=0.5):
+    """단측 이항검정: P(X >= k | n, p). 순수 파이썬(math.comb)."""
+    if n <= 0:
+        return None
+    return sum(math.comb(n, i) * (p ** i) * ((1 - p) ** (n - i)) for i in range(k, n + 1))
+
+
+def _significance(entries, sims=2000, seed=42):
+    """방향적중의 통계 유의성: RST(이항 p-값) + 몬테카를로 백분위 + 부트스트랩 CI."""
+    marks = [bool(e.get("dir_ok")) for e in entries if e.get("dir_ok") is not None]
+    n, k = len(marks), sum(1 for m in marks if m)
+    if n < 5:
+        return {"n": n, "k": k, "p_value": None, "null_pctile": None, "boot_ci": None,
+                "verdict": "표본 부족 (5일 미만)", "verdict_color": "gray"}
+
+    p_val = _binom_p_onesided(n, k)
+
+    rng = random.Random(seed)                       # 고정 시드 → 재현 가능
+    null_wins = sorted(sum(1 for _ in range(n) if rng.random() < 0.5) for _ in range(sims))
+    below = sum(1 for w in null_wins if w < k)
+    ties = sum(1 for w in null_wins if w == k)
+    null_pctile = round((below + ties * 0.5) / sims * 100, 1)   # null 분포에서 실제 성적의 백분위
+
+    boots = sorted(sum(1 for _ in range(n) if marks[rng.randrange(n)]) / n * 100 for _ in range(sims))
+    boot_ci = [round(boots[int(sims * 0.05)], 1), round(boots[int(sims * 0.95)], 1)]
+
+    small = n < 20
+    if p_val is not None and p_val < 0.05:
+        verdict, color = ("유의미한 엣지 ✅" + (" (표본 적음)" if small else "")), "green"
+    elif p_val is not None and p_val < 0.15:
+        verdict, color = "약한 신호 (관찰 지속)", "yellow"
+    else:
+        verdict, color = "우연과 구분 불가", "red"
+    if small and color != "gray":
+        verdict += f" · n={n}"
+
+    return {"n": n, "k": k, "p_value": round(p_val, 4) if p_val is not None else None,
+            "null_pctile": null_pctile, "boot_ci": boot_ci,
+            "verdict": verdict, "verdict_color": color}
 
 
 def _windowed_pqi(entries, n):
@@ -106,6 +155,7 @@ def main():
     for m in models:
         m["pqi"] = _pqi(m["dir"], m["mae"], m["range"])
         ent = m.pop("entries")
+        m["significance"] = _significance(ent)          # RST·몬테카를로·부트스트랩
         m["pqi_recent"] = _windowed_pqi(ent, 7)
         m["pqi_prev"] = _windowed_pqi(ent[:-7], 7) if len(ent) > 7 else None
         valid = [e for e in ent if e.get("abs_err") is not None]
@@ -197,6 +247,8 @@ def main():
     print(f"PQI 종합: {pqi_overall} {grade} (추세 {trend}) · 버전 {MODEL_VERSION}")
     for m in models:
         print(f"  {m['name']:12s} PQI {m['pqi']} (dir {m['dir']} mae {m['mae']} range {m['range']} 급오차 {m['big_miss_frac']}%)")
+        s = m.get("significance") or {}
+        print(f"    유의성: {s.get('verdict')} (n={s.get('n')} k={s.get('k')} p={s.get('p_value')} null백분위 {s.get('null_pctile')} CI {s.get('boot_ci')})")
     print("  권고:")
     for r in recs:
         print(f"   [P{r['priority']}{'·자동가능' if r['auto_safe'] else '·검토'}] {r['issue']} → {r['fix']}")

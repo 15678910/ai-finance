@@ -9622,6 +9622,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;">방향 ${dg.dir_avg}% · MAE ${dg.mae_avg}% · 범위 ${dg.range_avg != null ? dg.range_avg + '%' : '—'} · 급오차(±3%↑) ${dg.big_miss_avg}%</div>
           </div>
         </div>
+        ${(d.models || []).some(m => m.significance) ? `
+        <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin:11px 0 3px;">🔬 통계 유의성 검증 <span style="font-size:0.54rem;color:var(--text-muted);font-weight:400;">(RST 이항검정 + 몬테카를로 2,000회 — "동전던지기보다 나은가")</span></div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:440px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            ${['모델', '판정', 'p-값', 'null 백분위', '적중률 90% CI', '표본'].map((t, k) => `<th style="padding:4px 7px;text-align:${k <= 1 ? 'left' : 'right'};font-size:0.54rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
+          </tr></thead><tbody>${(d.models || []).map(m => { const s = m.significance || {}; const sc = s.verdict_color === 'green' ? '#4ade80' : s.verdict_color === 'yellow' ? '#fbbf24' : s.verdict_color === 'red' ? '#f87171' : 'var(--text-muted)'; return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:4px 7px;font-size:0.64rem;color:var(--text-bright);">${h(m.name)}</td>
+            <td style="padding:4px 7px;"><span style="font-size:0.58rem;font-weight:700;color:${sc};background:${sc}1c;border-radius:10px;padding:2px 8px;white-space:nowrap;">${h(s.verdict || '—')}</span></td>
+            <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:${sc};">${s.p_value == null ? '—' : s.p_value}</td>
+            <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${s.null_pctile == null ? '—' : '상위 ' + (100 - s.null_pctile).toFixed(0) + '%'}</td>
+            <td style="padding:4px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${s.boot_ci ? s.boot_ci[0] + '~' + s.boot_ci[1] + '%' : '—'}</td>
+            <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${s.n || 0}일</td>
+          </tr>`; }).join('')}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:4px;line-height:1.55;">p&lt;0.05=✅유의미한 엣지 · p&lt;0.15=🟡약한 신호 · 그 외=🔴우연과 구분 불가. null 백분위=동전던지기 2,000회 분포에서 실제 성적 위치. 표본 20일 미만이면 판정 신뢰도 낮음 — 기록이 쌓일수록 정확해집니다. (알고트레이딩 Rule Significance Test 방법론 적용)</div>` : ''}
         <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin:11px 0 3px;">🔧 자동 진단·보완 권고 <span style="font-size:0.54rem;color:var(--text-muted);font-weight:400;">(⚙️=기계적 자동가능 · 👤=모델변경 검토)</span></div>
         ${recs}
         <div style="font-size:0.66rem;color:#f472b6;font-weight:700;margin:11px 0 3px;">📋 변경 전/후 기준표 ${d.delta_vs_prev_version != null ? `<span style="font-size:0.6rem;color:${d.delta_vs_prev_version >= 0 ? '#4ade80' : '#f87171'};">최신 버전 이전 대비 ${d.delta_vs_prev_version >= 0 ? '+' : ''}${d.delta_vs_prev_version}</span>` : ''}</div>
