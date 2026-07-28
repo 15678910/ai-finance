@@ -10417,6 +10417,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   window.__pfAutoloadFile = __pfAutoloadFile;
   window.__pfSetView = function (v) { window.__pfView = v; renderPortfolio(); };
   window.__pfSetTxView = function (v) { window.__pfTxView = v; renderPortfolio(); };   // 거래내역 일별/월별/년별
+  window.__pfSetTab = function (v) { window.__pfTab = v; renderPortfolio(); };         // 포트폴리오 뷰 탭
   window.__pfDeposit = function (sign) {
     const pf = __pfLoad();
     const dEl = document.getElementById('pf-dep-date'), aEl = document.getElementById('pf-dep-amt');
@@ -10644,14 +10645,20 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ${_flow ? _eq('이번달 순입출금', '= ' + pn(_flow) + ' (제외)', 'var(--text-muted)') : ''}
       ${_eq('전월대비 순손익', _base == null ? '전월말 총자산 입력 필요' : ('총자산 − 이번달입출금 − 전월말 = ' + pn(_mom) + (_momRate == null ? '' : ' (' + (_momRate >= 0 ? '+' : '') + _momRate.toFixed(2) + '%)')), sgn(_mom))}
     </div>`;
-    const html = `<section class="section-wrap" id="portfolio-section">
-      <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span>${PF_LIVE_PROXY ? `<span style="font-size:0.6rem;margin-left:8px;color:${window.__pfLiveAt ? '#22d3ee' : 'var(--text-muted)'};" title="네이버 통합시세(NXT 포함) · 평일 08:00~20:00 자동 갱신">${window.__pfLiveAt ? '🔴 실시간 ' + window.__pfLiveAt.toLocaleTimeString('ko-KR') : '⏳ 실시간 연결 중…'}</span>` : ''}</div>
-      <div class="glass-card" style="padding:14px 16px;">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch;margin-bottom:6px;">
-          ${depBlock}
-          ${pnlBox}
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.64rem;">
+    // ── 원페이지 뷰 탭 (추세추종 보드 스타일) ──
+    const PFV = window.__pfTab || 'hold';
+    const PFTABS = [['hold', '💼 보유·매매'], ['acct', '🧮 회계 요약'], ['chart', '📈 추이 차트'], ['stmt', '🧾 손익계산서'], ['txn', '📕 거래내역'], ['set', '⚙️ 관리·백업']];
+    const pfTabBar = PFTABS.map(([k, lab]) => `<button onclick="__pfSetTab('${k}')" style="padding:3px 10px;border-radius:6px;font-size:0.58rem;cursor:pointer;font-weight:${k === PFV ? 700 : 400};background:${k === PFV ? 'rgba(244,114,182,0.2)' : 'transparent'};color:${k === PFV ? '#f472b6' : 'var(--text-muted)'};border:1px solid ${k === PFV ? 'rgba(244,114,182,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
+    // 항상 보이는 헤드라인 요약 (추세보드의 신호 요약줄 역할)
+    const pfHead = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:0.62rem;">
+      <span style="color:var(--text-muted);">총자산 <b style="font-family:var(--font-mono);color:var(--text-bright);font-size:0.78rem;">${_netAssets == null ? '—' : __pfNum(_netAssets)}</b>원</span>
+      <span style="color:var(--text-muted);">매입액대비 <b style="font-family:var(--font-mono);color:${sgn(_evalNoFee)};font-size:0.74rem;">${_evalNoFee == null ? '—' : pn(_evalNoFee)}</b> <b style="font-family:var(--font-mono);color:${sgn(_evalRate)};">${_evalRate == null ? '' : '(' + (_evalRate >= 0 ? '+' : '') + _evalRate.toFixed(2) + '%)'}</b></span>
+      <span style="color:var(--text-muted);">원금대비 <b style="font-family:var(--font-mono);color:${sgn(_vsP)};font-size:0.74rem;">${_vsP == null ? '—' : pn(_vsP)}</b> <b style="font-family:var(--font-mono);color:${sgn(_vsPrate)};">${_vsPrate == null ? '' : '(' + (_vsPrate >= 0 ? '+' : '') + _vsPrate.toFixed(2) + '%)'}</b></span>
+      <span style="color:var(--text-muted);">전월대비 <b style="font-family:var(--font-mono);color:${sgn(_mom)};">${_mom == null ? '—' : pn(_mom)}</b></span>
+      ${PF_LIVE_PROXY ? `<span style="margin-left:auto;font-size:0.58rem;color:${window.__pfLiveAt ? '#22d3ee' : 'var(--text-muted)'};" title="네이버 통합시세(NXT 포함) · 평일 08:00~20:00 자동 갱신">${window.__pfLiveAt ? '🔴 실시간 ' + window.__pfLiveAt.toLocaleTimeString('ko-KR') : '⏳ 실시간 연결 중…'}</span>` : ''}
+    </div>`;
+    // ── 탭별 콘텐츠 조각 ──
+    const pfSettings = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.64rem;">
           <span style="color:var(--text-muted);">원금(수동)</span>
           <input id="pf-principal" value="${pf.principal || ''}" placeholder="원금(원)" title="${_deps.length ? '입금내역 사용 중 — 설정 시 입금내역을 비우고 이 값을 원금으로' : '원금 직접 입력'}" style="width:120px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.66rem;"/>
           <button onclick="__pfSetPrincipal()" style="font-size:0.6rem;background:rgba(244,114,182,0.16);color:#f472b6;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">설정</button>
@@ -10667,23 +10674,35 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <button onclick="__pfExport()" title="포트폴리오를 JSON 파일로 저장" style="font-size:0.6rem;background:rgba(74,222,128,0.14);color:#4ade80;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;${__pfFSA() ? '' : 'margin-left:auto;'}">💾 백업</button>
           <button onclick="__pfImport()" title="백업 JSON 파일 불러오기" style="font-size:0.6rem;background:rgba(96,165,250,0.14);color:#60a5fa;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;">📂 복원</button>
           <button onclick="__pfClear()" style="font-size:0.58rem;background:transparent;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:5px 8px;cursor:pointer;">전체 초기화</button>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:7px;">
+        </div>`;
+    const pfAddRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:7px;">
           <input id="pf-code" placeholder="종목코드 6자리 (예:005930)" style="width:150px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
           <input id="pf-buy" placeholder="매수단가" style="width:90px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
           <input id="pf-qty" placeholder="수량" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 8px;font-size:0.64rem;"/>
           <input id="pf-date" type="date" value="${_today}" title="거래일(매수일)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:3px 6px;font-size:0.62rem;"/>
           <button onclick="__pfAdd()" style="font-size:0.62rem;background:rgba(74,222,128,0.16);color:#4ade80;border:none;border-radius:5px;padding:5px 12px;cursor:pointer;font-weight:600;">+ 종목(매수) 추가</button>
-        </div>
-        ${rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
+        </div>`;
+    const pfHoldTable = rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
             ${['종목', '수량', '매수가', '현재가', '매수금', '순손익', '수익률', ''].map(t => `<th style="padding:5px 6px;text-align:${t === '종목' || t === '' ? 'left' : 'right'};font-size:0.54rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
-          </tr></thead><tbody>${hRows}</tbody></table></div>` : '<div style="font-size:0.66rem;color:var(--text-muted);padding:10px 4px;">보유 종목을 추가하세요. 코드가 시세 목록(주요 130종목)에 없으면 현재가를 수동 입력할 수 있습니다.</div>'}
-        ${chart ? `<div style="margin-top:12px;"><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 기록)</div>${chart}
-          <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div></div>` : ''}
-        ${stmt}
-        ${flowTable}
-        ${txnTable}
+          </tr></thead><tbody>${hRows}</tbody></table></div>` : '<div style="font-size:0.66rem;color:var(--text-muted);padding:10px 4px;">보유 종목을 추가하세요. 코드가 시세 목록(주요 130종목)에 없으면 현재가를 수동 입력할 수 있습니다.</div>';
+    const pfChartBlock = chart ? `<div><div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;">📈 날짜별 순손익 추이 (최근 ${hist.length}일 기록)</div>${chart}
+          <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div>
+          <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;">※ ⚙️ 관리·백업 탭의 '📸 오늘 손익 기록'을 누르면(마감 후 자동 포함) 날짜별 점이 쌓입니다.</div></div>`
+      : '<div style="font-size:0.64rem;color:var(--text-muted);padding:8px 2px;">아직 기록이 없습니다. ⚙️ 관리·백업 탭에서 <b>📸 오늘 손익 기록</b>을 누르면 날짜별 추이가 쌓입니다.</div>';
+    let pfContent = '';
+    if (PFV === 'hold') pfContent = pfAddRow + pfHoldTable;
+    else if (PFV === 'acct') pfContent = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch;">${depBlock}${pnlBox}</div>`;
+    else if (PFV === 'chart') pfContent = pfChartBlock;
+    else if (PFV === 'stmt') pfContent = stmt + flowTable;
+    else if (PFV === 'txn') pfContent = txnTable;
+    else if (PFV === 'set') pfContent = pfSettings;
+    const html = `<section class="section-wrap" id="portfolio-section">
+      <div class="section-label" style="color:#f472b6;">📒 내 포트폴리오 손익 <span style="font-size:0.62rem;color:var(--text-muted);">(원금·보유는 이 브라우저에만 저장 · 수수료 0.05%)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        ${pfHead}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);">${pfTabBar}</div>
+        <div style="margin-top:10px;">${pfContent}</div>
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ 원금·보유종목은 <b>이 브라우저에만</b> 저장(서버·GitHub 전송 안 함). 현재가는 코스피·코스닥 상위 ~1400종목 시세(워크플로 갱신)를 매칭 — 실시간 아님. 수수료 0.05% 왕복 + 증권거래세 0.18%(매도) 반영. 정보용·투자자문 아님.</div>
       </div>
     </section>`;
