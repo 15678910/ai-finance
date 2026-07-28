@@ -9563,34 +9563,36 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="color:var(--text-muted);">${e.days}거래일${e.ongoing ? ' · 진행중' : ''}</span>
         </div>`).join('')}</div>`;
     };
-    // 📍 Trade chart — Jesse 스타일: 좌 Trade activity(전체 목록·정렬) + 우 가격차트(EMA200·ST 오버레이·마커)
+    // 📍 Trade chart — Jesse 스타일: 롱+숏 목록·정렬 + 가격차트(EMA200·ST·마커) + ADX 서브패널
     const tradeView = () => {
       const bt5 = (t.periods || {})['5y'];
       const cv = bt5 && bt5.curve;
       const ov = t.overlay || {};
       if (!cv || !t.markers || !t.markers.length) return '<div style="font-size:0.6rem;color:var(--text-muted);">거래 데이터 없음</div>';
-      const trades = (t.trades || []).slice();
+      const longs = (t.trades || []).map(x => ({ ...x, side: 'L' }));
+      const shorts = (t.trades_short || []).map(x => ({ ...x, side: 'S' }));
+      const trades = longs.concat(shorts);
       const closed = trades.filter(x => !x.open);
       const wins = closed.filter(x => x.ret_pct > 0).length;
       const losses = closed.length - wins;
       const list = trades.slice();
       if (SORT === 'best') list.sort((a, b) => b.ret_pct - a.ret_pct);
-      else list.reverse();   // 최신순
-      const tile = (lab, val, col) => `<div style="flex:1;min-width:70px;text-align:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:6px 4px;">
+      else list.sort((a, b) => a.entry_d < b.entry_d ? 1 : -1);   // 최신순
+      const tile = (lab, val, col) => `<div style="flex:1;min-width:64px;text-align:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:6px 4px;">
         <div style="font-size:0.5rem;color:var(--text-muted);">${lab}</div>
-        <div style="font-size:0.95rem;font-weight:800;font-family:var(--font-mono);color:${col};">${val}</div></div>`;
+        <div style="font-size:0.92rem;font-weight:800;font-family:var(--font-mono);color:${col};">${val}</div></div>`;
       const rows = list.map(x => `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 9px;margin-bottom:5px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
           <span style="font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);font-weight:700;">${__pfNum(Math.round(x.entry_p))}</span>
           <span style="font-size:0.64rem;font-family:var(--font-mono);font-weight:800;color:${x.ret_pct >= 0 ? '#4ade80' : '#f87171'};">${x.ret_pct >= 0 ? '+' : ''}${x.ret_pct}%</span>
         </div>
         <div style="display:flex;gap:7px;align-items:center;margin-top:2px;font-size:0.52rem;color:var(--text-muted);">
-          <span style="color:${x.open ? '#22d3ee' : '#4ade80'};font-weight:700;">${x.open ? 'LONG·보유중' : 'LONG'}</span>
+          <span style="color:${x.side === 'S' ? '#f472b6' : '#4ade80'};font-weight:700;">${x.side === 'S' ? 'SHORT' : 'LONG'}${x.open ? '·보유중' : ''}</span>
           <span>${x.entry_d} 진입</span><span>· ${x.days}일</span>
           ${!x.open ? `<span>· 청산 ${__pfNum(Math.round(x.exit_p))}</span>` : ''}
         </div>
       </div>`).join('');
-      const W = 360, H = 190, pT = 8, pB = 14, pL = 4, pR = 8;
+      const W = 360, H = 175, pT = 8, pB = 4, pL = 4, pR = 8;
       const allv = cv.bh.concat(ov.e200 || [], ov.st || []);
       const mn = Math.min(...allv), mx = Math.max(...allv), rg = (mx - mn) || 1;
       const Xi = i => pL + i / (cv.bh.length - 1) * (W - pL - pR);
@@ -9598,38 +9600,59 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const Y = v => pT + (mx - v) / rg * (H - pT - pB);
       const lpath = a => a.map((v, i) => `${i ? 'L' : 'M'}${Xi(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
       const yAt = f => Y(cv.bh[Math.min(cv.bh.length - 1, Math.round(f * (cv.bh.length - 1)))]);
-      const marks = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.6" fill="#22d3ee"><title>BUY·LONG</title></circle><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.6" fill="${mk.win ? '#4ade80' : '#f87171'}"><title>SELL</title></circle>`).join('');
+      const marksL = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.6" fill="#22d3ee"><title>BUY·LONG</title></circle><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.6" fill="${mk.win ? '#4ade80' : '#f87171'}"><title>SELL·LONG</title></circle>`).join('');
+      const marksS = (t.markers_short || []).map(mk => `<rect x="${(X(mk.e) - 2.4).toFixed(1)}" y="${(yAt(mk.e) - 2.4).toFixed(1)}" width="4.8" height="4.8" fill="#f472b6" transform="rotate(45 ${X(mk.e).toFixed(1)} ${yAt(mk.e).toFixed(1)})"><title>SELL·SHORT(진입)</title></rect><rect x="${(X(mk.x) - 2.4).toFixed(1)}" y="${(yAt(mk.x) - 2.4).toFixed(1)}" width="4.8" height="4.8" fill="${mk.win ? '#4ade80' : '#f87171'}" stroke="#f472b6" stroke-width="0.8" transform="rotate(45 ${X(mk.x).toFixed(1)} ${yAt(mk.x).toFixed(1)})"><title>BUY·SHORT(커버)</title></rect>`).join('');
+      // ADX 서브패널 (영상 스타일 — adx_min=20 기준선)
+      let adxSvg = '';
+      if (ov.adx && ov.adx.length > 1) {
+        const aH = 56, aT = 4, aB = 12;
+        const aMax = Math.max(40, ...ov.adx);
+        const aY = v => aT + (aMax - v) / aMax * (aH - aT - aB);
+        const apath = ov.adx.map((v, i) => `${i ? 'L' : 'M'}${Xi(i).toFixed(1)},${aY(v).toFixed(1)}`).join('');
+        adxSvg = `<div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;margin-top:4px;">
+        <svg viewBox="0 0 ${W} ${aH}" style="width:100%;height:auto;display:block;">
+          <line x1="${pL}" y1="${aY(20).toFixed(1)}" x2="${W - pR}" y2="${aY(20).toFixed(1)}" stroke="#f87171" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.8"/>
+          <text x="${W - pR - 1}" y="${(aY(20) - 2).toFixed(1)}" font-size="6.5" fill="#f87171" text-anchor="end">adx_min 20</text>
+          <path d="${apath}" fill="none" stroke="#fb923c" stroke-width="1"/>
+          <text x="${pL}" y="9" font-size="7" fill="#fb923c">ADX(14) ${t.adx}</text>
+        </svg></div>`;
+      }
+      const ss = t.short_stats || {};
       return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-        <span style="font-size:0.62rem;font-weight:700;color:var(--text-bright);">📍 Trade chart <span style="font-size:0.52rem;color:var(--text-muted);font-weight:400;">Price action & executions · 5년 · ${trades.length}건</span></span>
+        <span style="font-size:0.62rem;font-weight:700;color:var(--text-bright);">📍 Trade chart <span style="font-size:0.52rem;color:var(--text-muted);font-weight:400;">Price action & executions · 5년 · 롱 ${longs.length} + 숏 ${shorts.length}건</span></span>
         <span>
           <button onclick="window.__tsTradeSort='recent';renderTrendSignal()" style="padding:2px 9px;border-radius:6px;font-size:0.54rem;cursor:pointer;background:${SORT === 'recent' ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${SORT === 'recent' ? '#22d3ee' : 'var(--text-muted)'};border:1px solid rgba(255,255,255,0.14);">↕ 최신순</button>
           <button onclick="window.__tsTradeSort='best';renderTrendSignal()" style="padding:2px 9px;border-radius:6px;font-size:0.54rem;cursor:pointer;background:${SORT === 'best' ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${SORT === 'best' ? '#22d3ee' : 'var(--text-muted)'};border:1px solid rgba(255,255,255,0.14);">🏆 수익순</button>
         </span></div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
           <div style="flex:1;min-width:210px;max-width:300px;">
-            <div style="display:flex;gap:6px;margin-bottom:7px;">
+            <div style="display:flex;gap:5px;margin-bottom:5px;">
               ${tile('WIN RATE', (closed.length ? Math.round(wins / closed.length * 100) : 0) + '%', '#e2e8f0')}
               ${tile('WINS', wins, '#4ade80')}
               ${tile('LOSSES', losses, '#f87171')}
             </div>
+            <div style="font-size:0.53rem;color:var(--text-muted);margin-bottom:6px;font-family:var(--font-mono);">Longs | Shorts: <b style="color:#4ade80;">${longs.length}</b> | <b style="color:#f472b6;">${shorts.length}</b>${ss.win_rate != null ? ` · 숏 승률 ${ss.win_rate}% (${ss.total_return_pct >= 0 ? '+' : ''}${ss.total_return_pct}%)` : ''}</div>
             <div style="max-height:265px;overflow-y:auto;padding-right:4px;">${rows}</div>
           </div>
           <div style="flex:1.6;min-width:280px;">
             <div style="font-size:0.54rem;font-family:var(--font-mono);color:var(--text-muted);line-height:1.7;margin-bottom:3px;">
               <span style="color:#60a5fa;">일봉 EMA200 ${__pfNum(Math.round(t.ema200))}</span> ·
               <span style="color:#fb923c;">Supertrend ${__pfNum(Math.round(t.st_line))}</span> ·
-              <span style="color:#f87171;">stop ${t.st_long ? __pfNum(Math.round(t.st_line)) : '—'}</span>
+              <span style="color:#f87171;">stop ${t.st_long ? __pfNum(Math.round(t.st_line)) : '—'}</span> ·
+              <span style="color:#fb923c;">ADX ${t.adx}</span>
             </div>
             <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;">
-            <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+            <svg viewBox="0 0 ${W} ${H + 12}" style="width:100%;height:auto;display:block;">
               ${ov.e200 ? `<path d="${lpath(ov.e200)}" fill="none" stroke="#60a5fa" stroke-width="1" opacity="0.85"/>` : ''}
               ${ov.st ? `<path d="${lpath(ov.st)}" fill="none" stroke="#fb923c" stroke-width="0.9" opacity="0.8"/>` : ''}
               <path d="${lpath(cv.bh)}" fill="none" stroke="rgba(226,232,240,0.75)" stroke-width="1.1"/>
-              ${marks}
-              <text x="${pL}" y="${H - 3}" font-size="6.5" fill="#7d8590">${cv.d0}</text>
-              <text x="${W - pR}" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>
+              ${marksL}${marksS}
+              <text x="${pL}" y="${H + 9}" font-size="6.5" fill="#7d8590">${cv.d0}</text>
+              <text x="${W - pR}" y="${H + 9}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>
             </svg></div>
-            <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">흰선=가격 · <span style="color:#60a5fa;">파랑=EMA200</span> · <span style="color:#fb923c;">주황=Supertrend(트레일링 스탑)</span> · <span style="color:#22d3ee;">●BUY</span> <span style="color:#4ade80;">●SELL승</span> <span style="color:#f87171;">●SELL패</span></div>
+            ${adxSvg}
+            <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;line-height:1.6;">흰선=가격 · <span style="color:#60a5fa;">파랑=EMA200</span> · <span style="color:#fb923c;">주황=Supertrend</span> · <span style="color:#22d3ee;">●롱진입</span> <span style="color:#4ade80;">●</span><span style="color:#f87171;">●청산(승/패)</span> · <span style="color:#f472b6;">◆숏진입</span> ◆커버.<br>
+            ⚠️ SHORT는 <b>전략 시뮬레이션 정보</b>(영상의 숏 마커 재현)이며 시장의 실시간 공매도 포지션이 아닙니다 — 실제 공매도 잔고(T+2 지연)는 🩳 공매도 잔고 모니터에서. 한국 개인은 공매도 실행 제약 큼.</div>
           </div>
         </div>`;
     };

@@ -237,6 +237,33 @@ def worst_drawdowns(curve_eq, curve_d, top=3):
     return eps[:top]
 
 
+def run_strategy_short(c, dates, st_dir, e200, adx):
+    """숏 사이드 시뮬레이션(정보용): ST 숏 + 종가<EMA200 + ADX≥20 진입, ST 상향 전환 커버.
+    ※ 한국 개인은 공매도 제약이 커서 '실행'보다는 전략 대칭성 확인용. 일수익 근사 = -(일간변동)."""
+    n = len(c)
+    trades, pos, entry_eq = [], None, 1.0
+    eq = 1.0
+    for i in range(WARM, n):
+        if pos is None:
+            if st_dir[i] == -1 and c[i] < e200[i] and adx[i] >= ADX_MIN:
+                pos, entry_eq = i, eq
+        else:
+            eq *= max(0.01, 2 - c[i] / c[i - 1])          # 숏 일수익 = 1 - 일간등락
+            if st_dir[i] == 1:
+                eq *= (1 - COST)
+                trades.append({"entry_d": dates[pos], "exit_d": dates[i],
+                               "entry_p": round(c[pos], 2), "exit_p": round(c[i], 2),
+                               "ei": pos, "xi": i,
+                               "ret": eq / entry_eq - 1, "days": i - pos})
+                pos = None
+    if pos is not None:
+        trades.append({"entry_d": dates[pos], "exit_d": dates[n - 1],
+                       "entry_p": round(c[pos], 2), "exit_p": round(c[n - 1], 2),
+                       "ei": pos, "xi": n - 1,
+                       "ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
+    return trades
+
+
 def run_strategy_limit(c, l, dates, st_dir, e200, e20, adx):
     """리밋주문 풀백 진입 변형: 조건 충족 시 '대기' → 전일 EMA20에 리밋 걸고
     저가가 닿으면 체결(진입가=전일 EMA20). 청산은 동일(ST 하향 트레일링).
@@ -430,7 +457,27 @@ def main():
             _samp.append(L - 1)
         _base = c[WARM]
         overlay = {"e200": [round(e200[WARM + i] / _base, 4) for i in _samp],
-                   "st": [round(st_line[WARM + i] / _base, 4) for i in _samp]}
+                   "st": [round(st_line[WARM + i] / _base, 4) for i in _samp],
+                   "adx": [round(adx[WARM + i], 1) for i in _samp]}
+
+        # 숏 사이드 시뮬레이션 (정보용 — 영상의 SHORT 마커 재현)
+        st_trades = run_strategy_short(c, dts, st_dir, e200, adx)
+        d2i_s = {dd: ii for ii, dd in enumerate(curve_d)}
+        nn_s = len(curve_d) - 1
+        tlist_short = [{"entry_d": x["entry_d"], "exit_d": x["exit_d"],
+                        "entry_p": x["entry_p"], "exit_p": x["exit_p"],
+                        "ret_pct": round(x["ret"] * 100, 1), "days": x["days"],
+                        "open": bool(x.get("open"))} for x in st_trades][-40:]
+        markers_short = [{"e": round(d2i_s.get(x["entry_d"], 0) / nn_s, 4),
+                          "x": round(d2i_s.get(x["exit_d"], 0) / nn_s, 4),
+                          "win": x["ret"] > 0} for x in st_trades]
+        s_tot = 1.0
+        for x in st_trades:
+            s_tot *= (1 + x["ret"])
+        s_wins = sum(1 for x in st_trades if x["ret"] > 0)
+        short_stats = {"n": len(st_trades), "wins": s_wins,
+                       "win_rate": round(s_wins / len(st_trades) * 100) if st_trades else None,
+                       "total_return_pct": round((s_tot - 1) * 100, 1) if st_trades else None}
         # 가격(벤치마크) 곡선 위 거래 마커 좌표 (곡선 분율 0~1)
         d2i = {d: i for i, d in enumerate(curve_d)}
         nn = len(curve_d) - 1
@@ -446,6 +493,7 @@ def main():
             "verdict": verdict, "verdict_color": vcol,
             "periods": periods, "monthly": monthly, "yearly": yearly,
             "worst_dd": wdd, "trades": tlist, "markers": markers, "overlay": overlay,
+            "trades_short": tlist_short, "markers_short": markers_short, "short_stats": short_stats,
             "monte_carlo": mc,
             "optimization": opt[:8], "entry_compare": entry_compare,
         })
