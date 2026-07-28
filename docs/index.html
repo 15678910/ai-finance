@@ -9480,7 +9480,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderPersonalBuyDist = renderPersonalBuyDist;
 
-  // ── 🧭 추세추종 신호 보드 — 원페이지 탭 UI (종목 버튼 × 뷰 탭 × 기간 탭 / 정보용, 매매 없음) ──
+  // ── 🧭 추세추종 신호 보드 — 세션 탭(Jesse 브라우저탭) × 종목 × 뷰 + Trade chart + 개인분포 연동 ──
   function renderTrendSignal(d) {
     if (d) window.__tsData = d;
     d = window.__tsData;
@@ -9488,15 +9488,17 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const TI = Math.min(window.__tsTicker || 0, d.tickers.length - 1);
     const V = window.__tsView || 'perf';
     const P = window.__tsPeriod || '5y';
+    const SORT = window.__tsTradeSort || 'recent';
     const t = d.tickers[TI];
     const vc = c => c === 'green' ? '#4ade80' : c === 'yellow' ? '#fbbf24' : '#f87171';
     const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
     const pm = v => (v >= 0 ? '+' : '') + v;
-    const PERIODS = [['ytd', 'YTD'], ['2.5y', '2.5년'], ['5y', '5년']];
-    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 거래'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교']];
+    const SESSIONS = [['ytd', '2026 YTD (표본외)'], ['2.5y', 'full 2.5y'], ['5y', '5y robustness']];
+    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포']];
+    // 세션 탭 (Jesse 브라우저 탭 스타일)
+    const sessionTabs = SESSIONS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:9px 9px 0 0;font-size:0.6rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.13)' : 'rgba(255,255,255,0.03)'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.08)'};border-bottom:${k === P ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)'};"><span style="font-size:0.55rem;">🖥️</span>${lab}${k === P ? ' <span style="opacity:0.6;font-size:0.5rem;">✕</span>' : ''}</button>`).join('');
     const tickerBtns = d.tickers.map((x, i) => `<button onclick="window.__tsTicker=${i};renderTrendSignal()" style="padding:4px 13px;border-radius:8px;font-size:0.66rem;cursor:pointer;font-weight:${i === TI ? 800 : 500};background:${i === TI ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${i === TI ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === TI ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)'};"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.verdict_color)};margin-right:6px;"></span>${h(x.name)}</button>`).join(' ');
     const viewTabs = VIEWS.map(([k, lab]) => `<button onclick="window.__tsView='${k}';renderTrendSignal()" style="padding:3px 10px;border-radius:6px;font-size:0.58rem;cursor:pointer;font-weight:${k === V ? 700 : 400};background:${k === V ? 'rgba(129,140,248,0.2)' : 'transparent'};color:${k === V ? '#a5b4fc' : 'var(--text-muted)'};border:1px solid ${k === V ? 'rgba(129,140,248,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
-    const periodTabs = PERIODS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="padding:2px 10px;border-radius:6px;font-size:0.56rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.12)'};">${lab}</button>`).join(' ');
     const eqChart = bt => {
       const cv = bt && bt.curve;
       if (!cv || !cv.eq || cv.eq.length < 2) return '<div style="font-size:0.6rem;color:var(--text-muted);">데이터 없음</div>';
@@ -9561,33 +9563,74 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="color:var(--text-muted);">${e.days}거래일${e.ongoing ? ' · 진행중' : ''}</span>
         </div>`).join('')}</div>`;
     };
+    // 📍 Trade chart — Jesse 스타일: 좌 Trade activity(전체 목록·정렬) + 우 가격차트(EMA200·ST 오버레이·마커)
     const tradeView = () => {
       const bt5 = (t.periods || {})['5y'];
       const cv = bt5 && bt5.curve;
+      const ov = t.overlay || {};
       if (!cv || !t.markers || !t.markers.length) return '<div style="font-size:0.6rem;color:var(--text-muted);">거래 데이터 없음</div>';
-      const W = 340, H = 120, pT = 8, pB = 14, pL = 4, pR = 8;
-      const mn = Math.min(...cv.bh), mx = Math.max(...cv.bh), rg = (mx - mn) || 1;
-      const X = f => pL + f * (W - pL - pR);
+      const trades = (t.trades || []).slice();
+      const closed = trades.filter(x => !x.open);
+      const wins = closed.filter(x => x.ret_pct > 0).length;
+      const losses = closed.length - wins;
+      const list = trades.slice();
+      if (SORT === 'best') list.sort((a, b) => b.ret_pct - a.ret_pct);
+      else list.reverse();   // 최신순
+      const tile = (lab, val, col) => `<div style="flex:1;min-width:70px;text-align:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:var(--text-muted);">${lab}</div>
+        <div style="font-size:0.95rem;font-weight:800;font-family:var(--font-mono);color:${col};">${val}</div></div>`;
+      const rows = list.map(x => `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 9px;margin-bottom:5px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+          <span style="font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);font-weight:700;">${__pfNum(Math.round(x.entry_p))}</span>
+          <span style="font-size:0.64rem;font-family:var(--font-mono);font-weight:800;color:${x.ret_pct >= 0 ? '#4ade80' : '#f87171'};">${x.ret_pct >= 0 ? '+' : ''}${x.ret_pct}%</span>
+        </div>
+        <div style="display:flex;gap:7px;align-items:center;margin-top:2px;font-size:0.52rem;color:var(--text-muted);">
+          <span style="color:${x.open ? '#22d3ee' : '#4ade80'};font-weight:700;">${x.open ? 'LONG·보유중' : 'LONG'}</span>
+          <span>${x.entry_d} 진입</span><span>· ${x.days}일</span>
+          ${!x.open ? `<span>· 청산 ${__pfNum(Math.round(x.exit_p))}</span>` : ''}
+        </div>
+      </div>`).join('');
+      const W = 360, H = 190, pT = 8, pB = 14, pL = 4, pR = 8;
+      const allv = cv.bh.concat(ov.e200 || [], ov.st || []);
+      const mn = Math.min(...allv), mx = Math.max(...allv), rg = (mx - mn) || 1;
       const Xi = i => pL + i / (cv.bh.length - 1) * (W - pL - pR);
+      const X = f => pL + f * (W - pL - pR);
       const Y = v => pT + (mx - v) / rg * (H - pT - pB);
-      const path = cv.bh.map((v, i) => `${i ? 'L' : 'M'}${Xi(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+      const lpath = a => a.map((v, i) => `${i ? 'L' : 'M'}${Xi(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
       const yAt = f => Y(cv.bh[Math.min(cv.bh.length - 1, Math.round(f * (cv.bh.length - 1)))]);
-      const marks = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.4" fill="#22d3ee" opacity="0.9"/><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.4" fill="${mk.win ? '#4ade80' : '#f87171'}" opacity="0.9"/>`).join('');
-      const trades = (t.trades || []).filter(x => !x.open);
-      const best = trades.slice().sort((a, b) => b.ret_pct - a.ret_pct).slice(0, 4);
-      const worst = trades.slice().sort((a, b) => a.ret_pct - b.ret_pct).slice(0, 4);
-      const trow = (x, i) => `<div style="display:flex;gap:8px;font-size:0.56rem;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><span style="color:var(--text-muted);">${i}</span><span style="font-family:var(--font-mono);color:var(--text);">${x.entry_d} → ${x.exit_d}</span><span style="font-family:var(--font-mono);font-weight:700;color:${x.ret_pct >= 0 ? '#4ade80' : '#f87171'};">${x.ret_pct >= 0 ? '+' : ''}${x.ret_pct}%</span><span style="color:var(--text-muted);">${x.days}일</span></div>`;
-      return `<div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">5년 가격 위 진입 <span style="color:#22d3ee;">●</span> / 청산 <span style="color:#4ade80;">●</span>승 <span style="color:#f87171;">●</span>패</div>
-        <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;">
-        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
-          <path d="${path}" fill="none" stroke="rgba(251,191,36,0.55)" stroke-width="1"/>
-          ${marks}
-          <text x="${pL}" y="${H - 3}" font-size="6.5" fill="#7d8590">${cv.d0}</text>
-          <text x="${W - pR}" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>
-        </svg></div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:7px;">
-          <div style="flex:1;min-width:220px;"><div style="font-size:0.56rem;color:#4ade80;font-weight:700;margin-bottom:2px;">🏆 베스트 거래</div>${best.map((x, i) => trow(x, i + 1)).join('')}</div>
-          <div style="flex:1;min-width:220px;"><div style="font-size:0.56rem;color:#f87171;font-weight:700;margin-bottom:2px;">💥 워스트 거래</div>${worst.map((x, i) => trow(x, i + 1)).join('')}</div>
+      const marks = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.6" fill="#22d3ee"><title>BUY·LONG</title></circle><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.6" fill="${mk.win ? '#4ade80' : '#f87171'}"><title>SELL</title></circle>`).join('');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <span style="font-size:0.62rem;font-weight:700;color:var(--text-bright);">📍 Trade chart <span style="font-size:0.52rem;color:var(--text-muted);font-weight:400;">Price action & executions · 5년 · ${trades.length}건</span></span>
+        <span>
+          <button onclick="window.__tsTradeSort='recent';renderTrendSignal()" style="padding:2px 9px;border-radius:6px;font-size:0.54rem;cursor:pointer;background:${SORT === 'recent' ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${SORT === 'recent' ? '#22d3ee' : 'var(--text-muted)'};border:1px solid rgba(255,255,255,0.14);">↕ 최신순</button>
+          <button onclick="window.__tsTradeSort='best';renderTrendSignal()" style="padding:2px 9px;border-radius:6px;font-size:0.54rem;cursor:pointer;background:${SORT === 'best' ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${SORT === 'best' ? '#22d3ee' : 'var(--text-muted)'};border:1px solid rgba(255,255,255,0.14);">🏆 수익순</button>
+        </span></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+          <div style="flex:1;min-width:210px;max-width:300px;">
+            <div style="display:flex;gap:6px;margin-bottom:7px;">
+              ${tile('WIN RATE', (closed.length ? Math.round(wins / closed.length * 100) : 0) + '%', '#e2e8f0')}
+              ${tile('WINS', wins, '#4ade80')}
+              ${tile('LOSSES', losses, '#f87171')}
+            </div>
+            <div style="max-height:265px;overflow-y:auto;padding-right:4px;">${rows}</div>
+          </div>
+          <div style="flex:1.6;min-width:280px;">
+            <div style="font-size:0.54rem;font-family:var(--font-mono);color:var(--text-muted);line-height:1.7;margin-bottom:3px;">
+              <span style="color:#60a5fa;">일봉 EMA200 ${__pfNum(Math.round(t.ema200))}</span> ·
+              <span style="color:#fb923c;">Supertrend ${__pfNum(Math.round(t.st_line))}</span> ·
+              <span style="color:#f87171;">stop ${t.st_long ? __pfNum(Math.round(t.st_line)) : '—'}</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;">
+            <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+              ${ov.e200 ? `<path d="${lpath(ov.e200)}" fill="none" stroke="#60a5fa" stroke-width="1" opacity="0.85"/>` : ''}
+              ${ov.st ? `<path d="${lpath(ov.st)}" fill="none" stroke="#fb923c" stroke-width="0.9" opacity="0.8"/>` : ''}
+              <path d="${lpath(cv.bh)}" fill="none" stroke="rgba(226,232,240,0.75)" stroke-width="1.1"/>
+              ${marks}
+              <text x="${pL}" y="${H - 3}" font-size="6.5" fill="#7d8590">${cv.d0}</text>
+              <text x="${W - pR}" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>
+            </svg></div>
+            <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">흰선=가격 · <span style="color:#60a5fa;">파랑=EMA200</span> · <span style="color:#fb923c;">주황=Supertrend(트레일링 스탑)</span> · <span style="color:#22d3ee;">●BUY</span> <span style="color:#4ade80;">●SELL승</span> <span style="color:#f87171;">●SELL패</span></div>
+          </div>
         </div>`;
     };
     const mcView = () => {
@@ -9618,7 +9661,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span>null 상위 5% <b style="color:var(--text);">${mc.null_best5_sharpe}</b></span>
           <span>원본 백분위 <b style="color:${mcc};">${mc.pctile}</b></span>
         </div>
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">원본(노란선)이 분포 상위 95%↑면 '운이 아닌 타이밍 엣지'. 중앙값 근처/이하면 무작위 진입과 구분 불가 — 강세장에선 아무 때나 사도 벌기 때문. (영상의 Jesse Monte Carlo 세션과 동일한 해석 틀)</div>`;
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">원본(노란선)이 분포 상위 95%↑면 '운이 아닌 타이밍 엣지'. 중앙값 근처/이하면 무작위 진입과 구분 불가 — 강세장에선 아무 때나 사도 벌기 때문.</div>`;
     };
     const optView = () => {
       const g = t.optimization || [];
@@ -9635,7 +9678,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${x.win_rate}%</td>
           <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${x.n_trades}</td>
         </tr>`).join('')}</tbody></table></div>
-        <div style="font-size:0.54rem;color:#fb923c;margin-top:5px;line-height:1.6;">⚠️ <b>과적합 주의</b>: 상위 파라미터는 '과거 5년에 가장 잘 맞았던 값'일 뿐, 미래 최적을 보장하지 않습니다. 영상 방법론대로라면 최적 파라미터 채택 후 몬테카를로·다른 기간 재검증이 필수. 현재 보드는 표준값 ST(10, 3)을 유지합니다.</div>`;
+        <div style="font-size:0.54rem;color:#fb923c;margin-top:5px;line-height:1.6;">⚠️ <b>과적합 주의</b>: 상위 파라미터는 '과거 5년에 가장 잘 맞았던 값'일 뿐, 미래 최적을 보장하지 않습니다. 채택하려면 몬테카를로·다른 기간 재검증 필수. 현재 보드는 표준값 ST(10, 3)을 유지합니다.</div>`;
     };
     const entryView = () => {
       const ec = t.entry_compare || {};
@@ -9658,15 +9701,50 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${row('승률', m.win_rate, li.win_rate, '%', false)}
           ${row('거래 수', m.n_trades, li.n_trades, '회', false)}
         </tbody></table></div>
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">💡 해석: 리밋 풀백은 진입가가 유리하지만 <b>강한 추세(눌림 없이 급등)를 통째로 놓칠 수 있음</b> — 특히 급등장에서 시장가 대비 불리해질 수 있습니다. 결과가 종목·기간마다 다르니 두 방식의 트레이드오프를 함께 보세요.</div>`;
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">💡 해석: 리밋 풀백은 진입가가 유리하지만 <b>강한 추세(눌림 없이 급등)를 통째로 놓칠 수 있음</b> — 결과가 종목·기간마다 다르니 트레이드오프를 함께 보세요.</div>`;
+    };
+    // 👥 개인 매수 분포 (personal_buy_dist.json 연동 — 종목 매칭)
+    const pbdView = () => {
+      const pd = window.__pbdData;
+      if (!pd || !pd.stocks) return '<div style="font-size:0.6rem;color:var(--text-muted);">개인 매수 분포 데이터 로딩 전입니다. (로컬 스케줄러 수집)</div>';
+      const s = pd.stocks.find(x => x.name === t.name);
+      if (!s) return `<div style="font-size:0.6rem;color:var(--text-muted);line-height:1.7;">${h(t.name)}${t.name === 'KOSPI' ? '는 지수라 개인 매수 분포가 없습니다' : ' 데이터 없음'}. 전체 6종목 분포는 아래 <b style="color:#4ade80;">👥 개인 매수 가격대 분포</b> 섹션에서 확인하세요.</div>`;
+      const bks = s.buckets || [];
+      const maxAbs = Math.max(1, ...bks.map(b => Math.abs(b.net)));
+      const W = 340, rowH = 12, pT = 6, pL = 66, pR = 44;
+      const H = pT + bks.length * rowH + 8;
+      const rows = bks.slice().reverse().map((b, i) => {
+        const y = pT + i * rowH;
+        const w = Math.abs(b.net) / maxAbs * (W - pL - pR);
+        const col = b.net >= 0 ? 'rgba(74,222,128,0.75)' : 'rgba(248,113,113,0.75)';
+        const inCur = s.price >= b.lo && s.price < (b.hi + 1);
+        const inAvg = s.avg_buy_price != null && s.avg_buy_price >= b.lo && s.avg_buy_price < (b.hi + 1);
+        return `<text x="${pL - 4}" y="${y + rowH - 3}" font-size="7" fill="${inCur ? '#22d3ee' : '#7d8590'}" text-anchor="end"${inCur ? ' font-weight="700"' : ''}>${__pfNum(b.lo)}</text>
+          <rect x="${pL}" y="${y + 1.5}" width="${Math.max(0.5, w).toFixed(1)}" height="${rowH - 3}" fill="${col}" rx="1.5"/>
+          ${inCur ? `<line x1="${pL - 2}" y1="${y + rowH / 2}" x2="${W - 2}" y2="${y + rowH / 2}" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3 2" opacity="0.85"/><text x="${W - 3}" y="${y + rowH / 2 - 2}" font-size="7" fill="#22d3ee" text-anchor="end" font-weight="700">현재가</text>` : ''}
+          ${inAvg ? `<line x1="${pL - 2}" y1="${y + rowH / 2}" x2="${W - 2}" y2="${y + rowH / 2}" stroke="#fbbf24" stroke-width="1" stroke-dasharray="2 2" opacity="0.8"/><text x="${W - 3}" y="${y + rowH - 1}" font-size="7" fill="#fbbf24" text-anchor="end" font-weight="700">개인평단</text>` : ''}`;
+      }).join('');
+      const vsCol = s.vs_avg_pct == null ? 'var(--text-muted)' : s.vs_avg_pct >= 0 ? '#4ade80' : '#f87171';
+      const afCol = s.above_frac == null ? 'var(--text-muted)' : s.above_frac >= 70 ? '#f87171' : s.above_frac >= 40 ? '#fbbf24' : '#4ade80';
+      return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="flex:1.4;min-width:270px;">
+          <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:2px;">최근 1년 개인 순매수 가격대 분포 (매물대 추정)</div>
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;background:rgba(0,0,0,0.2);border-radius:8px;">${rows}</svg>
+        </div>
+        <div style="flex:1;min-width:200px;">
+          ${perfRow('현재가', __pfNum(s.price), '#22d3ee')}
+          ${s.avg_buy_price != null ? perfRow('개인 추정 평단', __pfNum(s.avg_buy_price), '#fbbf24') : ''}
+          ${s.vs_avg_pct != null ? perfRow('현재가 vs 평단', pm(s.vs_avg_pct) + '%', vsCol) : ''}
+          ${perfRow('1년 순매수 합', (s.net_total >= 0 ? '+' : '') + __pfNum(s.net_total) + '주', s.net_total >= 0 ? '#4ade80' : '#f87171')}
+          ${perfRow('물린 물량(현재가 위)', s.above_frac == null ? '—' : s.above_frac + '%', afCol)}
+          <div style="font-size:0.53rem;color:var(--text-muted);margin-top:6px;line-height:1.6;"><span style="color:#4ade80;">초록=순매수</span>/<span style="color:#f87171;">빨강=순매도</span> 가격대. 현재가 위 초록이 두꺼우면 개인 '물린' 구간(반등 시 본전 매물 저항 가능). 근사 추정 · KRX 투자자별 매매동향.</div>
+        </div>
+      </div>`;
     };
     const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
     let content = '';
     if (V === 'perf') {
-      content = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px;">
-          <span style="font-size:0.56rem;color:var(--text-muted);">기간:</span>${periodTabs}
-        </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+      content = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
           <div style="flex:1.5;min-width:270px;">${eqChart(bt)}</div>
           <div style="flex:1;min-width:215px;">${perfList(bt)}</div>
         </div>`;
@@ -9680,11 +9758,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       content = optView();
     } else if (V === 'entry') {
       content = entryView();
+    } else if (V === 'pbd') {
+      content = pbdView();
     }
     const html = `<section class="section-wrap" id="trend-signal-section">
       <div class="section-label" style="color:#22d3ee;">🧭 추세추종 신호 보드 <span style="font-size:0.62rem;color:var(--text-muted);">(Supertrend·EMA200·ADX — 정보용, 매매 실행 없음${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
-      <div class="glass-card" style="padding:14px 16px;">
-        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">${tickerBtns}
+      <div class="glass-card" style="padding:12px 16px 14px;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0;">${sessionTabs}</div>
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px;">${tickerBtns}
           <span style="margin-left:auto;font-size:0.62rem;font-weight:700;color:${vc(t.verdict_color)};background:${vc(t.verdict_color)}1c;border-radius:10px;padding:2px 9px;">${h(t.verdict)}</span>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:0.6rem;align-items:center;">
@@ -9697,8 +9778,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);">${viewTabs}</div>
         <div style="margin-top:9px;">${content}</div>
         <div style="font-size:0.53rem;color:var(--text-muted);margin-top:10px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
-          🧭 규칙: 대추세(종가&gt;EMA200)+Supertrend(10,3) 롱+ADX≥20 · 청산=ST 트레일링 · 일봉 롱온리 · 왕복비용 0.28%. 종목 버튼·뷰 탭으로 한 화면에서 전환.
-          🚨 신호 정보만 제공(자동매매 없음) · 과거 성과≠미래 · 낮은 승률·긴 수중기간은 추세추종 특성 · 투자 판단은 본인 책임.
+          🖥️ 상단 세션 탭=백테스트 기간(2026 YTD 표본외 · full 2.5y · 5y robustness) · 종목 버튼·뷰 탭으로 한 화면 전환. 규칙: 대추세(종가&gt;EMA200)+Supertrend(10,3) 롱+ADX≥20 · 청산=ST 트레일링 · 일봉 롱온리 · 왕복비용 0.28%.
+          🚨 신호 정보만 제공(자동매매 없음) · 과거 성과≠미래 · 투자 판단은 본인 책임.
         </div>
       </div>
     </section>`;
@@ -12632,7 +12713,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // 개인 매수 가격대 분포 — 개인 순매수×가격선 (KRX, 로컬 스케줄러 수집)
       fetch('./personal_buy_dist.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) { try { renderPersonalBuyDist(d); } catch (e) { } } });
+        .then(d => { if (d) { try { renderPersonalBuyDist(d); } catch (e) { } try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
       // 공포·탐욕지수 — 미국증시(CNN) + 크립토
       fetch('./fear_greed.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

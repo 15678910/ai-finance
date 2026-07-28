@@ -113,6 +113,7 @@ def run_strategy(c, dates, st_dir, e200, adx):
             if st_dir[i] == -1:
                 eq *= (1 - COST)
                 trades.append({"ei": pos, "xi": i, "entry_d": dates[pos], "exit_d": dates[i],
+                               "entry_p": round(c[pos], 2), "exit_p": round(c[i], 2),
                                "ret": eq / entry_eq - 1, "days": i - pos})
                 pos = None
         curve_eq.append(eq)
@@ -120,6 +121,7 @@ def run_strategy(c, dates, st_dir, e200, adx):
         curve_d.append(dates[i])
     if pos is not None:
         trades.append({"ei": pos, "xi": n - 1, "entry_d": dates[pos], "exit_d": dates[n - 1],
+                       "entry_p": round(c[pos], 2), "exit_p": round(c[n - 1], 2),
                        "ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
     return curve_eq, curve_bh, curve_d, trades
 
@@ -411,10 +413,20 @@ def main():
         entry_compare = {"market": quick_metrics(curve_eq, trades),
                          "limit": quick_metrics(ce_l, tr_l)}
 
-        # 거래 목록 (마커·베스트/워스트용, 최대 40건)
+        # 거래 목록 (Jesse Trade chart용 — 전체, 진입/청산가 포함, 최대 40건)
         tlist = [{"entry_d": t["entry_d"], "exit_d": t["exit_d"],
+                  "entry_p": t["entry_p"], "exit_p": t["exit_p"],
                   "ret_pct": round(t["ret"] * 100, 1), "days": t["days"],
                   "open": bool(t.get("open"))} for t in trades][-40:]
+        # 트레이드 차트 오버레이: EMA200·Supertrend 라인 (5y curve와 동일 샘플링·정규화)
+        L = len(curve_d)
+        _step = max(1, L // 200)
+        _samp = list(range(0, L, _step))
+        if _samp[-1] != L - 1:
+            _samp.append(L - 1)
+        _base = c[WARM]
+        overlay = {"e200": [round(e200[WARM + i] / _base, 4) for i in _samp],
+                   "st": [round(st_line[WARM + i] / _base, 4) for i in _samp]}
         # 가격(벤치마크) 곡선 위 거래 마커 좌표 (곡선 분율 0~1)
         d2i = {d: i for i, d in enumerate(curve_d)}
         nn = len(curve_d) - 1
@@ -429,7 +441,7 @@ def main():
             "ema200": round(e200[-1], 2), "ema20": round(e20[-1], 2), "pullback": pullback,
             "verdict": verdict, "verdict_color": vcol,
             "periods": periods, "monthly": monthly, "yearly": yearly,
-            "worst_dd": wdd, "trades": tlist, "markers": markers,
+            "worst_dd": wdd, "trades": tlist, "markers": markers, "overlay": overlay,
             "monte_carlo": mc,
             "optimization": opt[:8], "entry_compare": entry_compare,
         })
