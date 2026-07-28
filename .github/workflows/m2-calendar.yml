@@ -53,6 +53,12 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python fear_greed_monitor.py || echo "fear_greed had errors, continuing..."
 
+      # 추세추종 신호 보드 (Supertrend·EMA200·ADX + 백테스트·몬테카를로 — yfinance)
+      - name: Collect trend signal
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python trend_signal.py || echo "trend_signal had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"

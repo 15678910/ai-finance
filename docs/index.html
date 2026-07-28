@@ -9421,6 +9421,60 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderShortInterest = renderShortInterest;
 
+  // ── 🧭 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로 (정보용, 매매 없음) ──
+  function renderTrendSignal(d) {
+    if (d) window.__tsData = d;
+    d = window.__tsData;
+    if (!d || !d.tickers || !d.tickers.length) return;
+    const vc = c => c === 'green' ? '#4ade80' : c === 'yellow' ? '#fbbf24' : '#f87171';
+    const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
+    const cards = d.tickers.map(t => {
+      const bt = t.backtest, mc = t.monte_carlo;
+      const mcc = mc ? vc(mc.verdict_color) : 'var(--text-muted)';
+      return `<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:11px 13px;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.78rem;font-weight:800;color:var(--text-bright);">${h(t.name)}</span>
+          <span style="font-size:0.5rem;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:0 5px;">${h(t.tag)}</span>
+          <span style="font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${__pfNum(Math.round(t.price))}</span>
+          <span style="margin-left:auto;font-size:0.62rem;font-weight:700;color:${vc(t.verdict_color)};background:${vc(t.verdict_color)}1c;border-radius:10px;padding:2px 9px;">${h(t.verdict)}</span>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:0.6rem;">
+          <span>대추세: ${chk(t.trend_up, 'EMA200 위', 'EMA200 아래')}</span>
+          <span>Supertrend: ${t.st_long ? `<span style="color:#4ade80;">✓ 롱</span>` : `<span style="color:#f87171;">✗ 숏</span>`} <span style="color:var(--text-muted);font-family:var(--font-mono);">(스탑 ${__pfNum(Math.round(t.st_line))})</span></span>
+          <span>ADX: <span style="color:${t.adx_strong ? '#4ade80' : '#fbbf24'};font-family:var(--font-mono);">${t.adx}</span> ${t.adx_strong ? '(추세 강함)' : '(약함)'}</span>
+          ${t.pullback ? `<span style="color:#22d3ee;">📍 풀백 구간 (EMA20 아래 눌림)</span>` : ''}
+        </div>
+        ${bt ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:11px;flex-wrap:wrap;font-size:0.58rem;color:var(--text-muted);">
+          <span>📊 5년 백테스트: <b style="color:${bt.total_return_pct >= 0 ? '#4ade80' : '#f87171'};font-family:var(--font-mono);">${bt.total_return_pct >= 0 ? '+' : ''}${bt.total_return_pct}%</b>${bt.cagr_pct != null ? ` (연 ${bt.cagr_pct}%)` : ''}</span>
+          <span>승률 <b style="font-family:var(--font-mono);color:var(--text);">${bt.win_rate}%</b></span>
+          ${bt.wl_ratio != null ? `<span>손익비 <b style="font-family:var(--font-mono);color:var(--text);">${bt.wl_ratio}</b></span>` : ''}
+          ${bt.sharpe != null ? `<span>샤프 <b style="font-family:var(--font-mono);color:var(--text);">${bt.sharpe}</b></span>` : ''}
+          <span>MDD <b style="font-family:var(--font-mono);color:#f87171;">${bt.mdd_pct}%</b></span>
+          <span>연 ${bt.trades_per_year}회 · 평균 ${bt.avg_hold_days}일 보유</span>
+        </div>` : ''}
+        ${mc ? `<div style="margin-top:5px;font-size:0.58rem;">🎲 몬테카를로(무작위 진입 ${mc.sims}회): <span style="font-weight:700;color:${mcc};">${h(mc.verdict)}</span> <span style="color:var(--text-muted);font-family:var(--font-mono);">백분위 ${mc.pctile} · null 중앙값 ${mc.null_median_pct >= 0 ? '+' : ''}${mc.null_median_pct}%</span></div>` : ''}
+      </div>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="trend-signal-section">
+      <div class="section-label" style="color:#22d3ee;">🧭 추세추종 신호 보드 <span style="font-size:0.62rem;color:var(--text-muted);">(Supertrend·EMA200·ADX — 정보용, 매매 실행 없음${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        ${cards}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          🧭 규칙: <b>대추세</b>(종가&gt;EMA200) + <b>Supertrend(10,3) 롱</b> + <b>ADX≥20</b> 이 모두 충족되면 '추세추종 조건 충족'. 풀백=상승추세 중 EMA20 아래 눌림(진입 관찰 구간). 청산 기준선=Supertrend 트레일링 스탑.<br>
+          📊 백테스트: 5년 일봉·롱온리·왕복비용 0.28% 반영. 🎲 몬테카를로: 같은 횟수·보유기간의 <b>무작위 진입</b> 1,000회 대비 실제 성과 백분위 — 95 이상이어야 '운이 아닌 엣지'로 판정 (알고트레이딩 검증 방법론).<br>
+          🚨 이 보드는 <b>신호 정보만</b> 제공하며 자동매매하지 않습니다. 백테스트 과거 성과는 미래를 보장하지 않음 · 낮은 승률·긴 수중기간 등 추세추종 특유의 심리적 난도 유의 · 투자 판단은 본인 책임.
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('trend-signal-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('short-interest-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.__renderTrendSignal = renderTrendSignal;
+
   // ── 🏛️ 성장 대비 부채 비율 (정부부채/GDP) — 미국·한국·일본 비교 (FRED/IMF) ──
   function renderDebtGdp(d) {
     if (d) window.__debtData = d;
@@ -12334,6 +12388,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./short_interest.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderShortInterest(d); } catch (e) { } } });
+      // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
+      fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderTrendSignal(d); } catch (e) { } } });
       // 공포·탐욕지수 — 미국증시(CNN) + 크립토
       fetch('./fear_greed.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
