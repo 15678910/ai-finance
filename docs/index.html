@@ -9376,50 +9376,6 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderKospiVal = renderKospiVal;
 
-  // ── 🩳 공매도 잔고 모니터 — 관심종목 잔고비율·추세·신호등 (KRX, T+2 지연) ──
-  function renderShortInterest(d) {
-    if (d) window.__siData = d;
-    d = window.__siData;
-    if (!d || !d.stocks || !d.stocks.length) return;
-    const trArrow = t => t === 'up' ? '<span style="color:#f87171;">▲ 증가</span>' : t === 'down' ? '<span style="color:#4ade80;">▼ 감소</span>' : '<span style="color:var(--text-muted);">— 보합</span>';
-    const sigCol = c => c === 'red' ? '#f87171' : c === 'yellow' ? '#fbbf24' : c === 'green' ? '#4ade80' : 'var(--text-muted)';
-    const spark = (vals, col) => {
-      if (!vals || vals.length < 2) return '';
-      const mn = Math.min(...vals), mx = Math.max(...vals), rg = (mx - mn) || 1;
-      const pts = vals.map((v, i) => `${(i / (vals.length - 1) * 72).toFixed(1)},${(20 - (v - mn) / rg * 16 - 2).toFixed(1)}`).join(' ');
-      return `<svg viewBox="0 0 72 20" style="width:72px;height:20px;"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.3"/></svg>`;
-    };
-    const rows = d.stocks.map(s => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-      <td style="padding:5px 7px;font-size:0.66rem;color:var(--text-bright);white-space:nowrap;">${h(s.name)} <span style="font-size:0.5rem;color:var(--text-muted);">${h(s.code)}</span></td>
-      <td style="padding:5px 7px;text-align:right;font-size:0.78rem;font-family:var(--font-mono);font-weight:800;color:${sigCol(s.signal_color)};">${s.ratio}%</td>
-      <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${trArrow(s.trend)} <span style="color:var(--text-muted);">${s.chg_5d >= 0 ? '+' : ''}${s.chg_5d}%p</span></td>
-      <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${s.chg_20d == null ? '—' : (s.chg_20d >= 0 ? '+' : '') + s.chg_20d + '%p'}</td>
-      <td style="padding:5px 7px;text-align:center;">${spark(s.spark, sigCol(s.signal_color))}</td>
-      <td style="padding:5px 7px;text-align:center;"><span style="font-size:0.56rem;font-weight:700;color:${sigCol(s.signal_color)};background:${sigCol(s.signal_color)}22;border-radius:10px;padding:2px 8px;white-space:nowrap;">${h(s.signal_label)}</span></td>
-    </tr>`).join('');
-    const html = `<section class="section-wrap" id="short-interest-section">
-      <div class="section-label" style="color:#f87171;">🩳 공매도 잔고 모니터 <span style="font-size:0.62rem;color:var(--text-muted);">(KRX 잔고비율 · T+2 지연 공시${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
-      <div class="glass-card" style="padding:14px 16px;">
-        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
-          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
-            ${['종목', '잔고비율', '5일 추세', '20일', '추이(20일)', '신호'].map((t, k) => `<th style="padding:4px 7px;text-align:${k === 0 ? 'left' : k >= 4 ? 'center' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
-          </tr></thead><tbody>${rows}</tbody></table></div>
-        <div style="font-size:0.56rem;color:var(--text-muted);margin-top:9px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
-          🚦 경험칙: <b style="color:#4ade80;">&lt;3% 정상</b> · <b style="color:#fbbf24;">3~5% 주의</b> · <b style="color:#f87171;">≥5% 경고/숏스퀴즈 후보</b> (공식 기준 아님).<br>
-          📐 <b>절대치보다 추세</b> — 잔고 <span style="color:#f87171;">▲증가</span>=공매도 포지션 구축(하방 압박 경계), <span style="color:#4ade80;">▼감소</span>=세력 철수(반등 에너지). 잔고 높은 종목에 어닝서프라이즈 등 호재 → <b style="color:#f87171;">숏 커버링발(發) 급등</b> 가능.<br>
-          ⏱️ 잔고는 <b>T+2 지연</b> 공시 — 오늘 보는 값은 2영업일 전 상황. 대차잔고(대기 수요·KOFIA)와는 다른 지표.<br>
-          🚨 공매도 잔고는 <b>단독 지표로 쓰지 말 것</b> — 펀더멘탈·외국인 수급·차트와 결합 해석. 정보 제공용 · 투자 판단은 본인 책임.
-        </div>
-      </div>
-    </section>`;
-    const existing = document.getElementById('short-interest-section');
-    if (existing) { existing.outerHTML = html; return; }
-    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
-    const anchor = document.getElementById('kospi-val-section') || document.getElementById('portfolio-section') || document.getElementById('watchlist-section');
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
-    else (document.getElementById('app') || document.body).appendChild(node);
-  }
-  window.__renderShortInterest = renderShortInterest;
 
 
   // ── 🧭 추세추종 신호 보드 — 세션 탭(Jesse 브라우저탭) × 종목 × 뷰 + Trade chart + 개인분포 연동 ──
@@ -9711,7 +9667,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const sd = window.__siData;
       if (!sd || !sd.stocks) return '<div style="font-size:0.6rem;color:var(--text-muted);">공매도 잔고 데이터 로딩 전입니다. (로컬 스케줄러 수집)</div>';
       const s = sd.stocks.find(x => x.name === t.name);
-      if (!s) return `<div style="font-size:0.6rem;color:var(--text-muted);line-height:1.7;">${h(t.name)}${t.name === 'KOSPI' ? '는 지수라 종목별 공매도 잔고가 없습니다' : ' 공매도 잔고 데이터 없음'}. 전체 종목은 <b style="color:#f87171;">🩳 공매도 잔고 모니터</b> 섹션(위)에서 확인하세요.</div>`;
+      if (!s) return `<div style="font-size:0.6rem;color:var(--text-muted);line-height:1.7;">${h(t.name)}${t.name === 'KOSPI' ? '는 지수라 종목별 공매도 잔고가 없습니다.' : ' 공매도 잔고 데이터가 아직 없습니다. (로컬 스케줄러 18:30 수집 후 표시)'}</div>`;
       const sc = s.signal_color === 'red' ? '#f87171' : s.signal_color === 'yellow' ? '#fbbf24' : s.signal_color === 'green' ? '#4ade80' : 'var(--text-muted)';
       const trArrow = s.trend === 'up' ? '<span style="color:#f87171;">▲ 증가 (포지션 구축)</span>' : s.trend === 'down' ? '<span style="color:#4ade80;">▼ 감소 (세력 철수)</span>' : '<span style="color:var(--text-muted);">— 보합</span>';
       // 스파크 차트 (20일 잔고비율 + 3%/5% 기준선)
@@ -12718,7 +12674,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // 공매도 잔고 모니터 — 관심종목 잔고비율·추세 (KRX, 로컬 스케줄러 수집)
       fetch('./short_interest.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) { try { renderShortInterest(d); } catch (e) { } try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
+        .then(d => { if (d) { window.__siData = d; try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
