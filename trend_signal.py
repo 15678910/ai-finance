@@ -102,57 +102,81 @@ def adx_wilder(h, l, c, n=14):
     return out
 
 
-def backtest(c, st_dir, e200, adx):
+def backtest(c, dates, st_dir, e200, adx):
     """롱온리: ST 롱 + 종가>EMA200 + ADX≥20 '조건 충족 시' 진입 / ST 하향 전환 청산(트레일링).
+    자산곡선(전략 vs 바이앤홀드 벤치마크)·수중기간·기대값 포함 — Jesse 스타일 리포트용.
     ※ '전환 당일'로 제한하면 ST가 이미 롱인 채 대추세 조건이 갖춰지는 상승장 대부분을 놓침."""
-    trades, pos = [], None
-    for i in range(201, len(c)):
+    n = len(c)
+    if n <= 210:
+        return None
+    trades, pos, entry_eq = [], None, 1.0
+    eq = 1.0
+    curve_eq, curve_bh, curve_d = [], [], []
+    bh0 = c[201]
+    for i in range(201, n):
         if pos is None:
             if st_dir[i] == 1 and c[i] > e200[i] and adx[i] >= ADX_MIN:
-                pos = i
+                pos, entry_eq = i, eq
         else:
+            eq *= c[i] / c[i - 1]
             if st_dir[i] == -1:
-                r = c[i] / c[pos] - 1 - COST
-                trades.append({"entry": pos, "exit": i, "ret": r, "days": i - pos})
+                eq *= (1 - COST)
+                trades.append({"ret": eq / entry_eq - 1, "days": i - pos})
                 pos = None
-    if pos is not None:                                   # 미청산 포지션 → 현재가 평가
-        trades.append({"entry": pos, "exit": len(c) - 1, "ret": c[-1] / c[pos] - 1 - COST,
-                       "days": len(c) - 1 - pos, "open": True})
+        curve_eq.append(eq)
+        curve_bh.append(c[i] / bh0)
+        curve_d.append(dates[i])
+    open_trade = False
+    if pos is not None:
+        trades.append({"ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
+        open_trade = True
     if not trades:
         return None
+
     rets = [t["ret"] for t in trades]
     wins = [r for r in rets if r > 0]
     losses = [r for r in rets if r <= 0]
-    total = 1.0
-    for r in rets:
-        total *= (1 + r)
-    years = (len(c) - 201) / 252
-    # 일별 수익 시퀀스(보유일만) → 샤프·MDD
-    daily = []
-    for t in trades:
-        for i in range(t["entry"] + 1, t["exit"] + 1):
-            daily.append(c[i] / c[i - 1] - 1)
+    years = (n - 201) / 252
+    # 샤프: 자산곡선 일간수익 전체(현금 보유일 0% 포함)
+    dr = [curve_eq[i] / curve_eq[i - 1] - 1 for i in range(1, len(curve_eq))]
     sharpe = None
-    if len(daily) > 20:
-        mu = sum(daily) / len(daily)
-        var = sum((x - mu) ** 2 for x in daily) / (len(daily) - 1)
-        sd = var ** 0.5
+    if len(dr) > 20:
+        mu = sum(dr) / len(dr)
+        sd = (sum((x - mu) ** 2 for x in dr) / (len(dr) - 1)) ** 0.5
         sharpe = round(mu / sd * (252 ** 0.5), 2) if sd else None
-    eq, peak, mdd = 1.0, 1.0, 0.0
-    for r in rets:
-        eq *= (1 + r)
-        peak = max(peak, eq)
-        mdd = min(mdd, eq / peak - 1)
-    wl = None
-    if wins and losses:
-        wl = round((sum(wins) / len(wins)) / abs(sum(losses) / len(losses)), 2)
+    # MDD·최대 수중기간(자산곡선 기준)
+    peak, mdd, uw, max_uw = curve_eq[0], 0.0, 0, 0
+    for v in curve_eq:
+        if v >= peak:
+            peak, uw = v, 0
+        else:
+            uw += 1
+            max_uw = max(max_uw, uw)
+            mdd = min(mdd, v / peak - 1)
+    avg_win = sum(wins) / len(wins) * 100 if wins else None
+    avg_loss = sum(losses) / len(losses) * 100 if losses else None
+    wl = round(avg_win / abs(avg_loss), 2) if (avg_win is not None and avg_loss) else None
+    # 차트용 다운샘플(~320점)
+    step = max(1, len(curve_eq) // 320)
+    samp = list(range(0, len(curve_eq), step))
+    if samp[-1] != len(curve_eq) - 1:
+        samp.append(len(curve_eq) - 1)
     return {
-        "n_trades": len(trades), "win_rate": round(len(wins) / len(trades) * 100),
-        "wl_ratio": wl, "total_return_pct": round((total - 1) * 100, 1),
-        "cagr_pct": round(((total ** (1 / years)) - 1) * 100, 1) if years > 0.5 else None,
-        "sharpe": sharpe, "mdd_pct": round(mdd * 100, 1),
+        "n_trades": len(trades), "n_open": 1 if open_trade else 0,
+        "win_rate": round(len(wins) / len(trades) * 100),
+        "avg_win_pct": round(avg_win, 2) if avg_win is not None else None,
+        "avg_loss_pct": round(avg_loss, 2) if avg_loss is not None else None,
+        "wl_ratio": wl,
+        "expectancy_pct": round(sum(rets) / len(rets) * 100, 2),
+        "total_return_pct": round((eq - 1) * 100, 1),
+        "bench_return_pct": round((curve_bh[-1] - 1) * 100, 1),
+        "cagr_pct": round(((eq ** (1 / years)) - 1) * 100, 1) if years > 0.5 else None,
+        "sharpe": sharpe, "mdd_pct": round(mdd * 100, 1), "max_underwater_days": max_uw,
         "trades_per_year": round(len(trades) / years, 1) if years > 0.5 else None,
         "avg_hold_days": round(sum(t["days"] for t in trades) / len(trades)),
+        "curve": {"d0": curve_d[0], "d1": curve_d[-1],
+                  "eq": [round(curve_eq[i], 4) for i in samp],
+                  "bh": [round(curve_bh[i], 4) for i in samp]},
         "durations": [t["days"] for t in trades],
     }
 
@@ -206,6 +230,7 @@ def main():
             print(f"  [WARN] {name} 데이터 부족")
             continue
         h, l, c = df["High"].tolist(), df["Low"].tolist(), df["Close"].tolist()
+        dts = [x.strftime("%Y-%m-%d") for x in df.index]
         e200, e20 = ema(c, 200), ema(c, 20)
         st_dir, st_line = supertrend(h, l, c, ST_PERIOD, ST_MULT)
         adx = adx_wilder(h, l, c, 14)
@@ -224,7 +249,7 @@ def main():
         else:
             verdict, vcol = "하락추세 — 조건 미충족", "red"
 
-        bt = backtest(c, st_dir, e200, adx)
+        bt = backtest(c, dts, st_dir, e200, adx)
         mc = None
         if bt and bt.get("durations"):
             mc = monte_carlo(c, bt["durations"], bt["total_return_pct"])
