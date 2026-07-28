@@ -7696,10 +7696,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // 카테고리별 그룹화 — 상단 헤더 내비용 (우선순위 순서 매칭: 위 카테고리가 먼저 가져감)
     const CATS = [
       ['시장 개요', /AI 인사이트|AI 투자 코멘트|매크로 환경/],
-      ['해외 시장', /해외 시장 동향|코스피 밸류에이션|성장 대비 부채|일본 경제 위기|섹터별 종목 분석|차트 분석|AI 생태계 밸류에이션/],
+      ['해외 시장', /해외 시장 동향|코스피 밸류에이션|성장 대비 부채|일본 경제 위기|섹터별 종목 분석|차트 분석|AI 생태계 밸류에이션|Tactical Capital Map/],
       ['내 포트폴리오', /내 포트폴리오/],
       ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
-      ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체/],
+      ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체|디커플링 진단/],
       ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성|공포·탐욕/],
       ['분석·평가', /IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|과열|차익실현|분봉|단타|감정지수|Fear|예측|적중|평가지수|성적표|백테스트|OHLC|사이클 변곡점|이벤트 사전영향|이벤트 기반/],
       ['추세추종 보드', /추세추종 신호 보드|거장 매매 추적/],
@@ -10647,7 +10647,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     </div>`;
     // ── 원페이지 뷰 탭 (추세추종 보드 스타일) ──
     const PFV = window.__pfTab || 'hold';
-    const PFTABS = [['hold', '💼 보유·매매'], ['acct', '🧮 회계 요약'], ['chart', '📈 추이 차트'], ['stmt', '🧾 손익계산서'], ['txn', '📕 거래내역'], ['set', '⚙️ 관리·백업']];
+    const PFTABS = [['hold', '💼 보유·매매'], ['acct', '🧮 회계 요약'], ['chart', '📈 추이 차트'], ['month', '📅 월별 수익률'], ['stmt', '🧾 손익계산서'], ['txn', '📕 거래내역'], ['set', '⚙️ 관리·백업']];
     const pfTabBar = PFTABS.map(([k, lab]) => `<button onclick="__pfSetTab('${k}')" style="padding:3px 10px;border-radius:6px;font-size:0.58rem;cursor:pointer;font-weight:${k === PFV ? 700 : 400};background:${k === PFV ? 'rgba(244,114,182,0.2)' : 'transparent'};color:${k === PFV ? '#f472b6' : 'var(--text-muted)'};border:1px solid ${k === PFV ? 'rgba(244,114,182,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
     // 항상 보이는 헤드라인 요약 (추세보드의 신호 요약줄 역할)
     const pfHead = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:0.62rem;">
@@ -10690,10 +10690,43 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);margin-top:2px;"><span>${hist[0].date}</span><span>${hist[hist.length - 1].date}</span></div>
           <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;">※ ⚙️ 관리·백업 탭의 '📸 오늘 손익 기록'을 누르면(마감 후 자동 포함) 날짜별 점이 쌓입니다.</div></div>`
       : '<div style="font-size:0.64rem;color:var(--text-muted);padding:8px 2px;">아직 기록이 없습니다. ⚙️ 관리·백업 탭에서 <b>📸 오늘 손익 기록</b>을 누르면 날짜별 추이가 쌓입니다.</div>';
+    // 📅 월별 수익률 — 기록(history) 기반 근사: 월말 자산(원금+누적손익) 변화에서 해당월 입출금 제외
+    let pfMonthlyBlock = '';
+    {
+      const _H2 = [...(pf.history || [])].sort((a, b) => a.date < b.date ? -1 : 1);
+      if (_H2.length >= 2) {
+        const _eqOf = x => { const P = +x.principal || null; return P != null ? P + (+x.pnl || 0) : (+x.buy || 0) + (+x.pnl || 0); };
+        const _byM = {};
+        _H2.forEach(x => { _byM[String(x.date).slice(0, 7)] = x; });   // 월별 마지막 기록
+        const _ms = Object.keys(_byM).sort();
+        const _depM = {};
+        (pf.deposits || []).forEach(d => { const m = String(d.date || '').slice(0, 7); _depM[m] = (_depM[m] || 0) + (+d.amount || 0); });
+        const _mret = {};
+        for (let i = 1; i < _ms.length; i++) {
+          const prevE = _eqOf(_byM[_ms[i - 1]]), curE = _eqOf(_byM[_ms[i]]);
+          if (prevE > 0) _mret[_ms[i]] = Math.round((curE - prevE - (_depM[_ms[i]] || 0)) / prevE * 1000) / 10;
+        }
+        const _grid = {};
+        Object.entries(_mret).forEach(([ym, v]) => { const [y, m] = ym.split('-'); (_grid[y] = _grid[y] || {})[+m] = v; });
+        const _ys = Object.keys(_grid).sort();
+        if (_ys.length) {
+          const _yr = {};
+          _ys.forEach(y => { let t = 1; Object.values(_grid[y]).forEach(v => { t *= 1 + v / 100; }); _yr[y] = Math.round((t - 1) * 1000) / 10; });
+          const _cell = v => v == null ? '<td style="padding:2px 4px;"></td>' : `<td style="padding:2px 4px;text-align:right;font-size:0.54rem;font-family:var(--font-mono);color:${v > 0 ? '#4ade80' : v < 0 ? '#f87171' : 'var(--text-muted)'};background:${v > 0 ? 'rgba(74,222,128,0.09)' : v < 0 ? 'rgba(248,113,113,0.09)' : 'transparent'};">${v > 0 ? '+' : ''}${v}</td>`;
+          pfMonthlyBlock = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:520px;width:100%;">
+            <thead><tr>${['연도', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '연간'].map(x => `<th style="padding:2px 4px;font-size:0.5rem;color:var(--text-muted);font-weight:500;text-align:right;">${x}</th>`).join('')}</tr></thead>
+            <tbody>${_ys.map(y => `<tr style="border-top:1px solid rgba(255,255,255,0.05);"><td style="padding:2px 4px;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-bright);">${y}</td>${Array.from({ length: 12 }, (_, i) => _cell((_grid[y] || {})[i + 1])).join('')}<td style="padding:2px 4px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);font-weight:700;color:${(_yr[y] || 0) >= 0 ? '#4ade80' : '#f87171'};">${_yr[y] != null ? (_yr[y] > 0 ? '+' : '') + _yr[y] : ''}</td></tr>`).join('')}</tbody>
+          </table></div>
+          <div style="font-size:0.53rem;color:var(--text-muted);margin-top:4px;line-height:1.6;">※ 월 수익률 = (월말 자산 − 전월말 자산 − 해당월 순입출금) ÷ 전월말 자산. 자산 = 원금 + 누적 순손익(기록 기준 근사). 빈 칸 = 해당 월 기록 없음 — 📸 손익 기록이 쌓일수록 채워집니다.</div>`;
+        }
+      }
+      if (!pfMonthlyBlock) pfMonthlyBlock = '<div style="font-size:0.64rem;color:var(--text-muted);padding:8px 2px;line-height:1.6;">월별 수익률은 <b>기록이 2개월 이상</b> 쌓이면 표시됩니다.<br>⚙️ 관리·백업 탭의 <b>📸 오늘 손익 기록</b>(마감 후 접속 시 자동 기록 포함)으로 매달 기록을 남겨 주세요.</div>';
+    }
     let pfContent = '';
     if (PFV === 'hold') pfContent = pfAddRow + pfHoldTable;
     else if (PFV === 'acct') pfContent = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch;">${depBlock}${pnlBox}</div>`;
     else if (PFV === 'chart') pfContent = pfChartBlock;
+    else if (PFV === 'month') pfContent = pfMonthlyBlock;
     else if (PFV === 'stmt') pfContent = stmt + flowTable;
     else if (PFV === 'txn') pfContent = txnTable;
     else if (PFV === 'set') pfContent = pfSettings;
