@@ -9392,7 +9392,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
     const pm = v => (v >= 0 ? '+' : '') + v;
     const SESSIONS = [['ytd', '2026 YTD (표본외)'], ['2.5y', 'full 2.5y'], ['5y', '5y robustness']];
-    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고']];
+    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고'], ['fin', '📑 재무']];
     // 세션 탭 (Jesse 브라우저 탭 스타일)
     const sessionTabs = SESSIONS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:9px 9px 0 0;font-size:0.6rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.13)' : 'rgba(255,255,255,0.03)'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.08)'};border-bottom:${k === P ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)'};"><span style="font-size:0.55rem;">🖥️</span>${lab}${k === P ? ' <span style="opacity:0.6;font-size:0.5rem;">✕</span>' : ''}</button>`).join('');
     const tickerBtns = d.tickers.map((x, i) => `<button onclick="window.__tsTicker=${i};renderTrendSignal()" style="padding:4px 13px;border-radius:8px;font-size:0.66rem;cursor:pointer;font-weight:${i === TI ? 800 : 500};background:${i === TI ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${i === TI ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === TI ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)'};"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.verdict_color)};margin-right:6px;"></span>${h(x.name)}</button>`).join(' ');
@@ -9708,6 +9708,57 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </div>
       </div>`;
     };
+    // 📑 재무 스냅샷 (stock_financials.json 연동 — 종목 매칭)
+    const finView = () => {
+      const fd = window.__sfData;
+      if (!fd || !fd.stocks) return '<div style="font-size:0.6rem;color:var(--text-muted);">재무 데이터 로딩 전입니다. (로컬 스케줄러 수집)</div>';
+      const s = fd.stocks.find(x => x.name === t.name);
+      if (!s) return `<div style="font-size:0.6rem;color:var(--text-muted);line-height:1.7;">${h(t.name)}${t.name === 'KOSPI' ? '는 지수라 종목 재무가 없습니다 — 지수 밸류에이션은 📐 코스피 밸류에이션 카드 참조.' : ' 재무 데이터가 아직 없습니다.'}</div>`;
+      const bandBar = (b, lab) => {
+        if (!b) return `<div style="padding:3px 0;font-size:0.58rem;color:var(--text-muted);">${lab}: — (적자 등으로 미산출)</div>`;
+        const pos = b.hi > b.lo ? (b.cur - b.lo) / (b.hi - b.lo) * 100 : 50;
+        const col = b.pctile <= 25 ? '#4ade80' : b.pctile <= 60 ? '#fbbf24' : '#f87171';
+        return `<div style="padding:4px 0;">
+          <div style="display:flex;justify-content:space-between;font-size:0.58rem;">
+            <span style="color:var(--text-muted);">${lab} <b style="color:${col};font-family:var(--font-mono);">${b.cur}</b></span>
+            <span style="color:${col};font-size:0.54rem;">1년 백분위 ${b.pctile}% ${b.pctile <= 25 ? '(역사적 저평가권)' : b.pctile >= 75 ? '(고평가권)' : ''}</span>
+          </div>
+          <div style="position:relative;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;margin-top:3px;">
+            <div style="position:absolute;left:${Math.max(0, Math.min(97, pos)).toFixed(0)}%;top:-2px;width:3px;height:12px;background:${col};border-radius:2px;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.5rem;color:var(--text-muted);font-family:var(--font-mono);"><span>${b.lo}</span><span>${b.hi}</span></div>
+        </div>`;
+      };
+      const w = s.w52 || {};
+      const wcol = w.pos == null ? 'var(--text-muted)' : w.pos >= 70 ? '#4ade80' : w.pos >= 35 ? '#fbbf24' : '#f87171';
+      const mcapT = s.mcap ? (s.mcap >= 1e12 ? (s.mcap / 1e12).toFixed(1) + '조원' : Math.round(s.mcap / 1e8).toLocaleString() + '억원') : '—';
+      return `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="flex:1.3;min-width:260px;">
+          <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:2px;">밸류에이션 밴드 (최근 1년)</div>
+          ${bandBar(s.per, 'PER')}
+          ${bandBar(s.pbr, 'PBR')}
+          <div style="padding:4px 0;">
+            <div style="display:flex;justify-content:space-between;font-size:0.58rem;">
+              <span style="color:var(--text-muted);">52주 위치 <b style="color:${wcol};font-family:var(--font-mono);">${w.pos == null ? '—' : w.pos + '%'}</b></span>
+              <span style="font-size:0.52rem;color:var(--text-muted);font-family:var(--font-mono);">${__pfNum(w.lo)} ~ ${__pfNum(w.hi)}</span>
+            </div>
+            <div style="position:relative;height:8px;background:linear-gradient(90deg,rgba(248,113,113,0.25),rgba(251,191,36,0.25),rgba(74,222,128,0.25));border-radius:4px;margin-top:3px;">
+              ${w.pos != null ? `<div style="position:absolute;left:${Math.max(0, Math.min(97, w.pos))}%;top:-2px;width:3px;height:12px;background:${wcol};border-radius:2px;"></div>` : ''}
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:210px;">
+          ${perfRow('시가총액', mcapT)}
+          ${perfRow('ROE (근사 EPS/BPS)', s.roe_approx != null ? s.roe_approx + '%' : '—', s.roe_approx != null && s.roe_approx >= 15 ? '#4ade80' : undefined)}
+          ${perfRow('배당수익률', s.div_yield != null ? s.div_yield.toFixed(2) + '%' : '—')}
+          ${s.dps ? perfRow('주당배당금(DPS)', __pfNum(s.dps) + '원') : ''}
+          ${s.eps != null ? perfRow('EPS', __pfNum(s.eps) + '원') : ''}
+          ${s.bps != null ? perfRow('BPS', __pfNum(s.bps) + '원') : ''}
+          ${perfRow('기준일', h(s.asof || '—'))}
+          <div style="font-size:0.53rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">PER/PBR 밴드=최근 1년 범위 내 현재 위치(백분위 낮을수록 역사적 저평가). ROE는 EPS/BPS 근사(재무제표 기준 아님). 적자 기업은 PER 미표시. KRX 일별 기초지표.</div>
+        </div>
+      </div>`;
+    };
     const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
     let content = '';
     if (V === 'perf') {
@@ -9729,6 +9780,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       content = pbdView();
     } else if (V === 'si') {
       content = siView();
+    } else if (V === 'fin') {
+      content = finView();
     }
     const html = `<section class="section-wrap" id="trend-signal-section">
       <div class="section-label" style="color:#22d3ee;">🧭 추세추종 신호 보드 <span style="font-size:0.62rem;color:var(--text-muted);">(Supertrend·EMA200·ADX — 정보용, 매매 실행 없음${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
@@ -9761,6 +9814,67 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderTrendSignal = renderTrendSignal;
   window.renderTrendSignal = renderTrendSignal;
+
+  // ── 🏛️ 거장 매매 추적 — SEC 13F 분기 보유·변동 (버핏·드러켄밀러·버리·달리오·애크먼) ──
+  function renderGuru13F(d) {
+    if (d) window.__guruData = d;
+    d = window.__guruData;
+    if (!d || !d.gurus || !d.gurus.length) return;
+    const GI = Math.min(window.__guruIdx || 0, d.gurus.length - 1);
+    const g = d.gurus[GI];
+    const usd = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'B' : v >= 1e6 ? '$' + (v / 1e6).toFixed(0) + 'M' : '$' + Math.round(v / 1e3) + 'K';
+    const tabs = d.gurus.map((x, i) => `<button onclick="window.__guruIdx=${i};renderGuru13F()" style="padding:4px 12px;border-radius:8px;font-size:0.62rem;cursor:pointer;font-weight:${i === GI ? 800 : 500};background:${i === GI ? 'rgba(251,191,36,0.16)' : 'rgba(255,255,255,0.04)'};color:${i === GI ? '#fbbf24' : 'var(--text-muted)'};border:1px solid ${i === GI ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)'};">${h(x.guru)}</button>`).join(' ');
+    const maxPct = Math.max(1, ...(g.top || []).map(x => x.pct));
+    const bars = (g.top || []).map((x, i) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+      <span style="min-width:16px;font-size:0.54rem;color:var(--text-muted);">${i + 1}</span>
+      <span style="min-width:150px;max-width:190px;font-size:0.6rem;color:var(--text-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h(x.name)}</span>
+      <div style="flex:1;height:9px;background:rgba(255,255,255,0.05);border-radius:4px;"><div style="width:${(x.pct / maxPct * 100).toFixed(0)}%;height:9px;background:${x.name.includes('(PUT)') ? 'rgba(248,113,113,0.7)' : 'rgba(251,191,36,0.65)'};border-radius:4px;"></div></div>
+      <span style="min-width:44px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:#fbbf24;">${x.pct}%</span>
+      <span style="min-width:52px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-muted);">${usd(x.value_usd)}</span>
+    </div>`).join('');
+    const ch = g.changes || {};
+    const chip = (arr, icon, col, withChg) => (arr && arr.length) ? `<div style="margin-top:7px;">
+      <div style="font-size:0.56rem;font-weight:700;color:${col};margin-bottom:2px;">${icon}</div>
+      ${arr.map(x => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.56rem;padding:1.5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <span style="color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px;">${h(x.name)}</span>
+        <span style="font-family:var(--font-mono);color:var(--text-muted);white-space:nowrap;">${usd(x.value_usd)}${withChg && x.chg_pct != null ? ` <span style="color:${x.chg_pct >= 0 ? '#4ade80' : '#f87171'};">(${x.chg_pct >= 0 ? '+' : ''}${x.chg_pct}%)</span>` : ''}</span>
+      </div>`).join('')}</div>` : '';
+    const html = `<section class="section-wrap" id="guru-13f-section">
+      <div class="section-label" style="color:#fbbf24;">🏛️ 거장 매매 추적 <span style="font-size:0.62rem;color:var(--text-muted);">(SEC 13F 분기 공시 · 최대 45일 지연 — 실시간 아님)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${tabs}</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;margin-top:9px;font-size:0.62rem;">
+          <span style="color:var(--text-muted);">${h(g.org)}</span>
+          <span style="font-family:var(--font-mono);font-weight:800;color:#fbbf24;font-size:0.8rem;">${usd(g.total_value_usd)}</span>
+          <span style="color:var(--text-muted);">${g.n_positions}종목 · <b style="color:var(--text);">${h(g.period)}</b> 분기 기준${g.prev_period ? ` (직전 ${h(g.prev_period)} 대비)` : ''}</span>
+        </div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-top:8px;">
+          <div style="flex:1.6;min-width:300px;">
+            <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">Top 10 보유 (포트폴리오 비중)</div>
+            ${bars}
+          </div>
+          <div style="flex:1;min-width:210px;">
+            <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;">분기 변동 (주식수 ±15% 기준)</div>
+            ${chip(ch.new, '🆕 신규 매수', '#4ade80')}
+            ${chip(ch.added, '➕ 확대', '#22d3ee', true)}
+            ${chip(ch.reduced, '➖ 축소', '#fbbf24', true)}
+            ${chip(ch.exited, '❌ 전량 청산', '#f87171')}
+            ${!(ch.new || ch.exited || ch.added || ch.reduced) ? '<div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;">직전 분기 비교 데이터 없음</div>' : ''}
+          </div>
+        </div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:10px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
+          📖 13F = 미국 SEC 분기 보유 공시(운용액 $1억 이상 기관 의무). <b>분기 종료 후 최대 45일 지연</b> — 공시 시점에 이미 매도했을 수 있음. 미국 상장 <b>롱 포지션만</b>(공매도·해외주식·채권 미포함). <span style="color:#f87171;">(PUT)</span>/<span style="color:#4ade80;">(CALL)</span>=옵션. 원출처 SEC EDGAR · 정보 제공용 · 투자 판단은 본인 책임.
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('guru-13f-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('trend-signal-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.renderGuru13F = renderGuru13F;
 
   // ── 🏛️ 성장 대비 부채 비율 (정부부채/GDP) — 미국·한국·일본 비교 (FRED/IMF) ──
   function renderDebtGdp(d) {
@@ -12675,6 +12789,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./short_interest.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { window.__siData = d; try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
+      // 종목 재무 스냅샷 — 보드 '재무' 뷰 (KRX, 로컬 스케줄러 수집)
+      fetch('./stock_financials.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { window.__sfData = d; try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
+      // 거장 매매 추적 — SEC 13F 분기 보유·변동
+      fetch('./guru_13f.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderGuru13F(d); } catch (e) { } } });
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

@@ -59,6 +59,12 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python trend_signal.py || echo "trend_signal had errors, continuing..."
 
+      # 거장 매매 추적 (SEC EDGAR 13F — 분기 공시, IP 차단 없음)
+      - name: Collect guru 13F
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python guru_13f.py || echo "guru_13f had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"
