@@ -137,7 +137,9 @@ def _sharpe(dr):
         return None
     mu = sum(dr) / len(dr)
     sd = (sum((x - mu) ** 2 for x in dr) / (len(dr) - 1)) ** 0.5
-    return round(mu / sd * (252 ** 0.5), 2) if sd else None
+    if not sd or sd != sd or mu != mu:                 # 0·NaN 방어
+        return None
+    return round(mu / sd * (252 ** 0.5), 2)
 
 
 def period_report(curve_eq, curve_bh, curve_d, trades, start_ci):
@@ -185,6 +187,7 @@ def period_report(curve_eq, curve_bh, curve_d, trades, start_ci):
         "trades_per_month": round(len(use) / (years * 12), 1) if years > 0.1 else None,
         "avg_hold_days": round(sum(t["days"] for t in use) / len(use)) if use else None,
         "curve": {"d0": ds[0], "d1": ds[-1],
+                  "dd": [ds[i] for i in samp],
                   "eq": [round(eqn[i], 4) for i in samp],
                   "bh": [round(bhn[i], 4) for i in samp]},
     }
@@ -400,6 +403,10 @@ def main():
             continue
         if df is None or len(df) < 300:
             print(f"  [WARN] {name} 데이터 부족")
+            continue
+        df = df.dropna(subset=["High", "Low", "Close"])          # NaN 행 제거 (야후 데이터 결측 방어)
+        if len(df) < 300:
+            print(f"  [WARN] {name} 유효 데이터 부족")
             continue
         h, l, c = df["High"].tolist(), df["Low"].tolist(), df["Close"].tolist()
         dts = [x.strftime("%Y-%m-%d") for x in df.index]
