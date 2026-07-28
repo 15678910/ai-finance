@@ -1,17 +1,13 @@
 """
-추세추종 신호 보드 — Supertrend·EMA200·ADX + 5년 백테스트 + 몬테카를로 검증
-==========================================================================
+추세추종 신호 보드 — Supertrend·EMA200·ADX + 다기간 백테스트 + 몬테카를로 (Jesse 리포트 스타일)
+================================================================================================
 알고트레이딩(Jesse) 방법론을 한국 시장 '일봉'에 적용한 정보 패널용 수집기.
-  · 대추세: 종가 > EMA200 (앵커)
-  · 신호: Supertrend(10, 3) 방향 (트레일링 스탑 라인 겸용)
-  · 확인: ADX(14) ≥ 20 (추세 강도)
-  · 풀백: 상승추세 중 종가 < EMA20 (눌림 구간)
-백테스트(롱온리): Supertrend 상향 전환 + 종가>EMA200 + ADX≥20 진입,
-  Supertrend 하향 전환 시 청산(트레일링). 비용 왕복 0.28%(수수료+거래세) 반영.
-몬테카를로(랜덤진입 검정): 같은 횟수·같은 보유기간의 무작위 진입 1,000회
-  null 분포에서 실제 성과의 백분위 → '전략이 운보다 나은가' 판별.
-
-🚨 매매 실행 없음 — 신호 정보 제공용. 과거 성과는 미래를 보장하지 않음. 투자자문 아님.
+  · 대추세: 종가 > EMA200 (앵커) / 신호: Supertrend(10,3) / 확인: ADX(14) ≥ 20
+  · 백테스트(롱온리): 조건 충족 진입, Supertrend 하향 전환 청산(트레일링). 왕복비용 0.28%.
+  · 다기간 리포트: YTD · 2.5년 · 5년 (Jesse 영상 워크플로 재현)
+  · 월별 수익률 그리드 · 최악 낙폭 구간 Top3 · 전체 거래 목록(마커용)
+  · 몬테카를로(랜덤진입 1,000회): 원본 샤프 vs null 중앙값/상위5% + 히스토그램
+🚨 매매 실행 없음 — 신호 정보 제공용. 과거 성과≠미래. 투자자문 아님.
 출력: docs/trend_signal.json
 """
 
@@ -32,6 +28,7 @@ TICKERS = [
 ]
 ST_PERIOD, ST_MULT, ADX_MIN = 10, 3.0, 20
 COST = 0.0028                         # 왕복 비용(수수료 0.05%×2 + 거래세 0.18%)
+WARM = 201                            # EMA200 워밍업
 
 
 def ema(vals, n):
@@ -49,15 +46,14 @@ def atr_wilder(h, l, c, n):
     out, a = [], None
     for i, tr in enumerate(trs):
         if i < n:
-            a = tr if a is None else (a * i + tr) / (i + 1)     # 초기 단순평균
+            a = tr if a is None else (a * i + tr) / (i + 1)
         else:
-            a = (a * (n - 1) + tr) / n                          # Wilder smoothing
+            a = (a * (n - 1) + tr) / n
         out.append(a)
     return out
 
 
 def supertrend(h, l, c, n=10, mult=3.0):
-    """(direction[+1/-1] 리스트, 스탑라인 리스트)."""
     atr = atr_wilder(h, l, c, n)
     up = [(h[i] + l[i]) / 2 + mult * atr[i] for i in range(len(c))]
     dn = [(h[i] + l[i]) / 2 - mult * atr[i] for i in range(len(c))]
@@ -85,7 +81,7 @@ def adx_wilder(h, l, c, n=14):
 
     def wsm(xs):
         out, s = [], None
-        for i, x in enumerate(xs):
+        for x in xs:
             s = x if s is None else s - s / n + x
             out.append(s)
         return out
@@ -96,24 +92,19 @@ def adx_wilder(h, l, c, n=14):
         ndi = (sndm[i] / (atr[i] * n) * 100) if atr[i] else 0
         dx.append(abs(pdi - ndi) / (pdi + ndi) * 100 if (pdi + ndi) else 0)
     out, a = [], None
-    for i, x in enumerate(dx):
+    for x in dx:
         a = x if a is None else (a * (n - 1) + x) / n
         out.append(a)
     return out
 
 
-def backtest(c, dates, st_dir, e200, adx):
-    """롱온리: ST 롱 + 종가>EMA200 + ADX≥20 '조건 충족 시' 진입 / ST 하향 전환 청산(트레일링).
-    자산곡선(전략 vs 바이앤홀드 벤치마크)·수중기간·기대값 포함 — Jesse 스타일 리포트용.
-    ※ '전환 당일'로 제한하면 ST가 이미 롱인 채 대추세 조건이 갖춰지는 상승장 대부분을 놓침."""
+def run_strategy(c, dates, st_dir, e200, adx):
+    """전 구간 1회 실행 → (일별 전략자산 curve_eq, 벤치마크 curve_bh, 날짜, 거래목록[인덱스 포함])."""
     n = len(c)
-    if n <= 210:
-        return None
     trades, pos, entry_eq = [], None, 1.0
     eq = 1.0
     curve_eq, curve_bh, curve_d = [], [], []
-    bh0 = c[201]
-    for i in range(201, n):
+    for i in range(WARM, n):
         if pos is None:
             if st_dir[i] == 1 and c[i] > e200[i] and adx[i] >= ADX_MIN:
                 pos, entry_eq = i, eq
@@ -121,32 +112,46 @@ def backtest(c, dates, st_dir, e200, adx):
             eq *= c[i] / c[i - 1]
             if st_dir[i] == -1:
                 eq *= (1 - COST)
-                trades.append({"ret": eq / entry_eq - 1, "days": i - pos})
+                trades.append({"ei": pos, "xi": i, "entry_d": dates[pos], "exit_d": dates[i],
+                               "ret": eq / entry_eq - 1, "days": i - pos})
                 pos = None
         curve_eq.append(eq)
-        curve_bh.append(c[i] / bh0)
+        curve_bh.append(c[i] / c[WARM])
         curve_d.append(dates[i])
-    open_trade = False
     if pos is not None:
-        trades.append({"ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
-        open_trade = True
-    if not trades:
-        return None
+        trades.append({"ei": pos, "xi": n - 1, "entry_d": dates[pos], "exit_d": dates[n - 1],
+                       "ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
+    return curve_eq, curve_bh, curve_d, trades
 
-    rets = [t["ret"] for t in trades]
+
+def _sharpe(dr):
+    if len(dr) < 20:
+        return None
+    mu = sum(dr) / len(dr)
+    sd = (sum((x - mu) ** 2 for x in dr) / (len(dr) - 1)) ** 0.5
+    return round(mu / sd * (252 ** 0.5), 2) if sd else None
+
+
+def period_report(curve_eq, curve_bh, curve_d, trades, start_ci):
+    """curve 인덱스 start_ci부터 구간 리포트 (수익 재정규화·거래 필터)."""
+    eqs = curve_eq[start_ci:]
+    bhs = curve_bh[start_ci:]
+    ds = curve_d[start_ci:]
+    if len(eqs) < 30:
+        return None
+    e0, b0 = eqs[0], bhs[0]
+    eqn = [v / e0 for v in eqs]
+    bhn = [v / b0 for v in bhs]
+    tr = [t for t in trades if t["xi"] - (len(curve_d) - len(ds)) >= 0 and t["exit_d"] >= ds[0]]
+    tr_in = [t for t in tr if t["entry_d"] >= ds[0]]
+    use = tr_in if tr_in else tr
+    rets = [t["ret"] for t in use]
     wins = [r for r in rets if r > 0]
     losses = [r for r in rets if r <= 0]
-    years = (n - 201) / 252
-    # 샤프: 자산곡선 일간수익 전체(현금 보유일 0% 포함)
-    dr = [curve_eq[i] / curve_eq[i - 1] - 1 for i in range(1, len(curve_eq))]
-    sharpe = None
-    if len(dr) > 20:
-        mu = sum(dr) / len(dr)
-        sd = (sum((x - mu) ** 2 for x in dr) / (len(dr) - 1)) ** 0.5
-        sharpe = round(mu / sd * (252 ** 0.5), 2) if sd else None
-    # MDD·최대 수중기간(자산곡선 기준)
-    peak, mdd, uw, max_uw = curve_eq[0], 0.0, 0, 0
-    for v in curve_eq:
+    years = len(eqs) / 252
+    dr = [eqn[i] / eqn[i - 1] - 1 for i in range(1, len(eqn))]
+    peak, mdd, uw, max_uw = eqn[0], 0.0, 0, 0
+    for v in eqn:
         if v >= peak:
             peak, uw = v, 0
         else:
@@ -155,54 +160,126 @@ def backtest(c, dates, st_dir, e200, adx):
             mdd = min(mdd, v / peak - 1)
     avg_win = sum(wins) / len(wins) * 100 if wins else None
     avg_loss = sum(losses) / len(losses) * 100 if losses else None
-    wl = round(avg_win / abs(avg_loss), 2) if (avg_win is not None and avg_loss) else None
-    # 차트용 다운샘플(~320점)
-    step = max(1, len(curve_eq) // 320)
-    samp = list(range(0, len(curve_eq), step))
-    if samp[-1] != len(curve_eq) - 1:
-        samp.append(len(curve_eq) - 1)
+    step = max(1, len(eqn) // 200)
+    samp = list(range(0, len(eqn), step))
+    if samp[-1] != len(eqn) - 1:
+        samp.append(len(eqn) - 1)
     return {
-        "n_trades": len(trades), "n_open": 1 if open_trade else 0,
-        "win_rate": round(len(wins) / len(trades) * 100),
+        "n_trades": len(use), "win_rate": round(len(wins) / len(use) * 100) if use else None,
         "avg_win_pct": round(avg_win, 2) if avg_win is not None else None,
         "avg_loss_pct": round(avg_loss, 2) if avg_loss is not None else None,
-        "wl_ratio": wl,
-        "expectancy_pct": round(sum(rets) / len(rets) * 100, 2),
-        "total_return_pct": round((eq - 1) * 100, 1),
-        "bench_return_pct": round((curve_bh[-1] - 1) * 100, 1),
-        "cagr_pct": round(((eq ** (1 / years)) - 1) * 100, 1) if years > 0.5 else None,
-        "sharpe": sharpe, "mdd_pct": round(mdd * 100, 1), "max_underwater_days": max_uw,
-        "trades_per_year": round(len(trades) / years, 1) if years > 0.5 else None,
-        "avg_hold_days": round(sum(t["days"] for t in trades) / len(trades)),
-        "curve": {"d0": curve_d[0], "d1": curve_d[-1],
-                  "eq": [round(curve_eq[i], 4) for i in samp],
-                  "bh": [round(curve_bh[i], 4) for i in samp]},
-        "durations": [t["days"] for t in trades],
+        "wl_ratio": round(avg_win / abs(avg_loss), 2) if (avg_win is not None and avg_loss) else None,
+        "expectancy_pct": round(sum(rets) / len(rets) * 100, 2) if rets else None,
+        "total_return_pct": round((eqn[-1] - 1) * 100, 1),
+        "bench_return_pct": round((bhn[-1] - 1) * 100, 1),
+        "cagr_pct": round(((eqn[-1] ** (1 / years)) - 1) * 100, 1) if years > 0.5 else None,
+        "sharpe": _sharpe(dr), "mdd_pct": round(mdd * 100, 1), "max_underwater_days": max_uw,
+        "trades_per_month": round(len(use) / (years * 12), 1) if years > 0.1 else None,
+        "avg_hold_days": round(sum(t["days"] for t in use) / len(use)) if use else None,
+        "curve": {"d0": ds[0], "d1": ds[-1],
+                  "eq": [round(eqn[i], 4) for i in samp],
+                  "bh": [round(bhn[i], 4) for i in samp]},
     }
 
 
-def monte_carlo(c, durations, actual_total_pct, sims=1000, seed=7):
-    """랜덤진입 검정: 같은 횟수·보유기간의 무작위 진입 null 분포 → 실제 성과 백분위."""
+def monthly_table(curve_eq, curve_d):
+    """월별 전략 수익률(%) — {연도: {월: pct}} + 연간 합계."""
+    out = {}
+    prev_eq, prev_ym = None, None
+    month_start = curve_eq[0]
+    for i, d in enumerate(curve_d):
+        ym = d[:7]
+        if prev_ym is not None and ym != prev_ym:
+            y, m = prev_ym.split("-")
+            out.setdefault(y, {})[int(m)] = round((prev_eq / month_start - 1) * 100, 1)
+            month_start = prev_eq
+        prev_eq, prev_ym = curve_eq[i], ym
+    if prev_ym:
+        y, m = prev_ym.split("-")
+        out.setdefault(y, {})[int(m)] = round((prev_eq / month_start - 1) * 100, 1)
+    yearly = {}
+    for y in out:
+        tot = 1.0
+        for m in out[y]:
+            tot *= (1 + out[y][m] / 100)
+        yearly[y] = round((tot - 1) * 100, 1)
+    return out, yearly
+
+
+def worst_drawdowns(curve_eq, curve_d, top=3):
+    """최악 낙폭 구간 Top N: (고점일, 저점일, 깊이%, 지속 거래일)."""
+    eps = []
+    peak, peak_i, trough, trough_i = curve_eq[0], 0, curve_eq[0], 0
+    in_dd = False
+    for i, v in enumerate(curve_eq):
+        if v >= peak:
+            if in_dd:
+                eps.append({"from": curve_d[peak_i], "trough": curve_d[trough_i],
+                            "depth_pct": round((trough / peak - 1) * 100, 1), "days": i - peak_i})
+                in_dd = False
+            peak, peak_i = v, i
+            trough, trough_i = v, i
+        else:
+            in_dd = True
+            if v < trough:
+                trough, trough_i = v, i
+    if in_dd:
+        eps.append({"from": curve_d[peak_i], "trough": curve_d[trough_i],
+                    "depth_pct": round((trough / peak - 1) * 100, 1), "days": len(curve_eq) - 1 - peak_i,
+                    "ongoing": True})
+    eps.sort(key=lambda e: e["depth_pct"])
+    return eps[:top]
+
+
+def monte_carlo(c, trades, orig_sharpe, sims=1000, seed=7):
+    """랜덤진입 검정(샤프 기준): 같은 횟수·보유기간 무작위 진입 null 분포 → 원본 위치.
+    Jesse 영상 해석: 원본이 null 중앙값 근처/이하 = 과적합 아님(운 아님)이 아니라,
+    '무작위 대비 우위'는 원본이 상위(95↑)일 때. 두 관점 모두 표기용 수치 제공."""
+    durations = [t["days"] for t in trades if t["days"] > 0]
+    if not durations or orig_sharpe is None:
+        return None
     rng = random.Random(seed)
     n = len(c)
-    nulls = []
+    null_sharpes, null_totals = [], []
     for _ in range(sims):
-        tot = 1.0
+        dr, tot = [], 1.0
         for d in durations:
-            s = rng.randrange(201, n - d) if n - d > 201 else 201
+            s = rng.randrange(WARM, n - d) if n - d > WARM else WARM
+            for j in range(s + 1, s + d + 1):
+                dr.append(c[j] / c[j - 1] - 1)
             tot *= (1 + (c[s + d] / c[s] - 1 - COST))
-        nulls.append((tot - 1) * 100)
-    nulls.sort()
-    below = sum(1 for x in nulls if x < actual_total_pct)
-    pctile = round(below / sims * 100, 1)
-    med = nulls[sims // 2]
+        sh = _sharpe(dr)
+        if sh is not None:
+            null_sharpes.append(sh)
+        null_totals.append((tot - 1) * 100)
+    if not null_sharpes:
+        return None
+    null_sharpes.sort()
+    ns = len(null_sharpes)
+    med = null_sharpes[ns // 2]
+    best5 = null_sharpes[int(ns * 0.95)]
+    below = sum(1 for x in null_sharpes if x < orig_sharpe)
+    pctile = round(below / ns * 100, 1)
+    # 히스토그램 (null 샤프 20구간)
+    lo, hi = null_sharpes[0], null_sharpes[-1]
+    if orig_sharpe < lo:
+        lo = orig_sharpe
+    if orig_sharpe > hi:
+        hi = orig_sharpe
+    span = (hi - lo) or 1
+    bins = [0] * 20
+    for x in null_sharpes:
+        bins[min(19, int((x - lo) / span * 20))] += 1
+    orig_bin = min(19, max(0, int((orig_sharpe - lo) / span * 20)))
     if pctile >= 95:
-        v, col = "운 아님 — 유의미한 엣지 ✅", "green"
+        v, col = "무작위 대비 유의미한 엣지 ✅", "green"
     elif pctile >= 80:
         v, col = "무작위보다 우수 (경계선)", "yellow"
     else:
-        v, col = "무작위와 구분 불가", "red"
-    return {"pctile": pctile, "null_median_pct": round(med, 1), "sims": sims,
+        v, col = "무작위 진입과 구분 불가", "red"
+    return {"sims": ns, "orig_sharpe": orig_sharpe, "null_median_sharpe": med,
+            "null_best5_sharpe": best5, "pctile": pctile,
+            "hist": {"bins": bins, "lo": round(lo, 2), "hi": round(hi, 2), "orig_bin": orig_bin},
             "verdict": v, "verdict_color": col}
 
 
@@ -226,7 +303,7 @@ def main():
         except Exception as e:
             print(f"  [WARN] {name} 다운로드 실패: {e}")
             continue
-        if df is None or len(df) < 260:
+        if df is None or len(df) < 300:
             print(f"  [WARN] {name} 데이터 부족")
             continue
         h, l, c = df["High"].tolist(), df["Low"].tolist(), df["Close"].tolist()
@@ -234,11 +311,10 @@ def main():
         e200, e20 = ema(c, 200), ema(c, 20)
         st_dir, st_line = supertrend(h, l, c, ST_PERIOD, ST_MULT)
         adx = adx_wilder(h, l, c, 14)
-        asof = df.index[-1].strftime("%Y-%m-%d")
+        asof = dts[-1]
 
-        up = c[-1] > e200[-1]
-        st_long = st_dir[-1] == 1
-        strong = adx[-1] >= ADX_MIN
+        # 현재 신호
+        up, st_long, strong = c[-1] > e200[-1], st_dir[-1] == 1, adx[-1] >= ADX_MIN
         pullback = up and st_long and c[-1] < e20[-1]
         if up and st_long and strong:
             verdict, vcol = ("추세추종 조건 충족 (풀백 중)" if pullback else "추세추종 조건 충족"), "green"
@@ -249,11 +325,34 @@ def main():
         else:
             verdict, vcol = "하락추세 — 조건 미충족", "red"
 
-        bt = backtest(c, dts, st_dir, e200, adx)
-        mc = None
-        if bt and bt.get("durations"):
-            mc = monte_carlo(c, bt["durations"], bt["total_return_pct"])
-            bt.pop("durations", None)
+        curve_eq, curve_bh, curve_d, trades = run_strategy(c, dts, st_dir, e200, adx)
+        if not trades:
+            print(f"  [WARN] {name} 거래 없음")
+            continue
+
+        # 다기간 리포트: 5년(전체) · 2.5년 · YTD
+        year0 = now.strftime("%Y") + "-01-01"
+        idx_25 = max(0, len(curve_d) - int(2.5 * 252))
+        idx_ytd = next((i for i, d in enumerate(curve_d) if d >= year0), None)
+        periods = {"5y": period_report(curve_eq, curve_bh, curve_d, trades, 0),
+                   "2.5y": period_report(curve_eq, curve_bh, curve_d, trades, idx_25)}
+        if idx_ytd is not None and len(curve_d) - idx_ytd >= 30:
+            periods["ytd"] = period_report(curve_eq, curve_bh, curve_d, trades, idx_ytd)
+
+        monthly, yearly = monthly_table(curve_eq, curve_d)
+        wdd = worst_drawdowns(curve_eq, curve_d, 3)
+        p5 = periods.get("5y") or {}
+        mc = monte_carlo(c, trades, p5.get("sharpe"))
+
+        # 거래 목록 (마커·베스트/워스트용, 최대 40건)
+        tlist = [{"entry_d": t["entry_d"], "exit_d": t["exit_d"],
+                  "ret_pct": round(t["ret"] * 100, 1), "days": t["days"],
+                  "open": bool(t.get("open"))} for t in trades][-40:]
+        # 가격(벤치마크) 곡선 위 거래 마커 좌표 (곡선 분율 0~1)
+        d2i = {d: i for i, d in enumerate(curve_d)}
+        nn = len(curve_d) - 1
+        markers = [{"e": round(d2i.get(t["entry_d"], 0) / nn, 4), "x": round(d2i.get(t["exit_d"], 0) / nn, 4),
+                    "win": t["ret"] > 0} for t in trades]
 
         out_t.append({
             "symbol": sym, "name": name, "tag": tag,
@@ -262,11 +361,18 @@ def main():
             "adx": round(adx[-1], 1), "adx_strong": strong,
             "ema200": round(e200[-1], 2), "ema20": round(e20[-1], 2), "pullback": pullback,
             "verdict": verdict, "verdict_color": vcol,
-            "backtest": bt, "monte_carlo": mc,
+            "periods": periods, "monthly": monthly, "yearly": yearly,
+            "worst_dd": wdd, "trades": tlist, "markers": markers,
+            "monte_carlo": mc,
         })
-        print(f"  {name}: {verdict} | ST {'롱' if st_long else '숏'} · ADX {adx[-1]:.0f} · "
-              f"BT {bt['total_return_pct'] if bt else '—'}% (승률 {bt['win_rate'] if bt else '—'}%) · "
-              f"MC 백분위 {mc['pctile'] if mc else '—'}")
+        print(f"  {name}: {verdict}")
+        for pk in ("ytd", "2.5y", "5y"):
+            p = periods.get(pk)
+            if p:
+                print(f"    [{pk:4s}] 수익 {p['total_return_pct']:+7.1f}% (벤치 {p['bench_return_pct']:+8.1f}%) "
+                      f"샤프 {p['sharpe']} 승률 {p['win_rate']}% MDD {p['mdd_pct']}% 수중 {p['max_underwater_days']}일")
+        if mc:
+            print(f"    MC: 원본샤프 {mc['orig_sharpe']} vs null중앙 {mc['null_median_sharpe']} (백분위 {mc['pctile']}) → {mc['verdict']}")
 
     if not out_t:
         print("[ERROR] 전 종목 실패 — 기존 파일 보존.")
@@ -278,15 +384,15 @@ def main():
         "params": {"supertrend": f"({ST_PERIOD},{ST_MULT})", "anchor": "EMA200", "adx_min": ADX_MIN,
                    "cost_pct": COST * 100},
         "tickers": out_t,
-        "note": ("일봉 추세추종 신호(정보용·매매 실행 없음): 대추세 EMA200 + Supertrend(10,3) + ADX≥20, "
-                 "풀백=상승추세 중 EMA20 아래 눌림. 백테스트 5년 롱온리·왕복비용 0.28%, "
-                 "청산=Supertrend 트레일링. 몬테카를로=같은 횟수·보유기간 무작위 진입 1,000회 대비 백분위. "
-                 "과거 성과≠미래. 투자자문 아님."),
+        "note": ("일봉 추세추종 신호(정보용·매매 실행 없음): 대추세 EMA200 + Supertrend(10,3) + ADX≥20. "
+                 "백테스트 롱온리·왕복비용 0.28%·청산=Supertrend 트레일링. 다기간(YTD·2.5y·5y) 리포트, "
+                 "월별 수익률, 최악 낙폭 구간, 몬테카를로(랜덤진입 1,000회·샤프 기준). "
+                 "과거 성과≠미래 · 투자자문 아님."),
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"[OK] {OUTPUT_FILE} ({len(out_t)}종목 · 기준 {asof})")
+    print(f"[OK] {OUTPUT_FILE} ({len(out_t)}종목 · 기준 {asof} · {os.path.getsize(OUTPUT_FILE)//1024}KB)")
     return 0
 
 
