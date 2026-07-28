@@ -9421,6 +9421,65 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderShortInterest = renderShortInterest;
 
+  // ── 👥 개인 매수 가격대 분포 — 개인 순매수의 가격선 히스토그램 (매물대 추정, KRX 로컬 수집) ──
+  function renderPersonalBuyDist(d) {
+    if (d) window.__pbdData = d;
+    d = window.__pbdData;
+    if (!d || !d.stocks || !d.stocks.length) return;
+    const card = s => {
+      const bks = s.buckets || [];
+      if (!bks.length) return '';
+      const maxAbs = Math.max(1, ...bks.map(b => Math.abs(b.net)));
+      const W = 300, rowH = 11, pT = 6, pL = 62, pR = 40;
+      const H = pT + bks.length * rowH + 8;
+      const midX = pL, barMax = W - pL - pR;
+      // 버킷은 lo 오름차순 → 위=고가부터 그리기
+      const rows = bks.slice().reverse().map((b, i) => {
+        const y = pT + i * rowH;
+        const w = Math.abs(b.net) / maxAbs * barMax;
+        const col = b.net >= 0 ? 'rgba(74,222,128,0.75)' : 'rgba(248,113,113,0.75)';
+        const inCur = s.price >= b.lo && s.price < (b.hi + 1);
+        const inAvg = s.avg_buy_price != null && s.avg_buy_price >= b.lo && s.avg_buy_price < (b.hi + 1);
+        return `<text x="${pL - 4}" y="${y + rowH - 3}" font-size="6.5" fill="${inCur ? '#22d3ee' : '#7d8590'}" text-anchor="end"${inCur ? ' font-weight="700"' : ''}>${__pfNum(b.lo)}</text>
+          <rect x="${midX}" y="${y + 1.5}" width="${Math.max(0.5, w).toFixed(1)}" height="${rowH - 3}" fill="${col}" rx="1.5"/>
+          ${inCur ? `<line x1="${pL - 2}" y1="${y + rowH / 2}" x2="${W - 2}" y2="${y + rowH / 2}" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3 2" opacity="0.85"/><text x="${W - 3}" y="${y + rowH / 2 - 2}" font-size="6.5" fill="#22d3ee" text-anchor="end" font-weight="700">현재가</text>` : ''}
+          ${inAvg ? `<line x1="${pL - 2}" y1="${y + rowH / 2}" x2="${W - 2}" y2="${y + rowH / 2}" stroke="#fbbf24" stroke-width="1" stroke-dasharray="2 2" opacity="0.8"/><text x="${W - 3}" y="${y + rowH - 1}" font-size="6.5" fill="#fbbf24" text-anchor="end" font-weight="700">개인평단</text>` : ''}`;
+      }).join('');
+      const vsCol = s.vs_avg_pct == null ? 'var(--text-muted)' : s.vs_avg_pct >= 0 ? '#4ade80' : '#f87171';
+      const afCol = s.above_frac == null ? 'var(--text-muted)' : s.above_frac >= 70 ? '#f87171' : s.above_frac >= 40 ? '#fbbf24' : '#4ade80';
+      return `<div style="flex:1;min-width:280px;max-width:420px;background:rgba(255,255,255,0.03);border-radius:10px;padding:10px 12px;">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.72rem;font-weight:800;color:var(--text-bright);">${h(s.name)}</span>
+          <span style="font-size:0.6rem;font-family:var(--font-mono);color:#22d3ee;">${__pfNum(s.price)}</span>
+          ${s.avg_buy_price != null ? `<span style="font-size:0.56rem;color:var(--text-muted);">개인평단 <b style="color:#fbbf24;font-family:var(--font-mono);">${__pfNum(s.avg_buy_price)}</b> <b style="color:${vsCol};font-family:var(--font-mono);">(${s.vs_avg_pct >= 0 ? '+' : ''}${s.vs_avg_pct}%)</b></span>` : ''}
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:4px;">${rows}</svg>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:0.55rem;color:var(--text-muted);margin-top:2px;">
+          <span>1년 순매수 <b style="font-family:var(--font-mono);color:${s.net_total >= 0 ? '#4ade80' : '#f87171'};">${s.net_total >= 0 ? '+' : ''}${__pfNum(s.net_total)}주</b></span>
+          <span>물린 물량 <b style="font-family:var(--font-mono);color:${afCol};">${s.above_frac == null ? '—' : s.above_frac + '%'}</b> <span style="opacity:0.7;">(현재가 위 순매수 비중)</span></span>
+        </div>
+      </div>`;
+    };
+    const html = `<section class="section-wrap" id="personal-buy-section">
+      <div class="section-label" style="color:#4ade80;">👥 개인 매수 가격대 분포 <span style="font-size:0.62rem;color:var(--text-muted);">(개인 순매수 × 가격선 · 매물대 추정 · 최근 1년${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">${d.stocks.map(card).join('')}</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          📖 읽는 법: 가로막대=해당 가격대에서 개인 <span style="color:#4ade80;">순매수(초록)</span>/<span style="color:#f87171;">순매도(빨강)</span> 규모. <span style="color:#22d3ee;">현재가(청록 점선)</span> 위에 초록 막대가 많으면 = 개인이 <b>더 비싼 가격에 사서 물려있는 구간</b>(반등 시 본전 매물 저항 가능). 아래에 많으면 = 수익권(지지 가능).<br>
+          <span style="color:#fbbf24;">개인평단(노란 점선)</span> = 순매수일 가중평균 추정 — 현재가가 평단 아래면 개인 평균적으로 손실권.<br>
+          🚨 일별 순매수×종가 기반 <b>근사 추정</b>(실제 개인 보유단가와 다를 수 있음) · KRX 투자자별 매매동향 · 정보 제공용 · 투자 판단은 본인 책임.
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('personal-buy-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('short-interest-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.__renderPersonalBuyDist = renderPersonalBuyDist;
+
   // ── 🧭 추세추종 신호 보드 — 원페이지 탭 UI (종목 버튼 × 뷰 탭 × 기간 탭 / 정보용, 매매 없음) ──
   function renderTrendSignal(d) {
     if (d) window.__tsData = d;
@@ -12570,6 +12629,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderTrendSignal(d); } catch (e) { } } });
+      // 개인 매수 가격대 분포 — 개인 순매수×가격선 (KRX, 로컬 스케줄러 수집)
+      fetch('./personal_buy_dist.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderPersonalBuyDist(d); } catch (e) { } } });
       // 공포·탐욕지수 — 미국증시(CNN) + 크립토
       fetch('./fear_greed.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

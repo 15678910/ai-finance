@@ -19,18 +19,19 @@ echo [%date% %time%] START >> "%LOG%"
 REM 1) collect
 "%PY%" kospi_valuation_monitor.py >> "%LOG%" 2>&1
 "%PY%" short_interest_monitor.py >> "%LOG%" 2>&1
+"%PY%" personal_buy_dist.py >> "%LOG%" 2>&1
 
 REM 2) skip if nothing changed (porcelain covers modified + untracked)
 set "CHANGED="
-for /f %%i in ('"%GIT%" status --porcelain -- docs/kospi_valuation.json docs/short_interest.json') do set "CHANGED=1"
+for /f %%i in ('"%GIT%" status --porcelain -- docs/kospi_valuation.json docs/short_interest.json docs/personal_buy_dist.json') do set "CHANGED=1"
 if not defined CHANGED (
   echo [%date% %time%] no change, skip >> "%LOG%"
   goto end
 )
 
 REM 3) commit + safe push (stash other changes, rebase-theirs, push)
-"%GIT%" add docs/kospi_valuation.json docs/short_interest.json
-"%GIT%" commit -m "Update KOSPI valuation + short interest (local scheduler) [automated]" >> "%LOG%" 2>&1
+"%GIT%" add docs/kospi_valuation.json docs/short_interest.json docs/personal_buy_dist.json
+"%GIT%" commit -m "Update KOSPI valuation + short interest + personal buy dist (local scheduler) [automated]" >> "%LOG%" 2>&1
 "%GIT%" stash push -u -m wip-kv >nul 2>&1
 "%GIT%" pull --rebase -X theirs >> "%LOG%" 2>&1
 "%GIT%" push >> "%LOG%" 2>&1
