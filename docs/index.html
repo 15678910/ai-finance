@@ -9436,7 +9436,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
     const pm = v => (v >= 0 ? '+' : '') + v;
     const SESSIONS = [['ytd', '2026 YTD (표본외)'], ['2.5y', 'full 2.5y'], ['5y', '5y robustness']];
-    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포']];
+    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고']];
     // 세션 탭 (Jesse 브라우저 탭 스타일)
     const sessionTabs = SESSIONS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:9px 9px 0 0;font-size:0.6rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.13)' : 'rgba(255,255,255,0.03)'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.08)'};border-bottom:${k === P ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)'};"><span style="font-size:0.55rem;">🖥️</span>${lab}${k === P ? ' <span style="opacity:0.6;font-size:0.5rem;">✕</span>' : ''}</button>`).join('');
     const tickerBtns = d.tickers.map((x, i) => `<button onclick="window.__tsTicker=${i};renderTrendSignal()" style="padding:4px 13px;border-radius:8px;font-size:0.66rem;cursor:pointer;font-weight:${i === TI ? 800 : 500};background:${i === TI ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${i === TI ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === TI ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)'};"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.verdict_color)};margin-right:6px;"></span>${h(x.name)}</button>`).join(' ');
@@ -9706,6 +9706,52 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </div>
       </div>`;
     };
+    // 🩳 공매도 잔고 (short_interest.json 연동 — 종목 매칭)
+    const siView = () => {
+      const sd = window.__siData;
+      if (!sd || !sd.stocks) return '<div style="font-size:0.6rem;color:var(--text-muted);">공매도 잔고 데이터 로딩 전입니다. (로컬 스케줄러 수집)</div>';
+      const s = sd.stocks.find(x => x.name === t.name);
+      if (!s) return `<div style="font-size:0.6rem;color:var(--text-muted);line-height:1.7;">${h(t.name)}${t.name === 'KOSPI' ? '는 지수라 종목별 공매도 잔고가 없습니다' : ' 공매도 잔고 데이터 없음'}. 전체 종목은 <b style="color:#f87171;">🩳 공매도 잔고 모니터</b> 섹션(위)에서 확인하세요.</div>`;
+      const sc = s.signal_color === 'red' ? '#f87171' : s.signal_color === 'yellow' ? '#fbbf24' : s.signal_color === 'green' ? '#4ade80' : 'var(--text-muted)';
+      const trArrow = s.trend === 'up' ? '<span style="color:#f87171;">▲ 증가 (포지션 구축)</span>' : s.trend === 'down' ? '<span style="color:#4ade80;">▼ 감소 (세력 철수)</span>' : '<span style="color:var(--text-muted);">— 보합</span>';
+      // 스파크 차트 (20일 잔고비율 + 3%/5% 기준선)
+      let sparkSvg = '';
+      const sp = s.spark || [];
+      if (sp.length > 1) {
+        const W = 340, H = 120, pT = 8, pB = 14, pL = 26, pR = 8;
+        const mx = Math.max(5.5, ...sp), mn = 0;
+        const X = i => pL + i / (sp.length - 1) * (W - pL - pR);
+        const Y = v => pT + (mx - v) / (mx - mn) * (H - pT - pB);
+        const path = sp.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+        const gl = (v, col, lab) => `<line x1="${pL}" y1="${Y(v).toFixed(1)}" x2="${W - pR}" y2="${Y(v).toFixed(1)}" stroke="${col}" stroke-width="0.8" stroke-dasharray="3 2" opacity="0.7"/><text x="${pL - 2}" y="${(Y(v) + 2.5).toFixed(1)}" font-size="6.5" fill="${col}" text-anchor="end">${lab}</text>`;
+        sparkSvg = `<div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;margin-top:5px;">
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+          ${gl(5, '#f87171', '5%')}${gl(3, '#fbbf24', '3%')}
+          <path d="${path}" fill="none" stroke="${sc}" stroke-width="1.6"/>
+          <circle cx="${X(sp.length - 1).toFixed(1)}" cy="${Y(sp[sp.length - 1]).toFixed(1)}" r="2.6" fill="${sc}"/>
+          <text x="${(X(sp.length - 1) - 4).toFixed(1)}" y="${(Y(sp[sp.length - 1]) - 5).toFixed(1)}" font-size="8" fill="${sc}" text-anchor="end" font-weight="700">${s.ratio}%</text>
+          <text x="${pL}" y="${H - 3}" font-size="6.5" fill="#7d8590">최근 ${sp.length}영업일</text>
+          <text x="${W - pR}" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${h(s.asof || '')}</text>
+        </svg></div>`;
+      }
+      return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="flex:1.4;min-width:270px;">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:1.7rem;font-weight:800;font-family:var(--font-mono);color:${sc};">${s.ratio}%</span>
+            <span style="font-size:0.62rem;font-weight:700;color:${sc};background:${sc}1c;border-radius:10px;padding:2px 9px;">${h(s.signal_label)}</span>
+            <span style="font-size:0.56rem;color:var(--text-muted);">공매도 잔고비율 (시총 대비 · T+2 지연)</span>
+          </div>
+          ${sparkSvg}
+        </div>
+        <div style="flex:1;min-width:200px;">
+          ${perfRow('5일 추세', trArrow + ' <span style="font-family:var(--font-mono);color:var(--text-muted);">' + (s.chg_5d >= 0 ? '+' : '') + s.chg_5d + '%p</span>')}
+          ${s.chg_20d != null ? perfRow('20일 변화', (s.chg_20d >= 0 ? '+' : '') + s.chg_20d + '%p', s.chg_20d >= 0 ? '#f87171' : '#4ade80') : ''}
+          ${s.balance_shares != null ? perfRow('잔고 주수', __pfNum(s.balance_shares) + '주') : ''}
+          ${perfRow('기준일', h(s.asof || '—'))}
+          <div style="font-size:0.53rem;color:var(--text-muted);margin-top:6px;line-height:1.65;">🚦 경험칙: <span style="color:#4ade80;">&lt;3% 정상</span> · <span style="color:#fbbf24;">3~5% 주의</span> · <span style="color:#f87171;">≥5% 경고/숏스퀴즈 후보</span>.<br>절대치보다 <b>추세</b>가 중요 — ▲증가=하방 압박 경계, ▼감소=반등 에너지. 잔고 높은 종목에 호재 발생 시 숏 커버링발 급등 가능. 단독 지표 금지 — 펀더멘탈·수급과 결합. T+2 지연 공시.</div>
+        </div>
+      </div>`;
+    };
     const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
     let content = '';
     if (V === 'perf') {
@@ -9725,6 +9771,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       content = entryView();
     } else if (V === 'pbd') {
       content = pbdView();
+    } else if (V === 'si') {
+      content = siView();
     }
     const html = `<section class="section-wrap" id="trend-signal-section">
       <div class="section-label" style="color:#22d3ee;">🧭 추세추종 신호 보드 <span style="font-size:0.62rem;color:var(--text-muted);">(Supertrend·EMA200·ADX — 정보용, 매매 실행 없음${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
@@ -12670,7 +12718,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // 공매도 잔고 모니터 — 관심종목 잔고비율·추세 (KRX, 로컬 스케줄러 수집)
       fetch('./short_interest.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) { try { renderShortInterest(d); } catch (e) { } } });
+        .then(d => { if (d) { try { renderShortInterest(d); } catch (e) { } try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
