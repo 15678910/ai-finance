@@ -21,17 +21,18 @@ REM 1) collect
 "%PY%" short_interest_monitor.py >> "%LOG%" 2>&1
 "%PY%" personal_buy_dist.py >> "%LOG%" 2>&1
 "%PY%" stock_financials.py >> "%LOG%" 2>&1
+"%PY%" stock_screener.py >> "%LOG%" 2>&1
 
 REM 2) skip if nothing changed (porcelain covers modified + untracked)
 set "CHANGED="
-for /f %%i in ('"%GIT%" status --porcelain -- docs/kospi_valuation.json docs/short_interest.json docs/personal_buy_dist.json docs/stock_financials.json') do set "CHANGED=1"
+for /f %%i in ('"%GIT%" status --porcelain -- docs/kospi_valuation.json docs/short_interest.json docs/personal_buy_dist.json docs/stock_financials.json docs/stock_screener.json') do set "CHANGED=1"
 if not defined CHANGED (
   echo [%date% %time%] no change, skip >> "%LOG%"
   goto end
 )
 
 REM 3) commit + safe push (stash other changes, rebase-theirs, push)
-"%GIT%" add docs/kospi_valuation.json docs/short_interest.json docs/personal_buy_dist.json docs/stock_financials.json
+"%GIT%" add docs/kospi_valuation.json docs/short_interest.json docs/personal_buy_dist.json docs/stock_financials.json docs/stock_screener.json
 "%GIT%" commit -m "Update local KRX data (valuation/short/personal/financials) [automated]" >> "%LOG%" 2>&1
 "%GIT%" stash push -u -m wip-kv >nul 2>&1
 "%GIT%" pull --rebase -X theirs >> "%LOG%" 2>&1

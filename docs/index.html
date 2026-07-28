@@ -10043,6 +10043,49 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.renderGuru13F = renderGuru13F;
 
+  // ── 🔎 퀀트 스크리너 — 가치+성장+고배당 조건 필터 (나열이지 추천 아님) ──
+  function renderScreener(d) {
+    if (d) window.__scrData = d;
+    d = window.__scrData;
+    if (!d || !d.stocks || !d.stocks.length) return;
+    const crit = Object.entries(d.criteria || {}).map(([k, v]) => `<span style="font-size:0.56rem;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.3);border-radius:10px;padding:2px 8px;white-space:nowrap;">${h(k)} ${h(v)}</span>`).join(' ');
+    const fn = d.funnel || {};
+    const funnel = `<span style="font-size:0.56rem;color:var(--text-muted);">전체 <b>${(fn.universe || 0).toLocaleString()}</b> → 가치 <b>${fn.value || 0}</b> → +성장 <b>${fn.growth || 0}</b> → +배당 <b>${fn.div || 0}</b> → +시총 <b style="color:#4ade80;">${fn.cap || 0}</b>종목</span>`;
+    const rows = d.stocks.map((s, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <td style="padding:4px 7px;font-size:0.56rem;color:var(--text-muted);">${i + 1}</td>
+      <td style="padding:4px 7px;font-size:0.66rem;color:var(--text-bright);white-space:nowrap;">${h(s.name)} <span style="font-size:0.5rem;color:var(--text-muted);">${h(s.code)}${s.market === 'KOSDAQ' ? '·KQ' : ''}</span></td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${s.price != null ? __pfNum(s.price) : '—'}</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.64rem;font-family:var(--font-mono);font-weight:800;color:#4ade80;">${s.div}%</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${s.per}</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${s.pbr}</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:#22d3ee;">${s.roe}%</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:#a78bfa;">+${s.eps_growth}%</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${s.cap_jo}조</td>
+    </tr>`).join('');
+    const html = `<section class="section-wrap" id="screener-section">
+      <div class="section-label" style="color:#4ade80;">🔎 퀀트 스크리너 <span style="font-size:0.62rem;color:var(--text-muted);">(가치+성장+고배당 조건 필터 — 나열이지 추천 아님 · ${h(d.asof || '')} 기준)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">${crit}</div>
+        <div style="margin-bottom:8px;">${funnel}</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:640px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
+            ${['#', '종목', '현재가', '배당률▼', 'PER', 'PBR', 'ROE', 'EPS성장(1y)', '시총'].map((t, k) => `<th style="padding:4px 7px;text-align:${k <= 1 ? 'left' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          📖 조건: <b>가치</b>(PER·PBR 저평가) + <b>성장</b>(EPS 전년비 증가·ROE) + <b>배당</b>(수익률) + <b>규모</b>(시총) 를 모두 충족한 종목을 배당률 순으로 나열.<br>
+          🚨 <b>이 목록은 종목 추천이 아닙니다</b> — 공개된 기준의 기계적 필터링 결과입니다. EPS·배당은 <b>후행 지표</b>(작년 잘 벌고 배당했다는 뜻 — 미래 보장 없음), 고배당·저PER 종목은 <b>배당컷·밸류트랩</b> 위험을 반드시 개별 검토하세요. ROE=EPS/BPS 근사. 원출처 KRX 일별 지표(1일 1회) · 투자 판단은 본인 책임.
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('screener-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('guru-13f-section') || document.getElementById('trend-signal-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.renderScreener = renderScreener;
+
   // ── 🏛️ 성장 대비 부채 비율 (정부부채/GDP) — 미국·한국·일본 비교 (FRED/IMF) ──
   function renderDebtGdp(d) {
     if (d) window.__debtData = d;
@@ -13052,6 +13095,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./guru_13f.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderGuru13F(d); } catch (e) { } } });
+      // 퀀트 스크리너 — 가치+성장+고배당 조건 필터 (KRX, 로컬 스케줄러 수집)
+      fetch('./stock_screener.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderScreener(d); } catch (e) { } } });
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
