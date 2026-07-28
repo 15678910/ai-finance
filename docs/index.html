@@ -9421,21 +9421,26 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.__renderShortInterest = renderShortInterest;
 
-  // ── 🧭 추세추종 신호 보드 — Jesse 스타일 풀 리포트 (다기간·월별·낙폭·MC·거래차트 / 정보용, 매매 없음) ──
+  // ── 🧭 추세추종 신호 보드 — 원페이지 탭 UI (종목 버튼 × 뷰 탭 × 기간 탭 / 정보용, 매매 없음) ──
   function renderTrendSignal(d) {
     if (d) window.__tsData = d;
     d = window.__tsData;
     if (!d || !d.tickers || !d.tickers.length) return;
+    const TI = Math.min(window.__tsTicker || 0, d.tickers.length - 1);
+    const V = window.__tsView || 'perf';
     const P = window.__tsPeriod || '5y';
+    const t = d.tickers[TI];
     const vc = c => c === 'green' ? '#4ade80' : c === 'yellow' ? '#fbbf24' : '#f87171';
     const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
     const pm = v => (v >= 0 ? '+' : '') + v;
-    const PERIODS = [['ytd', 'YTD(연초~)'], ['2.5y', '2.5년'], ['5y', '5년']];
-    const tabs = PERIODS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="padding:2px 10px;border-radius:6px;font-size:0.58rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.12)'};">${lab}</button>`).join(' ');
-    // ① 자산곡선 (전략 vs 벤치마크)
+    const PERIODS = [['ytd', 'YTD'], ['2.5y', '2.5년'], ['5y', '5년']];
+    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 거래'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교']];
+    const tickerBtns = d.tickers.map((x, i) => `<button onclick="window.__tsTicker=${i};renderTrendSignal()" style="padding:4px 13px;border-radius:8px;font-size:0.66rem;cursor:pointer;font-weight:${i === TI ? 800 : 500};background:${i === TI ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${i === TI ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === TI ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)'};"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.verdict_color)};margin-right:6px;"></span>${h(x.name)}</button>`).join(' ');
+    const viewTabs = VIEWS.map(([k, lab]) => `<button onclick="window.__tsView='${k}';renderTrendSignal()" style="padding:3px 10px;border-radius:6px;font-size:0.58rem;cursor:pointer;font-weight:${k === V ? 700 : 400};background:${k === V ? 'rgba(129,140,248,0.2)' : 'transparent'};color:${k === V ? '#a5b4fc' : 'var(--text-muted)'};border:1px solid ${k === V ? 'rgba(129,140,248,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
+    const periodTabs = PERIODS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="padding:2px 10px;border-radius:6px;font-size:0.56rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.12)'};">${lab}</button>`).join(' ');
     const eqChart = bt => {
       const cv = bt && bt.curve;
-      if (!cv || !cv.eq || cv.eq.length < 2) return '';
+      if (!cv || !cv.eq || cv.eq.length < 2) return '<div style="font-size:0.6rem;color:var(--text-muted);">데이터 없음</div>';
       const W = 340, H = 150, pT = 18, pB = 15, pL = 4, pR = 44;
       const all = cv.eq.concat(cv.bh);
       const mn = Math.min(...all), mx = Math.max(...all), rg = (mx - mn) || 1;
@@ -9456,43 +9461,39 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <text x="${W - pR}" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>
         </svg></div>`;
     };
-    // ② Performance 지표 목록
+    const perfRow = (lab, val, col) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="font-size:0.56rem;color:var(--text-muted);">${lab}</span>
+      <span style="font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:${col || 'var(--text)'};white-space:nowrap;">${val}</span></div>`;
     const perfList = bt => {
       if (!bt) return '<div style="font-size:0.6rem;color:var(--text-muted);">해당 기간 데이터 없음</div>';
-      const row = (lab, val, col) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <span style="font-size:0.56rem;color:var(--text-muted);">${lab}</span>
-        <span style="font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:${col || 'var(--text)'};white-space:nowrap;">${val}</span></div>`;
-      return `${row('총 청산 거래', bt.n_trades + '회')}
-        ${row('총 순수익', pm(bt.total_return_pct) + '%', bt.total_return_pct >= 0 ? '#4ade80' : '#f87171')}
-        ${row('벤치마크(보유시)', pm(bt.bench_return_pct) + '%', '#fbbf24')}
-        ${bt.cagr_pct != null ? row('연환산 수익(CAGR)', pm(bt.cagr_pct) + '%') : ''}
-        ${bt.win_rate != null ? row('승률', bt.win_rate + '%') : ''}
-        ${bt.avg_win_pct != null && bt.avg_loss_pct != null ? row('평균 수익 | 손실', '+' + bt.avg_win_pct + '% | ' + bt.avg_loss_pct + '%') : ''}
-        ${bt.wl_ratio != null ? row('손익비 (W/L)', bt.wl_ratio) : ''}
-        ${bt.expectancy_pct != null ? row('기대값(거래당)', pm(bt.expectancy_pct) + '%', bt.expectancy_pct >= 0 ? '#4ade80' : '#f87171') : ''}
-        ${bt.sharpe != null ? row('샤프 지수', bt.sharpe) : ''}
-        ${row('최대 낙폭(MDD)', bt.mdd_pct + '%', '#f87171')}
-        ${row('최대 수중기간', bt.max_underwater_days + '거래일', '#fb923c')}
-        ${bt.trades_per_month != null ? row('월 거래 · 평균 보유', bt.trades_per_month + '회 · ' + bt.avg_hold_days + '일') : ''}`;
+      return `${perfRow('총 청산 거래', bt.n_trades + '회')}
+        ${perfRow('총 순수익', pm(bt.total_return_pct) + '%', bt.total_return_pct >= 0 ? '#4ade80' : '#f87171')}
+        ${perfRow('벤치마크(보유시)', pm(bt.bench_return_pct) + '%', '#fbbf24')}
+        ${bt.cagr_pct != null ? perfRow('연환산 수익(CAGR)', pm(bt.cagr_pct) + '%') : ''}
+        ${bt.win_rate != null ? perfRow('승률', bt.win_rate + '%') : ''}
+        ${bt.avg_win_pct != null && bt.avg_loss_pct != null ? perfRow('평균 수익 | 손실', '+' + bt.avg_win_pct + '% | ' + bt.avg_loss_pct + '%') : ''}
+        ${bt.wl_ratio != null ? perfRow('손익비 (W/L)', bt.wl_ratio) : ''}
+        ${bt.expectancy_pct != null ? perfRow('기대값(거래당)', pm(bt.expectancy_pct) + '%', bt.expectancy_pct >= 0 ? '#4ade80' : '#f87171') : ''}
+        ${bt.sharpe != null ? perfRow('샤프 지수', bt.sharpe) : ''}
+        ${perfRow('최대 낙폭(MDD)', bt.mdd_pct + '%', '#f87171')}
+        ${perfRow('최대 수중기간', bt.max_underwater_days + '거래일', '#fb923c')}
+        ${bt.trades_per_month != null ? perfRow('월 거래 · 평균 보유', bt.trades_per_month + '회 · ' + bt.avg_hold_days + '일') : ''}`;
     };
-    // ③ 월별 수익률 그리드
-    const monthlyGrid = t => {
+    const monthlyGrid = () => {
       const m = t.monthly || {}, yr = t.yearly || {};
       const years = Object.keys(m).sort();
       if (!years.length) return '';
-      const cell = v => v == null ? '<td style="padding:2px 4px;"></td>' : `<td style="padding:2px 4px;text-align:right;font-size:0.54rem;font-family:var(--font-mono);border-radius:3px;color:${v > 0 ? '#4ade80' : v < 0 ? '#f87171' : 'var(--text-muted)'};background:${v > 0 ? 'rgba(74,222,128,0.09)' : v < 0 ? 'rgba(248,113,113,0.09)' : 'transparent'};">${v > 0 ? '+' : ''}${v}</td>`;
-      return `<div style="margin-top:9px;">
-        <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">📅 월별 수익률 (%)</div>
-        <div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:520px;width:100%;">
+      const cell = v => v == null ? '<td style="padding:2px 4px;"></td>' : `<td style="padding:2px 4px;text-align:right;font-size:0.54rem;font-family:var(--font-mono);color:${v > 0 ? '#4ade80' : v < 0 ? '#f87171' : 'var(--text-muted)'};background:${v > 0 ? 'rgba(74,222,128,0.09)' : v < 0 ? 'rgba(248,113,113,0.09)' : 'transparent'};">${v > 0 ? '+' : ''}${v}</td>`;
+      return `<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:520px;width:100%;">
           <thead><tr>${['연도', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '연간'].map(x => `<th style="padding:2px 4px;font-size:0.5rem;color:var(--text-muted);font-weight:500;text-align:right;">${x}</th>`).join('')}</tr></thead>
           <tbody>${years.map(y => `<tr style="border-top:1px solid rgba(255,255,255,0.05);"><td style="padding:2px 4px;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-bright);">${y}</td>${Array.from({ length: 12 }, (_, i) => cell(m[y][i + 1])).join('')}<td style="padding:2px 4px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);font-weight:700;color:${(yr[y] || 0) >= 0 ? '#4ade80' : '#f87171'};">${yr[y] != null ? (yr[y] > 0 ? '+' : '') + yr[y] : ''}</td></tr>`).join('')}</tbody>
-        </table></div></div>`;
+        </table></div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:3px;">※ 0 = 해당 월 무포지션(현금 보유). 전략 월간 수익률 기준.</div>`;
     };
-    // ④ 최악 낙폭 구간
-    const ddTable = t => {
+    const ddTable = () => {
       const w = t.worst_dd || [];
       if (!w.length) return '';
-      return `<div style="margin-top:9px;">
+      return `<div style="margin-top:10px;">
         <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">📉 최악 낙폭 구간 Top ${w.length}</div>
         ${w.map((e, i) => `<div style="display:flex;gap:10px;align-items:center;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.56rem;">
           <span style="color:var(--text-muted);min-width:14px;">${i + 1}.</span>
@@ -9501,25 +9502,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span style="color:var(--text-muted);">${e.days}거래일${e.ongoing ? ' · 진행중' : ''}</span>
         </div>`).join('')}</div>`;
     };
-    // ⑤ 거래 차트 (가격곡선 + 진입/청산 마커) + 베스트/워스트 거래
-    const tradeChart = t => {
+    const tradeView = () => {
       const bt5 = (t.periods || {})['5y'];
       const cv = bt5 && bt5.curve;
-      if (!cv || !t.markers || !t.markers.length) return '';
-      const W = 340, H = 110, pT = 8, pB = 14, pL = 4, pR = 8;
+      if (!cv || !t.markers || !t.markers.length) return '<div style="font-size:0.6rem;color:var(--text-muted);">거래 데이터 없음</div>';
+      const W = 340, H = 120, pT = 8, pB = 14, pL = 4, pR = 8;
       const mn = Math.min(...cv.bh), mx = Math.max(...cv.bh), rg = (mx - mn) || 1;
       const X = f => pL + f * (W - pL - pR);
       const Xi = i => pL + i / (cv.bh.length - 1) * (W - pL - pR);
       const Y = v => pT + (mx - v) / rg * (H - pT - pB);
       const path = cv.bh.map((v, i) => `${i ? 'L' : 'M'}${Xi(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
       const yAt = f => Y(cv.bh[Math.min(cv.bh.length - 1, Math.round(f * (cv.bh.length - 1)))]);
-      const marks = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.2" fill="#22d3ee" opacity="0.9"><title>진입</title></circle><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.2" fill="${mk.win ? '#4ade80' : '#f87171'}" opacity="0.9"><title>청산</title></circle>`).join('');
+      const marks = t.markers.map(mk => `<circle cx="${X(mk.e).toFixed(1)}" cy="${yAt(mk.e).toFixed(1)}" r="2.4" fill="#22d3ee" opacity="0.9"/><circle cx="${X(mk.x).toFixed(1)}" cy="${yAt(mk.x).toFixed(1)}" r="2.4" fill="${mk.win ? '#4ade80' : '#f87171'}" opacity="0.9"/>`).join('');
       const trades = (t.trades || []).filter(x => !x.open);
-      const best = trades.slice().sort((a, b) => b.ret_pct - a.ret_pct).slice(0, 3);
-      const worst = trades.slice().sort((a, b) => a.ret_pct - b.ret_pct).slice(0, 3);
-      const trow = (x, i) => `<div style="display:flex;gap:8px;font-size:0.55rem;padding:1.5px 0;"><span style="color:var(--text-muted);">${i}</span><span style="font-family:var(--font-mono);color:var(--text);">${x.entry_d}→${x.exit_d}</span><span style="font-family:var(--font-mono);font-weight:700;color:${x.ret_pct >= 0 ? '#4ade80' : '#f87171'};">${x.ret_pct >= 0 ? '+' : ''}${x.ret_pct}%</span><span style="color:var(--text-muted);">${x.days}일</span></div>`;
-      return `<div style="margin-top:9px;">
-        <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">📍 거래 차트 (5년 가격 위 진입 <span style="color:#22d3ee;">●</span> / 청산 <span style="color:#4ade80;">●</span><span style="color:#f87171;">●</span>)</div>
+      const best = trades.slice().sort((a, b) => b.ret_pct - a.ret_pct).slice(0, 4);
+      const worst = trades.slice().sort((a, b) => a.ret_pct - b.ret_pct).slice(0, 4);
+      const trow = (x, i) => `<div style="display:flex;gap:8px;font-size:0.56rem;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><span style="color:var(--text-muted);">${i}</span><span style="font-family:var(--font-mono);color:var(--text);">${x.entry_d} → ${x.exit_d}</span><span style="font-family:var(--font-mono);font-weight:700;color:${x.ret_pct >= 0 ? '#4ade80' : '#f87171'};">${x.ret_pct >= 0 ? '+' : ''}${x.ret_pct}%</span><span style="color:var(--text-muted);">${x.days}일</span></div>`;
+      return `<div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">5년 가격 위 진입 <span style="color:#22d3ee;">●</span> / 청산 <span style="color:#4ade80;">●</span>승 <span style="color:#f87171;">●</span>패</div>
         <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;">
         <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
           <path d="${path}" fill="none" stroke="rgba(251,191,36,0.55)" stroke-width="1"/>
@@ -9527,85 +9526,120 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <text x="${pL}" y="${H - 3}" font-size="6.5" fill="#7d8590">${cv.d0}</text>
           <text x="${W - pR}" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${cv.d1}</text>
         </svg></div>
-        ${trades.length ? `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:5px;">
-          <div style="min-width:200px;"><div style="font-size:0.54rem;color:#4ade80;font-weight:700;">🏆 베스트 거래</div>${best.map((x, i) => trow(x, i + 1)).join('')}</div>
-          <div style="min-width:200px;"><div style="font-size:0.54rem;color:#f87171;font-weight:700;">💥 워스트 거래</div>${worst.map((x, i) => trow(x, i + 1)).join('')}</div>
-        </div>` : ''}</div>`;
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:7px;">
+          <div style="flex:1;min-width:220px;"><div style="font-size:0.56rem;color:#4ade80;font-weight:700;margin-bottom:2px;">🏆 베스트 거래</div>${best.map((x, i) => trow(x, i + 1)).join('')}</div>
+          <div style="flex:1;min-width:220px;"><div style="font-size:0.56rem;color:#f87171;font-weight:700;margin-bottom:2px;">💥 워스트 거래</div>${worst.map((x, i) => trow(x, i + 1)).join('')}</div>
+        </div>`;
     };
-    // ⑥ 몬테카를로: 히스토그램 + 표
-    const mcBlock = t => {
+    const mcView = () => {
       const mc = t.monte_carlo;
-      if (!mc) return '';
+      if (!mc) return '<div style="font-size:0.6rem;color:var(--text-muted);">MC 데이터 없음</div>';
       const mcc = vc(mc.verdict_color);
       const hist = mc.hist;
       let histSvg = '';
       if (hist && hist.bins) {
-        const W = 340, H = 92, pB = 14, maxB = Math.max(...hist.bins) || 1;
+        const W = 340, H = 100, pB = 14, maxB = Math.max(...hist.bins) || 1;
         const bw = W / hist.bins.length;
         const bars = hist.bins.map((b, i) => `<rect x="${(i * bw + 0.5).toFixed(1)}" y="${(H - pB - b / maxB * (H - pB - 6)).toFixed(1)}" width="${(bw - 1).toFixed(1)}" height="${(b / maxB * (H - pB - 6)).toFixed(1)}" fill="rgba(129,140,248,0.55)"/>`).join('');
         const ox = (hist.orig_bin + 0.5) * bw;
-        histSvg = `<div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;margin-top:4px;">
+        histSvg = `<div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;margin-top:5px;">
         <svg viewBox="0 0 340 ${H}" style="width:100%;height:auto;display:block;">
           ${bars}
           <line x1="${ox.toFixed(1)}" y1="4" x2="${ox.toFixed(1)}" y2="${H - pB}" stroke="#fbbf24" stroke-width="1.6"/>
-          <text x="${Math.min(300, ox + 3).toFixed(1)}" y="10" font-size="7" fill="#fbbf24" font-weight="700">원본 ${mc.orig_sharpe}</text>
+          <text x="${Math.min(295, ox + 3).toFixed(1)}" y="11" font-size="7.5" fill="#fbbf24" font-weight="700">원본 ${mc.orig_sharpe}</text>
           <text x="2" y="${H - 3}" font-size="6.5" fill="#7d8590">null 샤프 분포 ${hist.lo}</text>
           <text x="338" y="${H - 3}" font-size="6.5" fill="#7d8590" text-anchor="end">${hist.hi}</text>
         </svg></div>`;
       }
-      return `<div style="margin-top:9px;">
-        <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;">🎲 몬테카를로 (무작위 진입 ${mc.sims}회 · 샤프 기준) — <span style="font-weight:700;color:${mcc};">${h(mc.verdict)}</span></div>
+      return `<div style="font-size:0.6rem;">무작위 진입 ${mc.sims}회(같은 횟수·보유기간) 대비 원본 전략의 위치 — <span style="font-weight:700;color:${mcc};">${h(mc.verdict)}</span></div>
         ${histSvg}
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;font-size:0.56rem;font-family:var(--font-mono);">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;font-size:0.58rem;font-family:var(--font-mono);">
           <span>원본 샤프 <b style="color:#fbbf24;">${mc.orig_sharpe}</b></span>
           <span>null 중앙값 <b style="color:var(--text);">${mc.null_median_sharpe}</b></span>
           <span>null 상위 5% <b style="color:var(--text);">${mc.null_best5_sharpe}</b></span>
           <span>원본 백분위 <b style="color:${mcc};">${mc.pctile}</b></span>
-        </div></div>`;
-    };
-    const cards = d.tickers.map(t => {
-      const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
-      return `<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:11px 13px;margin-top:8px;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="font-size:0.78rem;font-weight:800;color:var(--text-bright);">${h(t.name)}</span>
-          <span style="font-size:0.5rem;color:var(--text-muted);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:0 5px;">${h(t.tag)}</span>
-          <span style="font-size:0.62rem;font-family:var(--font-mono);color:var(--text-muted);">${__pfNum(Math.round(t.price))}</span>
-          <span style="margin-left:auto;font-size:0.62rem;font-weight:700;color:${vc(t.verdict_color)};background:${vc(t.verdict_color)}1c;border-radius:10px;padding:2px 9px;">${h(t.verdict)}</span>
         </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;margin-bottom:8px;font-size:0.6rem;">
-          <span>대추세: ${chk(t.trend_up, 'EMA200 위', 'EMA200 아래')}</span>
-          <span>Supertrend: ${t.st_long ? `<span style="color:#4ade80;">✓ 롱</span>` : `<span style="color:#f87171;">✗ 숏</span>`} <span style="color:var(--text-muted);font-family:var(--font-mono);">(스탑 ${__pfNum(Math.round(t.st_line))})</span></span>
-          <span>ADX: <span style="color:${t.adx_strong ? '#4ade80' : '#fbbf24'};font-family:var(--font-mono);">${t.adx}</span> ${t.adx_strong ? '(추세 강함)' : '(약함)'}</span>
-          ${t.pullback ? `<span style="color:#22d3ee;">📍 풀백 구간 (EMA20 아래 눌림)</span>` : ''}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">원본(노란선)이 분포 상위 95%↑면 '운이 아닌 타이밍 엣지'. 중앙값 근처/이하면 무작위 진입과 구분 불가 — 강세장에선 아무 때나 사도 벌기 때문. (영상의 Jesse Monte Carlo 세션과 동일한 해석 틀)</div>`;
+    };
+    const optView = () => {
+      const g = t.optimization || [];
+      if (!g.length) return '<div style="font-size:0.6rem;color:var(--text-muted);">최적화 데이터 없음</div>';
+      return `<div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:4px;">Supertrend <b>기간 × 배수</b> 15조합 그리드 탐색 (5년 · 샤프 내림차순 상위 ${g.length})</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:460px;">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">${['순위', '파라미터', '샤프', '총수익', 'MDD', '승률', '거래수'].map((x, k) => `<th style="padding:3px 7px;text-align:${k <= 1 ? 'left' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${x}</th>`).join('')}</tr></thead>
+        <tbody>${g.map((x, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${x.current ? 'background:rgba(34,211,238,0.08);' : ''}">
+          <td style="padding:3px 7px;font-size:0.58rem;color:var(--text-muted);">${i + 1}</td>
+          <td style="padding:3px 7px;font-size:0.62rem;font-family:var(--font-mono);color:var(--text-bright);">ST(${x.period}, ${x.mult})${x.current ? ' <span style="font-size:0.5rem;color:#22d3ee;font-weight:700;">← 현재 사용</span>' : ''}</td>
+          <td style="padding:3px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${(x.sharpe || 0) >= 1 ? '#4ade80' : 'var(--text)'};">${x.sharpe == null ? '—' : x.sharpe}</td>
+          <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${x.total_return_pct >= 0 ? '#4ade80' : '#f87171'};">${pm(x.total_return_pct)}%</td>
+          <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#f87171;">${x.mdd_pct}%</td>
+          <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${x.win_rate}%</td>
+          <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${x.n_trades}</td>
+        </tr>`).join('')}</tbody></table></div>
+        <div style="font-size:0.54rem;color:#fb923c;margin-top:5px;line-height:1.6;">⚠️ <b>과적합 주의</b>: 상위 파라미터는 '과거 5년에 가장 잘 맞았던 값'일 뿐, 미래 최적을 보장하지 않습니다. 영상 방법론대로라면 최적 파라미터 채택 후 몬테카를로·다른 기간 재검증이 필수. 현재 보드는 표준값 ST(10, 3)을 유지합니다.</div>`;
+    };
+    const entryView = () => {
+      const ec = t.entry_compare || {};
+      const m = ec.market, li = ec.limit;
+      if (!m || !li) return '<div style="font-size:0.6rem;color:var(--text-muted);">비교 데이터 없음</div>';
+      const row = (lab, a, b, suf, col) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:3px 8px;font-size:0.58rem;color:var(--text-muted);">${lab}</td>
+        <td style="padding:3px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${col ? (a >= 0 ? '#4ade80' : '#f87171') : 'var(--text)'};">${col ? pm(a) : a}${suf}</td>
+        <td style="padding:3px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${col ? (b >= 0 ? '#4ade80' : '#f87171') : 'var(--text)'};">${col ? pm(b) : b}${suf}</td></tr>`;
+      return `<div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:4px;">영상 지적 재현 — "풀백 진입은 원래 <b>리밋주문</b> 의도": 시장가(조건 충족 즉시) vs 리밋(전일 EMA20에 걸고 눌림 체결) · 5년</div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:380px;">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
+          <th style="padding:3px 8px;text-align:left;font-size:0.52rem;color:var(--text-muted);font-weight:500;">지표</th>
+          <th style="padding:3px 8px;text-align:right;font-size:0.52rem;color:#22d3ee;font-weight:700;">시장가 진입 (현재)</th>
+          <th style="padding:3px 8px;text-align:right;font-size:0.52rem;color:#a5b4fc;font-weight:700;">리밋 풀백 진입</th></tr></thead>
+        <tbody>
+          ${row('총 순수익', m.total_return_pct, li.total_return_pct, '%', true)}
+          ${row('샤프 지수', m.sharpe == null ? '—' : m.sharpe, li.sharpe == null ? '—' : li.sharpe, '', false)}
+          ${row('최대 낙폭(MDD)', m.mdd_pct, li.mdd_pct, '%', false)}
+          ${row('승률', m.win_rate, li.win_rate, '%', false)}
+          ${row('거래 수', m.n_trades, li.n_trades, '회', false)}
+        </tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">💡 해석: 리밋 풀백은 진입가가 유리하지만 <b>강한 추세(눌림 없이 급등)를 통째로 놓칠 수 있음</b> — 특히 급등장에서 시장가 대비 불리해질 수 있습니다. 결과가 종목·기간마다 다르니 두 방식의 트레이드오프를 함께 보세요.</div>`;
+    };
+    const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
+    let content = '';
+    if (V === 'perf') {
+      content = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px;">
+          <span style="font-size:0.56rem;color:var(--text-muted);">기간:</span>${periodTabs}
         </div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
-          <div style="flex:1.5;min-width:270px;">
-            <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:2px;">누적 수익 vs 벤치마크 <span style="opacity:0.7;">(${(PERIODS.find(x => x[0] === P) || [])[1] || P})</span></div>
-            ${eqChart(bt)}
-            ${tradeChart(t)}
-          </div>
-          <div style="flex:1;min-width:215px;">
-            <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:2px;">Performance <span style="opacity:0.6;">(${(PERIODS.find(x => x[0] === P) || [])[1] || P})</span></div>
-            ${perfList(bt)}
-            ${ddTable(t)}
-          </div>
-        </div>
-        ${monthlyGrid(t)}
-        ${mcBlock(t)}
-      </div>`;
-    }).join('');
+          <div style="flex:1.5;min-width:270px;">${eqChart(bt)}</div>
+          <div style="flex:1;min-width:215px;">${perfList(bt)}</div>
+        </div>`;
+    } else if (V === 'monthly') {
+      content = monthlyGrid() + ddTable();
+    } else if (V === 'trades') {
+      content = tradeView();
+    } else if (V === 'mc') {
+      content = mcView();
+    } else if (V === 'opt') {
+      content = optView();
+    } else if (V === 'entry') {
+      content = entryView();
+    }
     const html = `<section class="section-wrap" id="trend-signal-section">
       <div class="section-label" style="color:#22d3ee;">🧭 추세추종 신호 보드 <span style="font-size:0.62rem;color:var(--text-muted);">(Supertrend·EMA200·ADX — 정보용, 매매 실행 없음${d.asof ? ` · ${h(d.asof)} 기준` : ''})</span></div>
       <div class="glass-card" style="padding:14px 16px;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="font-size:0.62rem;color:var(--text-muted);font-weight:600;">백테스트 기간:</span>${tabs}
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">${tickerBtns}
+          <span style="margin-left:auto;font-size:0.62rem;font-weight:700;color:${vc(t.verdict_color)};background:${vc(t.verdict_color)}1c;border-radius:10px;padding:2px 9px;">${h(t.verdict)}</span>
         </div>
-        ${cards}
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
-          🧭 규칙: <b>대추세</b>(종가&gt;EMA200) + <b>Supertrend(10,3) 롱</b> + <b>ADX≥20</b> 충족 시 조건 성립 · 청산=Supertrend 트레일링 스탑. 📊 백테스트: 일봉·롱온리·왕복비용 0.28%.<br>
-          🎲 몬테카를로: 같은 횟수·보유기간의 <b>무작위 진입</b> 1,000회 null 샤프 분포에서 원본(노란선) 위치 — 원본이 상위 95%↑면 '운이 아닌 엣지'. 낮으면 타이밍 우위 입증 안 됨.<br>
-          💡 낮은 승률 + 높은 손익비 + 긴 수중기간(수백 일)은 추세추종 특유의 심리 난도 — 단일 전략 몰빵 대신 상관 낮은 전략 분산이 정석.<br>
-          🚨 이 보드는 <b>신호 정보만</b> 제공하며 자동매매하지 않습니다. 과거 성과는 미래를 보장하지 않음 · 투자 판단은 본인 책임.
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:0.6rem;align-items:center;">
+          <span style="font-size:0.64rem;font-family:var(--font-mono);color:var(--text-bright);font-weight:700;">${__pfNum(Math.round(t.price))}</span>
+          <span>대추세: ${chk(t.trend_up, 'EMA200 위', 'EMA200 아래')}</span>
+          <span>Supertrend: ${t.st_long ? `<span style="color:#4ade80;">✓ 롱</span>` : `<span style="color:#f87171;">✗ 숏</span>`} <span style="color:var(--text-muted);font-family:var(--font-mono);">(스탑 ${__pfNum(Math.round(t.st_line))})</span></span>
+          <span>ADX: <span style="color:${t.adx_strong ? '#4ade80' : '#fbbf24'};font-family:var(--font-mono);">${t.adx}</span> ${t.adx_strong ? '(강함)' : '(약함)'}</span>
+          ${t.pullback ? `<span style="color:#22d3ee;">📍 풀백 구간</span>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);">${viewTabs}</div>
+        <div style="margin-top:9px;">${content}</div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:10px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
+          🧭 규칙: 대추세(종가&gt;EMA200)+Supertrend(10,3) 롱+ADX≥20 · 청산=ST 트레일링 · 일봉 롱온리 · 왕복비용 0.28%. 종목 버튼·뷰 탭으로 한 화면에서 전환.
+          🚨 신호 정보만 제공(자동매매 없음) · 과거 성과≠미래 · 낮은 승률·긴 수중기간은 추세추종 특성 · 투자 판단은 본인 책임.
         </div>
       </div>
     </section>`;

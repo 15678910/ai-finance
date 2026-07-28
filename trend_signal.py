@@ -231,6 +231,66 @@ def worst_drawdowns(curve_eq, curve_d, top=3):
     return eps[:top]
 
 
+def run_strategy_limit(c, l, dates, st_dir, e200, e20, adx):
+    """리밋주문 풀백 진입 변형: 조건 충족 시 '대기' → 전일 EMA20에 리밋 걸고
+    저가가 닿으면 체결(진입가=전일 EMA20). 청산은 동일(ST 하향 트레일링).
+    영상에서 '풀백 진입은 원래 리밋주문 의도였다'고 지적한 부분의 구현."""
+    n = len(c)
+    trades, pos, entry_eq = [], None, 1.0
+    eq = 1.0
+    curve_eq = []
+    for i in range(WARM, n):
+        if pos is None:
+            armed = st_dir[i] == 1 and c[i] > e200[i] and adx[i] >= ADX_MIN
+            # 리밋 체결 판정: 조건 충족 대기 상태에서 저가가 전일 EMA20 이하로 눌리면 체결
+            if armed and l[i] <= e20[i - 1] and c[i] > 0:
+                fill = min(e20[i - 1], c[i - 1])          # 갭하락 보수 반영
+                eq *= c[i] / fill
+                pos, entry_eq = i, eq / (c[i] / fill)
+        else:
+            eq *= c[i] / c[i - 1]
+            if st_dir[i] == -1:
+                eq *= (1 - COST)
+                trades.append({"ret": eq / entry_eq - 1, "days": i - pos})
+                pos = None
+        curve_eq.append(eq)
+    if pos is not None:
+        trades.append({"ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
+    return curve_eq, trades
+
+
+def quick_metrics(curve_eq, trades):
+    """(총수익%, 샤프, MDD%, 승률, 거래수) — 최적화·비교표용 경량 지표."""
+    if not trades or len(curve_eq) < 30:
+        return None
+    dr = [curve_eq[i] / curve_eq[i - 1] - 1 for i in range(1, len(curve_eq))]
+    peak, mdd = curve_eq[0], 0.0
+    for v in curve_eq:
+        peak = max(peak, v)
+        mdd = min(mdd, v / peak - 1)
+    closed = [t for t in trades]
+    wins = sum(1 for t in closed if t["ret"] > 0)
+    return {"total_return_pct": round((curve_eq[-1] - 1) * 100, 1), "sharpe": _sharpe(dr),
+            "mdd_pct": round(mdd * 100, 1), "win_rate": round(wins / len(closed) * 100),
+            "n_trades": len(closed)}
+
+
+def optimize_grid(h, l, c, dates, e200, adx):
+    """Supertrend 기간×배수 그리드 탐색 (5년 전체) — 샤프 내림차순 상위."""
+    grid = []
+    for p in (7, 10, 14):
+        for m in (2.0, 2.5, 3.0, 3.5, 4.0):
+            sd, _ = supertrend(h, l, c, p, m)
+            ce, _, _, tr = run_strategy(c, dates, sd, e200, adx)
+            qm = quick_metrics(ce, tr)
+            if qm:
+                qm.update({"period": p, "mult": m,
+                           "current": (p == ST_PERIOD and abs(m - ST_MULT) < 0.01)})
+                grid.append(qm)
+    grid.sort(key=lambda g: (g["sharpe"] if g["sharpe"] is not None else -9), reverse=True)
+    return grid
+
+
 def monte_carlo(c, trades, orig_sharpe, sims=1000, seed=7):
     """랜덤진입 검정(샤프 기준): 같은 횟수·보유기간 무작위 진입 null 분포 → 원본 위치.
     Jesse 영상 해석: 원본이 null 중앙값 근처/이하 = 과적합 아님(운 아님)이 아니라,
@@ -344,6 +404,13 @@ def main():
         p5 = periods.get("5y") or {}
         mc = monte_carlo(c, trades, p5.get("sharpe"))
 
+        # 하이퍼파라미터 그리드 탐색 (Supertrend 기간×배수, 15조합)
+        opt = optimize_grid(h, l, c, dts, e200, adx)
+        # 진입방식 비교: 시장가(조건 충족 즉시) vs 리밋(전일 EMA20 풀백 체결)
+        ce_l, tr_l = run_strategy_limit(c, l, dts, st_dir, e200, e20, adx)
+        entry_compare = {"market": quick_metrics(curve_eq, trades),
+                         "limit": quick_metrics(ce_l, tr_l)}
+
         # 거래 목록 (마커·베스트/워스트용, 최대 40건)
         tlist = [{"entry_d": t["entry_d"], "exit_d": t["exit_d"],
                   "ret_pct": round(t["ret"] * 100, 1), "days": t["days"],
@@ -364,6 +431,7 @@ def main():
             "periods": periods, "monthly": monthly, "yearly": yearly,
             "worst_dd": wdd, "trades": tlist, "markers": markers,
             "monte_carlo": mc,
+            "optimization": opt[:8], "entry_compare": entry_compare,
         })
         print(f"  {name}: {verdict}")
         for pk in ("ytd", "2.5y", "5y"):
