@@ -10100,7 +10100,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const crit = Object.entries(d.criteria || {}).map(([k, v]) => `<span style="font-size:0.56rem;color:#22d3ee;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.3);border-radius:10px;padding:2px 8px;white-space:nowrap;">${h(k)} ${h(v)}</span>`).join(' ');
     const fn = d.funnel || {};
     const funnel = `<span style="font-size:0.56rem;color:var(--text-muted);">전체 <b>${(fn.universe || 0).toLocaleString()}</b> → 가치 <b>${fn.value || 0}</b> → +성장 <b>${fn.growth || 0}</b> → +배당 <b>${fn.div || 0}</b> → +시총 <b style="color:#4ade80;">${fn.cap || 0}</b>종목</span>`;
-    const rows = d.stocks.map((s, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+    // 🏦 재무건전성 필터 (DART 이자보상배율·부채비율) — 기본 ON
+    const SH = (window.__dfData && window.__dfData.screener_health) || {};
+    const HF = window.__scrHealthFilter !== false;      // 기본 켜짐
+    const IC_MIN = 3, DR_MAX = 150;
+    const pass = s => { const x = SH[s.code]; return x && (x.interest_coverage != null && x.interest_coverage >= IC_MIN) && (x.debt_ratio != null && x.debt_ratio <= DR_MAX); };
+    const shown = HF ? d.stocks.filter(pass) : d.stocks;
+    const nUnknown = d.stocks.filter(s => !SH[s.code]).length;
+    const nFail = d.stocks.length - shown.length - (HF ? nUnknown : 0);
+    const hasSH = Object.keys(SH).length > 0;
+    const filterBar = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 8px;">
+      <button onclick="window.__scrHealthFilter=${HF ? 'false' : 'true'};renderScreener()" style="padding:3px 11px;border-radius:7px;font-size:0.58rem;cursor:pointer;font-weight:${HF ? 700 : 400};background:${HF ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${HF ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${HF ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.12)'};">🏦 재무건전성 필터 ${HF ? 'ON' : 'OFF'}</button>
+      <span style="font-size:0.54rem;color:var(--text-muted);">${hasSH ? `이자보상 ≥${IC_MIN}배 · 부채비율 ≤${DR_MAX}% ${HF ? `→ <b style="color:#4ade80;">${shown.length}종목</b> 통과 (탈락 ${nFail} · 재무 미확인 ${nUnknown} 제외)` : '(현재 미적용 — 전체 표시)'}` : '<span style="color:#fbbf24;">DART 재무 데이터 대기 중 — 다음 자동 수집 후 활성화</span>'}</span>
+    </div>`;
+    const rows = shown.map((s, i) => { const x = SH[s.code] || {};
+      const icC = x.interest_coverage == null ? 'var(--text-muted)' : x.interest_coverage >= 3 ? '#4ade80' : x.interest_coverage >= 1 ? '#fbbf24' : '#f87171';
+      const drC = x.debt_ratio == null ? 'var(--text-muted)' : x.debt_ratio <= 100 ? '#4ade80' : x.debt_ratio <= 200 ? '#fbbf24' : '#f87171';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
       <td style="padding:4px 7px;font-size:0.56rem;color:var(--text-muted);">${i + 1}</td>
       <td style="padding:4px 7px;font-size:0.66rem;color:var(--text-bright);white-space:nowrap;">${h(s.name)} <span style="font-size:0.5rem;color:var(--text-muted);">${h(s.code)}${s.market === 'KOSDAQ' ? '·KQ' : ''}</span></td>
       <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${s.price != null ? __pfNum(s.price) : '—'}</td>
@@ -10109,19 +10125,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">${s.pbr}</td>
       <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:#22d3ee;">${s.roe}%</td>
       <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);color:#a78bfa;">+${s.eps_growth}%</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${drC};">${x.debt_ratio == null ? '—' : x.debt_ratio + '%'}</td>
+      <td style="padding:4px 7px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);font-weight:700;color:${icC};">${x.interest_coverage == null ? '—' : x.interest_coverage + '배'}</td>
       <td style="padding:4px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${s.cap_jo}조</td>
-    </tr>`).join('');
+    </tr>`; }).join('') || '<tr><td colspan="11" style="padding:10px;font-size:0.6rem;color:var(--text-muted);">조건을 통과한 종목이 없습니다. 필터를 OFF로 바꿔 전체를 확인하세요.</td></tr>';
     const html = `<section class="section-wrap" id="screener-section">
       <div class="section-label" style="color:#4ade80;">🔎 퀀트 스크리너 <span style="font-size:0.62rem;color:var(--text-muted);">(가치+성장+고배당 조건 필터 — 나열이지 추천 아님 · ${h(d.asof || '')} 기준)</span></div>
       <div class="glass-card" style="padding:14px 16px;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">${crit}</div>
-        <div style="margin-bottom:8px;">${funnel}</div>
-        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:640px;">
+        <div style="margin-bottom:2px;">${funnel}</div>
+        ${filterBar}
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:720px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
-            ${['#', '종목', '현재가', '배당률▼', 'PER', 'PBR', 'ROE', 'EPS성장(1y)', '시총'].map((t, k) => `<th style="padding:4px 7px;text-align:${k <= 1 ? 'left' : 'right'};font-size:0.52rem;color:var(--text-muted);font-weight:500;">${t}</th>`).join('')}
+            ${['#', '종목', '현재가', '배당률▼', 'PER', 'PBR', 'ROE', 'EPS성장(1y)', '부채비율', '이자보상', '시총'].map((t, k) => `<th style="padding:4px 7px;text-align:${k <= 1 ? 'left' : 'right'};font-size:0.52rem;color:${k === 8 || k === 9 ? '#22d3ee' : 'var(--text-muted)'};font-weight:500;">${t}</th>`).join('')}
           </tr></thead><tbody>${rows}</tbody></table></div>
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
-          📖 조건: <b>가치</b>(PER·PBR 저평가) + <b>성장</b>(EPS 전년비 증가·ROE) + <b>배당</b>(수익률) + <b>규모</b>(시총) 를 모두 충족한 종목을 배당률 순으로 나열.<br>
+          📖 조건: <b>가치</b>(PER·PBR 저평가) + <b>성장</b>(EPS 전년비 증가·ROE) + <b>배당</b>(수익률) + <b>규모</b>(시총) 를 KRX 전 종목에 적용 → 통과 종목에 <b style="color:#22d3ee;">🏦 재무건전성</b>(DART 사업보고서: 이자보상배율·부채비율)을 추가 검증. 배당률 순 정렬.<br>
+          🏦 <b>이자보상배율 = 영업이익 ÷ 이자비용</b> — <b style="color:#f87171;">1 미만이면 영업이익으로 이자도 못 갚는 상태</b>이므로 고배당이어도 배당 지속이 어렵습니다(배당컷·밸류트랩 판별의 핵심). 필터 OFF로 전체를 보고 어떤 종목이 왜 탈락했는지 비교해 보세요.<br>
           🚨 <b>이 목록은 종목 추천이 아닙니다</b> — 공개된 기준의 기계적 필터링 결과입니다. EPS·배당은 <b>후행 지표</b>(작년 잘 벌고 배당했다는 뜻 — 미래 보장 없음), 고배당·저PER 종목은 <b>배당컷·밸류트랩</b> 위험을 반드시 개별 검토하세요. ROE=EPS/BPS 근사. 원출처 KRX 일별 지표(1일 1회) · 투자 판단은 본인 책임.
         </div>
       </div>
@@ -12901,7 +12921,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // 재무건전성 — DART 사업보고서 (보드 '📑 재무' 뷰에서 사용)
       fetch('./dart_financials.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) { window.__dfData = d; try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
+        .then(d => { if (d) { window.__dfData = d; try { if (window.__tsData) renderTrendSignal(); } catch (e) { } try { if (window.__scrData) renderScreener(); } catch (e) { } } });
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

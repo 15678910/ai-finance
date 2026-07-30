@@ -189,6 +189,34 @@ def eps_trend(years):
             "note": ("매년 증가 (일관된 성장)" if consistent else "증감 혼재 — 일시적 반등 가능성 확인 필요")}
 
 
+def screener_health(key, cmap, now):
+    """퀀트 스크리너 통과 후보에 재무건전성 부착.
+    전 종목 DART 조회는 수천 콜이라 비현실적 → 이미 KRX로 걸러진 20여 종목만 조회(최신 1개 연도)."""
+    path = os.path.join(BASE_DIR, "docs", "stock_screener.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            sc = json.load(f)
+    except Exception:
+        print("  [INFO] stock_screener.json 없음 — 스크리너 건전성 스킵")
+        return {}, None
+    out, cands = {}, (sc.get("stocks") or [])
+    for s in cands:
+        code = s.get("code")
+        corp = cmap.get(code)
+        if not corp:
+            continue
+        for y in (now.year - 1, now.year - 2):          # 최신 사업연도 우선, 없으면 직전
+            r = fetch_year(key, corp, y)
+            time.sleep(0.25)
+            if r:
+                rr = ratios(r)
+                out[code] = {"fy": y, "fs_div": r.get("fs_div"), **rr, "health": health(rr)}
+                break
+    ok = sum(1 for v in out.values() if (v.get("interest_coverage") or 0) >= 3 and (v.get("debt_ratio") or 999) <= 150)
+    print(f"  스크리너 후보 {len(cands)}종목 중 {len(out)}종목 재무 확보 · 건전성 통과(이자보상≥3·부채≤150%) {ok}종목")
+    return out, sc.get("asof")
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -252,9 +280,12 @@ def main():
         print("[ERROR] 전 종목 실패 — 기존 파일 보존.")
         return 1
 
+    sh, sh_asof = screener_health(key, cmap, now)      # 스크리너 후보 건전성
+
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "stocks": stocks,
+        "screener_health": sh, "screener_asof": sh_asof,
         "criteria": {"유동비율": "≥150% 양호 · <100% 주의", "부채비율": "≤100% 양호 · >200% 주의",
                      "이자보상배율": "≥3배 양호 · <1배 경고(영업이익<이자)"},
         "note": ("DART 사업보고서(연간, 연결 우선) 기반 재무건전성. "
