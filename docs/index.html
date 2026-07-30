@@ -9864,6 +9864,57 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           ${perfRow('기준일', h(s.asof || '—'))}
           <div style="font-size:0.53rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">PER/PBR 밴드=최근 1년 범위 내 현재 위치(백분위 낮을수록 역사적 저평가). ROE는 EPS/BPS 근사(재무제표 기준 아님). 적자 기업은 PER 미표시. KRX 일별 기초지표.</div>
         </div>
+      </div>
+      ${finHealthBlock(t.name)}`;
+    };
+    // 🏦 재무건전성 (DART 사업보고서) — 유동비율·부채비율·이자보상배율 + EPS 다년 추세
+    const finHealthBlock = nm => {
+      const fd = window.__dfData;
+      if (!fd || !fd.stocks) return '';
+      const s = fd.stocks.find(x => x.name === nm);
+      if (!s) return `<div style="margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,0.08);font-size:0.56rem;color:var(--text-muted);">🏦 재무건전성: ${h(nm)} 데이터 없음 (DART 사업보고서 미수집 종목)</div>`;
+      const hc = s.health && s.health.color === 'green' ? '#4ade80' : s.health && s.health.color === 'yellow' ? '#fbbf24' : s.health && s.health.color === 'red' ? '#f87171' : 'var(--text-muted)';
+      const gauge = (lab, val, unit, good, warn, inv) => {
+        // inv=true: 낮을수록 좋음(부채비율)
+        const c = val == null ? 'var(--text-muted)'
+          : inv ? (val <= good ? '#4ade80' : val <= warn ? '#fbbf24' : '#f87171')
+                : (val >= good ? '#4ade80' : val >= warn ? '#fbbf24' : '#f87171');
+        return `<div style="flex:1;min-width:110px;background:rgba(255,255,255,0.03);border-radius:8px;padding:7px 9px;">
+          <div style="font-size:0.53rem;color:var(--text-muted);">${lab}</div>
+          <div style="font-size:1.02rem;font-weight:800;font-family:var(--font-mono);color:${c};">${val == null ? '—' : val + unit}</div>
+          <div style="font-size:0.47rem;color:var(--text-muted);">${inv ? `≤${good}${unit} 양호 · >${warn}${unit} 주의` : `≥${good}${unit} 양호 · <${warn}${unit} 주의`}</div>
+        </div>`;
+      };
+      const et = s.eps_trend || {};
+      const evals = et.values || [];
+      const epsBars = evals.length ? (() => {
+        const mx = Math.max(...evals.map(v => Math.abs(v.eps)), 1);
+        return evals.map(v => `<div style="flex:1;text-align:center;">
+          <div style="height:34px;display:flex;align-items:flex-end;justify-content:center;">
+            <div style="width:60%;height:${Math.max(3, Math.abs(v.eps) / mx * 34).toFixed(0)}px;background:${v.eps >= 0 ? 'rgba(74,222,128,0.65)' : 'rgba(248,113,113,0.65)'};border-radius:2px 2px 0 0;"></div>
+          </div>
+          <div style="font-size:0.47rem;color:var(--text-muted);font-family:var(--font-mono);">${v.year}</div>
+          <div style="font-size:0.5rem;color:${v.eps >= 0 ? '#4ade80' : '#f87171'};font-family:var(--font-mono);">${__pfNum(v.eps)}</div>
+        </div>`).join('');
+      })() : '<span style="font-size:0.56rem;color:var(--text-muted);">EPS 이력 부족</span>';
+      return `<div style="margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="font-size:0.62rem;font-weight:700;color:#22d3ee;">🏦 재무건전성</span>
+          <span style="font-size:0.6rem;font-weight:700;color:${hc};background:${hc}1c;border-radius:10px;padding:2px 9px;">${h((s.health || {}).grade || '—')}${(s.health || {}).score != null ? ` ${s.health.score}점` : ''}</span>
+          <span style="font-size:0.5rem;color:var(--text-muted);">DART 사업보고서 FY${s.fy}${s.fs_div === 'CFS' ? '·연결' : s.fs_div === 'OFS' ? '·별도' : ''}</span>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;">
+          ${gauge('유동비율', s.current_ratio, '%', 150, 100, false)}
+          ${gauge('부채비율', s.debt_ratio, '%', 100, 200, true)}
+          ${gauge('이자보상배율', s.interest_coverage, '배', 3, 1, false)}
+        </div>
+        ${(s.health && s.health.flags && s.health.flags.length) ? `<div style="margin-top:6px;font-size:0.55rem;color:#f87171;line-height:1.6;">${s.health.flags.map(f => '⚠️ ' + h(f)).join('<br>')}</div>` : ''}
+        <div style="margin-top:9px;">
+          <div style="font-size:0.58rem;color:var(--text-muted);font-weight:600;margin-bottom:3px;">📈 EPS 다년 추세 ${et.cagr != null ? `<span style="color:${et.cagr >= 0 ? '#4ade80' : '#f87171'};font-family:var(--font-mono);">CAGR ${et.cagr >= 0 ? '+' : ''}${et.cagr}%</span>` : ''} ${et.consistent === true ? '<span style="color:#4ade80;">· 매년 증가 ✓</span>' : et.consistent === false ? '<span style="color:#fbbf24;">· 증감 혼재</span>' : ''}</div>
+          <div style="display:flex;gap:5px;align-items:flex-end;background:rgba(0,0,0,0.2);border-radius:8px;padding:6px 8px;">${epsBars}</div>
+          ${et.note ? `<div style="font-size:0.5rem;color:var(--text-muted);margin-top:3px;">${h(et.note)}</div>` : ''}
+        </div>
+        <div style="font-size:0.5rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">유동비율=유동자산/유동부채(단기 지급능력) · 부채비율=부채총계/자본총계(낮을수록 안정) · 이자보상배율=영업이익/이자비용(<b>1 미만이면 영업이익으로 이자도 못 갚는 상태</b>). 연 1회 갱신되는 <b>후행 지표</b>라 최근 분기 급변은 미반영. 원출처 DART 전자공시.</div>
       </div>`;
     };
     const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
@@ -12847,6 +12898,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./stock_screener.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderScreener(d); } catch (e) { } } });
+      // 재무건전성 — DART 사업보고서 (보드 '📑 재무' 뷰에서 사용)
+      fetch('./dart_financials.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { window.__dfData = d; try { if (window.__tsData) renderTrendSignal(); } catch (e) { } } });
       // 추세추종 신호 보드 — Supertrend·EMA200·ADX + 백테스트·몬테카를로
       fetch('./trend_signal.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

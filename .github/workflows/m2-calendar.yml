@@ -65,6 +65,13 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python guru_13f.py || echo "guru_13f had errors, continuing..."
 
+      # 재무건전성 (DART 사업보고서 — 유동비율·부채비율·이자보상배율·EPS 추세)
+      - name: Collect DART financials
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: python dart_financials.py || echo "dart_financials had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"
