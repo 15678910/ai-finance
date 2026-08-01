@@ -18,6 +18,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone, timedelta
+from core.market_hours import drop_incomplete
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -188,6 +189,9 @@ def main():
                 s = s.copy()
                 s.loc[pd.Timestamp(nk_date)] = nk_close
                 print(f"  [KOSPI 보정] yfinance {last_d} → 네이버 {nk_date} {nk_close}")
+        s, _dr = drop_incomplete(s, idx["ticker"])   # 해당 시장 마감 전이면 당일 미완성 봉 제외
+        if _dr:
+            print(f"  [INFO] {idx['ticker']} {_dr} 미완성 봉 제외 (장 마감 전)")
         return s
 
     asof = px["^KS11"].dropna().index[-1].strftime("%Y-%m-%d") if "^KS11" in px.columns else px.dropna().index[-1].strftime("%Y-%m-%d")

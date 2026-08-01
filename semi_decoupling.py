@@ -81,6 +81,7 @@ def main():
 
     import numpy as np
     import yfinance as yf
+    from core.market_hours import drop_incomplete
     import warnings
     warnings.filterwarnings("ignore")
 
@@ -88,6 +89,9 @@ def main():
     if hasattr(sox, "columns"):
         sox = sox.iloc[:, 0]
     sox = sox.dropna()
+    sox, _dr = drop_incomplete(sox, "^SOX")          # 미국장 마감 전이면 당일 미완성 봉 제외
+    if _dr:
+        print(f"  [INFO] 미국장 마감 전 — ^SOX {_dr} 미완성 봉 제외")
     sr = {d.strftime("%Y-%m-%d"): float(v) for d, v in sox.pct_change().items() if not np.isnan(v)}
     sox_dates = sorted(sr.keys())
     sox_chg = round(sr[sox_dates[-1]] * 100, 2) if sox_dates else None

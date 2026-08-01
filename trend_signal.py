@@ -37,20 +37,10 @@ TICKERS = [
 ST_PERIOD, ST_MULT, ADX_MIN = 10, 3.0, 20
 COST = 0.0028                         # 왕복 비용(수수료 0.05%×2 + 거래세 0.18%)
 WARM = 201                            # EMA200 워밍업
-CLOSE_HM = (15, 40)                   # KRX 정규장 15:30 마감 + 종가 확정 여유
 
-
-def incomplete_last_bar(last_ts, now):
-    """장중 수집 방어 — 마지막 봉이 '오늘 것'이고 아직 장이 안 끝났으면 True.
-
-    종가가 확정되지 않은 봉으로 EMA200·Supertrend·ADX를 계산하면 신호가 장중에
-    계속 뒤집힌다(수집 시각에 따라 결과가 달라짐). 미완성 봉은 제외하고 계산한다.
-    """
-    try:
-        d = last_ts.strftime("%Y-%m-%d")
-    except Exception:
-        return False
-    return d == now.strftime("%Y-%m-%d") and (now.hour, now.minute) < CLOSE_HM
+# 장중 수집 방어 — 종가 미확정 봉으로 EMA200·Supertrend·ADX를 계산하면
+# 수집 시각에 따라 신호가 뒤집힌다. 판정 로직은 core/market_hours.py 단일 출처.
+from core.market_hours import drop_incomplete
 
 
 def ema(vals, n):
@@ -633,9 +623,9 @@ def main():
             print(f"  [WARN] {name} 데이터 부족")
             continue
         df = df.dropna(subset=["High", "Low", "Close"])          # NaN 행 제거 (야후 데이터 결측 방어)
-        if len(df) and incomplete_last_bar(df.index[-1], now):   # 장중 미완성 봉 제외
-            dropped_bar = df.index[-1].strftime("%Y-%m-%d")
-            df = df.iloc[:-1]
+        df, _dropped = drop_incomplete(df, sym)                  # 장중 미완성 봉 제외
+        if _dropped:
+            dropped_bar = _dropped
         if len(df) < 300:
             print(f"  [WARN] {name} 유효 데이터 부족")
             continue

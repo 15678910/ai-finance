@@ -523,12 +523,35 @@ def fetch_nasdaq_earnings(start: str, end: str) -> list:
 
 
 # ── 한국 파생 만기·지수 정기변경 (규칙 기반 자동생성) ─────────────────
-def korean_derivative_events(start: str, end: str) -> list:
-    """분기(3·6·9·12월) 둘째 목요일 = 동시만기 + (6·12월) 지수 정기변경."""
+def derivative_expiry_events(start: str, end: str) -> list:
+    """한국·미국 파생 만기일 — 날짜 계산은 core/expiry.py 단일 출처.
+
+    韓 매월 둘째 목요일(3·6·9·12월=동시만기) · 美 매월 셋째 금요일(분기월=쿼드러플 위칭).
+    월물 만기도 프로그램 매매·변동성에 영향을 주므로 분기 동시만기만이 아니라 전월 수록.
+    """
+    from core.expiry import upcoming
+    events = []
+    for x in upcoming(months=14):
+        if not (start <= x["date"] <= end):
+            continue
+        events.append({
+            "date": x["date"], "time": x["time"],
+            "title": x["title"] + (" ⚠️휴일보정" if x.get("holiday_adjusted") else ""),
+            "category": "파생만기", "impact": x["impact"], "region": x["region"],
+            "tags": ["만기", "파생", "수급", "변동성"] + (["동시만기"] if x["quad"] else ["옵션만기"]),
+            "impact_analysis": ("🎭 " if x["quad"] else "📌 ") + x["note"],
+            "detail": f"{x['rule']} 규칙으로 자동 계산. 음력 공휴일·美 Good Friday 미반영(휴장 시 직전 거래일).",
+            "source": "규칙생성",
+        })
+    return events
+
+
+def korean_index_rebalance_events(start: str, end: str) -> list:
+    """6·12월 둘째 목요일 = 코스피200·코스닥150 정기변경 (동시만기일과 동일)."""
     events = []
     today = date.today()
     for year in (today.year, today.year + 1):
-        for month in (3, 6, 9, 12):
+        for month in (6, 12):
             first = date(year, month, 1)
             offset = (3 - first.weekday()) % 7  # 목요일=3
             second_thu = first + timedelta(days=offset + 7)
@@ -536,22 +559,13 @@ def korean_derivative_events(start: str, end: str) -> list:
             if not (start <= ds <= end):
                 continue
             events.append({
-                "date": ds, "time": "15:20 KST",
-                "title": "한국 선물·옵션 동시만기 (네 마녀의 날)", "category": "파생만기", "impact": "HIGH",
-                "region": "🇰🇷", "tags": ["만기", "파생", "수급", "변동성"],
-                "impact_analysis": "🎭 분기 동시만기 → 프로그램 매물·수급 왜곡·변동성 급증. 외국인 선물청산 시 현물 충격. 만기 당일 장마감 동시호가(15:20~) 주의.",
-                "detail": "주가지수·개별주식 선물/옵션 동시 만기 (분기 둘째 목요일).",
-                "source": "규칙생성",
-            })
-            if month in (6, 12):
-                events.append({
                     "date": ds, "time": "",
                     "title": "코스피200·코스닥150 정기변경", "category": "파생만기", "impact": "MEDIUM",
                     "region": "🇰🇷", "tags": ["리밸런싱", "패시브", "수급"],
                     "impact_analysis": "📊 지수 편입/편출 → 패시브 펀드 기계적 매매(편입 매수·편출 매도). 동시만기일과 겹쳐 수급 변동 증폭.",
                     "detail": "한국거래소 반기 정기변경 적용일(둘째 목요일).",
                     "source": "규칙생성",
-                })
+            })
     return events
 
 
@@ -809,9 +823,10 @@ def main():
 
     # 한국 파생 만기·지수 정기변경 (규칙 생성)
     past_str = (today - timedelta(days=14)).strftime("%Y-%m-%d")
-    kr_deriv = filter_window(korean_derivative_events(past_str, end_str))
+    kr_deriv = filter_window(derivative_expiry_events(past_str, end_str)
+                             + korean_index_rebalance_events(past_str, end_str))
     all_events.extend(kr_deriv)
-    print(f"[한국 파생] {len(kr_deriv)}개 만기·리밸런싱 (윈도우 내)")
+    print(f"[파생 만기] {len(kr_deriv)}개 한·미 만기·리밸런싱 (윈도우 내)")
 
     # TSMC 월간 매출 (규칙 생성)
     tsmc = filter_window(tsmc_revenue_events(past_str, end_str))

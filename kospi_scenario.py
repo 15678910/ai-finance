@@ -15,6 +15,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone, timedelta
+from core.market_hours import drop_incomplete
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -233,6 +234,9 @@ def nikkei_divergence(np, window=40):
         if hasattr(n, "columns"):  # DataFrame → Series
             n = n.iloc[:, 0]
         n = n.dropna()
+        n, _dr = drop_incomplete(n, "^N225")     # 도쿄장 마감(15:00 JST) 전이면 당일 미완성 봉 제외
+        if _dr:
+            print(f"  [INFO] 도쿄장 마감 전 — 니케이 {_dr} 미완성 봉 제외")
     except Exception as e:
         print(f"  [WARN] 니케이 다운로드 실패: {e}")
         return None
@@ -285,6 +289,7 @@ def yen_watch(np):
     """USD/JPY(엔/달러) 감시 + KOSPI 동시 민감도 — 엔화는 아시아 위험 선행지표(예측 아님·맥락)."""
     import yfinance as yf
     try:
+        # USD/JPY는 24시간 연속거래(FX) — '정규장 마감' 개념이 없어 미완성 봉 판정 대상이 아님
         s = yf.download("JPY=X", period="5mo", interval="1d", progress=False)["Close"]
         if hasattr(s, "columns"):  # 단일종목 DataFrame → Series
             s = s.iloc[:, 0]

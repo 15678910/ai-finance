@@ -12,7 +12,7 @@ LLM 미사용(무료·결정적). 각 데이터는 없으면 해당 섹션 생�
 import json
 import os
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -156,6 +156,31 @@ def main():
             return f"  {'🔥' if e.get('impact') == 'HIGH' else '·'} {dd} {e.get('title')}"
         body = "\n".join(_fmt(e) for e in hi + rest)
         S.append(f"🗓️ {now.month}월 남은 주요 일정 ({len(ahead)}건 중 상위)\n" + body)
+
+    # ── 파생 만기일 (규칙 기반 자동 계산) ──
+    try:
+        from core.expiry import upcoming as _upcoming
+        exp = _upcoming(today=now.date(), months=4)[:4]
+    except Exception as e:
+        print(f"  [WARN] 만기일 계산 실패: {e}")
+        exp = []
+    if exp:
+        WDK = "월화수목금토일"
+
+        def _fx(x):
+            y, m, dd = (int(v) for v in x["date"].split("-"))
+            wd = WDK[date(y, m, dd).weekday()]
+            mark = "🔥" if (x["quad"] or x["d_day"] <= 3) else "·"
+            near = "  ← 임박" if x["d_day"] <= 3 else ""
+            adj = " (휴일보정)" if x.get("holiday_adjusted") else ""
+            return f"  {mark} D-{x['d_day']:<3} {m}/{dd}({wd}) {x['region']} {x['title']}{adj}{near}"
+        lines = [_fx(x) for x in exp]
+        nxt = exp[0]
+        if nxt["d_day"] <= 5:                       # 임박 시 대응 포인트 한 줄 부연
+            lines.append(f"  ↳ {nxt['note']}")
+        lines.append("  ※ 만기일=규칙 계산(韓 둘째 목요일 · 美 셋째 금요일). "
+                     "음력 공휴일·美 Good Friday는 미반영 — 휴장 시 직전 거래일로 앞당겨짐")
+        S.append("⏳ 파생 만기일\n" + "\n".join(lines))
 
     # ── 주요 뉴스 톱3 ──
     mn = L("market_news")

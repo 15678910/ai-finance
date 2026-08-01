@@ -19,6 +19,7 @@ import re
 import sys
 import urllib.request
 from datetime import datetime, date, timezone, timedelta
+from core.market_hours import drop_incomplete
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -262,6 +263,10 @@ def main():
     try:
         praw = yf.download(["MU", "AVGO", "SOXX", "NVDA"], period="6d", interval="1d",
                            progress=False, auto_adjust=True)["Close"].dropna()
+        # 미국장 마감 전 실행 시 미완성 봉 제외 (야간 신호 자체는 연속거래 NQ=F가 담당)
+        praw, _dr = drop_incomplete(praw, "MU")
+        if _dr:
+            print(f"  [INFO] 미국장 마감 전 — 동료종목 {_dr} 미완성 봉 제외")
         for t, nm in {"MU": "마이크론", "AVGO": "브로드컴", "SOXX": "SOXX반도체", "NVDA": "엔비디아"}.items():
             s = praw[t].dropna()
             if len(s) >= 2:

@@ -29,6 +29,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from core import send_message, load_state, save_state, is_recent_alert, mark_alert_sent
+from core.market_hours import drop_incomplete
 
 try:
     import yfinance as yf
@@ -169,6 +170,8 @@ def fetch_market_data(ticker_info: dict) -> dict:
         low_52w:  float | None = None
         try:
             hist_year = stock.history(period="1y")
+            # 현재가(위 2번)는 실시간이 목적이라 그대로 두고, 52주 고저만 확정 종가 기준으로 계산
+            hist_year, _ = drop_incomplete(hist_year, ticker)
             if not hist_year.empty:
                 high_52w = round(float(hist_year["High"].max()), 2)
                 low_52w  = round(float(hist_year["Low"].min()),  2)

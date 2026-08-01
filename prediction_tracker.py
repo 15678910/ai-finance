@@ -20,6 +20,7 @@ import re
 import sys
 import urllib.request
 from datetime import datetime, date, timezone, timedelta
+from core.market_hours import drop_incomplete
 
 KST = timezone(timedelta(hours=9))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -118,6 +119,9 @@ def main():
     # 미국 SOX/NDX 일별 수익률 (회귀 입력)
     raw = yf.download(["^SOX", "^NDX"], period="5mo", interval="1d", progress=False, auto_adjust=True)
     cl = raw["Close"].dropna()
+    cl, _dr = drop_incomplete(cl, "^SOX")        # 미국장 마감 전이면 회귀 입력에서 당일 미완성 봉 제외
+    if _dr:
+        print(f"  [INFO] 미국장 마감 전 — SOX·NDX {_dr} 미완성 봉 제외")
     sr = {d.strftime("%Y-%m-%d"): float(v) for d, v in cl["^SOX"].pct_change().items() if not np.isnan(v)}
     nr = {d.strftime("%Y-%m-%d"): float(v) for d, v in cl["^NDX"].pct_change().items() if not np.isnan(v)}
 

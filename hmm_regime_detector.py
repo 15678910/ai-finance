@@ -44,6 +44,7 @@ check_and_install()
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from core.market_hours import drop_incomplete
 from hmmlearn.hmm import GaussianHMM
 from sklearn.preprocessing import StandardScaler
 from openpyxl import Workbook
@@ -141,6 +142,9 @@ class MarketRegimeDetector:
         print("  ├-- 주가 데이터 수집 중...")
 
         df = self.stock.history(period="2y")
+        df, dropped = drop_incomplete(df, self.ticker)   # 장중 미완성 봉 제외
+        if dropped:
+            print(f"  |-- 장 마감 전 수집 — 종가 미확정 {dropped} 봉 제외")
         if df.empty or len(df) < 30:
             print("  [오류] 충분한 주가 데이터가 없습니다.")
             sys.exit(1)

@@ -45,6 +45,7 @@ check_and_install()
 import yfinance as yf
 import pandas as pd
 import requests
+from core.market_hours import drop_incomplete
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -96,6 +97,9 @@ class FinancialDataCollector:
         """주가 데이터 수집 (기본 2년)"""
         print("  ├─ 주가 데이터 수집 중...")
         df = self.stock.history(period=period)
+        df, dropped = drop_incomplete(df, self.ticker)   # 장중 미완성 봉 제외
+        if dropped:
+            print(f"  ├─ 장 마감 전 수집 — 종가 미확정 {dropped} 봉 제외")
         if df.empty:
             print(f"  [!] {self.ticker} 주가 데이터를 찾을 수 없습니다.")
             return pd.DataFrame()
