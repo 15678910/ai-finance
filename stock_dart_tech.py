@@ -175,7 +175,11 @@ def download_corp_code_map():
 
 
 def get_rd_expense(corp_code, year=2024):
-    """DART 재무제표 → R&D 비용 (단위: 백만원)"""
+    """DART 재무제표 → R&D 비용 (단위: 원)
+
+    ⚠️ DART fnlttSinglAcnt/fnlttSinglAcntAll 의 thstrm_amount 는 '원' 단위다.
+    (백만원으로 착각해 /100 하면 1e6배 부풀려짐 — 2026-08 CapEx 표시 버그 원인)
+    """
     data = _dart_get("fnlttSinglAcnt.json", {
         "corp_code":  corp_code,
         "bsns_year":  str(year),
@@ -201,11 +205,11 @@ def get_rd_expense(corp_code, year=2024):
         if any(k in nm for k in REV_KEYS) and rev is None:
             rev = val
 
-    return rd, rev   # 단위: 백만원
+    return rd, rev   # 단위: 원
 
 
 def get_capex(corp_code, year=2024):
-    """DART 현금흐름표 → 설비 투자(유형자산 취득) (단위: 백만원)
+    """DART 현금흐름표 → 설비 투자(유형자산 취득) (단위: 원)
 
     fnlttSinglAcntAll.json 로 전체 재무제표를 받아 sj_div='CF' 항목 중
     '유형자산의 취득' 계정을 찾아 반환.  지출이므로 원본 음수 → abs() 처리.
@@ -229,11 +233,25 @@ def get_capex(corp_code, year=2024):
         if any(k in nm for k in CAPEX_KEYS):
             raw = (item.get("thstrm_amount") or "").replace(",", "").lstrip("-")
             try:
-                return abs(int(raw))   # 백만원, 부호 제거
+                return abs(int(raw))   # 원, 부호 제거
             except Exception:
                 continue
 
     return None
+
+
+WON_PER_EOK = 100_000_000          # 1억원
+MAX_EOK = 3_000_000                # 300조원 — 국내 단일기업 연간 R&D/CapEx 상한 (단위오류 감지용)
+
+
+def won_to_eok(v):
+    """원 → 억원. 변환 결과가 비현실적이면 None(정적 기준값으로 폴백)."""
+    if v is None:
+        return None
+    eok = round(v / WON_PER_EOK)
+    if eok <= 0 or eok > MAX_EOK:
+        return None
+    return eok
 
 
 def get_tech_disclosures(corp_code, days=180):
@@ -348,21 +366,22 @@ def main():
             print(f"    corp_code={corp_code}")
 
             rd, rev = get_rd_expense(corp_code, year=2024)
-            if rd is not None:
-                entry["rd_billion"]   = round(rd / 100)     # 백만원 → 억원
+            rd_eok = won_to_eok(rd)
+            if rd_eok is not None:
+                entry["rd_billion"]   = rd_eok                   # 원 → 억원
                 entry["rd_pct"]       = round(rd / rev * 100, 2) if rev else None
                 entry["data_quality"] = "dart_api"
-                print(f"    R&D: {entry['rd_billion']:,}억원 ({entry['rd_pct']}%)")
+                print(f"    R&D: {rd_eok:,}억원 ({entry['rd_pct']}%)")
             else:
-                print(f"    R&D: DART 응답 없음 — 정적값 사용")
+                print(f"    R&D: DART 응답 없음/범위 밖 — 정적값 사용")
 
-            capex_raw = get_capex(corp_code, year=2024)
-            if capex_raw is not None:
-                entry["capex_billion"] = round(capex_raw / 100)  # 백만원 → 억원
+            capex_eok = won_to_eok(get_capex(corp_code, year=2024))
+            if capex_eok is not None:
+                entry["capex_billion"] = capex_eok               # 원 → 억원
                 entry["data_quality"]  = "dart_api"
-                print(f"    CapEx: {entry['capex_billion']:,}억원 (유형자산 취득)")
+                print(f"    CapEx: {capex_eok:,}억원 (유형자산 취득)")
             else:
-                print(f"    CapEx: DART 응답 없음 — 정적값 사용")
+                print(f"    CapEx: DART 응답 없음/범위 밖 — 정적값 사용")
 
             disclosures = get_tech_disclosures(corp_code)
             entry["disclosures"] = disclosures

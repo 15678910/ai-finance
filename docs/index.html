@@ -6473,7 +6473,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!techInfo || !techInfo.stocks || Object.keys(techInfo.stocks).length === 0) return;
 
     const stocks = Object.values(techInfo.stocks);
-    const allRd  = stocks.map(s => s.rd_billion || 0);
+    // 단위오류 방어: 국내 단일기업 연간 R&D/CapEx는 300조원(=300만억원)을 넘을 수 없다.
+    // (DART thstrm_amount는 '원' 단위 — 백만원으로 오인하면 1e6배로 부풀려짐)
+    const MAX_EOK = 3000000;
+    const sane = v => (typeof v === 'number' && v > 0 && v <= MAX_EOK) ? v : 0;
+    const allRd  = stocks.map(s => sane(s.rd_billion));
     const maxRd  = Math.max(...allRd, 1);
 
     // 섹터 목록 (순서 고정)
@@ -6486,13 +6490,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         : stocks.filter(s => (s.sector || '') === filter);
 
       cardGrid.innerHTML = visible.map(t => {
-        const rdB   = t.rd_billion || 0;
+        const rdB   = sane(t.rd_billion);
         const rdPct = Math.min(100, rdB / maxRd * 100);
         const rdLabel = rdB >= 10000
           ? `${(rdB / 10000).toFixed(1)}조원`
           : `${rdB.toLocaleString()}억원`;
 
-        const capexB   = t.capex_billion || 0;
+        const capexB   = sane(t.capex_billion);
         const capexPct = Math.min(100, capexB / maxRd * 100);   // 동일 스케일 기준
         const capexLabel = capexB >= 10000
           ? `${(capexB / 10000).toFixed(1)}조원`
@@ -10278,6 +10282,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span>ADX: <span style="color:${t.adx_strong ? '#4ade80' : '#fbbf24'};font-family:var(--font-mono);">${t.adx}</span> ${t.adx_strong ? '(강함)' : '(약함)'}</span>
           ${t.pullback ? `<span style="color:#22d3ee;">📍 풀백 구간</span>` : ''}
         </div>
+        ${d.dropped_intraday_bar ? `<div style="margin-top:7px;font-size:0.53rem;color:#fbbf24;background:rgba(251,191,36,0.09);border:1px solid rgba(251,191,36,0.25);border-radius:7px;padding:4px 9px;">⏱️ 장 마감 전 수집 — 종가 미확정인 ${h(d.dropped_intraday_bar)} 봉은 제외하고 계산했습니다. 위 신호는 ${h(d.asof || '')} 종가 기준입니다.</div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);">${viewTabs}</div>
         <div style="margin-top:9px;">${content}</div>
         <div style="font-size:0.53rem;color:var(--text-muted);margin-top:10px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">

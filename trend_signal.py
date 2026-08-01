@@ -37,6 +37,20 @@ TICKERS = [
 ST_PERIOD, ST_MULT, ADX_MIN = 10, 3.0, 20
 COST = 0.0028                         # 왕복 비용(수수료 0.05%×2 + 거래세 0.18%)
 WARM = 201                            # EMA200 워밍업
+CLOSE_HM = (15, 40)                   # KRX 정규장 15:30 마감 + 종가 확정 여유
+
+
+def incomplete_last_bar(last_ts, now):
+    """장중 수집 방어 — 마지막 봉이 '오늘 것'이고 아직 장이 안 끝났으면 True.
+
+    종가가 확정되지 않은 봉으로 EMA200·Supertrend·ADX를 계산하면 신호가 장중에
+    계속 뒤집힌다(수집 시각에 따라 결과가 달라짐). 미완성 봉은 제외하고 계산한다.
+    """
+    try:
+        d = last_ts.strftime("%Y-%m-%d")
+    except Exception:
+        return False
+    return d == now.strftime("%Y-%m-%d") and (now.hour, now.minute) < CLOSE_HM
 
 
 def ema(vals, n):
@@ -608,7 +622,7 @@ def main():
         return 1
 
     now = datetime.now(KST)
-    out_t, asof = [], None
+    out_t, asof, dropped_bar = [], None, None
     for sym, name, tag in TICKERS:
         try:
             df = yf.Ticker(sym).history(period="5y", interval="1d", auto_adjust=True)
@@ -619,6 +633,9 @@ def main():
             print(f"  [WARN] {name} 데이터 부족")
             continue
         df = df.dropna(subset=["High", "Low", "Close"])          # NaN 행 제거 (야후 데이터 결측 방어)
+        if len(df) and incomplete_last_bar(df.index[-1], now):   # 장중 미완성 봉 제외
+            dropped_bar = df.index[-1].strftime("%Y-%m-%d")
+            df = df.iloc[:-1]
         if len(df) < 300:
             print(f"  [WARN] {name} 유효 데이터 부족")
             continue
@@ -747,6 +764,7 @@ def main():
         "params": {"supertrend": f"({ST_PERIOD},{ST_MULT})", "anchor": "EMA200", "adx_min": ADX_MIN,
                    "cost_pct": COST * 100},
         "tickers": out_t,
+        "dropped_intraday_bar": dropped_bar,   # 장 마감 전 수집 시 제외한 미완성 봉 날짜
         "note": ("일봉 추세추종 신호(정보용·매매 실행 없음): 대추세 EMA200 + Supertrend(10,3) + ADX≥20. "
                  "백테스트 롱온리·왕복비용 0.28%·청산=Supertrend 트레일링. 다기간(YTD·2.5y·5y) 리포트, "
                  "월별 수익률, 최악 낙폭 구간, 몬테카를로(랜덤진입 1,000회·샤프 기준). "
@@ -755,6 +773,8 @@ def main():
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    if dropped_bar:
+        print(f"[INFO] 장 마감 전 수집 — 미완성 봉({dropped_bar}) 제외하고 계산 (신호는 {asof} 종가 기준)")
     print(f"[OK] {OUTPUT_FILE} ({len(out_t)}종목 · 기준 {asof} · {os.path.getsize(OUTPUT_FILE)//1024}KB)")
     return 0
 
