@@ -314,6 +314,74 @@ def quick_metrics(curve_eq, trades):
             "n_trades": len(closed)}
 
 
+def run_variant(c, dates, st_dir, e200, adx, mode):
+    """구성요소 변형 백테스트 — '엣지가 어디서 오는가' 분해용.
+    영상 전략 주석의 WHERE THE EDGE COMES FROM 접근: 규칙을 하나씩 떼어내 각각 측정."""
+    n = len(c)
+    eq, pos, entry_eq, trades, curve = 1.0, None, 1.0, [], []
+    for i in range(WARM, n):
+        if mode == "trend":                       # 대추세만 (EMA200 위/아래)
+            enter, exit_ = c[i] > e200[i], c[i] < e200[i]
+        elif mode == "st":                        # Supertrend만
+            enter, exit_ = st_dir[i] == 1, st_dir[i] == -1
+        elif mode == "st_trend":                  # ST + 대추세 (ADX 없음)
+            enter, exit_ = (st_dir[i] == 1 and c[i] > e200[i]), st_dir[i] == -1
+        elif mode == "full_adx30":                # 전체 + ADX 강화(≥30)
+            enter, exit_ = (st_dir[i] == 1 and c[i] > e200[i] and adx[i] >= 30), st_dir[i] == -1
+        else:                                     # full = 현재 규칙 (ADX≥20)
+            enter, exit_ = (st_dir[i] == 1 and c[i] > e200[i] and adx[i] >= ADX_MIN), st_dir[i] == -1
+        if pos is None:
+            if enter:
+                pos, entry_eq = i, eq
+        else:
+            eq *= c[i] / c[i - 1]
+            if exit_:
+                eq *= (1 - COST)
+                trades.append({"ret": eq / entry_eq - 1, "days": i - pos})
+                pos = None
+        curve.append(eq)
+    if pos is not None:
+        trades.append({"ret": eq / entry_eq - 1, "days": n - 1 - pos, "open": True})
+    return quick_metrics(curve, trades)
+
+
+def edge_attribution(c, dates, st_dir, e200, adx):
+    """엣지 귀속 분석 — 어느 구성요소가 실제 수익/방어를 만드는가."""
+    SPECS = [("trend", "① 대추세만 (종가>EMA200)"),
+             ("st", "② Supertrend만 (10,3)"),
+             ("st_trend", "③ ST + 대추세 (ADX 없음)"),
+             ("full", "④ 전체 = ③ + ADX≥20  ← 현재"),
+             ("full_adx30", "⑤ 전체 + ADX≥30 (강화)")]
+    rows = []
+    for mode, label in SPECS:
+        q = run_variant(c, dates, st_dir, e200, adx, mode)
+        if q:
+            rows.append({"mode": mode, "label": label, "current": mode == "full", **q})
+    if not rows:
+        return None
+    full = next((r for r in rows if r["mode"] == "full"), None)
+    note = ""
+    if full:
+        best_ret = max(rows, key=lambda r: r["total_return_pct"])
+        best_mdd = min(rows, key=lambda r: r["mdd_pct"])          # 값이 클수록(0에 가까울수록) 방어 우수
+        best_mdd = max(rows, key=lambda r: r["mdd_pct"])
+        parts = []
+        if best_ret["mode"] != "full":
+            parts.append(f"수익은 '{best_ret['label'].split('(')[0].strip()}'가 더 높음({best_ret['total_return_pct']:+.1f}% vs {full['total_return_pct']:+.1f}%)")
+        else:
+            parts.append("현재 조합이 수익 최고")
+        if best_mdd["mode"] != "full":
+            parts.append(f"낙폭 방어는 '{best_mdd['label'].split('(')[0].strip()}'가 우수(MDD {best_mdd['mdd_pct']}% vs {full['mdd_pct']}%)")
+        else:
+            parts.append("현재 조합이 낙폭 방어 최고")
+        st_only = next((r for r in rows if r["mode"] == "st"), None)
+        tr_only = next((r for r in rows if r["mode"] == "trend"), None)
+        if st_only and tr_only:
+            parts.append("엣지 원천: " + ("대추세 필터" if tr_only["total_return_pct"] > st_only["total_return_pct"] else "Supertrend 신호"))
+        note = " · ".join(parts)
+    return {"rows": rows, "note": note}
+
+
 def optimize_grid(h, l, c, dates, e200, adx):
     """Supertrend 기간×배수 그리드 탐색 (5년 전체) — 샤프 내림차순 상위."""
     grid = []
@@ -582,6 +650,7 @@ def main():
         mc = monte_carlo(c, trades, p5.get("sharpe"))
         rst = rule_significance(c, st_dir, e200, adx)                 # 봉 단위 규칙 유의성
         mcc = mc_candles(h, l, c, dts, p5)                            # 가격경로 재표본 강건성
+        attr = edge_attribution(c, dts, st_dir, e200, adx)            # 엣지 귀속(구성요소 기여)
 
         # 하이퍼파라미터 그리드 탐색 (Supertrend 기간×배수, 15조합)
         opt = optimize_grid(h, l, c, dts, e200, adx)
@@ -645,7 +714,7 @@ def main():
             "periods": periods, "monthly": monthly, "yearly": yearly,
             "worst_dd": wdd, "trades": tlist, "markers": markers, "overlay": overlay, "daily": daily,
             "trades_short": tlist_short, "markers_short": markers_short, "short_stats": short_stats,
-            "monte_carlo": mc, "rst": rst, "mc_candles": mcc,
+            "monte_carlo": mc, "rst": rst, "mc_candles": mcc, "attribution": attr,
             "optimization": opt[:8], "entry_compare": entry_compare,
         })
         print(f"  {name}: {verdict}")
