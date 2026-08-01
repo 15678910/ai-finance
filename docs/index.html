@@ -9453,7 +9453,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
     const pm = v => (v >= 0 ? '+' : '') + v;
     const SESSIONS = [['ytd', '2026 YTD (표본외)'], ['2.5y', 'full 2.5y'], ['5y', '5y robustness']];
-    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 몬테카를로'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고'], ['fin', '📑 재무']];
+    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 통계 검정 3종'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고'], ['fin', '📑 재무']];
     // 세션 탭 (Jesse 브라우저 탭 스타일)
     const sessionTabs = SESSIONS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:9px 9px 0 0;font-size:0.6rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.13)' : 'rgba(255,255,255,0.03)'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.08)'};border-bottom:${k === P ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)'};"><span style="font-size:0.55rem;">🖥️</span>${lab}${k === P ? ' <span style="opacity:0.6;font-size:0.5rem;">✕</span>' : ''}</button>`).join('');
     const tickerBtns = d.tickers.map((x, i) => `<button onclick="window.__tsTicker=${i};window.__tsZoom=null;renderTrendSignal()" style="padding:4px 13px;border-radius:8px;font-size:0.66rem;cursor:pointer;font-weight:${i === TI ? 800 : 500};background:${i === TI ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${i === TI ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === TI ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)'};"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.verdict_color)};margin-right:6px;"></span>${h(x.name)}</button>`).join(' ');
@@ -9741,7 +9741,90 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <span>null 상위 5% <b style="color:var(--text);">${mc.null_best5_sharpe}</b></span>
           <span>원본 백분위 <b style="color:${mcc};">${mc.pctile}</b></span>
         </div>
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">원본(노란선)이 분포 상위 95%↑면 '운이 아닌 타이밍 엣지'. 중앙값 근처/이하면 무작위 진입과 구분 불가 — 강세장에선 아무 때나 사도 벌기 때문.</div>`;
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.6;">원본(노란선)이 분포 상위 95%↑면 '운이 아닌 타이밍 엣지'. 중앙값 근처/이하면 무작위 진입과 구분 불가 — 강세장에선 아무 때나 사도 벌기 때문.</div>
+        ${rstBlock()}${mccBlock()}`;
+    };
+    // 🔬 RST — 진입 규칙의 봉 단위 유의성 (귀무분포 히스토그램 + p값)
+    const rstBlock = () => {
+      const r = t.rst;
+      if (!r) return '';
+      const col = vc(r.verdict_color);
+      const hi2 = r.hist || {};
+      let svg = '';
+      if (hi2.bins) {
+        const W = 340, H = 110, pB = 15, maxB = Math.max(...hi2.bins) || 1;
+        const bw = W / hi2.bins.length;
+        const bars = hi2.bins.map((b, i) => {
+          const beyond = i >= (hi2.obs_bin || 0);                 // 관측값 이상 = 빨강(꼬리)
+          return `<rect x="${(i * bw + 0.4).toFixed(1)}" y="${(H - pB - b / maxB * (H - pB - 8)).toFixed(1)}" width="${(bw - 0.8).toFixed(1)}" height="${(b / maxB * (H - pB - 8)).toFixed(1)}" fill="${beyond ? 'rgba(248,113,113,0.75)' : 'rgba(96,165,250,0.6)'}"/>`;
+        }).join('');
+        const ox = ((hi2.obs_bin || 0) + 0.5) * bw;
+        svg = `<div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;margin-top:5px;">
+          <svg viewBox="0 0 340 ${H}" style="width:100%;height:auto;display:block;">
+            ${bars}
+            <line x1="${ox.toFixed(1)}" y1="4" x2="${ox.toFixed(1)}" y2="${H - pB}" stroke="#b91c1c" stroke-width="1.4" stroke-dasharray="4 2"/>
+            <text x="${Math.min(250, ox + 4).toFixed(1)}" y="11" font-size="7" fill="#fca5a5" font-weight="700">관측 평균 ${r.observed_mean.toExponential(1)}</text>
+            <text x="2" y="${H - 3}" font-size="6.3" fill="#7d8590">← H₀ 분포(무작위 봉 ${r.sims}회) 평균 로그수익률 →</text>
+          </svg></div>`;
+      }
+      return `<div style="margin-top:12px;padding-top:9px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.62rem;font-weight:700;color:#60a5fa;">🔬 RST 규칙 유의성 검정</span>
+          <span style="font-size:0.6rem;font-weight:700;color:${col};background:${col}1c;border-radius:10px;padding:2px 9px;">${h(r.verdict)} · p = ${r.p_value}</span>
+        </div>
+        ${svg}
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:5px;font-size:0.56rem;font-family:var(--font-mono);">
+          <span>p-value <b style="color:${col};">${r.p_value}</b></span>
+          <span>관측 평균 <b>${r.observed_mean.toExponential(2)}</b></span>
+          <span>연환산 초과 <b style="color:${r.annualised_excess_pct >= 0 ? '#4ade80' : '#f87171'};">${r.annualised_excess_pct >= 0 ? '+' : ''}${r.annualised_excess_pct}%</b></span>
+          <span>보유 봉 <b>${r.n_bars}</b>/${r.n_pool}</span>
+          <span>시뮬 <b>${r.sims}</b></span>
+        </div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:5px;line-height:1.65;">📊 <b>진입 규칙이 고른 시점</b>의 평균 수익률(빨간 점선)이, 같은 개수의 <b>무작위 시점</b>에서 나온 분포(파란 막대)의 어디에 있는지 검정. <b>시장 드리프트는 디트렌드로 제거</b>했기 때문에 '상승장이라 벌었다'는 착시가 배제됩니다. <b>p ≤ 0.05</b>면 규칙 자체에 엣지가 있다는 뜻 — 몬테카를로(거래 타이밍)와 보완 관계.</div>
+      </div>`;
+    };
+    // 🕯️ Monte Carlo candles — 가격경로 재표본 강건성 (스파게티 + 백분위표)
+    const mccBlock = () => {
+      const m = t.mc_candles;
+      if (!m || !m.rows) return '';
+      const col = vc(m.verdict_color);
+      let svg = '';
+      const cvs = m.curves || [];
+      if (cvs.length) {
+        const W = 340, H = 130, pT = 8, pB = 14, pL = 4, pR = 40;
+        const all = cvs.flat();
+        const mn = Math.min(...all, 1), mx = Math.max(...all, 1), rg = (mx - mn) || 1;
+        const X = (i, n) => pL + i / Math.max(1, n - 1) * (W - pL - pR);
+        const Y = v => pT + (mx - v) / rg * (H - pT - pB);
+        const paths = cvs.map(a => `<path d="${a.map((v, i) => `${i ? 'L' : 'M'}${X(i, a.length).toFixed(1)},${Y(v).toFixed(1)}`).join('')}" fill="none" stroke="rgba(99,102,241,0.30)" stroke-width="0.7"/>`).join('');
+        const oEnd = 1 + ((m.rows[0].original || 0) / 100);
+        svg = `<div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px;margin-top:5px;">
+          <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+            <line x1="${pL}" y1="${Y(1).toFixed(1)}" x2="${W - pR}" y2="${Y(1).toFixed(1)}" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3 2"/>
+            ${paths}
+            ${(oEnd >= mn && oEnd <= mx) ? `<line x1="${pL}" y1="${Y(oEnd).toFixed(1)}" x2="${W - pR}" y2="${Y(oEnd).toFixed(1)}" stroke="#fbbf24" stroke-width="1.3"/><text x="${W - pR + 3}" y="${(Y(oEnd) + 3).toFixed(1)}" font-size="7" fill="#fbbf24" font-weight="700">원본 ${m.rows[0].original}%</text>` : ''}
+            <text x="${pL + 2}" y="${H - 3}" font-size="6.3" fill="#7d8590">시나리오 ${cvs.length}개 표시 / 총 ${m.scenarios}회 · 블록 ${m.block}봉 재표본</text>
+          </svg></div>`;
+      }
+      const rows2 = m.rows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:3px 7px;font-size:0.56rem;color:var(--text-muted);">${h(r.metric)}</td>
+        <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:#fbbf24;">${r.original == null ? '—' : r.original}</td>
+        <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#f87171;">${r.worst5 == null ? '—' : r.worst5}</td>
+        <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text);">${r.median == null ? '—' : r.median}</td>
+        <td style="padding:3px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#4ade80;">${r.best5 == null ? '—' : r.best5}</td>
+      </tr>`).join('');
+      return `<div style="margin-top:12px;padding-top:9px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.62rem;font-weight:700;color:#818cf8;">🕯️ Monte Carlo candles (가격경로 재표본)</span>
+          <span style="font-size:0.6rem;font-weight:700;color:${col};background:${col}1c;border-radius:10px;padding:2px 9px;">${h(m.verdict)}</span>
+        </div>
+        ${svg}
+        <div style="overflow-x:auto;margin-top:6px;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);">
+            ${['지표', '원본', '하위 5%', '중앙값', '상위 5%'].map((x, k) => `<th style="padding:3px 7px;text-align:${k === 0 ? 'left' : 'right'};font-size:0.52rem;color:${k === 1 ? '#fbbf24' : 'var(--text-muted)'};font-weight:500;">${x}</th>`).join('')}
+          </tr></thead><tbody>${rows2}</tbody></table></div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:5px;line-height:1.65;">🕯️ 같은 통계적 성질(변동성·자기상관)을 가진 <b>다른 가격 경로 ${m.scenarios}개</b>를 블록 부트스트랩으로 만들어 전략을 매번 다시 돌린 결과. <b>원본(노란선)이 중앙값 근처거나 아래면</b> 과최적화 징후가 낮고, 상위 5%에 몰려 있으면 그 성적은 <b>운에 기댄 것</b>일 가능성이 큽니다. 하위 5% 열 = <b>최악의 시나리오에서 감내해야 할 수준</b>. (원본 백분위 ${m.orig_pctile})</div>
+      </div>`;
     };
     const optView = () => {
       const g = t.optimization || [];

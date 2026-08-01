@@ -12,6 +12,7 @@
 """
 
 import json
+import math
 import os
 import random
 import sys
@@ -329,6 +330,140 @@ def optimize_grid(h, l, c, dates, e200, adx):
     return grid
 
 
+def rule_significance(c, st_dir, e200, adx, sims=2000, seed=11):
+    """RST(Rule Significance Test) — 진입 규칙의 '봉 단위' 유의성 검정.
+    귀무가설 H₀: 규칙이 고른 시점은 무작위 시점과 다르지 않다.
+      · 추세 편향 제거를 위해 전체 로그수익률을 디트렌드(평균 차감) → 상승장 프리미엄 상쇄
+      · 규칙이 '보유 중'이던 봉들의 평균 디트렌드 수익률 = 관측값
+      · 같은 개수의 봉을 무작위 추출해 평균을 2,000회 계산 → H₀ 분포
+      · p = (관측값 이상인 시뮬레이션 비율) — p≤0.05면 '규칙에 엣지 있음'
+    ※ 몬테카를로(거래 단위 타이밍 검정)와 보완 관계. 진입규칙 자체의 노이즈 여부를 봄."""
+    n = len(c)
+    if n <= WARM + 30:
+        return None
+    lr = [math.log(c[i] / c[i - 1]) for i in range(WARM, n) if c[i - 1] > 0]
+    if len(lr) < 50:
+        return None
+    mu_all = sum(lr) / len(lr)
+    det = [x - mu_all for x in lr]                      # 디트렌드: 시장 드리프트 제거
+
+    in_pos, pos = [], False                              # 규칙 보유 여부(각 봉)
+    for i in range(WARM, n):
+        if not pos:
+            pos = (st_dir[i] == 1 and c[i] > e200[i] and adx[i] >= ADX_MIN)
+            in_pos.append(False)                         # 진입 당일은 다음 봉부터 수익 귀속
+        else:
+            in_pos.append(True)
+            if st_dir[i] == -1:
+                pos = False
+    m = min(len(in_pos), len(det))
+    sel = [det[i] for i in range(m) if in_pos[i]]
+    if len(sel) < 20:
+        return None
+    obs = sum(sel) / len(sel)
+
+    rng = random.Random(seed)
+    k, pool = len(sel), det
+    null = []
+    for _ in range(sims):
+        s = 0.0
+        for _ in range(k):
+            s += pool[rng.randrange(len(pool))]
+        null.append(s / k)
+    null.sort()
+    ge = sum(1 for x in null if x >= obs)
+    p = round(ge / sims, 4)
+    lo, hi = min(null[0], obs), max(null[-1], obs)
+    span = (hi - lo) or 1e-12
+    NB = 40
+    bins = [0] * NB
+    for x in null:
+        bins[min(NB - 1, int((x - lo) / span * NB))] += 1
+    obs_bin = min(NB - 1, max(0, int((obs - lo) / span * NB)))
+    ann = (math.exp(obs * 252) - 1) * 100                # 일봉 기준 연환산(디트렌드 초과분)
+    return {"observed_mean": obs, "p_value": p, "significant": p <= 0.05,
+            "n_bars": k, "n_pool": len(pool), "sims": sims,
+            "annualised_excess_pct": round(ann, 2),
+            "hist": {"bins": bins, "lo": lo, "hi": hi, "obs_bin": obs_bin},
+            "verdict": ("통계적으로 유의 ✅ (규칙에 엣지)" if p <= 0.05
+                        else "약한 신호 (관찰 지속)" if p <= 0.15 else "노이즈와 구분 불가"),
+            "verdict_color": "green" if p <= 0.05 else "yellow" if p <= 0.15 else "red"}
+
+
+def mc_candles(h, l, c, dates, orig, scen=200, block=10, seed=23, keep=40):
+    """Monte Carlo candles — '가격 경로'를 블록 부트스트랩으로 재생성해 전략을 매번 재실행.
+    같은 통계적 성질(변동성·자기상관)의 다른 시나리오 200개에서도 성과가 유지되는지 = 강건성 검정.
+      · 블록 단위(기본 10봉) 재표본 → 추세·군집 변동성 보존 (단순 IID 셔플의 한계 보완)
+      · 각 시나리오마다 EMA200·Supertrend·ADX 재계산 후 동일 규칙으로 백테스트
+      · 결과: 원본 vs 하위5%·중앙값·상위5% 지표표 + 자산곡선 샘플(스파게티용)"""
+    n = len(c)
+    if n <= WARM + 60 or not orig:
+        return None
+    rets = [c[i] / c[i - 1] for i in range(1, n) if c[i - 1] > 0]
+    hr = [h[i] / c[i] for i in range(1, n) if c[i] > 0]              # 고가·저가 비율 보존
+    lr_ = [l[i] / c[i] for i in range(1, n) if c[i] > 0]
+    m = min(len(rets), len(hr), len(lr_))
+    if m < 100:
+        return None
+    rng = random.Random(seed)
+    nb = m // block + 1
+    curves, mets = [], {"total": [], "sharpe": [], "mdd": [], "win": [], "n": []}
+    for _ in range(scen):
+        idx = []
+        for _ in range(nb):                                          # 블록 부트스트랩
+            s = rng.randrange(0, max(1, m - block))
+            idx.extend(range(s, min(m, s + block)))
+        idx = idx[:m]
+        sc_, sh_, sl_ = [c[0]], [h[0]], [l[0]]
+        for j in idx:
+            p = sc_[-1] * rets[j]
+            sc_.append(p)
+            sh_.append(p * hr[j])
+            sl_.append(p * lr_[j])
+        e2 = ema(sc_, 200)
+        sd, _ln = supertrend(sh_, sl_, sc_, ST_PERIOD, ST_MULT)
+        ax = adx_wilder(sh_, sl_, sc_, 14)
+        ce, _bh, _cd, tr = run_strategy(sc_, [""] * len(sc_), sd, e2, ax)
+        q = quick_metrics(ce, tr)
+        if not q:
+            continue
+        mets["total"].append(q["total_return_pct"]); mets["mdd"].append(q["mdd_pct"])
+        mets["win"].append(q["win_rate"]); mets["n"].append(q["n_trades"])
+        if q["sharpe"] is not None:
+            mets["sharpe"].append(q["sharpe"])
+        if len(curves) < keep and len(ce) > 10:                      # 표시용 곡선만 보관
+            st_ = max(1, len(ce) // 40)
+            curves.append([round(ce[i], 3) for i in range(0, len(ce), st_)][:41])
+    if not mets["total"]:
+        return None
+
+    def pct_(a, q):
+        if not a:
+            return None
+        b = sorted(a)
+        return round(b[min(len(b) - 1, max(0, int(len(b) * q)))], 2)
+    rows = []
+    for key, lab, o in (("total", "총 순수익", orig.get("total_return_pct")),
+                        ("mdd", "최대 낙폭(MDD)", orig.get("mdd_pct")),
+                        ("sharpe", "샤프 지수", orig.get("sharpe")),
+                        ("win", "승률", orig.get("win_rate")),
+                        ("n", "총 거래수", orig.get("n_trades"))):
+        a = mets[key]
+        rows.append({"metric": lab, "original": o,
+                     "worst5": pct_(a, 0.05), "median": pct_(a, 0.5), "best5": pct_(a, 0.95)})
+    tot = sorted(mets["total"])
+    below = sum(1 for x in tot if x < (orig.get("total_return_pct") or 0))
+    pctile = round(below / len(tot) * 100, 1)
+    if pctile <= 50:
+        v, col = "원본이 중앙값 이하 — 과최적화 징후 낮음 ✅", "green"
+    elif pctile <= 80:
+        v, col = "원본이 상위권 — 운이 일부 작용 가능", "yellow"
+    else:
+        v, col = "원본이 상위 20% — 과최적화 의심 ⚠️", "red"
+    return {"scenarios": len(mets["total"]), "block": block, "rows": rows,
+            "curves": curves, "orig_pctile": pctile, "verdict": v, "verdict_color": col}
+
+
 def monte_carlo(c, trades, orig_sharpe, sims=1000, seed=7):
     """랜덤진입 검정(샤프 기준): 같은 횟수·보유기간 무작위 진입 null 분포 → 원본 위치.
     Jesse 영상 해석: 원본이 null 중앙값 근처/이하 = 과적합 아님(운 아님)이 아니라,
@@ -445,6 +580,8 @@ def main():
         wdd = worst_drawdowns(curve_eq, curve_d, 3)
         p5 = periods.get("5y") or {}
         mc = monte_carlo(c, trades, p5.get("sharpe"))
+        rst = rule_significance(c, st_dir, e200, adx)                 # 봉 단위 규칙 유의성
+        mcc = mc_candles(h, l, c, dts, p5)                            # 가격경로 재표본 강건성
 
         # 하이퍼파라미터 그리드 탐색 (Supertrend 기간×배수, 15조합)
         opt = optimize_grid(h, l, c, dts, e200, adx)
@@ -508,7 +645,7 @@ def main():
             "periods": periods, "monthly": monthly, "yearly": yearly,
             "worst_dd": wdd, "trades": tlist, "markers": markers, "overlay": overlay, "daily": daily,
             "trades_short": tlist_short, "markers_short": markers_short, "short_stats": short_stats,
-            "monte_carlo": mc,
+            "monte_carlo": mc, "rst": rst, "mc_candles": mcc,
             "optimization": opt[:8], "entry_compare": entry_compare,
         })
         print(f"  {name}: {verdict}")
