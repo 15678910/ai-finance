@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: morning-report
@@ -32,3 +32,17 @@ jobs:
           TELEGRAM_FINANCE_CHAT_ID: ${{ secrets.TELEGRAM_FINANCE_CHAT_ID }}
           PYTHONIOENCODING: utf-8
         run: python morning_report.py
+
+      # 대시보드용 JSON 커밋 (충돌 시 재시도 — 다른 워크플로와 동시 실행 대비)
+      - name: Commit report JSON
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/morning_report.json
+          git diff --staged --quiet && echo "변경 없음" && exit 0
+          git commit -m "Update morning report (daily briefing) [automated]"
+          for i in 1 2 3; do
+            git pull --rebase -X ours && git push && echo "pushed" && exit 0
+            sleep 5
+          done
+          echo "push failed after retries"

@@ -172,6 +172,37 @@ def main():
     print(report)
     print(f"\n[길이] {len(report)}자 · 섹션 {len(S)}개")
 
+    # ── 대시보드용 JSON 저장 (섹션 구조 + 최근 7일 아카이브) ──
+    try:
+        sections = []
+        for s in S:
+            p = s.split("\n")
+            sections.append({"title": p[0], "lines": [x for x in p[1:] if x.strip()]})
+        today_str = now.strftime("%Y-%m-%d")
+        out_path = os.path.join(DOCS, "morning_report.json")
+        archive = []
+        try:                                              # 기존 리포트를 아카이브로 밀어넣기
+            with open(out_path, encoding="utf-8") as f:
+                prev = json.load(f)
+            if prev.get("date") and prev["date"] != today_str:
+                archive.append({"date": prev["date"], "weekday": prev.get("weekday", ""),
+                                "sections": prev.get("sections", [])})
+            archive += [a for a in (prev.get("archive") or []) if a.get("date") != today_str]
+        except Exception:
+            pass
+        payload = {
+            "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
+            "date": today_str, "weekday": WD[now.weekday()],
+            "sections": sections, "archive": archive[:7],
+            "note": "매일 07:00 KST 자동 생성 — 대시보드 수집 데이터의 규칙기반 종합 요약(LLM 미사용). 텔레그램과 동일 내용. 투자자문 아님.",
+        }
+        os.makedirs(DOCS, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"[OK] {out_path} (섹션 {len(sections)} · 아카이브 {len(archive[:7])}일)")
+    except Exception as e:
+        print(f"[WARN] JSON 저장 실패: {e}")
+
     # 텔레그램 발송 (4096자 제한 → 섹션 경계로 분할)
     try:
         from core import send_message, get_secret

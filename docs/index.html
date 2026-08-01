@@ -7693,7 +7693,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     // 카테고리별 그룹화 — 상단 헤더 내비용 (우선순위 순서 매칭: 위 카테고리가 먼저 가져감)
     const CATS = [
-      ['시장 개요', /AI 인사이트|AI 투자 코멘트|매크로 환경/],
+      ['시장 개요', /모닝 브리핑|AI 인사이트|AI 투자 코멘트|매크로 환경/],
       ['해외 시장', /해외 시장 동향|코스피 밸류에이션|성장 대비 부채|일본 경제 위기|섹터별 종목 분석|차트 분석|AI 생태계 밸류에이션|Tactical Capital Map/],
       ['내 포트폴리오', /내 포트폴리오/],
       ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
@@ -10154,6 +10154,51 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else (document.getElementById('app') || document.body).appendChild(node);
   }
   window.renderScreener = renderScreener;
+
+  // ── 🌅 모닝 브리핑 — 매일 07:00 자동 생성 종합 리포트 (텔레그램과 동일 내용) ──
+  function renderMorningReport(d) {
+    if (d) window.__mrData = d;
+    d = window.__mrData;
+    if (!d || !d.sections || !d.sections.length) return;
+    const AR = d.archive || [];
+    const sel = window.__mrDate || d.date;                       // 선택된 날짜(기본 오늘)
+    const cur = sel === d.date ? d : (AR.find(a => a.date === sel) || d);
+    const secs = cur.sections || [];
+    const dates = [{ date: d.date, weekday: d.weekday }].concat(AR.map(a => ({ date: a.date, weekday: a.weekday })));
+    const tabs = dates.slice(0, 8).map((x, i) => `<button onclick="window.__mrDate='${x.date}';renderMorningReport()" style="padding:2px 9px;border-radius:6px;font-size:0.55rem;cursor:pointer;font-weight:${x.date === sel ? 700 : 400};background:${x.date === sel ? 'rgba(251,191,36,0.2)' : 'transparent'};color:${x.date === sel ? '#fbbf24' : 'var(--text-muted)'};border:1px solid ${x.date === sel ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)'};">${i === 0 ? '오늘' : x.date.slice(5)}${x.weekday ? `(${x.weekday})` : ''}</button>`).join(' ');
+    const colorize = t => t
+      .replace(/([+\-]\d+(?:\.\d+)?%p?)/g, m => `<b style="color:${m[0] === '+' ? '#4ade80' : '#f87171'};font-family:var(--font-mono);">${m}</b>`)
+      .replace(/(🔥)/g, '<span style="color:#fb923c;">$1</span>');
+    const cards = secs.slice(1).map(s => `<div style="background:rgba(255,255,255,0.03);border-radius:9px;padding:9px 12px;">
+      <div style="font-size:0.66rem;font-weight:700;color:#fbbf24;margin-bottom:4px;">${h(s.title)}</div>
+      <div style="font-size:0.62rem;line-height:1.75;color:var(--text);">${(s.lines || []).map(l => colorize(h(l.trim()))).join('<br>')}</div>
+    </div>`).join('');
+    const head = (secs[0] && secs[0].lines && secs[0].lines[0]) || '';
+    const html = `<section class="section-wrap" id="morning-report-section">
+      <div class="section-label" style="color:#fbbf24;">🌅 모닝 브리핑 <span style="font-size:0.62rem;color:var(--text-muted);">(매일 07:00 자동 생성 · 텔레그램과 동일 내용)</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:9px;">
+          <span style="font-size:0.68rem;font-weight:800;color:var(--text-bright);font-family:var(--font-mono);">${h(cur.date)}${cur.weekday ? ` (${h(cur.weekday)})` : ''}</span>
+          ${sel !== d.date ? '<span style="font-size:0.52rem;color:var(--text-muted);">지난 브리핑</span>' : `<span style="font-size:0.52rem;color:var(--text-muted);">${h(head)}</span>`}
+          <span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;">${tabs}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:9px;">${cards}</div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:10px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          ${h(d.note || '')} 갱신 ${h(d.generated_at || '')}
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('morning-report-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    // 최상단(AI 인사이트 앞)에 배치 — 하루를 브리핑으로 시작
+    const shell = document.getElementById('app') || document.body;
+    const first = shell.querySelector('.section-wrap');
+    if (first && first.parentNode) first.parentNode.insertBefore(node, first);
+    else shell.appendChild(node);
+    try { scheduleNavRebuild(); } catch (e) { }
+  }
+  window.renderMorningReport = renderMorningReport;
 
   // ── 🏛️ 성장 대비 부채 비율 (정부부채/GDP) — 미국·한국·일본 비교 (FRED/IMF) ──
   function renderDebtGdp(d) {
@@ -12918,6 +12963,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./stock_screener.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderScreener(d); } catch (e) { } } });
+      // 모닝 브리핑 — 매일 07:00 자동 생성 종합 리포트 (최상단 배치)
+      fetch('./morning_report.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderMorningReport(d); } catch (e) { } } });
       // 재무건전성 — DART 사업보고서 (보드 '📑 재무' 뷰에서 사용)
       fetch('./dart_financials.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
