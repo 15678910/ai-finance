@@ -144,6 +144,19 @@ def _sharpe(dr):
     return round(mu / sd * (252 ** 0.5), 2)
 
 
+def _drawdown(series):
+    """정규화 곡선 → (최대낙폭 비율(음수), 최대 수중일수)."""
+    peak, mdd, uw, max_uw = series[0], 0.0, 0, 0
+    for v in series:
+        if v >= peak:
+            peak, uw = v, 0
+        else:
+            uw += 1
+            max_uw = max(max_uw, uw)
+            mdd = min(mdd, v / peak - 1)
+    return mdd, max_uw
+
+
 def period_report(curve_eq, curve_bh, curve_d, trades, start_ci):
     """curve 인덱스 start_ci부터 구간 리포트 (수익 재정규화·거래 필터)."""
     eqs = curve_eq[start_ci:]
@@ -162,14 +175,8 @@ def period_report(curve_eq, curve_bh, curve_d, trades, start_ci):
     losses = [r for r in rets if r <= 0]
     years = len(eqs) / 252
     dr = [eqn[i] / eqn[i - 1] - 1 for i in range(1, len(eqn))]
-    peak, mdd, uw, max_uw = eqn[0], 0.0, 0, 0
-    for v in eqn:
-        if v >= peak:
-            peak, uw = v, 0
-        else:
-            uw += 1
-            max_uw = max(max_uw, uw)
-            mdd = min(mdd, v / peak - 1)
+    mdd, max_uw = _drawdown(eqn)
+    bmdd, bmax_uw = _drawdown(bhn)                     # 벤치마크(단순보유) 낙폭 — 방어력 비교용
     avg_win = sum(wins) / len(wins) * 100 if wins else None
     avg_loss = sum(losses) / len(losses) * 100 if losses else None
     step = max(1, len(eqn) // 200)
@@ -186,6 +193,9 @@ def period_report(curve_eq, curve_bh, curve_d, trades, start_ci):
         "bench_return_pct": round((bhn[-1] - 1) * 100, 1),
         "cagr_pct": round(((eqn[-1] ** (1 / years)) - 1) * 100, 1) if years > 0.5 else None,
         "sharpe": _sharpe(dr), "mdd_pct": round(mdd * 100, 1), "max_underwater_days": max_uw,
+        "bench_mdd_pct": round(bmdd * 100, 1), "bench_max_underwater_days": bmax_uw,
+        "mdd_saved_pp": round((mdd - bmdd) * 100, 1),   # 양수 = 전략이 낙폭을 그만큼 줄임
+        "bench_sharpe": _sharpe([bhn[i] / bhn[i - 1] - 1 for i in range(1, len(bhn))]),
         "trades_per_month": round(len(use) / (years * 12), 1) if years > 0.1 else None,
         "avg_hold_days": round(sum(t["days"] for t in use) / len(use)) if use else None,
         "curve": {"d0": ds[0], "d1": ds[-1],

@@ -10145,8 +10145,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     // 📊 전략 비교 랭킹 — 같은 규칙을 전 종목에 적용했을 때 어디서 통했나 (교차 종목 뷰)
     const cmpView = () => {
       const SK = window.__tsCmpSort || 'sharpe';
-      const SORTS = [['sharpe', '샤프'], ['total', '총수익'], ['alpha', '초과수익'], ['mdd', 'MDD'], ['win', '승률'], ['pass', '검정통과']];
-      const KEY = { sharpe: 'sharpe', total: 'tot', alpha: 'alpha', mdd: 'mdd', win: 'win', pass: 'pass' }[SK] || 'sharpe';
+      const SORTS = [['sharpe', '샤프'], ['total', '총수익'], ['alpha', '초과수익'], ['save', '낙폭 방어'], ['mdd', 'MDD'], ['win', '승률'], ['pass', '검정통과']];
+      const KEY = { sharpe: 'sharpe', total: 'tot', alpha: 'alpha', save: 'save', mdd: 'mdd', win: 'win', pass: 'pass' }[SK] || 'sharpe';
       const rows = d.tickers.map((x, i) => {
         const p = (x.periods || {})[P] || {};
         const rr = x.rst, mcv = x.monte_carlo, mcc = x.mc_candles;
@@ -10156,7 +10156,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         return {
           i, name: x.name, tag: x.tag, vcol: x.verdict_color, verdict: x.verdict,
           tot, bh, alpha: (tot == null || bh == null) ? null : Math.round((tot - bh) * 10) / 10,
-          sharpe: p.sharpe, mdd: p.mdd_pct, win: p.win_rate, n: p.n_trades, pass,
+          sharpe: p.sharpe, mdd: p.mdd_pct, bmdd: p.bench_mdd_pct, save: p.mdd_saved_pp,
+          win: p.win_rate, n: p.n_trades, pass,
         };
       }).filter(x => x.tot != null);
       if (!rows.length) return '<div style="font-size:0.6rem;color:var(--text-muted);">비교할 데이터가 없습니다.</div>';
@@ -10166,12 +10167,23 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const sortBtns = SORTS.map(([k, lab]) => `<button onclick="window.__tsCmpSort='${k}';renderTrendSignal()" style="padding:2px 10px;border-radius:5px;font-size:0.55rem;cursor:pointer;font-weight:${k === SK ? 700 : 400};background:${k === SK ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${k === SK ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === SK ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.12)'};">${lab}</button>`).join(' ');
       const beat = rows.filter(x => x.alpha != null && x.alpha > 0).length;
       const ok2 = rows.filter(x => x.pass >= 2).length;
+      const saved = rows.filter(x => x.save != null && x.save > 0).length;
+      const nS = rows.filter(x => x.save != null).length;
+      // 상승장/하락장 종목을 갈라 초과수익 발생 위치를 드러냄 (추세추종=방어 도구인지 확인)
+      const dn = rows.filter(x => x.bh != null && x.bh < 0), up = rows.filter(x => x.bh != null && x.bh >= 0);
+      const dnW = dn.filter(x => x.alpha > 0).length, upW = up.filter(x => x.alpha > 0).length;
+      const insight = (dn.length && up.length) ? `<div style="margin-bottom:9px;padding:7px 11px;border-radius:8px;background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.22);font-size:0.56rem;line-height:1.7;color:var(--text-bright);">
+          🔍 <b>초과수익이 어디서 나왔나</b> — 벤치마크가 <b style="color:#f87171;">하락</b>한 ${dn.length}종목 중 <b style="color:${dnW ? '#4ade80' : '#f87171'};">${dnW}종목</b>이 단순보유를 이겼고,
+          <b style="color:#4ade80;">상승</b>한 ${up.length}종목 중 <b style="color:${upW ? '#4ade80' : '#f87171'};">${upW}종목</b>이 이겼습니다.
+          ${dn.length && dnW / dn.length > (up.length ? upW / up.length : 0) ? '<b>오르는 종목에서는 상승분을 놓치고, 떨어지는 종목에서는 손실을 줄이는</b> 전형적인 추세추종(방어형) 패턴입니다 — 수익 증폭기가 아니라 낙폭 축소 장치로 봐야 합니다.' : '방어형 패턴이 뚜렷하지 않습니다 — 표본이 작아 해석에 주의가 필요합니다.'}
+        </div>` : '';
       const th = (lab, al) => `<th style="padding:5px 7px;text-align:${al || 'right'};font-size:0.53rem;color:var(--text-muted);font-weight:600;white-space:nowrap;">${lab}</th>`;
       const body = rows.map((x, k) => {
         const aw = (x.alpha == null ? 0 : Math.abs(x.alpha) / mxA * 48);
         const ac = (x.alpha || 0) >= 0 ? '#4ade80' : '#f87171';
         const bar = x.alpha == null ? '' : `<div style="position:relative;height:7px;width:96px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.22);"></div><div style="position:absolute;top:0;bottom:0;${x.alpha >= 0 ? 'left:50%' : 'right:50%'};width:${aw.toFixed(1)}%;background:${ac};opacity:0.85;"></div></div>`;
         const pc = x.pass >= 2 ? '#4ade80' : x.pass === 1 ? '#fbbf24' : '#f87171';
+        const sc = (x.save || 0) > 0 ? '#4ade80' : (x.save || 0) < 0 ? '#f87171' : 'var(--text-muted)';
         const rank = k === 0 ? '🥇' : k === 1 ? '🥈' : k === 2 ? '🥉' : `<span style="color:var(--text-muted);">${k + 1}</span>`;
         return `<tr style="border-top:1px solid rgba(255,255,255,0.05);cursor:pointer;background:${x.i === TI ? 'rgba(34,211,238,0.06)' : 'transparent'};" onclick="window.__tsTicker=${x.i};window.__tsView='perf';window.__tsZoom=null;renderTrendSignal()">
           <td style="padding:5px 7px;text-align:center;font-size:0.62rem;">${rank}</td>
@@ -10181,6 +10193,8 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <td style="padding:5px 7px;"><div style="display:flex;align-items:center;gap:7px;"><span style="font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:${ac};min-width:52px;text-align:right;">${x.alpha == null ? '—' : pm(x.alpha) + '%p'}</span>${bar}</div></td>
           <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${(x.sharpe || 0) >= 1 ? '#4ade80' : (x.sharpe || 0) >= 0.5 ? '#fbbf24' : 'var(--text-muted)'};">${x.sharpe == null ? '—' : x.sharpe}</td>
           <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#f87171;">${x.mdd == null ? '—' : x.mdd + '%'}</td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#fbbf24;">${x.bmdd == null ? '—' : x.bmdd + '%'}</td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:${sc};">${x.save == null ? '—' : pm(x.save) + '%p'}</td>
           <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${x.win == null ? '—' : x.win + '%'}</td>
           <td style="padding:5px 7px;text-align:right;font-size:0.58rem;font-family:var(--font-mono);color:var(--text-muted);">${x.n == null ? '—' : x.n}</td>
           <td style="padding:5px 7px;text-align:center;"><span style="font-size:0.55rem;font-weight:700;color:${pc};background:${pc}1c;border-radius:9px;padding:2px 8px;white-space:nowrap;">${x.pass}/3</span></td>
@@ -10194,16 +10208,19 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;">
           <span style="font-size:0.56rem;font-weight:700;color:${beat > rows.length / 2 ? '#4ade80' : '#fbbf24'};background:rgba(255,255,255,0.05);border-radius:9px;padding:3px 10px;">벤치마크 초과 ${beat}/${rows.length}종목</span>
+          <span style="font-size:0.56rem;font-weight:700;color:${saved > nS / 2 ? '#4ade80' : '#fbbf24'};background:rgba(255,255,255,0.05);border-radius:9px;padding:3px 10px;">낙폭 방어 성공 ${saved}/${nS}종목</span>
           <span style="font-size:0.56rem;font-weight:700;color:${ok2 > 0 ? '#4ade80' : '#f87171'};background:rgba(255,255,255,0.05);border-radius:9px;padding:3px 10px;">3중 검정 2개 이상 통과 ${ok2}/${rows.length}종목</span>
         </div>
+        ${insight}
         <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;min-width:760px;">
+        <table style="width:100%;border-collapse:collapse;min-width:900px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
-            ${th('#', 'center')}${th('종목', 'left')}${th('전략 수익')}${th('벤치마크')}${th('초과(전략−보유)', 'left')}${th('샤프')}${th('MDD')}${th('승률')}${th('거래')}${th('검정', 'center')}
+            ${th('#', 'center')}${th('종목', 'left')}${th('전략 수익')}${th('벤치마크')}${th('초과(전략−보유)', 'left')}${th('샤프')}${th('MDD 전략')}${th('MDD 보유')}${th('낙폭 방어')}${th('승률')}${th('거래')}${th('검정', 'center')}
           </tr></thead><tbody>${body}</tbody>
         </table></div>
         <div style="font-size:0.53rem;color:var(--text-muted);margin-top:9px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.07);padding-top:7px;">
           행을 클릭하면 해당 종목 상세 보드로 이동합니다. <b>초과</b>=전략 수익−단순 보유(벤치마크) 수익. 양수여야 '전략이 값어치를 했다'는 뜻이고, 음수면 <b>그냥 들고 있는 편이 나았다</b>는 뜻입니다.
+          <b>낙폭 방어</b>=보유 MDD−전략 MDD. 양수면 전략이 그만큼 하락을 덜 맞았다는 뜻으로, <b>추세추종의 값어치는 대부분 여기서 나옵니다</b>(수익이 아니라 낙폭에서).
           <b>검정</b>=RST(규칙 유의성)·몬테카를로(무작위 진입)·MC캔들(가격경로 재표본) 3종 중 통과 개수 — 2개 이상이어야 우연으로 보기 어렵습니다.
           MDD는 0에 가까울수록 얕은 낙폭이라 위에 정렬됩니다. 표본이 10종목뿐이라 <b>1위 종목은 사후선택(과최적화) 편향</b>이 있으며, 실제로 통할 종목을 미리 골라내는 근거가 되지 못합니다.
           🚨 정보 요약이며 종목 추천·투자자문이 아닙니다.
