@@ -468,6 +468,11 @@ def main():
         overlay = {"e200": [round(e200[WARM + i] / _base, 4) for i in _samp],
                    "st": [round(st_line[WARM + i] / _base, 4) for i in _samp],
                    "adx": [round(adx[WARM + i], 1) for i in _samp]}
+        # 거래 클릭 줌용 일별 시계열 (실제 가격 — 정수 반올림으로 용량 절감)
+        daily = {"dates": dts[WARM:],
+                 "c": [round(x) for x in c[WARM:]],
+                 "e200": [round(x) for x in e200[WARM:]],
+                 "st": [round(x) for x in st_line[WARM:]]}
 
         # 숏 사이드 시뮬레이션 (정보용 — 영상의 SHORT 마커 재현)
         st_trades = run_strategy_short(c, dts, st_dir, e200, adx)
@@ -501,7 +506,7 @@ def main():
             "ema200": round(e200[-1], 2), "ema20": round(e20[-1], 2), "pullback": pullback,
             "verdict": verdict, "verdict_color": vcol,
             "periods": periods, "monthly": monthly, "yearly": yearly,
-            "worst_dd": wdd, "trades": tlist, "markers": markers, "overlay": overlay,
+            "worst_dd": wdd, "trades": tlist, "markers": markers, "overlay": overlay, "daily": daily,
             "trades_short": tlist_short, "markers_short": markers_short, "short_stats": short_stats,
             "monte_carlo": mc,
             "optimization": opt[:8], "entry_compare": entry_compare,
