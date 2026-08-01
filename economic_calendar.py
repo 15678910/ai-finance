@@ -64,6 +64,22 @@ CENTRAL_BANK_EVENTS = [
 
 # ── 2. 수동 큐레이션 (IPO/지정학 등 — 뉴스 기반) ───────────────────
 CURATED_EVENTS = [
+    # ── 2026년 8월 주요 일정 (반복 규칙 없는 일회성 이벤트만 — 나머지는 자동 생성) ──
+    {"date": "2026-08-07", "title": "삼성 갤럭시 신제품 공개", "category": "기업", "impact": "MEDIUM",
+     "region": "🇰🇷", "tags": ["삼성전자", "갤럭시", "세트"],
+     "impact_analysis": "📱 세트(완제품) 사업 반응 점검. 메모리 가격 상승분이 완제품 가격에 전이될 때 소비자 저항이 나타나는지가 관전 포인트 — 수요 위축 시 메모리 수요에 역풍."},
+    {"date": "2026-08-12", "title": "MSCI 8월 분기 리뷰", "category": "수급", "impact": "MEDIUM",
+     "region": "🌐", "tags": ["MSCI", "패시브", "외국인"],
+     "impact_analysis": "🌐 지수 편입·제외에 따른 패시브 자금 이동. 리밸런싱일 전후 대량 거래로 개별 종목 변동성 확대 가능."},
+    {"date": "2026-08-19", "title": "어플라이드 머티리얼즈(AMAT) 실적", "category": "실적", "impact": "MEDIUM",
+     "region": "🇺🇸", "tags": ["AMAT", "장비", "반도체"],
+     "impact_analysis": "🔧 반도체 장비 수주 = 메모리 3사 증설 의지의 선행지표. 가이던스 상향 시 설비투자 사이클 확인."},
+    {"date": "2026-08-27", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "HIGH",
+     "region": "🇰🇷", "tags": ["BOK", "한국은행", "기준금리"],
+     "impact_analysis": "🏦 금리 방향이 신용융자·레버리지 청산 압력과 직결. 인상 시 USD/KRW 하락·은행주 수혜, 성장주엔 부담."},
+    {"date": "2026-08-28", "title": "잭슨홀 심포지엄 (연준 의장 연설)", "category": "중앙은행", "impact": "HIGH",
+     "region": "🇺🇸", "tags": ["Fed", "잭슨홀", "금리"],
+     "impact_analysis": "🎤 연준의 중기 정책 방향 신호. 매파적 톤 → 장기금리 상승 → 데이터센터 투자비용 증가로 AI 캐펙스 조정 리스크."},
     # ── 젠슨 황(NVIDIA CEO) 방한 ──────────────────────────────────────
     {
         "date": "2026-06-05",
@@ -563,6 +579,49 @@ def tsmc_revenue_events(start: str, end: str) -> list:
     return events
 
 
+def korean_indicator_events(start: str, end: str) -> list:
+    """한국 반복 지표 자동 생성 — 발표일이 규칙적이라 하드코딩 없이 매달 자동 확장.
+      · 매월 1일  : 관세청 월간 수출입 실적 (전월 확정)  ← 가장 빠른 실물 지표
+      · 매월 11일 : 관세청 1~10일 수출 속보
+      · 매월 15일 : 한국은행 수출입물가지수 (전월)      ← 반도체 '가격' 검증
+      · 매월 21일 : 관세청 1~20일 수출 속보
+      · 매월 말일 : DRAM·NAND 고정거래가(계약가) 업데이트 (TrendForce, 통상 월말)
+    ※ 공휴일이면 실제 발표가 1~2일 밀릴 수 있음(안내 문구 포함)."""
+    import calendar as _cal
+    SPECS = [
+        (1,  "관세청 {pm}월 수출입 실적 (확정)", "HIGH", ["수출", "관세청", "무역수지"],
+         "📦 물량·단가·환율이 모두 반영된 가장 빠른 실물 실적. 반도체 수출 증감률이 삼성·SK 실적 가시성의 1차 근거. 일평균 수출·반도체 품목별 증감 확인."),
+        (11, "관세청 {cm}월 1~10일 수출 속보", "MEDIUM", ["수출", "속보", "관세청"],
+         "🚚 당월 초순 흐름 — 조업일수 보정 후 일평균 증감률을 보면 월간 방향을 조기 감지."),
+        (15, "한국은행 {pm}월 수출입물가지수", "HIGH", ["수출물가", "한국은행", "반도체"],
+         "💰 반도체가 '실제로 비싸게 팔리는지'를 국가 통계로 검증하는 관문. 수출물가(반도체) 상승 = 계약가 인상이 실적에 반영되는 증거. 물량이 아닌 '가격' 확인용 핵심 지표."),
+        (21, "관세청 {cm}월 1~20일 수출 속보", "HIGH", ["수출", "속보", "관세청"],
+         "📈 중순까지 누적 흐름으로 당월 실적 가시성 확보. 반도체 증감률이 시장 컨센서스와 벌어지면 실적 추정 수정 촉발."),
+        (0,  "DRAM·NAND 고정거래가(계약가) 업데이트", "MEDIUM", ["DRAM", "NAND", "메모리", "가격"],
+         "🧮 현물가가 아닌 실제 계약가 — 메모리 수익성의 직접 근거. 계약가 상승 지속 = 삼성·SK 마진 개선. 현물가와 계약가 간극이 좁혀지는지 확인."),
+    ]
+    events, today = [], date.today()
+    base_idx = (today.year * 12) + (today.month - 1)
+    for off in range(-1, 4):                                  # 지난달 ~ 향후 3개월
+        idx = base_idx + off
+        y, mm = idx // 12, idx % 12 + 1
+        pm = mm - 1 if mm > 1 else 12                          # 전월(발표 대상月)
+        for day, title, impact, tags, analysis in SPECS:
+            d = _cal.monthrange(y, mm)[1] if day == 0 else day  # 0 = 월말
+            ds = date(y, mm, d).isoformat()
+            if not (start <= ds <= end):
+                continue
+            events.append({
+                "date": ds, "time": "",
+                "title": title.format(pm=pm, cm=mm), "category": "경제지표", "impact": impact,
+                "region": "🇰🇷", "tags": tags,
+                "impact_analysis": analysis,
+                "detail": "발표일은 통상 기준이며 공휴일·기관 사정에 따라 1~2일 조정될 수 있습니다.",
+                "source": "규칙생성",
+            })
+    return events
+
+
 # ── 발표 완료 실제값 수집 (FRED 시리즈) ───────────────────────────────
 # 태그 키워드 → (series_id, metric, 단위라벨, 소수자리)
 #   metric: yoy=전년동월비%, mom=전월대비변화, level=원시값
@@ -758,6 +817,11 @@ def main():
     tsmc = filter_window(tsmc_revenue_events(past_str, end_str))
     all_events.extend(tsmc)
     print(f"[TSMC] {len(tsmc)}개 월매출 일정 (윈도우 내)")
+
+    # 한국 반복 지표 (수출입 실적·수출물가·수출 속보·메모리 계약가) — 규칙 생성으로 매달 자동 확장
+    kr_ind = filter_window(korean_indicator_events(past_str, end_str))
+    all_events.extend(kr_ind)
+    print(f"[한국지표] {len(kr_ind)}개 자동 생성 (수출입·수출물가·속보·계약가)")
 
     # 수동 큐레이션 (IPO/지정학)
     curated = filter_upcoming(CURATED_EVENTS)

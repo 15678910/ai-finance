@@ -140,6 +140,21 @@ def main():
     if lines:
         S.append("📅 오늘·내일 주요 일정\n" + "\n".join(lines))
 
+    # ── 이번 달 남은 주요 일정 (HIGH 임팩트 중심 — 미리 대비용) ──
+    mon = now.strftime("%Y-%m")
+    ahead = [e for e in (ec.get("events") or [])
+             if str(e.get("date", "")).startswith(mon) and e.get("date") > tomorrow_s]
+    ahead.sort(key=lambda e: e.get("date"))
+    hi = [e for e in ahead if e.get("impact") == "HIGH"][:7]
+    rest = [e for e in ahead if e.get("impact") != "HIGH"][:3]
+    if hi or rest:
+        def _fmt(e):
+            d = str(e.get("date", ""))
+            dd = f"{int(d[5:7])}/{int(d[8:10])}"
+            return f"  {'🔥' if e.get('impact') == 'HIGH' else '·'} {dd} {e.get('title')}"
+        body = "\n".join(_fmt(e) for e in hi + rest)
+        S.append(f"🗓️ {now.month}월 남은 주요 일정 ({len(ahead)}건 중 상위)\n" + body)
+
     # ── 주요 뉴스 톱3 ──
     mn = L("market_news")
     items = (mn.get("items") or [])[:3]
