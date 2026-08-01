@@ -10108,7 +10108,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         ${KV('종목 / 시장', `${h(t.name)} · ${h(t.tag)} · 일봉`)}
         ${KV('진입 규칙', `종가 > EMA200 (대추세) AND Supertrend(${(d.params || {}).supertrend || '10,3'}) 롱 AND ADX(14) ≥ ${(d.params || {}).adx_min || 20}`)}
         ${KV('청산 규칙', 'Supertrend 하향 전환 (트레일링 스탑) — 고정 익절 없음')}
-        ${KV('비용 가정', `왕복 ${(d.params || {}).cost_pct || 0.28}% (수수료+거래세)`)}
+        ${KV('비용 가정', `왕복 ${(+((d.params || {}).cost_pct ?? 0.28)).toFixed(2)}% (수수료+거래세)`)}
         ${KV('검증 절차', 'RST(규칙 유의성) → 다기간 백테스트 → 몬테카를로 2종(타이밍·가격경로)')}
         ${H2('2. 기간별 결과')}
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:480px;">
