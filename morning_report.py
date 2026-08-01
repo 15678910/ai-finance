@@ -122,7 +122,9 @@ def main():
     # ── 밸류에이션 ──
     kv = L("kospi_valuation")
     if kv.get("per") is not None:
-        S.append(f"📐 코스피 밸류 ({kv.get('asof', '')})\n  후행PER {kv.get('per')} · PBR {kv.get('pbr')} · 배당 {kv.get('div_yield')}%")
+        _r2 = lambda v: (f"{float(v):.2f}".rstrip("0").rstrip(".") if v is not None else "—")
+        S.append(f"📐 코스피 밸류 ({kv.get('asof', '')})\n"
+                 f"  후행PER {_r2(kv.get('per'))} · PBR {_r2(kv.get('pbr'))} · 배당 {_r2(kv.get('div_yield'))}%")
 
     # ── 예측 성적 자기평가 ──
     pq = L("prediction_quality")
