@@ -9453,7 +9453,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const chk = (ok, yes, no) => ok ? `<span style="color:#4ade80;">✓ ${yes}</span>` : `<span style="color:#f87171;">✗ ${no}</span>`;
     const pm = v => (v >= 0 ? '+' : '') + v;
     const SESSIONS = [['ytd', '2026 YTD (표본외)'], ['2.5y', 'full 2.5y'], ['5y', '5y robustness']];
-    const VIEWS = [['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 통계 검정 3종'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고'], ['fin', '📑 재무'], ['report', '📄 개발 리포트']];
+    const VIEWS = [['cmp', '🏆 전략 비교 랭킹'], ['perf', '📊 성과·차트'], ['monthly', '📅 월별 수익률'], ['trades', '📍 Trade chart'], ['mc', '🎲 통계 검정 3종'], ['opt', '🔧 파라미터 최적화'], ['entry', '🧪 진입방식 비교'], ['pbd', '👥 개인 매수 분포'], ['si', '🩳 공매도 잔고'], ['fin', '📑 재무'], ['report', '📄 개발 리포트']];
     // 세션 탭 (Jesse 브라우저 탭 스타일)
     const sessionTabs = SESSIONS.map(([k, lab]) => `<button onclick="window.__tsPeriod='${k}';renderTrendSignal()" style="display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:9px 9px 0 0;font-size:0.6rem;cursor:pointer;font-weight:${k === P ? 700 : 400};background:${k === P ? 'rgba(34,211,238,0.13)' : 'rgba(255,255,255,0.03)'};color:${k === P ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === P ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.08)'};border-bottom:${k === P ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)'};"><span style="font-size:0.55rem;">🖥️</span>${lab}${k === P ? ' <span style="opacity:0.6;font-size:0.5rem;">✕</span>' : ''}</button>`).join('');
     const tickerBtns = d.tickers.map((x, i) => `<button onclick="window.__tsTicker=${i};window.__tsZoom=null;renderTrendSignal()" style="padding:4px 13px;border-radius:8px;font-size:0.66rem;cursor:pointer;font-weight:${i === TI ? 800 : 500};background:${i === TI ? 'rgba(34,211,238,0.18)' : 'rgba(255,255,255,0.04)'};color:${i === TI ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${i === TI ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)'};"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.verdict_color)};margin-right:6px;"></span>${h(x.name)}</button>`).join(' ');
@@ -10142,9 +10142,79 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div style="font-size:0.52rem;color:var(--text-muted);margin-top:9px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);line-height:1.6;">🚨 이 리포트는 공개 데이터로 자동 생성된 <b>정보 요약</b>이며 투자 권유가 아닙니다. 자동매매를 수행하지 않습니다.</div>
       </div>`;
     };
+    // 📊 전략 비교 랭킹 — 같은 규칙을 전 종목에 적용했을 때 어디서 통했나 (교차 종목 뷰)
+    const cmpView = () => {
+      const SK = window.__tsCmpSort || 'sharpe';
+      const SORTS = [['sharpe', '샤프'], ['total', '총수익'], ['alpha', '초과수익'], ['mdd', 'MDD'], ['win', '승률'], ['pass', '검정통과']];
+      const KEY = { sharpe: 'sharpe', total: 'tot', alpha: 'alpha', mdd: 'mdd', win: 'win', pass: 'pass' }[SK] || 'sharpe';
+      const rows = d.tickers.map((x, i) => {
+        const p = (x.periods || {})[P] || {};
+        const rr = x.rst, mcv = x.monte_carlo, mcc = x.mc_candles;
+        const pass = [rr && rr.significant, mcv && mcv.pctile >= 95, mcc && mcc.orig_pctile <= 50].filter(Boolean).length;
+        const tot = p.total_return_pct == null ? null : p.total_return_pct;
+        const bh = p.bench_return_pct == null ? null : p.bench_return_pct;
+        return {
+          i, name: x.name, tag: x.tag, vcol: x.verdict_color, verdict: x.verdict,
+          tot, bh, alpha: (tot == null || bh == null) ? null : Math.round((tot - bh) * 10) / 10,
+          sharpe: p.sharpe, mdd: p.mdd_pct, win: p.win_rate, n: p.n_trades, pass,
+        };
+      }).filter(x => x.tot != null);
+      if (!rows.length) return '<div style="font-size:0.6rem;color:var(--text-muted);">비교할 데이터가 없습니다.</div>';
+      const kv = o => (o[KEY] == null ? -1e9 : o[KEY]);
+      rows.sort((a, b) => kv(b) - kv(a));                       // MDD는 음수라 내림차순이 곧 '얕은 낙폭順'
+      const mxA = Math.max(1, ...rows.map(x => Math.abs(x.alpha == null ? 0 : x.alpha)));
+      const sortBtns = SORTS.map(([k, lab]) => `<button onclick="window.__tsCmpSort='${k}';renderTrendSignal()" style="padding:2px 10px;border-radius:5px;font-size:0.55rem;cursor:pointer;font-weight:${k === SK ? 700 : 400};background:${k === SK ? 'rgba(34,211,238,0.2)' : 'transparent'};color:${k === SK ? '#22d3ee' : 'var(--text-muted)'};border:1px solid ${k === SK ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.12)'};">${lab}</button>`).join(' ');
+      const beat = rows.filter(x => x.alpha != null && x.alpha > 0).length;
+      const ok2 = rows.filter(x => x.pass >= 2).length;
+      const th = (lab, al) => `<th style="padding:5px 7px;text-align:${al || 'right'};font-size:0.53rem;color:var(--text-muted);font-weight:600;white-space:nowrap;">${lab}</th>`;
+      const body = rows.map((x, k) => {
+        const aw = (x.alpha == null ? 0 : Math.abs(x.alpha) / mxA * 48);
+        const ac = (x.alpha || 0) >= 0 ? '#4ade80' : '#f87171';
+        const bar = x.alpha == null ? '' : `<div style="position:relative;height:7px;width:96px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.22);"></div><div style="position:absolute;top:0;bottom:0;${x.alpha >= 0 ? 'left:50%' : 'right:50%'};width:${aw.toFixed(1)}%;background:${ac};opacity:0.85;"></div></div>`;
+        const pc = x.pass >= 2 ? '#4ade80' : x.pass === 1 ? '#fbbf24' : '#f87171';
+        const rank = k === 0 ? '🥇' : k === 1 ? '🥈' : k === 2 ? '🥉' : `<span style="color:var(--text-muted);">${k + 1}</span>`;
+        return `<tr style="border-top:1px solid rgba(255,255,255,0.05);cursor:pointer;background:${x.i === TI ? 'rgba(34,211,238,0.06)' : 'transparent'};" onclick="window.__tsTicker=${x.i};window.__tsView='perf';window.__tsZoom=null;renderTrendSignal()">
+          <td style="padding:5px 7px;text-align:center;font-size:0.62rem;">${rank}</td>
+          <td style="padding:5px 7px;white-space:nowrap;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${vc(x.vcol)};margin-right:6px;"></span><span style="font-size:0.64rem;font-weight:700;color:var(--text-bright);">${h(x.name)}</span> <span style="font-size:0.5rem;color:var(--text-muted);">${h(x.tag)}</span></td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.63rem;font-family:var(--font-mono);font-weight:700;color:${x.tot >= 0 ? '#4ade80' : '#f87171'};">${pm(x.tot)}%</td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#fbbf24;">${x.bh == null ? '—' : pm(x.bh) + '%'}</td>
+          <td style="padding:5px 7px;"><div style="display:flex;align-items:center;gap:7px;"><span style="font-size:0.6rem;font-family:var(--font-mono);font-weight:700;color:${ac};min-width:52px;text-align:right;">${x.alpha == null ? '—' : pm(x.alpha) + '%p'}</span>${bar}</div></td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${(x.sharpe || 0) >= 1 ? '#4ade80' : (x.sharpe || 0) >= 0.5 ? '#fbbf24' : 'var(--text-muted)'};">${x.sharpe == null ? '—' : x.sharpe}</td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:#f87171;">${x.mdd == null ? '—' : x.mdd + '%'}</td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${x.win == null ? '—' : x.win + '%'}</td>
+          <td style="padding:5px 7px;text-align:right;font-size:0.58rem;font-family:var(--font-mono);color:var(--text-muted);">${x.n == null ? '—' : x.n}</td>
+          <td style="padding:5px 7px;text-align:center;"><span style="font-size:0.55rem;font-weight:700;color:${pc};background:${pc}1c;border-radius:9px;padding:2px 8px;white-space:nowrap;">${x.pass}/3</span></td>
+        </tr>`;
+      }).join('');
+      return `<div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <span style="font-size:0.62rem;font-weight:700;color:var(--text-bright);">같은 규칙을 ${rows.length}종목에 적용 — 어디서 통했나</span>
+          <span style="font-size:0.53rem;color:var(--text-muted);">기간: ${h((SESSIONS.find(s => s[0] === P) || ['', P])[1])} (상단 세션 탭으로 변경)</span>
+          <span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;">${sortBtns}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;">
+          <span style="font-size:0.56rem;font-weight:700;color:${beat > rows.length / 2 ? '#4ade80' : '#fbbf24'};background:rgba(255,255,255,0.05);border-radius:9px;padding:3px 10px;">벤치마크 초과 ${beat}/${rows.length}종목</span>
+          <span style="font-size:0.56rem;font-weight:700;color:${ok2 > 0 ? '#4ade80' : '#f87171'};background:rgba(255,255,255,0.05);border-radius:9px;padding:3px 10px;">3중 검정 2개 이상 통과 ${ok2}/${rows.length}종목</span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:760px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            ${th('#', 'center')}${th('종목', 'left')}${th('전략 수익')}${th('벤치마크')}${th('초과(전략−보유)', 'left')}${th('샤프')}${th('MDD')}${th('승률')}${th('거래')}${th('검정', 'center')}
+          </tr></thead><tbody>${body}</tbody>
+        </table></div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:9px;line-height:1.65;border-top:1px solid rgba(255,255,255,0.07);padding-top:7px;">
+          행을 클릭하면 해당 종목 상세 보드로 이동합니다. <b>초과</b>=전략 수익−단순 보유(벤치마크) 수익. 양수여야 '전략이 값어치를 했다'는 뜻이고, 음수면 <b>그냥 들고 있는 편이 나았다</b>는 뜻입니다.
+          <b>검정</b>=RST(규칙 유의성)·몬테카를로(무작위 진입)·MC캔들(가격경로 재표본) 3종 중 통과 개수 — 2개 이상이어야 우연으로 보기 어렵습니다.
+          MDD는 0에 가까울수록 얕은 낙폭이라 위에 정렬됩니다. 표본이 10종목뿐이라 <b>1위 종목은 사후선택(과최적화) 편향</b>이 있으며, 실제로 통할 종목을 미리 골라내는 근거가 되지 못합니다.
+          🚨 정보 요약이며 종목 추천·투자자문이 아닙니다.
+        </div>
+      </div>`;
+    };
     const bt = (t.periods || {})[P] || (t.periods || {})['5y'];
     let content = '';
-    if (V === 'perf') {
+    if (V === 'cmp') {
+      content = cmpView();
+    } else if (V === 'perf') {
       content = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
           <div style="flex:1.5;min-width:270px;">${eqChart(bt)}</div>
           <div style="flex:1;min-width:215px;">${perfList(bt)}</div>
