@@ -2443,6 +2443,7 @@ body {
       const isClosed = om.kospi_closed;
       const activeMarket = om.active_market || '';
       const kospiPred = om.kospi_open_prediction || '';
+      const kospiAcc = om.kospi_open_accuracy || null;   // 예측 신뢰도 실측치(방향 적중률·폭 오차)
       const alertCount = om.alert_count || 0;
       const updateBadge = isClosed ? 'KOSPI 휴장 중' : 'KOSPI 운영 중';
       const updateColor = isClosed ? 'var(--amber,#fbbf24)' : 'var(--green,#4ade80)';
@@ -2459,6 +2460,10 @@ body {
             ${kospiPred && isClosed ? `<div>
               <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">KOSPI 시초가 예상</div>
               <div style="font-size:1.0rem;font-weight:600;color:var(--cyan);">${h(kospiPred)}</div>
+              ${kospiAcc ? `<div title="${h(kospiAcc.note || '')}" style="font-size:0.56rem;color:var(--text-muted);margin-top:2px;cursor:help;line-height:1.5;">
+                방향 적중 <b style="color:#4ade80;">${kospiAcc.direction_hit_pct}%</b> · 폭 오차 ±${kospiAcc.mae_pp}%p
+                <span style="opacity:0.7;">(실측 ${kospiAcc.sample_days}일 · 미국선물 ${Math.round((kospiAcc.weights || {}).us_futures * 100)}%+EWY ${Math.round((kospiAcc.weights || {}).ewy * 100)}%)</span>
+              </div>` : ''}
             </div>` : ''}
             ${alertCount > 0 ? `<div>
               <div style="font-size:0.7rem;color:var(--red,#f87171);font-family:var(--font-mono);">ALERTS</div>

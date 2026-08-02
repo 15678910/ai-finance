@@ -232,9 +232,29 @@ def should_alert(market: dict) -> tuple:
     return False, "", ""
 
 
+# 시초가 예측 가중치 — 실측으로 결정 (아래 EVIDENCE 참조)
+OPEN_W_EWY = 0.2                    # 한국 ETF(EWY) 비중
+OPEN_W_FUT = 1 - OPEN_W_EWY         # 미국 선물 비중
+
+# EVIDENCE (2026-08-02 측정) — KOSPI 지수 일별 시가/종가(pykrx) vs 직전 미국 세션
+#   표본 481거래일(2024-01~2026-07) · 앞 70% 학습 / 뒤 30%(145일) 검증
+#   검증구간 성능 (r · 방향일치 · 시초가갭 MAE):
+#     0.6·EWY+0.4·선물 (기존)  r=+0.509  73.8%  1.93%p   ← 기준선(항상 보합) 1.77%p보다 나쁨
+#     0.2·EWY+0.8·선물 (채택)  r=+0.557  76.6%  1.44%p
+#     선물 단독                r=+0.561  75.9%  1.48%p
+#     EWY 단독                r=+0.477  71.7%  2.77%p
+#   → 기존 주석("EWY가 선물보다 예측력 높음")은 데이터와 반대였다. 선물 비중을 올려야 맞다.
+#   ⚠️ 방향은 4번 중 3번 맞지만 '폭'은 신뢰도가 낮다(MAE 1.44%p vs 갭 표준편차 2.24%p).
+#   ⚠️ 시초가 갭 → 그날 장중(시가→종가) 방향 예측력은 없음(방향일치 50.2%, R²=0.03).
+#
+# 야간선물(코스피200 야간물)을 쓰지 않는 이유:
+#   ① pykrx는 선물 OHLCV 미구현(get_future_ohlcv → NotImplementedError) — 티커 목록만 제공.
+#      무료로 야간 세션 시세를 받을 경로가 없다.
+#   ② 야간선물이 거래되는 시간대는 미국 정규장과 겹친다 = NQ 선물·EWY와 '같은 정보 창구'다.
+#      야간선물이 시초가를 움직인다기보다, 둘 다 같은 야간 뉴스를 반영한 결과다.
+#      따라서 야간선물을 넣어도 새 정보가 아니라 중복 신호에 가깝다.
 def predict_kospi_open(markets: list) -> str:
-    """미국 선물 + EWY(한국 ETF) 기반 KOSPI 시초가 예측.
-    EWY는 미국 거래시간에 거래되는 직접적 한국 프록시 → 선물보다 예측력 높아 60% 가중."""
+    """미국 선물 + EWY(한국 ETF) 기반 KOSPI 시초가 예측 (가중치는 위 EVIDENCE로 실측 결정)."""
     futures = [m for m in markets if m.get("is_futures")]
     ewy = next((m for m in markets if m.get("is_korea_proxy") and m.get("change_pct") is not None), None)
 
@@ -242,7 +262,7 @@ def predict_kospi_open(markets: list) -> str:
     ewy_change = ewy["change_pct"] if ewy else None
 
     if ewy_change is not None and fut_change is not None:
-        avg_change = 0.6 * ewy_change + 0.4 * fut_change  # EWY 가중
+        avg_change = OPEN_W_EWY * ewy_change + OPEN_W_FUT * fut_change
     elif ewy_change is not None:
         avg_change = ewy_change
     elif fut_change is not None:
@@ -353,6 +373,19 @@ def main():
         "active_market": get_active_market(),
         "kospi_closed": is_kospi_closed(),
         "kospi_open_prediction": kospi_pred,
+        # 예측 신뢰도 실측치 — 대시보드가 '얼마나 믿을 값인지' 함께 보여주도록 동봉
+        "kospi_open_accuracy": {
+            "weights": {"ewy": OPEN_W_EWY, "us_futures": round(OPEN_W_FUT, 2)},
+            "sample_days": 145, "period": "2024-01~2026-07 중 검증구간(뒤 30%)",
+            "direction_hit_pct": 76.6, "corr": 0.557,
+            "mae_pp": 1.44, "gap_std_pp": 2.24, "naive_mae_pp": 1.77,
+            "intraday_hit_pct": 50.2,
+            "note": ("직전 미국 세션(선물 80%·EWY 20%)으로 다음 KRX 개장 갭을 추정. "
+                     "방향은 약 4번 중 3번 맞았으나 '폭'의 오차(MAE 1.44%p)는 갭 변동폭(2.24%p) 대비 작지 않다. "
+                     "시초가 갭이 그날 장중 방향까지 예측하지는 못한다(방향일치 50.2%). "
+                     "코스피200 야간선물은 같은 시간대(미국장)에 거래돼 동일 정보를 반영하므로 별도 추가 이득이 크지 않고, "
+                     "무료 데이터 경로도 없어 미사용."),
+        },
         "markets": grouped,
         "all_markets": all_markets,
         "alert_count": len(alerts),
