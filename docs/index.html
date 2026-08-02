@@ -9359,7 +9359,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!kv || Object.keys(kv).length === 0) kv = { fwdPer: 6.65, asof: _kvToday };  // 선행PER 최초 예시값(증권사 컨센서스 기준·갱신 권장)
     const fwd = kv.fwdPer, asof = kv.asof || '';
     const auto = window.__kvAuto || {};                       // 자동 수집(KRX·KOFIA): 후행PER·PBR·배당수익률
-    const ttm = auto.per, pbr = auto.pbr, dv = auto.div_yield, autoAsof = auto.asof || '';
+    // 수집기가 float32를 그대로 넘기면 18.030000686645508 같은 이진 오차가 노출된다.
+    // 수집기에서도 반올림하지만, 이미 저장된 파일·과거 캐시를 위해 표시 단에서도 방어한다.
+    const _r2 = v => (typeof v === 'number' && isFinite(v)) ? Math.round(v * 100) / 100 : (v == null ? null : v);
+    const ttm = _r2(auto.per), pbr = _r2(auto.pbr), dv = _r2(auto.div_yield), autoAsof = auto.asof || '';
     const pct = v => Math.max(0, Math.min(100, (v - LO) / (HI - LO) * 100));
     const iv = fwd == null ? { t: '값 입력 필요', c: 'var(--text-muted)' }
       : fwd < 7 ? { t: '역대급 저평가 (금융위기 바닥권)', c: '#4ade80' }
@@ -9367,14 +9370,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       : fwd <= 11.5 ? { t: '정상 범위', c: '#fbbf24' }
       : { t: '고평가', c: '#f87171' };
     const gL = pct(GFC), nL = pct(NORMAL_LO), nR = pct(NORMAL_HI), ptr = fwd == null ? null : pct(fwd);
-    const gauge = `<div style="position:relative;height:40px;margin:10px 2px 2px;">
+    const gauge = `<div style="position:relative;height:54px;margin:10px 2px 2px;">
       <div style="position:absolute;top:18px;left:0;right:0;height:8px;border-radius:4px;background:linear-gradient(90deg,#4ade80 0%,#22d3ee 28%,#fbbf24 62%,#f87171 100%);"></div>
       <div style="position:absolute;top:15px;left:${nL}%;width:${nR - nL}%;height:14px;border:1px dashed rgba(251,191,36,0.7);border-radius:3px;" title="정상범위 10~11배"></div>
       <div style="position:absolute;top:10px;left:${gL}%;width:2px;height:22px;background:#f87171;"></div>
       <div style="position:absolute;top:1px;left:${gL}%;transform:translateX(-50%);font-size:0.5rem;color:#f87171;white-space:nowrap;">6.27 위기최저</div>
-      ${ptr == null ? '' : `<div style="position:absolute;top:27px;left:${ptr}%;transform:translateX(-50%);font-size:0.62rem;color:${iv.c};">▲</div><div style="position:absolute;top:31px;left:${ptr}%;transform:translateX(-50%);font-size:0.52rem;color:var(--text-bright);white-space:nowrap;font-family:var(--font-mono);">${fwd}</div>`}
-      <div style="position:absolute;top:26px;left:0;font-size:0.48rem;color:var(--text-muted);">${LO}</div>
-      <div style="position:absolute;top:26px;right:0;font-size:0.48rem;color:var(--text-muted);">${HI}</div>
+      ${ptr == null ? '' : `<div style="position:absolute;top:24px;left:${ptr}%;transform:translateX(-50%);font-size:0.6rem;line-height:1;color:${iv.c};">▲</div><div style="position:absolute;top:39px;left:${ptr}%;transform:translateX(-50%);font-size:0.55rem;line-height:1;color:${iv.c};white-space:nowrap;font-family:var(--font-mono);font-weight:700;">${_r2(fwd)}</div>`}
+      ${ptr != null && ptr < 9 ? '' : `<div style="position:absolute;top:40px;left:0;font-size:0.48rem;color:var(--text-muted);">${LO}</div>`}
+      ${ptr != null && ptr > 91 ? '' : `<div style="position:absolute;top:40px;right:0;font-size:0.48rem;color:var(--text-muted);">${HI}</div>`}
     </div>`;
     const INP = 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text);border-radius:5px;padding:4px 6px;font-size:0.62rem;';
     const cell = (lab, val, unit, sub, col) => `<div style="flex:1;min-width:86px;text-align:center;padding:6px 4px;background:rgba(255,255,255,0.03);border-radius:8px;">
@@ -9393,7 +9396,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const _bandSvg = _bands.map(b => `<line x1="${pL}" y1="${yOf(b[0]).toFixed(1)}" x2="${pL + plotW}" y2="${yOf(b[0]).toFixed(1)}" stroke="${b[2]}" stroke-width="1"${b[1] === '평균' ? ' stroke-dasharray="4 3"' : ''}/><text x="${pL + plotW + 2}" y="${(yOf(b[0]) + 3).toFixed(1)}" font-size="7" fill="${b[2]}">${b[1]}</text>`).join('');
     const _zoneSvg = `<rect x="${pL}" y="${yOf(6.3).toFixed(1)}" width="${plotW}" height="${(Hc - pB - yOf(6.3)).toFixed(1)}" fill="rgba(74,222,128,0.08)"/><rect x="${pL}" y="${pT}" width="${plotW}" height="${(yOf(12.7) - pT).toFixed(1)}" fill="rgba(248,113,113,0.08)"/>`;
     const _linePath = _hpts.length > 1 ? `<path d="${_hpts.map((p, i) => `${i ? 'L' : 'M'}${xOf(i).toFixed(1)},${yOf(p.v).toFixed(1)}`).join('')}" fill="none" stroke="#f59e0b" stroke-width="1.6"/>` : '';
-    const _dots = _hpts.map((p, i) => { const last = i === _hpts.length - 1; return `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(p.v).toFixed(1)}" r="${last ? 3 : 1.6}" fill="${last ? iv.c : '#f59e0b'}"/>${last ? `<text x="${xOf(i).toFixed(1)}" y="${(yOf(p.v) - 5).toFixed(1)}" font-size="8" fill="${iv.c}" text-anchor="middle" font-weight="700">${p.v}</text>` : ''}`; }).join('');
+    const _dots = _hpts.map((p, i) => { const last = i === _hpts.length - 1; return `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(p.v).toFixed(1)}" r="${last ? 3 : 1.6}" fill="${last ? iv.c : '#f59e0b'}"/>${last ? `<text x="${(xOf(i) - 6).toFixed(1)}" y="${(yOf(p.v) + 3).toFixed(1)}" font-size="8" fill="${iv.c}" text-anchor="end" font-weight="700">${_r2(p.v)}</text>` : ''}`; }).join('');
     const _xlab = _hpts.length ? `<text x="${pL}" y="${Hc - 4}" font-size="6.5" fill="#7d8590">${_hpts[0].d}</text>${_hpts.length > 1 ? `<text x="${pL + plotW}" y="${Hc - 4}" font-size="6.5" fill="#7d8590" text-anchor="end">${_hpts[_hpts.length - 1].d}</text>` : ''}` : '';
     const _svg = `<svg viewBox="0 0 ${W} ${Hc}" style="width:100%;height:auto;display:block;">${_zoneSvg}${_bandSvg}${_linePath}${_dots}${_xlab}</svg>`;
     const _z = fwd == null ? null : (fwd - HM) / HS, _pctile = _z == null ? null : _cdf(_z) * 100;

@@ -57,9 +57,11 @@ def from_krx():
     asof = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx)[:10]
 
     def g(col):
+        """KRX 값 → 소수 2자리. pykrx가 float32로 주기 때문에 그대로 float()하면
+        18.03이 18.030000686645508처럼 이진 오차가 그대로 노출된다(KRX 원본은 2자리)."""
         try:
             v = float(row[col])
-            return v if v > 0 else None
+            return round(v, 2) if v > 0 else None
         except Exception:
             return None
 
