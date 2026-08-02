@@ -7700,6 +7700,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ['시장 개요', /모닝 브리핑|AI 인사이트|AI 투자 코멘트|매크로 환경/],
       ['해외 시장', /해외 시장 동향|코스피 밸류에이션|성장 대비 부채|일본 경제 위기|섹터별 종목 분석|차트 분석|AI 생태계 밸류에이션|Tactical Capital Map/],
       ['내 포트폴리오', /내 포트폴리오/],
+      ['노후준비', /노후 준비/],
       ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
       ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체|디커플링 진단/],
       ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성/],
@@ -10482,6 +10483,262 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     else (document.getElementById('app') || document.body).appendChild(node);
   }
   window.renderScreener = renderScreener;
+
+  // ── 🏖️ 노후 준비 설계 — 은퇴자금 계산 + 자산별 비교 + BTC 수량목표 (전부 브라우저 계산·저장) ──
+  // 입력값은 localStorage에만 저장되며 저장소·서버로 전송되지 않습니다.
+  const RT_KEY = '__retire_v1';
+  const RT_DEF = {
+    now_m: 297, years: 15, infl: 4, wr: 4, tent: 24, btc_have: 0,
+    cagr: { kospi200: 8, gold: 9, sp500: 11, ndx: 17, btc: 25 },
+  };
+  // 브리핑 원문이 제시한 값 (출처 표기용 — 이 계산기의 산출값과 대조하기 위해 보관)
+  const RT_DOC = { kospi200: 460, gold: 415, sp500: 333, ndx: 200, btc25: 84, btc35: 27, need: 160000, futm: 534, qty15: 0.21, qty30: 0.1 };
+
+  function rtLoad() {
+    try {
+      const s = JSON.parse(localStorage.getItem(RT_KEY) || '{}');
+      return { ...RT_DEF, ...s, cagr: { ...RT_DEF.cagr, ...(s.cagr || {}) } };
+    } catch (e) { return { ...RT_DEF, cagr: { ...RT_DEF.cagr } }; }
+  }
+  function rtSave(s) { try { localStorage.setItem(RT_KEY, JSON.stringify(s)); } catch (e) { } }
+  window.__rtSet = (k, v) => {
+    const s = rtLoad(); const n = parseFloat(v);
+    if (k.startsWith('cagr.')) s.cagr[k.slice(5)] = isNaN(n) ? 0 : n;
+    else s[k] = isNaN(n) ? 0 : n;
+    rtSave(s); renderRetire();
+  };
+  window.__rtReset = () => { if (confirm('입력값을 기본값으로 되돌립니다.')) { localStorage.removeItem(RT_KEY); renderRetire(); } };
+
+  // 월 적립 필요액 — 명목 월이율(연이율/12) 기준 적립식 미래가치의 역산 (엑셀 PMT와 동일 관례)
+  const rtPmt = (targetManwon, annualPct, years) => {
+    const r = annualPct / 100 / 12, n = Math.max(1, Math.round(years * 12));
+    if (Math.abs(r) < 1e-9) return targetManwon / n;
+    const g = Math.pow(1 + r, n);
+    return g <= 1 ? null : targetManwon * r / (g - 1);      // 성장률 0 이하면 적립만으로 도달 불가
+  };
+
+  function renderRetire() {
+    const s = rtLoad();
+    const bs = window.__bsData || {}, btc = bs.btc || {};
+    const usdkrw = (window.__avgData && window.__avgData.usdkrw) || 1436;
+    const btcUsd = btc.current || null;
+    const btcKrw = btcUsd ? btcUsd * usdkrw : null;
+    const V = window.__rtTab || 'goal';
+    const TABS = [['goal', '🎯 은퇴 목표'], ['asset', '📊 자산별 비교'], ['btc', '₿ 비트코인 수량'],
+      ['tent', '🏕️ 현금 텐트'], ['tax', '🧾 2027 과세 대응'], ['check', '⚠️ 가정 검증']];
+    const nf = (v, d) => v == null || !isFinite(v) ? '—' : Number(v.toFixed(d == null ? 0 : d)).toLocaleString();
+    const eok = m => m == null || !isFinite(m) ? '—' : (m / 10000).toFixed(2) + '억원';   // 만원 → 억원
+
+    // 핵심 산출
+    const futM = s.now_m * Math.pow(1 + s.infl / 100, s.years);           // 은퇴 시점 월 생활비(만원)
+    const need = s.wr > 0 ? futM * 12 / (s.wr / 100) : null;              // 필요 자산 총액(만원)
+    const ASSETS = [
+      ['kospi200', '코스피 200', RT_DOC.kospi200], ['gold', '금 (Gold)', RT_DOC.gold],
+      ['sp500', 'S&P 500', RT_DOC.sp500], ['ndx', '나스닥 100', RT_DOC.ndx], ['btc', '비트코인', null],
+    ];
+    const inp = (id, key, val, step, suffix, w) => `<span style="display:inline-flex;align-items:center;gap:3px;">
+      <input id="rt-${id}" type="number" step="${step}" value="${val}" onchange="__rtSet('${key}',this.value)"
+        style="width:${w || 62}px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--text-bright);font-family:var(--font-mono);font-size:0.62rem;padding:3px 6px;text-align:right;">
+      <span style="font-size:0.55rem;color:var(--text-muted);">${suffix}</span></span>`;
+
+    let body = '';
+    if (V === 'goal') {
+      const rows = [
+        ['현재 월 생활비', inp('nowm', 'now_m', s.now_m, 1, '만원'), '부부 기준 적정 생활비(국민연금 조사치 297만원)'],
+        ['은퇴까지', inp('years', 'years', s.years, 1, '년'), '적립 기간'],
+        ['물가상승률', inp('infl', 'infl', s.infl, 0.1, '%/년'), '생활비를 미래가치로 환산'],
+        ['인출률', inp('wr', 'wr', s.wr, 0.1, '%/년'), "'4% 룰' — 자산의 4%씩 빼 써도 원금이 유지된다는 경험칙"],
+      ].map(([k, v, note]) => `<tr style="border-top:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:6px 8px;font-size:0.63rem;color:var(--text-bright);white-space:nowrap;">${k}</td>
+        <td style="padding:6px 8px;">${v}</td>
+        <td style="padding:6px 8px;font-size:0.53rem;color:var(--text-muted);line-height:1.5;">${note}</td></tr>`).join('');
+      body = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="flex:1.1;min-width:290px;">
+          <table style="width:100%;border-collapse:collapse;">${rows}</table>
+          <button onclick="__rtReset()" style="margin-top:8px;font-size:0.53rem;padding:3px 10px;border-radius:6px;cursor:pointer;background:rgba(255,255,255,0.05);color:var(--text-muted);border:1px solid rgba(255,255,255,0.12);">기본값으로 되돌리기</button>
+        </div>
+        <div style="flex:1;min-width:250px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.22);border-radius:10px;padding:11px 14px;">
+          <div style="font-size:0.55rem;color:var(--text-muted);">${s.years}년 후 필요한 월 생활비</div>
+          <div style="font-size:1.15rem;font-weight:800;font-family:var(--font-mono);color:#22d3ee;">${nf(futM)}만원</div>
+          <div style="font-size:0.5rem;color:var(--text-muted);margin-top:1px;">현재 ${nf(s.now_m)}만원 × (1+${s.infl}%)^${s.years} — 물가로 <b>${((futM / s.now_m - 1) * 100).toFixed(0)}%</b> 상승</div>
+          <div style="height:1px;background:rgba(255,255,255,0.1);margin:9px 0;"></div>
+          <div style="font-size:0.55rem;color:var(--text-muted);">은퇴 시점 필요 자산</div>
+          <div style="font-size:1.35rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${eok(need)}</div>
+          <div style="font-size:0.5rem;color:var(--text-muted);margin-top:1px;">연 생활비 ${nf(futM * 12)}만원 ÷ 인출률 ${s.wr}%</div>
+          <div style="font-size:0.5rem;color:#fbbf24;margin-top:7px;line-height:1.6;">📄 브리핑 원문: 월 ${RT_DOC.futm}만원 · 약 ${(RT_DOC.need / 10000).toFixed(0)}억원 (동일 가정 시 이 계산기와 일치)</div>
+        </div></div>`;
+    } else if (V === 'asset') {
+      const rows = ASSETS.map(([k, name, docv]) => {
+        const g = s.cagr[k];
+        const pmt = need == null ? null : rtPmt(need, g, s.years);
+        const ratio = (pmt && need) ? pmt / rtPmt(need, s.cagr.kospi200, s.years) : null;
+        const isBtc = k === 'btc';
+        return `<tr style="border-top:1px solid rgba(255,255,255,0.05);${isBtc ? 'background:rgba(251,146,60,0.06);' : ''}">
+          <td style="padding:6px 8px;font-size:0.64rem;font-weight:${isBtc ? 800 : 600};color:${isBtc ? '#fb923c' : 'var(--text-bright)'};white-space:nowrap;">${isBtc ? '₿ ' : ''}${name}</td>
+          <td style="padding:6px 8px;">${inp('c-' + k, 'cagr.' + k, g, 0.5, '%/년')}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-weight:800;font-family:var(--font-mono);color:${pmt == null ? 'var(--text-muted)' : pmt < 100 ? '#4ade80' : pmt < 300 ? '#fbbf24' : '#f87171'};">${pmt == null ? '도달 불가' : nf(pmt) + '만원'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);color:var(--text-muted);">${ratio ? '×' + ratio.toFixed(2) : '—'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.56rem;font-family:var(--font-mono);color:#fbbf24;">${docv ? nf(docv) + '만원' : (k === 'btc' ? `${RT_DOC.btc35}~${RT_DOC.btc25}만원` : '—')}</td></tr>`;
+      }).join('');
+      body = `<div>
+        <div style="font-size:0.58rem;color:var(--text-muted);margin-bottom:7px;">목표 <b style="color:var(--text-bright);">${eok(need)}</b>를 <b style="color:var(--text-bright);">${s.years}년</b> 동안 매달 적립해서 만들려면 — 연평균 성장률(수정 가능)에 따른 <b>월 필요 저축액</b></div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">자산</th>
+            <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">연평균 성장률</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">월 필요 저축액</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">코스피 대비</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">📄 브리핑값</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:8px;line-height:1.7;">
+          계산식: 적립식 미래가치의 역산(월이율=연이율÷12, 엑셀 PMT 관례). <b style="color:#fbbf24;">📄 브리핑값</b>은 원문이 제시한 숫자로, 이 계산기가 같은 가정에서 재현한 값과 대조용입니다.
+          성장률은 <b>과거 실적이 아니라 가정</b>이며, 특히 비트코인의 25~35%는 원문 저자의 전망치입니다 — 숫자를 바꿔 보면 결론이 얼마나 가정에 의존하는지 바로 보입니다.
+        </div></div>`;
+    } else if (V === 'btc') {
+      const g = s.cagr.btc;
+      const btcFut = btcKrw ? btcKrw * Math.pow(1 + g / 100, s.years) : null;
+      const qty = (btcFut && need) ? need * 10000 / btcFut : null;
+      const pmt = need == null ? null : rtPmt(need, g, s.years);
+      const prog = (qty && qty > 0) ? Math.min(100, s.btc_have / qty * 100) : 0;
+      const docPrice = RT_DOC.qty15 && need ? (need * 10000 / RT_DOC.qty15) / Math.pow(1 + g / 100, s.years) / usdkrw : null;
+      body = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="flex:1;min-width:270px;">
+          <div style="background:rgba(251,146,60,0.07);border:1px solid rgba(251,146,60,0.25);border-radius:10px;padding:11px 14px;">
+            <div style="font-size:0.55rem;color:var(--text-muted);">목표 보유 수량 (${s.years}년 후 ${eok(need)} 달성)</div>
+            <div style="font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:#fb923c;">${qty == null ? '—' : qty.toFixed(3)} BTC</div>
+            <div style="font-size:0.5rem;color:var(--text-muted);margin-top:2px;line-height:1.6;">
+              현재가 ${btcUsd ? '$' + nf(btcUsd) + ' · ' + nf(btcKrw / 10000) + '만원' : '—'} (환율 ${nf(usdkrw)})<br>
+              성장률 ${g}% 가정 시 ${s.years}년 후 1BTC = <b style="color:var(--text-bright);">${btcFut ? nf(btcFut / 100000000, 2) + '억원' : '—'}</b>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:0.6rem;color:var(--text-bright);">현재 보유</span>${inp('have', 'btc_have', s.btc_have, 0.001, 'BTC', 80)}
+            <span style="font-size:0.6rem;color:var(--text-bright);margin-left:6px;">성장률</span>${inp('bg', 'cagr.btc', g, 0.5, '%/년')}
+          </div>
+          <div style="margin-top:9px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.53rem;color:var(--text-muted);margin-bottom:3px;"><span>목표 달성률</span><span style="font-family:var(--font-mono);color:${prog >= 100 ? '#4ade80' : '#fb923c'};font-weight:700;">${prog.toFixed(1)}%</span></div>
+            <div style="height:9px;background:rgba(255,255,255,0.06);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${prog.toFixed(1)}%;background:linear-gradient(90deg,#fb923c,#fbbf24);"></div></div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:250px;">
+          <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:11px 14px;">
+            <div style="font-size:0.55rem;color:var(--text-muted);">이 목표를 위한 월 적립액 (정립식·DCA)</div>
+            <div style="font-size:1.2rem;font-weight:800;font-family:var(--font-mono);color:#22d3ee;">${pmt == null ? '도달 불가' : nf(pmt) + '만원'}</div>
+            <div style="font-size:0.5rem;color:var(--text-muted);margin-top:6px;line-height:1.7;">
+              정립식(DCA)은 가격이 내릴 때 같은 금액으로 <b>더 많은 수량</b>을 사게 되므로, '수량 목표' 관점에서는 하락이 불리하지만은 않습니다.
+            </div>
+          </div>
+          <div style="margin-top:9px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.22);border-radius:9px;padding:9px 12px;font-size:0.53rem;line-height:1.75;color:var(--text-bright);">
+            📄 <b>브리핑의 "0.21 BTC"와 다른 이유</b><br>
+            원문은 <b>${RT_DOC.qty15} BTC</b>를 제시했지만, 같은 목표·같은 성장률(${g}%)에서 0.21개가 되려면 <b>현재가가 약 $${docPrice ? nf(docPrice) : '—'}</b>여야 합니다.
+            지금 시세는 <b style="color:#fb923c;">$${btcUsd ? nf(btcUsd) : '—'}</b>(최근 1년 ${btc.change_1y != null ? (btc.change_1y > 0 ? '+' : '') + btc.change_1y + '%' : '—'})라 <b>같은 목표에 더 많은 수량이 필요</b>합니다.
+            수량 목표는 시세에 따라 달라지므로 이 화면은 <b>현재가로 매번 다시 계산</b>합니다.
+          </div>
+        </div></div>`;
+    } else if (V === 'tent') {
+      const tentAmt = futM * s.tent;
+      const tentPct = need ? tentAmt / need * 100 : null;
+      body = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="flex:1;min-width:260px;">
+          <div style="font-size:0.58rem;color:var(--text-muted);line-height:1.8;margin-bottom:9px;">
+            <b style="color:var(--text-bright);">수익률 순서의 위험(sequence risk)</b> — 은퇴 직전·직후에 폭락하면 생활비를 마련하려고 <b>바닥에서 자산을 팔아야</b> 합니다. 같은 평균 수익률이라도 <b>하락이 언제 오느냐</b>에 따라 결과가 완전히 달라집니다.<br>
+            대응: 상승장에서 미리 현금을 빼두고, 하락장 동안 그 현금으로 버티며 <b>자산을 팔지 않는 것</b>.
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:0.6rem;color:var(--text-bright);">확보 개월수</span>${inp('tent', 'tent', s.tent, 1, '개월')}</div>
+        </div>
+        <div style="flex:1;min-width:250px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.22);border-radius:10px;padding:11px 14px;">
+          <div style="font-size:0.55rem;color:var(--text-muted);">필요 현금 (은퇴 시점 기준)</div>
+          <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:#4ade80;">${nf(tentAmt)}만원</div>
+          <div style="font-size:0.5rem;color:var(--text-muted);margin-top:2px;">월 ${nf(futM)}만원 × ${s.tent}개월 · 전체 자산의 <b style="color:var(--text-bright);">${tentPct ? tentPct.toFixed(1) : '—'}%</b></div>
+          <div style="font-size:0.5rem;color:var(--text-muted);margin-top:8px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.1);padding-top:7px;">
+            과거 비트코인 하락장은 대체로 <b>12~24개월</b> 지속했습니다. 다만 <b>다음 하락장이 그보다 길지 않다는 보장은 없습니다</b> — 24개월은 과거 사례의 상한이지 안전선이 아닙니다.
+          </div>
+        </div></div>`;
+    } else if (V === 'tax') {
+      const items = [
+        ['📅', '2027년부터 과세 시행', '가상자산 양도소득에 <b>22%</b>(기타소득세, 지방세 포함) 부과 · 연 <b>250만원 기본공제</b>.'],
+        ['🧮', '의제 취득가액 활용', '2027년 이전 취득분은 <b>실제 취득가</b>와 <b>2026-12-31 종가</b> 중 <b>유리한 쪽</b>을 선택할 수 있습니다. 취득가가 종가보다 낮으면 종가를 쓰는 편이 세금이 적습니다.'],
+        ['🔄', '코인 간 교환도 과세', 'BTC→ETH 같은 <b>코인 간 교환도 매도로 간주</b>되어 그 시점 차익에 과세됩니다. 리밸런싱 전에 세금을 먼저 계산하세요.'],
+        ['🧾', '취득 증빙 확보 — 가장 급한 것', '거래소 파산·기록 삭제에 대비해 <b>지금</b> 매수 내역·거래명세를 내려받아 보관하세요. 취득가를 증빙 못 하면 <b>연말 가격이 기준</b>이 되어 세금이 늘 수 있습니다.'],
+        ['➕', '손익 통산 범위', '가상자산끼리는 <b>통산 가능</b>하나 주식 등 <b>다른 자산과는 불가</b>하며, <b>당해 연도 안에서만</b> 적용됩니다(이월 없음).'],
+        ['🏥', '건강보험료', '현재 가이드라인상 가상자산 소득은 <b>건보료 부과 대상이 아니지만</b>, 향후 법 개정으로 포함될 가능성이 거론됩니다 — 확정된 사항이 아닙니다.'],
+      ].map(([ic, t, d]) => `<div style="display:flex;gap:9px;padding:8px 0;border-top:1px solid rgba(255,255,255,0.05);">
+        <span style="font-size:0.8rem;flex-shrink:0;">${ic}</span>
+        <div><div style="font-size:0.63rem;font-weight:700;color:var(--text-bright);">${t}</div>
+        <div style="font-size:0.55rem;color:var(--text-muted);line-height:1.75;margin-top:2px;">${d}</div></div></div>`).join('');
+      const dday = Math.ceil((new Date('2026-12-31') - new Date()) / 86400000);
+      body = `<div>
+        ${dday > 0 ? `<div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.28);border-radius:9px;padding:9px 12px;font-size:0.58rem;color:var(--text-bright);line-height:1.7;">
+          ⏳ <b>의제 취득가액 기준일(2026-12-31)까지 D-${dday}</b> — 그전에 거래 증빙을 확보해 두면 선택지가 남습니다. 기준일이 지나면 되돌릴 수 없습니다.</div>` : ''}
+        <div style="margin-top:8px;">${items}</div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:9px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          🚨 위 내용은 브리핑 문서를 정리한 <b>요약</b>이며 세무 자문이 아닙니다. 시행 시점·세부 규정은 <b>법 개정으로 바뀔 수 있으므로</b> 실제 신고 전 국세청 공지나 세무 전문가 확인이 필요합니다.
+        </div></div>`;
+    } else if (V === 'check') {
+      const GRID = [-20, -10, 0, 10, 17, 25, 35, 45];
+      const cells = GRID.map(g => {
+        const p = need == null ? null : rtPmt(need, g, s.years);
+        const col = p == null ? '#f87171' : p < 100 ? '#4ade80' : p < 300 ? '#fbbf24' : '#f87171';
+        return `<tr style="border-top:1px solid rgba(255,255,255,0.05);${g === s.cagr.btc ? 'background:rgba(251,146,60,0.09);' : ''}">
+          <td style="padding:5px 9px;font-size:0.62rem;font-family:var(--font-mono);font-weight:${g === s.cagr.btc ? 800 : 500};color:${g === s.cagr.btc ? '#fb923c' : 'var(--text-bright)'};">${g > 0 ? '+' : ''}${g}%${g === s.cagr.btc ? ' ←현재 가정' : ''}</td>
+          <td style="padding:5px 9px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);font-weight:700;color:${col};">${p == null ? '적립만으론 불가' : nf(p) + '만원'}</td>
+          <td style="padding:5px 9px;text-align:right;font-size:0.55rem;font-family:var(--font-mono);color:var(--text-muted);">${p == null ? '—' : '×' + (p / rtPmt(need, 25, s.years)).toFixed(1)}</td></tr>`;
+      }).join('');
+      const real = [['최근 1년', btc.change_1y], ['최근 3개월', btc.change_3m], ['최근 1개월', btc.change_1m]]
+        .filter(x => x[1] != null)
+        .map(([l, v]) => `<span style="font-size:0.56rem;font-family:var(--font-mono);font-weight:700;color:${v >= 0 ? '#4ade80' : '#f87171'};background:rgba(255,255,255,0.05);border-radius:8px;padding:3px 9px;">${l} ${v > 0 ? '+' : ''}${v}%</span>`).join(' ');
+      body = `<div>
+        <div style="background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);border-radius:9px;padding:10px 13px;font-size:0.57rem;line-height:1.8;color:var(--text-bright);">
+          이 문서의 결론(“비트코인이면 월 27만원”)은 <b>연 25~35% 성장이 15년간 이어진다</b>는 가정 하나에 전부 걸려 있습니다.
+          그 가정을 바꾸면 필요 저축액이 어떻게 변하는지가 아래 표입니다 — <b>가정이 틀렸을 때의 비용</b>을 먼저 보고 판단하시라는 뜻입니다.
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;align-items:flex-start;">
+          <div style="flex:1;min-width:280px;overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;min-width:300px;">
+              <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                <th style="padding:5px 9px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">가정 성장률</th>
+                <th style="padding:5px 9px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">월 필요 저축액</th>
+                <th style="padding:5px 9px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">25% 대비</th>
+              </tr></thead><tbody>${cells}</tbody></table>
+          </div>
+          <div style="flex:1;min-width:250px;">
+            <div style="font-size:0.58rem;font-weight:700;color:var(--text-bright);margin-bottom:5px;">실제 비트코인 최근 성과</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">${real || '<span style="font-size:0.55rem;color:var(--text-muted);">데이터 없음</span>'}</div>
+            <div style="font-size:0.53rem;color:var(--text-muted);margin-top:9px;line-height:1.8;">
+              연 25~35% 성장은 <b>매끄러운 평균</b>이지만 실제 경로는 위처럼 출렁입니다. 평균이 맞더라도
+              <b>은퇴 시점에 하락 구간이 걸리면</b> 계획은 무너집니다(그래서 현금 텐트 탭이 필요합니다).<br><br>
+              또한 과거 3~10년 50~65% 성장은 <b>시가총액이 작을 때</b>의 수치입니다. 자산이 커질수록 같은 성장률을 유지하기는
+              구조적으로 어려워지므로, <b>과거 성장률의 단순 연장은 근거가 되지 못합니다</b>.
+            </div>
+          </div>
+        </div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:10px;line-height:1.8;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
+          <b>이 탭을 만든 이유</b> — 원문에는 성장률 가정이 틀렸을 경우가 없습니다. 위 표에서 보듯 성장률이 25%에서 10%로만 내려가도
+          월 저축액은 몇 배로 뜁니다. 어떤 숫자가 옳은지는 저도 모르며, <b>맞히는 것이 아니라 틀렸을 때 견딜 수 있는지</b>로 설계하는 편이 안전합니다.
+        </div></div>`;
+    }
+
+    const tabs = TABS.map(([k, lab]) => `<button onclick="window.__rtTab='${k}';renderRetire()" style="padding:3px 11px;border-radius:7px;font-size:0.6rem;cursor:pointer;font-weight:${k === V ? 700 : 400};background:${k === V ? 'rgba(251,146,60,0.2)' : 'transparent'};color:${k === V ? '#fb923c' : 'var(--text-muted)'};border:1px solid ${k === V ? 'rgba(251,146,60,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
+    const html = `<section class="section-wrap" id="retire-section">
+      <div class="section-label" style="color:#fb923c;">🏖️ 노후 준비 설계 <span style="font-size:0.62rem;color:var(--text-muted);">(은퇴자금·자산비교·BTC 수량목표 — 입력값은 이 브라우저에만 저장)</span></div>
+      <div class="glass-card" style="padding:12px 16px 14px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.08);">${tabs}</div>
+        <div style="margin-top:11px;">${body}</div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:11px;line-height:1.75;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          📄 <b>출처</b>: 업루트컴퍼니 이장우 대표의 '비트코인을 활용한 노후 준비' 브리핑을 계산 가능한 형태로 옮긴 것입니다. 성장률·목표수량 등 <b>모든 전제는 원문 저자의 가정</b>이며 이 대시보드가 검증한 값이 아닙니다.
+          🔒 입력한 생활비·보유수량은 <b>이 브라우저(localStorage)에만</b> 저장되고 서버·저장소로 전송되지 않습니다.
+          🚨 <b>투자자문·세무자문이 아닙니다.</b> 특정 자산 배분을 권유하지 않으며, 비트코인은 원금 전액 손실이 가능한 고변동 자산입니다. 실제 노후 설계는 본인 상황에 맞춰 필요 시 자격 있는 전문가와 상의하세요.
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('retire-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('portfolio-section') || document.getElementById('trend-signal-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.renderRetire = renderRetire;
 
   // ── 🌅 모닝 브리핑 — 매일 07:00 자동 생성 종합 리포트 (텔레그램과 동일 내용) ──
   function renderMorningReport(d) {
@@ -13323,7 +13580,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       // Load AI Value Gap (AI 생태계 밸류에이션 갭 — 한국 반도체 강제 저평가)
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
-        .then(d => { if (d) renderAiValueGap(d); });
+        .then(d => { if (d) { window.__avgData = d; renderAiValueGap(d); try { renderRetire(); } catch (e) { } } });
+      // 노후 준비 설계 — BTC 시세(비트코인 스탠다드)를 받아 수량 목표 계산
+      fetch('./bitcoin_standard.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { window.__bsData = d || {}; try { renderRetire(); } catch (e) { } });
       // Load FX Swap Monitor (외환위기 조기경보 — FX 스왑 그림자부채 6대 지표)
       fetch('./fx_swap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
