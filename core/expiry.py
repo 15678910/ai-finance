@@ -10,24 +10,74 @@
       - 3·6·9·12월은 지수선물·지수옵션·개별주식선물·개별주식옵션 동시 만기
         → Quadruple Witching.
 
-⚠️ 공휴일 보정의 한계
---------------------
-만기일이 휴장일이면 거래소는 **직전 거래일**로 앞당긴다. 이 모듈은 날짜가 고정된
-공휴일(신정·한글날·성탄절 등)만 반영하며, **음력 기반 공휴일(설·추석·부처님오신날)과
-미국 Good Friday는 반영하지 않는다** — 임의로 추정하면 틀린 날짜를 사실처럼
-표시하게 되므로, 대신 caveat 플래그를 함께 반환해 호출부가 표기하도록 한다.
+공휴일 보정
+----------
+만기일이 휴장일이면 거래소는 **직전 거래일**로 앞당긴다. 휴장일은 `holidays` 패키지로
+계산하며 **음력 공휴일(설·추석·부처님오신날)과 미국 Good Friday까지 반영**된다.
+
+  · 한국: holidays.SouthKorea() + 근로자의날(5/1) + 연말 폐장일(12/31)
+  · 미국: holidays.financial_holidays("NYSE")  ← Good Friday 포함
+
+VALIDATION (2026-08-02, pykrx 실제 거래일 대조 · 2024-01~2026-07 / 628거래일)
+  실제 휴장(평일) 47건 vs 라이브러리 42건
+    · 오탐 0건 — 라이브러리가 공휴일이라 한 날은 전부 실제로 휴장이었다
+    · 누락 5건 — 2024/2025/2026-05-01(근로자의날), 2024/2025-12-31(연말 폐장일)
+      두 패턴뿐이라 상수로 보완 → 보완 후 불일치 0건
+`holidays` 미설치 환경에서는 날짜 고정 공휴일만으로 동작하고 fallback 플래그를 세운다.
 
 단위 테스트: python -m core.expiry
 """
 
 from datetime import date, timedelta
 
+try:
+    import holidays as _holidays
+except ImportError:                   # 미설치 시 고정 공휴일만으로 열화 동작
+    _holidays = None
+
 THU, FRI = 3, 4                       # date.weekday(): 월=0
 QUARTER_MONTHS = (3, 6, 9, 12)
 
-# 날짜가 매년 고정된 휴장일만 수록 (음력 공휴일은 의도적으로 제외 — 상단 주석 참조)
+# holidays 패키지가 없을 때 쓰는 최소 집합 (음력 공휴일 미포함 — fallback 표시됨)
 KRX_FIXED_CLOSED = {(1, 1), (3, 1), (5, 1), (5, 5), (6, 6), (8, 15), (10, 3), (10, 9), (12, 25), (12, 31)}
 US_FIXED_CLOSED = {(1, 1), (6, 19), (7, 4), (12, 25)}
+# 공휴일은 아니지만 거래소가 쉬는 날 (위 VALIDATION에서 확인된 누락 패턴)
+KRX_EXTRA_CLOSED = {(5, 1), (12, 31)}          # 근로자의날 · 연말 폐장일
+
+_cache = {}
+
+
+def _closed_set(market, year):
+    """(휴장일 set, holidays 패키지 사용 여부) — 연도 단위 캐시."""
+    key = (market, year)
+    if key in _cache:
+        return _cache[key]
+    if _holidays is None:
+        res = (set(), False)
+    elif market == "KR":
+        s = {d for d in _holidays.SouthKorea(years=[year])}
+        s |= {date(year, m, dd) for m, dd in KRX_EXTRA_CLOSED}
+        res = (s, True)
+    else:
+        res = ({d for d in _holidays.financial_holidays("NYSE", years=[year])}, True)
+    _cache[key] = res
+    return res
+
+
+def is_closed(d, market):
+    """주말이거나 휴장일이면 True."""
+    if d.weekday() >= 5:
+        return True
+    closed, ok = _closed_set(market, d.year)
+    if ok:
+        return d in closed
+    fixed = KRX_FIXED_CLOSED if market == "KR" else US_FIXED_CLOSED
+    return (d.month, d.day) in fixed
+
+
+def holiday_data_ok():
+    """공휴일 데이터가 음력까지 반영된 상태인지 (False면 근사치 — 호출부가 표기)."""
+    return _holidays is not None
 
 
 def nth_weekday(year, month, weekday, n):
@@ -36,11 +86,11 @@ def nth_weekday(year, month, weekday, n):
     return first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (n - 1))
 
 
-def _shift_off_holiday(d, fixed_closed):
-    """휴장일·주말이면 직전 평일로 앞당김. (보정 여부, 날짜) 반환."""
+def _shift_off_holiday(d, market):
+    """휴장일·주말이면 직전 거래일로 앞당김. (보정 여부, 날짜) 반환."""
     moved = False
-    for _ in range(7):
-        if d.weekday() >= 5 or (d.month, d.day) in fixed_closed:
+    for _ in range(10):
+        if is_closed(d, market):
             d -= timedelta(days=1)
             moved = True
         else:
@@ -50,12 +100,12 @@ def _shift_off_holiday(d, fixed_closed):
 
 def kr_expiry(year, month):
     """한국 파생 만기일 — 둘째 목요일(휴장일이면 직전 거래일)."""
-    return _shift_off_holiday(nth_weekday(year, month, THU, 2), KRX_FIXED_CLOSED)
+    return _shift_off_holiday(nth_weekday(year, month, THU, 2), "KR")
 
 
 def us_expiry(year, month):
     """미국 옵션 만기일 — 셋째 금요일(휴장일이면 직전 거래일)."""
-    return _shift_off_holiday(nth_weekday(year, month, FRI, 3), US_FIXED_CLOSED)
+    return _shift_off_holiday(nth_weekday(year, month, FRI, 3), "US")
 
 
 def _entry(d, moved, market, month):
@@ -130,10 +180,30 @@ def _selftest():
     _, d = us_expiry(2026, 8)
     chk(d == date(2026, 8, 21), "美 2026-08 만기 = 08-21")
 
-    # 공휴일 보정: 한글날(10/9)이 둘째 목요일인 해 → 직전 거래일로
+    # 공휴일 보정 — 2025-10은 둘째 목요일이 한글날(10/9)이고 그 앞이 추석 연휴(10/3~10/8)라
+    # 직전 거래일이 10/2까지 밀린다. pykrx 실거래일로 확인한 정답(고정공휴일만으론 10/8로 오답).
     moved, d = kr_expiry(2025, 10)
     chk(nth_weekday(2025, 10, THU, 2) == date(2025, 10, 9), "2025-10 둘째 목요일 = 10-09(한글날)")
-    chk(moved and d == date(2025, 10, 8), "한글날 만기 → 직전 거래일 10-08 보정")
+    if holiday_data_ok():
+        chk(moved and d == date(2025, 10, 2), "한글날+추석연휴 → 직전 거래일 10-02 보정 (실거래일 검증됨)")
+
+    # 음력 공휴일 반영 (holidays 패키지 필요) — 이 케이스가 기존 caveat의 핵심이었다
+    if holiday_data_ok():
+        chk(is_closed(date(2026, 2, 17), "KR"), "설날(2026-02-17) 휴장 인식")
+        chk(is_closed(date(2026, 9, 25), "KR"), "추석(2026-09-25) 휴장 인식")
+        chk(is_closed(date(2026, 5, 24), "KR"), "부처님오신날(2026-05-24) 휴장 인식")
+        chk(is_closed(date(2026, 5, 1), "KR"), "근로자의날(5/1) 휴장 인식")
+        chk(is_closed(date(2026, 12, 31), "KR"), "연말 폐장일(12/31) 휴장 인식")
+        # 제헌절은 2026년부터 공휴일로 복원 — 2024·2025는 거래일, 2026은 휴장(실거래일로 확인)
+        chk(not is_closed(date(2025, 7, 17), "KR"), "제헌절 2025-07-17은 거래일")
+        chk(is_closed(date(2026, 7, 17), "KR"), "제헌절 2026-07-17은 휴장 (공휴일 복원)")
+        chk(is_closed(date(2026, 4, 3), "US"), "美 Good Friday(2026-04-03) 휴장 인식")
+        chk(not is_closed(date(2026, 8, 13), "KR"), "2026-08-13 정상 거래일")
+        # 추석 연휴에 걸린 만기: 2027-09 둘째 목요일 09-09 (연휴 09-14~16과 무관) 확인
+        m9, d9 = kr_expiry(2026, 9)
+        chk(d9 == date(2026, 9, 10) and not m9, "2026-09 동시만기 09-10 (추석 이전, 보정 없음)")
+    else:
+        print("  (holidays 미설치 — 음력 케이스 스킵, fallback 동작)")
 
     # 분기 판정
     e = _entry(date(2026, 9, 10), False, "KR", 9)

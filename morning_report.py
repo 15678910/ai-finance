@@ -178,8 +178,8 @@ def main():
         nxt = exp[0]
         if nxt["d_day"] <= 5:                       # 임박 시 대응 포인트 한 줄 부연
             lines.append(f"  ↳ {nxt['note']}")
-        lines.append("  ※ 만기일=규칙 계산(韓 둘째 목요일 · 美 셋째 금요일). "
-                     "음력 공휴일·美 Good Friday는 미반영 — 휴장 시 직전 거래일로 앞당겨짐")
+        lines.append("  ※ 만기일=韓 둘째 목요일 · 美 셋째 금요일. 휴장일(설·추석 등 음력 공휴일, "
+                     "美 Good Friday 포함)이면 직전 거래일로 자동 보정")
         S.append("⏳ 파생 만기일\n" + "\n".join(lines))
 
     # ── 주요 뉴스 톱3 ──

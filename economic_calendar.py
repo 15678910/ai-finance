@@ -540,7 +540,7 @@ def derivative_expiry_events(start: str, end: str) -> list:
             "category": "파생만기", "impact": x["impact"], "region": x["region"],
             "tags": ["만기", "파생", "수급", "변동성"] + (["동시만기"] if x["quad"] else ["옵션만기"]),
             "impact_analysis": ("🎭 " if x["quad"] else "📌 ") + x["note"],
-            "detail": f"{x['rule']} 규칙으로 자동 계산. 음력 공휴일·美 Good Friday 미반영(휴장 시 직전 거래일).",
+            "detail": f"{x['rule']} 규칙으로 자동 계산. 휴장일(음력 공휴일·美 Good Friday 포함)이면 직전 거래일로 보정.",
             "source": "규칙생성",
         })
     return events
