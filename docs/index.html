@@ -4483,7 +4483,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         <div class="glass-card anim-item" style="border:2px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.04);padding:12px;margin-bottom:14px;">
           <div style="font-size:0.85rem;color:var(--red,#f87171);font-weight:600;">&#128680; 시뮬레이션/분석용 - 자동 매매 절대 금지</div>
           <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;line-height:1.6;">
-            가치점수 = 밸류에이션(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%) · 시총 1000억 미만 / ROE 음수 / 부채비율 300% 초과 자동 제외<br/>
+            가치점수 = 밸류에이션(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%) <b style="color:var(--red,#f87171);">− 가치함정 감점</b> <b style="color:var(--amber,#fbbf24);">+ 소외 가산점(±5)</b><br/>
+            자동 제외: 시총 1000억 미만 / ROE −20% 미만 / 부채비율 500% 초과 / <b>3년 연속 적자</b><br/>
+            ${vs.market_baseline && vs.market_baseline.available
+              ? `<b style="color:var(--cyan,#22d3ee);">📏 상대 평가</b>: PER·PBR을 코스피 평균(PER ${vs.market_baseline.market_per} / PBR ${vs.market_baseline.market_pbr}, ${h(vs.market_baseline.asof || '')}) 대비로 채점. '훌륭' 판정선 = PER ${vs.market_baseline.per_anchor}배 이하(시장 −30% 또는 금리 2배) · PBR ${vs.market_baseline.pbr_anchor}배 이하.`
+              : `<b style="color:var(--amber,#fbbf24);">📏 절대 평가</b>: 코스피 평균 데이터 미확보 → 고정 임계값 사용.`}<br/>
             <b style="color:var(--purple,#a78bfa);">📈 기대 IRR</b>: Gordon 모델(IRR ≈ 배당수익률 + 영구성장률) — 무배당주는 Earnings Yield(1/PER). 영구성장률 ±8% 캡, 무위험금리 한국 국고채 10년 ~3.5% 가정.
           </div>
         </div>
@@ -4535,11 +4539,16 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
               </div>
             </div>`;
           })()}
+          ${(stock.trap_flags && stock.trap_flags.length) ? `<div style="background:rgba(239,68,68,0.07);border-left:2px solid var(--red,#f87171);padding:6px 10px;margin-bottom:8px;border-radius:3px;font-size:0.7rem;">
+            <div style="color:var(--red,#f87171);font-weight:600;margin-bottom:2px;">&#9888;&#65039; 가치 함정 경고 (−${sc.trap_penalty}점)</div>
+            ${stock.trap_flags.map(f => `<div style="color:var(--text-muted);">· ${h(f.type)}: ${h(f.detail)}</div>`).join('')}
+          </div>` : ''}
           <div style="display:flex;gap:4px;font-size:0.65rem;flex-wrap:wrap;">
             <span style="background:rgba(74,222,128,0.1);color:var(--green);padding:2px 6px;border-radius:3px;">밸류 ${sc.valuation_score}</span>
             <span style="background:rgba(6,182,212,0.1);color:var(--cyan);padding:2px 6px;border-radius:3px;">수익 ${sc.quality_score}</span>
             <span style="background:rgba(251,191,36,0.1);color:var(--amber);padding:2px 6px;border-radius:3px;">성장 ${sc.growth_score}</span>
             <span style="background:rgba(167,139,250,0.1);color:var(--purple,#a78bfa);padding:2px 6px;border-radius:3px;">주주 ${sc.shareholder_score}</span>
+            ${(stock.neglect && stock.neglect.available) ? `<span style="background:rgba(148,163,184,0.12);color:#cbd5e1;padding:2px 6px;border-radius:3px;" title="애널리스트 ${stock.neglect.analyst_count ?? '—'}명 · 회전율 ${stock.neglect.turnover_pct ?? '—'}%">&#128277; 소외 ${stock.neglect.score}${sc.neglect_bonus ? ` (${sc.neglect_bonus > 0 ? '+' : ''}${sc.neglect_bonus})` : ''}</span>` : ''}
           </div>
         </div>`;
       });
@@ -4609,6 +4618,71 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
       html += `<div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
         분석: ${vs.total_analyzed}개 종목 · 통과: ${vs.filter_passed}개 · 거부: ${vs.filter_rejected}개 · 생성: ${h(vs.generated_at || '')}
+      </div>`;
+      html += `</section>`;
+    }
+
+    // ─── VALUE EROSION MONITOR (가치 훼손 감시) ─────────
+    const ve = data.value_erosion;
+    if (ve && ve.results && ve.results.length > 0) {
+      const alerts = ve.results.filter(r => r.status === 'EROSION' || r.status === 'EROSION_MASKED');
+      const chances = ve.results.filter(r => r.status === 'OPPORTUNITY');
+      const c = ve.counts || {};
+
+      html += `<section class="section-wrap" style="margin-top:32px;">
+        <div class="section-label" style="color:var(--red,#f87171);">&#128201; 가치 훼손 모니터 <span style="font-size:0.65rem;color:var(--text-muted);">(주가가 아닌 펀더멘털 감시)</span></div>
+
+        <div class="glass-card anim-item" style="padding:12px;margin-bottom:14px;border-left:3px solid var(--red,#f87171);">
+          <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.7;">
+            가치 투자에서 <b style="color:var(--green,#4ade80);">주가 하락은 위험이 아니라 기회</b>다. 진짜 위험은 기업의 내재 가치가 나빠지는 것.<br/>
+            이 모듈은 주가가 아니라 <b>주당순이익(EPS)·순자산(BPS)·수익성·재무구조</b>가 훼손됐는지를 약 ${ve.rebase_days}일 전 스냅샷과 비교한다.
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:0.68rem;">
+            <span style="background:rgba(239,68,68,0.12);color:var(--red,#f87171);padding:3px 8px;border-radius:3px;">&#128680; 훼손 ${c.EROSION || 0}</span>
+            <span style="background:rgba(251,191,36,0.12);color:var(--amber,#fbbf24);padding:3px 8px;border-radius:3px;">&#9888;&#65039; 은폐 ${c.EROSION_MASKED || 0}</span>
+            <span style="background:rgba(74,222,128,0.12);color:var(--green,#4ade80);padding:3px 8px;border-radius:3px;">&#128201; 기회 ${c.OPPORTUNITY || 0}</span>
+            <span style="background:rgba(148,163,184,0.12);color:#cbd5e1;padding:3px 8px;border-radius:3px;">정상 ${c.STABLE || 0}</span>
+            ${c.NEW ? `<span style="background:rgba(148,163,184,0.12);color:#cbd5e1;padding:3px 8px;border-radius:3px;">신규 기준선 ${c.NEW}</span>` : ''}
+          </div>
+        </div>`;
+
+      if (alerts.length > 0) {
+        html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;">`;
+        alerts.slice(0, 12).forEach(r => {
+          const isHard = r.status === 'EROSION';
+          const col = isHard ? 'var(--red,#f87171)' : 'var(--amber,#fbbf24)';
+          html += `<div class="glass-card anim-item" style="padding:14px;border-left:3px solid ${col};">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;">
+              <span style="font-size:1.0rem;font-weight:700;color:var(--text-bright);">${isHard ? '&#128680;' : '&#9888;&#65039;'} ${h(r.name)}</span>
+              <span style="font-size:0.9rem;font-weight:700;color:${col};white-space:nowrap;">훼손도 ${r.erosion_score}</span>
+            </div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;font-family:var(--font-mono);">
+              ${r.ticker} · 주가 ${r.price_change_pct != null ? (r.price_change_pct > 0 ? '+' : '') + r.price_change_pct + '%' : 'N/A'}
+              ${r.eps_change_pct != null ? ` · EPS ${r.eps_change_pct > 0 ? '+' : ''}${r.eps_change_pct}%` : ''}
+              · 기준 ${h(r.baseline_asof || '')}
+            </div>
+            ${(r.signals || []).map(s => `<div style="font-size:0.72rem;color:var(--text);margin-bottom:3px;">· <b style="color:${col};">${h(s.type)}</b> ${h(s.detail)}</div>`).join('')}
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.15);">${h(r.interpretation)}</div>
+          </div>`;
+        });
+        html += `</div>`;
+      } else {
+        html += `<div class="glass-card anim-item" style="padding:14px;font-size:0.8rem;color:var(--green,#4ade80);">&#10004; 펀더멘털 훼손 경보 없음</div>`;
+      }
+
+      if (chances.length > 0) {
+        html += `<div style="margin-top:16px;">
+          <div style="font-size:0.8rem;color:var(--green,#4ade80);font-weight:600;margin-bottom:8px;font-family:var(--font-mono);letter-spacing:0.05em;">
+            &#128201; 가치 유지 · 주가 하락 (브리핑의 "추가 매수" 구간)
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:0.72rem;">
+            ${chances.slice(0, 20).map(r => `<span style="background:rgba(74,222,128,0.1);color:var(--green,#4ade80);padding:3px 8px;border-radius:3px;">${h(r.name)} ${r.price_change_pct}%</span>`).join('')}
+          </div>
+        </div>`;
+      }
+
+      html += `<div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">
+        훼손 판정 임계: ${ve.erosion_threshold} · 생성: ${h(ve.generated_at || '')}
       </div>`;
       html += `</section>`;
     }

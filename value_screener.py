@@ -5,12 +5,17 @@
 DART API와 yfinance를 결합하여 저평가된 한국 주식을 찾아냅니다.
 
 핵심 지표:
-  가치 (Valuation): PER, PBR, PSR
+  가치 (Valuation): PER, PBR, PSR — 코스피 시장 평균 대비 상대 평가
   수익성 (Quality): ROE, 영업이익률, 부채비율
   성장 (Growth): 매출 성장률, 영업이익 성장률
   주주환원: 배당수익률
+  소외 (Neglected): 애널리스트 커버리지, 거래 회전율
 
 종합 점수 = (가치 점수 × 35%) + (수익성 점수 × 35%) + (성장 점수 × 20%) + (주주환원 × 10%)
+           - 가치함정 감점 + 소외 가산점(±5)
+
+밸류에이션 기준선은 docs/kospi_valuation.json(KRX 일일 갱신)에서 읽는다.
+데이터가 없거나 30일 이상 낡으면 절대 임계값으로 폴백한다.
 
 🚨 절대 규칙:
   - 시뮬레이션 / 분석용 전용
@@ -199,6 +204,104 @@ class DartAPI:
 # ====================================================================
 # yfinance 데이터 수집
 # ====================================================================
+def _statement_row(df, *names) -> list:
+    """재무제표 DataFrame에서 첫 번째로 매칭되는 행을 최신순 리스트로 반환.
+
+    yfinance는 회사·기간마다 계정명이 달라(예: 'Net Income' vs
+    'Net Income Common Stockholders') 후보를 순서대로 시도한다.
+    """
+    if df is None or getattr(df, "empty", True):
+        return []
+    for name in names:
+        if name in df.index:
+            # 계정명 중복·이형 타입 등 회사별 변종이 많아 광범위하게 방어한다.
+            # 한 종목의 재무제표 이상이 전체 스크리닝을 중단시켜선 안 된다.
+            try:
+                row = df.loc[name]
+                if hasattr(row, "ndim") and row.ndim > 1:
+                    row = row.iloc[0]     # 계정명 중복 시 첫 행만
+                values = [float(v) for v in row.tolist() if v is not None and not pd.isna(v)]
+                if values:
+                    return values  # 컬럼이 최신순이므로 그대로 반환
+            except Exception:
+                continue
+    return []
+
+
+def fetch_quality_data(stock) -> dict:
+    """재무제표 기반 '자산·이익의 질' 데이터 수집.
+
+    브리핑 5.1의 가치 함정 3요소를 판정하기 위한 원천 데이터:
+      · 적자 지속  → 연간 순이익 추이 (연속 적자 연수)
+      · 사양 산업  → 3~4년 매출 CAGR
+      · 자산의 질  → (재고+매출채권)/총자산, (영업권+무형자산)/자기자본
+
+    영업권·무형자산 비중이 높으면 장부가가 부풀려져 PBR이 낮아 보이는
+    착시가 생긴다. 낮은 PBR이 '싼 것'인지 '장부가가 허수'인지 구분한다.
+    """
+    result = {
+        "consecutive_loss_years": 0,
+        "revenue_cagr_pct": None,
+        "revenue_years": 0,
+        "inventory_receivable_ratio_pct": None,
+        "intangible_to_equity_pct": None,
+        "data_ok": False,
+    }
+
+    try:
+        income = stock.income_stmt
+    except Exception:
+        income = None
+
+    net_income = _statement_row(income, "Net Income", "Net Income Common Stockholders",
+                                "Net Income Continuous Operations")
+    revenue = _statement_row(income, "Total Revenue", "Operating Revenue")
+
+    # 연속 적자 연수 (최신 연도부터 카운트)
+    for value in net_income:
+        if value < 0:
+            result["consecutive_loss_years"] += 1
+        else:
+            break
+
+    # 매출 CAGR — 최신순 리스트이므로 [0]이 최근, [-1]이 과거
+    if len(revenue) >= 3 and revenue[0] > 0 and revenue[-1] > 0:
+        years = len(revenue) - 1
+        cagr = (revenue[0] / revenue[-1]) ** (1 / years) - 1
+        result["revenue_cagr_pct"] = round(cagr * 100, 2)
+        result["revenue_years"] = len(revenue)
+
+    try:
+        bs = stock.balance_sheet
+    except Exception:
+        bs = None
+
+    total_assets = _statement_row(bs, "Total Assets")
+    inventory = _statement_row(bs, "Inventory")
+    receivable = _statement_row(bs, "Accounts Receivable", "Receivables",
+                                "Gross Accounts Receivable")
+    equity = _statement_row(bs, "Stockholders Equity", "Total Equity Gross Minority Interest",
+                            "Common Stock Equity")
+    goodwill = _statement_row(bs, "Goodwill And Other Intangible Assets", "Goodwill")
+    intangible = _statement_row(bs, "Other Intangible Assets")
+
+    if total_assets and total_assets[0] > 0:
+        soft_assets = (inventory[0] if inventory else 0) + (receivable[0] if receivable else 0)
+        if soft_assets > 0:
+            result["inventory_receivable_ratio_pct"] = round(soft_assets / total_assets[0] * 100, 1)
+
+    if equity and equity[0] > 0:
+        # 'Goodwill And Other Intangible Assets'가 잡히면 무형자산이 이미 포함됨
+        intangible_total = goodwill[0] if goodwill else 0
+        if not goodwill and intangible:
+            intangible_total = intangible[0]
+        if intangible_total > 0:
+            result["intangible_to_equity_pct"] = round(intangible_total / equity[0] * 100, 1)
+
+    result["data_ok"] = bool(net_income or revenue or total_assets)
+    return result
+
+
 def fetch_yfinance_data(ticker: str) -> dict:
     """yfinance에서 가치 지표 수집. PBR 등 누락 시 BVPS로 계산."""
     try:
@@ -252,6 +355,11 @@ def fetch_yfinance_data(ticker: str) -> dict:
             "beta": info.get("beta"),
             "52w_high": info.get("fiftyTwoWeekHigh"),
             "52w_low": info.get("fiftyTwoWeekLow"),
+            # 소외도(Neglected) 판정용
+            "analyst_count": info.get("numberOfAnalystOpinions"),
+            "average_volume": info.get("averageVolume") or info.get("averageVolume10days"),
+            # 가치 함정 판정용 (재무제표 기반)
+            "quality": fetch_quality_data(stock),
         }
     except Exception as e:
         print(f"    [yfinance 오류] {ticker}: {e}")
@@ -388,10 +496,111 @@ def calculate_irr_metrics(yf_data: dict) -> dict:
     }
 
 
-def score_per(per: float) -> float:
-    """PER 점수 (낮을수록 높은 점수)."""
+# ====================================================================
+# 시장 상대 밸류에이션 기준선
+# ====================================================================
+# 브리핑 논지: "PER은 시장 평균보다 30% 이상 낮거나 금리의 2배 수준이면 훌륭.
+#   PBR은 시장 평균(코스피) 이하인 기업에 주목."
+#
+# 왜 상대 기준인가: 고정 임계값(PER<5 → 100점)은 시장 레벨과 금리가 바뀌면
+#   의미를 잃는다. 코스피 평균 PER이 8배인 장세와 18배인 장세에서 'PER 10배'는
+#   전혀 다른 뜻이다. docs/kospi_valuation.json(KRX 일 1회 갱신)을 기준선으로
+#   삼아 상대 평가하고, 데이터가 없거나 낡으면 기존 절대 임계값으로 폴백한다.
+KOSPI_VALUATION_FILE = os.path.join(BASE_DIR, "docs", "kospi_valuation.json")
+BASELINE_MAX_AGE_DAYS = 30       # 이보다 오래된 시장 데이터는 신뢰하지 않음
+PER_MARKET_DISCOUNT = 0.30       # 시장 평균 대비 -30% = '훌륭' (브리핑 기준)
+
+# 앵커 대비 배율 → 점수. 배율 1.0 = 브리핑이 말하는 '훌륭' 기준선.
+# 시장 평균 수준(PER 배율 ≈1.26, PBR 배율 =1.0)이 중간 점수에 오도록 보정.
+# 평균만큼 비싼 종목이 가치주 스크리너에서 상위에 오르면 안 된다.
+PER_RATIO_BANDS = [(0.6, 100), (0.8, 90), (1.0, 80), (1.15, 60), (1.4, 40), (1.9, 20)]
+PBR_RATIO_BANDS = [(0.3, 100), (0.45, 90), (0.6, 80), (0.85, 65), (1.0, 55), (1.35, 40), (1.8, 25)]
+
+
+def load_market_baseline(path: str = None, today: datetime = None) -> dict:
+    """코스피 시장 평균 PER/PBR을 상대 평가 기준선으로 로드.
+
+    PER 앵커: max(시장평균 × 0.7, 1 / (2 × 무위험금리))
+      브리핑이 두 조건을 "또는"으로 제시하므로 둘 중 하나만 충족해도 '훌륭'이
+      되도록 느슨한 쪽(큰 쪽)을 앵커로 쓴다. '금리의 2배'는 이익수익률(1/PER)이
+      무위험금리의 2배라는 뜻 — 금리 3.5% 기준 PER 약 14.3배.
+    PBR 앵커: 시장 평균 그대로 (브리핑: "시장 평균 이하인 기업에 주목").
+
+    Returns:
+        available=False면 호출부가 절대 임계값으로 폴백.
+    """
+    path = path or KOSPI_VALUATION_FILE
+    unavailable = {"available": False, "reason": "코스피 밸류에이션 데이터 없음"}
+
+    if not os.path.exists(path):
+        return unavailable
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return {"available": False, "reason": f"파일 읽기 실패: {e}"}
+
+    market_per = data.get("per")
+    market_pbr = data.get("pbr")
+    if not market_per or not market_pbr or market_per <= 0 or market_pbr <= 0:
+        return {"available": False, "reason": "시장 PER/PBR 값 이상"}
+
+    # 신선도 확인 — 낡은 기준선으로 상대 평가하면 절대 임계값보다 나쁠 수 있다
+    asof = data.get("asof")
+    age_days = None
+    if asof:
+        try:
+            asof_date = datetime.strptime(asof, "%Y-%m-%d")
+            age_days = ((today or datetime.now()) - asof_date).days
+            if age_days > BASELINE_MAX_AGE_DAYS:
+                return {"available": False,
+                        "reason": f"시장 데이터 {age_days}일 경과 (기준 {BASELINE_MAX_AGE_DAYS}일)"}
+        except ValueError:
+            age_days = None
+
+    per_market_anchor = market_per * (1 - PER_MARKET_DISCOUNT)
+    per_rate_anchor = 1 / (2 * RISK_FREE_RATE_KR) if RISK_FREE_RATE_KR > 0 else None
+
+    per_anchor = per_market_anchor
+    if per_rate_anchor:
+        per_anchor = max(per_market_anchor, per_rate_anchor)
+
+    return {
+        "available": True,
+        "market_per": round(market_per, 2),
+        "market_pbr": round(market_pbr, 2),
+        "per_anchor": round(per_anchor, 2),
+        "per_market_anchor": round(per_market_anchor, 2),
+        "per_rate_anchor": round(per_rate_anchor, 2) if per_rate_anchor else None,
+        "pbr_anchor": round(market_pbr, 2),
+        "risk_free_rate_pct": round(RISK_FREE_RATE_KR * 100, 2),
+        "asof": asof,
+        "age_days": age_days,
+        "source": data.get("source"),
+    }
+
+
+def _score_by_ratio(ratio: float, bands: list, floor: float) -> float:
+    """앵커 대비 배율을 점수로 변환 (배율이 낮을수록 고득점)."""
+    for threshold, score in bands:
+        if ratio <= threshold + 1e-9:   # 경계값 부동소수 오차 흡수
+            return score
+    return floor
+
+
+def score_per(per: float, baseline: dict = None) -> float:
+    """PER 점수 (낮을수록 높은 점수).
+
+    baseline이 있으면 시장 상대 평가, 없으면 절대 임계값 폴백.
+    """
     if per is None or per <= 0:
         return 0
+
+    if baseline and baseline.get("available"):
+        return _score_by_ratio(per / baseline["per_anchor"], PER_RATIO_BANDS, 5)
+
+    # 폴백: 절대 임계값 (시장 데이터 미확보 시)
     if per < 5:
         return 100
     elif per < 10:
@@ -406,10 +615,18 @@ def score_per(per: float) -> float:
         return 5
 
 
-def score_pbr(pbr: float) -> float:
-    """PBR 점수 (낮을수록 높은 점수)."""
+def score_pbr(pbr: float, baseline: dict = None) -> float:
+    """PBR 점수 (낮을수록 높은 점수).
+
+    baseline이 있으면 시장 평균 대비 상대 평가, 없으면 절대 임계값 폴백.
+    """
     if pbr is None or pbr <= 0:
         return 0
+
+    if baseline and baseline.get("available"):
+        return _score_by_ratio(pbr / baseline["pbr_anchor"], PBR_RATIO_BANDS, 10)
+
+    # 폴백: 절대 임계값
     if pbr < 0.5:
         return 100
     elif pbr < 1.0:
@@ -498,15 +715,16 @@ def score_dividend(div_yield_pct: float) -> float:
         return 100
 
 
-def calculate_value_score(metrics: dict) -> dict:
+def calculate_value_score(metrics: dict, baseline: dict = None) -> dict:
     """종합 가치 점수 계산.
 
     종합 점수 = (가치 35%) + (수익성 35%) + (성장 20%) + (주주환원 10%)
+    baseline 제공 시 PER/PBR을 시장 평균 대비 상대 평가.
     """
     # trailingPE 없으면 forwardPE 사용
     per_val = metrics.get("trailing_pe") or metrics.get("forward_pe")
-    s_per = score_per(per_val)
-    s_pbr = score_pbr(metrics.get("price_to_book"))
+    s_per = score_per(per_val, baseline)
+    s_pbr = score_pbr(metrics.get("price_to_book"), baseline)
     s_roe = score_roe(metrics.get("roe"))
     s_debt = score_debt(metrics.get("debt_to_equity"))
     s_growth = score_growth(metrics.get("revenue_growth"))
@@ -535,36 +753,176 @@ def calculate_value_score(metrics: dict) -> dict:
             "growth_score": round(s_growth, 1),
             "dividend_score": round(s_dividend, 1),
         },
+        "scoring_mode": "relative" if (baseline and baseline.get("available")) else "absolute",
     }
 
 
 def value_trap_filter(metrics: dict) -> tuple:
-    """저평가 함정 필터링. (통과 여부, 사유)"""
+    """저평가 함정 필터링. (통과 여부, 사유, 경고 플래그, 감점)
+
+    브리핑 5.1: "이유 없이 싼 주식을 사야 하며, 이유가 있어서 싼 주식은 피해야 한다.
+      PBR이 0.2~0.3으로 극도로 낮더라도 적자 지속·사양 산업·자산의 질이 나쁘면
+      가격은 계속 더 낮아질 수 있다."
+
+    2단 구조:
+      · 하드 리젝트 — 명백한 함정. 후보에서 제외.
+      · 소프트 플래그 — 감점 후 순위에 반영. 경기민감주의 일시적 부진까지
+        전부 잘라내면 가치주가 남지 않으므로 배제 대신 감점한다.
+    """
+    quality = metrics.get("quality") or {}
+
+    # ─── 하드 리젝트 ──────────────────────────────────
     # 시가총액 1,000억원 이하 제외
     market_cap = metrics.get("market_cap")
     if market_cap and market_cap < 100_000_000_000:
-        return False, f"시가총액 {market_cap/1e8:.0f}억 미만 (1000억 기준)"
+        return False, f"시가총액 {market_cap/1e8:.0f}억 미만 (1000억 기준)", [], 0
 
     # ROE 매우 음수 (-20% 미만) 제외 - 일시적 적자는 허용
     roe = metrics.get("roe")
     if roe is not None and roe < -0.20:
-        return False, f"ROE {roe*100:.1f}% (심각한 적자)"
+        return False, f"ROE {roe*100:.1f}% (심각한 적자)", [], 0
 
     # 부채비율 500% 초과 제외 (완화: 200→500)
     debt = metrics.get("debt_to_equity")
     if debt and debt > 500:
-        return False, f"부채비율 {debt:.0f}% 과다"
+        return False, f"부채비율 {debt:.0f}% 과다", [], 0
 
-    return True, "통과"
+    # 3년 이상 연속 적자 = 일시적 부진이 아닌 구조적 훼손
+    loss_years = quality.get("consecutive_loss_years", 0)
+    if loss_years >= 3:
+        return False, f"{loss_years}년 연속 적자 (구조적 훼손)", [], 0
+
+    # ─── 소프트 플래그 (감점) ─────────────────────────
+    flags = []
+    penalty = 0
+
+    if loss_years == 2:
+        flags.append({"type": "적자지속", "detail": "2년 연속 적자", "penalty": 15})
+        penalty += 15
+    elif loss_years == 1:
+        flags.append({"type": "적자전환", "detail": "직전 연도 적자", "penalty": 5})
+        penalty += 5
+
+    cagr = quality.get("revenue_cagr_pct")
+    if cagr is not None and cagr < -5:
+        flags.append({"type": "사양산업",
+                      "detail": f"{quality.get('revenue_years', 0)}년 매출 CAGR {cagr:+.1f}%",
+                      "penalty": 12})
+        penalty += 12
+    elif cagr is not None and cagr < 0:
+        flags.append({"type": "매출역성장", "detail": f"매출 CAGR {cagr:+.1f}%", "penalty": 5})
+        penalty += 5
+
+    soft_ratio = quality.get("inventory_receivable_ratio_pct")
+    if soft_ratio is not None and soft_ratio > 50:
+        flags.append({"type": "자산의질",
+                      "detail": f"재고+매출채권 {soft_ratio:.0f}% (총자산 대비)",
+                      "penalty": 8})
+        penalty += 8
+
+    intangible = quality.get("intangible_to_equity_pct")
+    if intangible is not None and intangible > 50:
+        flags.append({"type": "장부가허수",
+                      "detail": f"영업권·무형자산 {intangible:.0f}% (자기자본 대비)",
+                      "penalty": 10})
+        penalty += 10
+
+    if flags:
+        reason = "통과 (경고: " + ", ".join(f["type"] for f in flags) + ")"
+    else:
+        reason = "통과"
+
+    return True, reason, flags, penalty
+
+
+# ====================================================================
+# 소외도 (Neglected)
+# ====================================================================
+# 브리핑 1.1: 가치는 '싸고(cheap) · 귀하고(rare) · 소외된(neglected)' 자산에서 나온다.
+#   기존 스크리너는 '싸다'만 측정했다. 소외 = 시장의 관심 밖에 있는 상태.
+#
+# 데이터 출처 선택 근거:
+#   · 애널리스트 수 → yfinance numberOfAnalystOpinions (실제 커버리지 수)
+#   · docs/analyst_reports.json은 쓰지 않는다. n_reports가 analyst_reports.py의
+#     MAX_REPORTS=6에서 잘리는 '최근 리포트 목록' 길이여서, 삼성전자(실제 100건+)와
+#     중소형주가 똑같이 6으로 포화된다. 커버리지 지표로 쓰면 변별력이 없다.
+#   · 뉴스 언급 빈도는 docs/market_news.json이 종목별이 아닌 시장 전체 피드라
+#     현재 데이터로는 산출 불가. 종목별 뉴스 카운트가 생기면 3번째 축으로 추가할 것.
+COVERAGE_BANDS = [(0, 100), (2, 80), (5, 60), (10, 40), (20, 20)]      # 애널리스트 수 → 점수
+# 회전율 밴드는 한국 시장 기준 (코스피 전체 일평균 회전율 ≈ 0.4~0.6%)
+TURNOVER_BANDS = [(0.15, 100), (0.3, 75), (0.5, 55), (1.0, 35), (2.0, 20)]  # 일 회전율 % → 점수
+
+# 커버리지가 소외의 본질에 더 가깝다(브리핑: "대중의 관심에서 멀어져 있고").
+# 회전율은 대형주일수록 구조적으로 낮아 단독으로는 오판을 부르므로 비중을 낮춘다.
+NEGLECT_WEIGHTS = {"coverage": 0.65, "turnover": 0.35}
+
+
+def calculate_neglect_score(yf_data: dict, report_count: int = None) -> dict:
+    """소외도 점수 (0~100, 높을수록 시장에서 잊혀진 종목).
+
+    두 축의 가중 평균:
+      · 애널리스트 커버리지 — 분석하는 사람이 적을수록 소외 (비중 65%)
+      · 일평균 거래대금 회전율 — 손바뀜이 적을수록 소외 (비중 35%)
+
+    한쪽 데이터만 있으면 그 한쪽으로 계산하고, 둘 다 없으면 available=False.
+    """
+    components = {}
+
+    count = report_count if report_count is not None else yf_data.get("analyst_count")
+    if count is not None:
+        components["coverage"] = _score_by_ratio(count, COVERAGE_BANDS, 10)
+
+    # 회전율: 일평균 거래량 × 주가 / 시가총액
+    volume = yf_data.get("average_volume")
+    price = yf_data.get("current_price")
+    market_cap = yf_data.get("market_cap")
+    turnover_pct = None
+    if volume and price and market_cap and market_cap > 0:
+        turnover_pct = volume * price / market_cap * 100
+        components["turnover"] = _score_by_ratio(turnover_pct, TURNOVER_BANDS, 5)
+
+    if not components:
+        return {"available": False, "score": None, "analyst_count": count,
+                "turnover_pct": None, "components": {}}
+
+    # 가용한 축의 비중만으로 정규화 (한 축만 있으면 그 축이 100%)
+    weight_sum = sum(NEGLECT_WEIGHTS[k] for k in components)
+    score = sum(components[k] * NEGLECT_WEIGHTS[k] for k in components) / weight_sum
+
+    return {
+        "available": True,
+        "score": round(score, 1),
+        "analyst_count": count,
+        "turnover_pct": round(turnover_pct, 3) if turnover_pct is not None else None,
+        "components": {k: round(v, 1) for k, v in components.items()},
+        "partial": len(components) < 2,
+    }
+
+
+def neglect_bonus(neglect: dict, valuation_score: float) -> float:
+    """소외 가산점 (±5점).
+
+    '싸고 소외된' 조합에만 적용한다. 비싼데 소외된 종목은 그냥 관심 없는
+    종목일 뿐 가치주가 아니므로, 밸류에이션 점수가 60점 미만이면 가산하지 않는다.
+
+    총점 공식(35/35/20/10)에 5번째 항목으로 끼워 넣지 않은 이유:
+      auto_research_value.py가 그 4개 가중치를 진화시키고 있어 항목을 늘리면
+      백테스트 비교가 깨진다. 별도 가산점으로 두어 공식은 그대로 유지한다.
+    """
+    if not neglect.get("available") or valuation_score < 60:
+        return 0.0
+    return round((neglect["score"] - 50) * 0.10, 1)
 
 
 # ====================================================================
 # 종목 분석
 # ====================================================================
-def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
+def analyze_stock(stock_info: dict, dart_api: DartAPI = None,
+                  baseline: dict = None) -> dict:
     """단일 종목 분석."""
     ticker = stock_info["ticker"]
     name = stock_info["name"]
+    code = ticker.replace(".KS", "").replace(".KQ", "")
 
     print(f"  [{name}] 분석 중...")
 
@@ -573,18 +931,29 @@ def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
     if not yf_data or not yf_data.get("current_price"):
         return None
 
-    # 점수 계산
-    score = calculate_value_score(yf_data)
+    # 점수 계산 (baseline 있으면 시장 상대 평가)
+    score = calculate_value_score(yf_data, baseline)
 
     # 함정 필터
-    passed, reason = value_trap_filter(yf_data)
+    passed, reason, flags, penalty = value_trap_filter(yf_data)
+
+    # 소외도 → 가산점 ('싸고 소외된' 종목만)
+    neglect = calculate_neglect_score(yf_data)
+    bonus = neglect_bonus(neglect, score["valuation_score"])
+
+    # 최종 점수 = 원점수 - 함정 감점 + 소외 가산점
+    raw_total = score["total_score"]
+    score["raw_total_score"] = raw_total
+    score["trap_penalty"] = penalty
+    score["neglect_bonus"] = bonus
+    score["total_score"] = round(max(0.0, min(100.0, raw_total - penalty + bonus)), 1)
 
     # IRR (기대 연수익률) 추정
     irr = calculate_irr_metrics(yf_data)
 
     # 결과 조립
     result = {
-        "ticker": ticker.replace(".KS", "").replace(".KQ", ""),
+        "ticker": code,
         "name": name,
         "sector": stock_info.get("sector", ""),
         "market": "KOSPI" if ticker.endswith(".KS") else "KOSDAQ",
@@ -593,6 +962,10 @@ def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
         "metrics": {
             "per": round(yf_data["trailing_pe"], 2) if yf_data.get("trailing_pe") else (round(yf_data["forward_pe"], 2) if yf_data.get("forward_pe") else None),
             "forward_per": round(yf_data["forward_pe"], 2) if yf_data.get("forward_pe") else None,
+            # per가 후행/선행 중 무엇인지 — 스냅샷 비교 시 기준이 바뀌면
+            # 역산 EPS가 튀므로 소비 측(value_erosion_monitor)에서 확인한다
+            "per_basis": ("trailing" if yf_data.get("trailing_pe")
+                          else ("forward" if yf_data.get("forward_pe") else None)),
             "pbr": round(yf_data["price_to_book"], 2) if yf_data.get("price_to_book") else None,
             "psr": round(yf_data["price_to_sales"], 2) if yf_data.get("price_to_sales") else None,
             "roe_pct": round(yf_data["roe"] * 100, 2) if yf_data.get("roe") else None,
@@ -603,6 +976,9 @@ def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
         },
         "irr": irr,
         "scores": score,
+        "quality": yf_data.get("quality", {}),
+        "trap_flags": flags,
+        "neglect": neglect,
         "filter_passed": passed,
         "filter_reason": reason,
     }
@@ -613,7 +989,7 @@ def analyze_stock(stock_info: dict, dart_api: DartAPI = None) -> dict:
 # ====================================================================
 # 텔레그램 전송
 # ====================================================================
-def send_telegram(top_picks: list):
+def send_telegram(top_picks: list, baseline: dict = None):
     """저평가 Top 10 결과를 텔레그램으로 알림."""
     env_path = os.path.join(CONFIG_DIR, ".env")
     bot_token = None
@@ -640,6 +1016,11 @@ def send_telegram(top_picks: list):
         return
 
     lines = ["🔍 저평가 종목 Top 10", "=" * 25, ""]
+    if baseline and baseline.get("available"):
+        lines.append(f"기준선: 코스피 PER {baseline['market_per']} / PBR {baseline['market_pbr']}")
+        lines.append(f"'훌륭' 판정선: PER {baseline['per_anchor']}배 이하 / PBR {baseline['pbr_anchor']}배 이하")
+        lines.append("")
+
     for i, stock in enumerate(top_picks[:10], 1):
         m = stock.get("metrics", {})
         per = m.get("per", "N/A")
@@ -648,6 +1029,15 @@ def send_telegram(top_picks: list):
         score = stock["scores"]["total_score"]
         lines.append(f"{i}. {stock['name']} ({stock['ticker']}) - {score}점")
         lines.append(f"   PER {per} / PBR {pbr} / ROE {roe}%")
+
+        neglect = stock.get("neglect") or {}
+        if neglect.get("available") and neglect["score"] >= 60:
+            lines.append(f"   🔕 소외도 {neglect['score']}점 "
+                         f"(애널리스트 {neglect.get('analyst_count')}명, "
+                         f"회전율 {neglect.get('turnover_pct')}%)")
+
+        for flag in stock.get("trap_flags", []):
+            lines.append(f"   ⚠️ {flag['type']}: {flag['detail']}")
         lines.append("")
 
     lines.append("🚨 시뮬레이션/분석용. 자동 매매 금지.")
@@ -692,12 +1082,23 @@ def main():
     else:
         print("  [DART] API 키 미설정. yfinance만 사용.")
 
+    # 시장 상대 평가 기준선 (코스피 평균 PER/PBR)
+    baseline = load_market_baseline()
+    if baseline.get("available"):
+        print(f"  [기준선] 코스피 PER {baseline['market_per']} / PBR {baseline['market_pbr']} "
+              f"({baseline.get('asof')})")
+        print(f"           PER 앵커 {baseline['per_anchor']}배 "
+              f"(시장-30%={baseline['per_market_anchor']}, 금리2배={baseline['per_rate_anchor']}) "
+              f"· PBR 앵커 {baseline['pbr_anchor']}배")
+    else:
+        print(f"  [기준선] 상대 평가 불가 ({baseline.get('reason')}) → 절대 임계값 사용")
+
     # 종목별 분석
     print("\n[분석 시작]")
     results = []
     for stock in TARGET_STOCKS:
         try:
-            r = analyze_stock(stock, dart_api)
+            r = analyze_stock(stock, dart_api, baseline)
             if r:
                 results.append(r)
             time.sleep(0.3)  # rate limit
@@ -720,10 +1121,25 @@ def main():
     print(f"\n[저평가 Top 10]")
     for i, stock in enumerate(top_10, 1):
         m = stock["metrics"]
+        sc = stock["scores"]
+        adj = []
+        if sc.get("trap_penalty"):
+            adj.append(f"함정 -{sc['trap_penalty']}")
+        if sc.get("neglect_bonus"):
+            adj.append(f"소외 {sc['neglect_bonus']:+.1f}")
+        adj_str = f" [{', '.join(adj)}]" if adj else ""
         print(f"  {i:2d}. {stock['name']:15s} ({stock['ticker']}) "
-              f"- 점수 {stock['scores']['total_score']:5.1f} "
+              f"- 점수 {sc['total_score']:5.1f} "
               f"- PER {m.get('per', 'N/A')} PBR {m.get('pbr', 'N/A')} "
-              f"ROE {m.get('roe_pct', 'N/A')}%")
+              f"ROE {m.get('roe_pct', 'N/A')}%{adj_str}")
+
+    # 함정 경고가 붙은 종목 (배제되진 않았으나 감점된 종목)
+    flagged = [r for r in passed if r.get("trap_flags")]
+    if flagged:
+        print(f"\n[가치 함정 경고] {len(flagged)}개 종목")
+        for stock in flagged[:10]:
+            details = ", ".join(f"{f['type']}({f['detail']})" for f in stock["trap_flags"])
+            print(f"  · {stock['name']:15s} -{stock['scores']['trap_penalty']}점 — {details}")
 
     # 사용자 관심 종목 (필터/순위 무관 항상 표시)
     WATCHLIST = ["042700", "006400"]  # 한미반도체, 삼성SDI
@@ -743,7 +1159,16 @@ def main():
             "quality_weight": 0.35,
             "growth_weight": 0.20,
             "shareholder_weight": 0.10,
+            "mode": "relative" if baseline.get("available") else "absolute",
+            "note": ("PER/PBR은 코스피 시장 평균 대비 상대 평가. "
+                     "총점 = 원점수 - 가치함정 감점 + 소외 가산점(±5)."),
         },
+        "market_baseline": baseline,
+        "trap_flagged": [
+            {"ticker": r["ticker"], "name": r["name"],
+             "penalty": r["scores"]["trap_penalty"], "flags": r["trap_flags"]}
+            for r in flagged
+        ],
         "warning": "🚨 시뮬레이션/분석용. 자동 매매 절대 금지. 사용자 직접 검토 후 투자 결정.",
     }
 
@@ -754,7 +1179,7 @@ def main():
 
     # 텔레그램
     if not args.no_telegram:
-        send_telegram(top_10)
+        send_telegram(top_10, baseline)
 
     print("\n" + "=" * 65)
     print("  ⚠️ 본 결과는 시뮬레이션 전용입니다.")

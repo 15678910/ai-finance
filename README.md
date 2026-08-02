@@ -15,7 +15,8 @@ GitHub Actions 기반 24/7 자동 운영, GitHub Pages 대시보드, Telegram �
 | 🌐 **해외 시장** | KOSPI 휴장 매시간 13개 글로벌 지수/선물 추적 |
 | 🇯🇵 **일본 위기** | 엔화 캐리 청산 압력 / BOJ 금리 인상 추적 (매일 09:30, 22:00) |
 | 🪙 **비트코인 본위제** | ETF 자금 흐름 / 채굴 / ARMA 법안 (매일 09:00, 22:00) |
-| 💰 **저평가 스크리너** | KOSPI 47개 종목 가치 점수 + WATCHLIST (매일 06:00) |
+| 💰 **저평가 스크리너** | KOSPI 47개 종목 가치 점수 + WATCHLIST (매일 06:00) · 코스피 평균 대비 상대 평가 |
+| 🔻 **가치 훼손 모니터** | 주가가 아닌 펀더멘털(EPS·BPS·수익성) 훼손 감시 (매일 06:00) |
 | 📈 **DCF 적정가** | 15개 대형주 현금흐름 평가 (매일 07:30) |
 | 📊 **분기 실적 리뷰** | DART API 기반 어닝 분석 (매일 09:00) |
 | 🧬 **AutoResearch** | 가치 가중치 진화 + Forward Test 평가 (매일 + 매월) |
@@ -65,7 +66,8 @@ ai-finance/
 ├── tests/                   # 스모크 테스트
 ├── *_monitor.py             # 모니터링 스크립트
 ├── *_analyzer.py            # 분석 스크립트
-├── value_screener.py        # 가치 스크리너
+├── value_screener.py        # 가치 스크리너 (상대 밸류 + 함정 필터 + 소외도)
+├── value_erosion_monitor.py # 가치 훼손 모니터
 ├── dcf_valuator.py          # DCF 평가기
 ├── earnings_reviewer.py     # 분기 실적 리뷰어
 ├── auto_research_*.py       # AutoResearch 시스템
@@ -83,7 +85,7 @@ ai-finance/
 | Overseas Market Monitor | KOSPI 휴장 매시간 | 해외 시장 + 시초가 예측 |
 | Japan Crisis Monitor | 매일 09:30, 22:00 | 캐리 청산 압력 |
 | Bitcoin Standard Monitor | 매일 09:00, 22:00 | BTS 점수 + 한국 영향 |
-| Value Screener | 매일 06:00 | 저평가 Top 10 |
+| Value Screener | 매일 06:00 | 저평가 Top 10 + 가치 훼손 경보 |
 | Auto-Research Value | 매일 07:00 | 진화된 가중치 |
 | Auto-Research Portfolio | 매일 03:00 | 포트폴리오 최적화 |
 | DCF Valuator | 매일 07:30 | 적정가 vs 현재가 |
