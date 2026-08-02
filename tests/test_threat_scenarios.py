@@ -158,13 +158,65 @@ class TestThreatD_Injection:
 class TestThreatE_Integrity:
     """금융 데이터 무결성, 이중 알림 차단."""
 
-    @pytest.mark.skip(reason="TODO: is_recent_alert가 이중 알림을 실제로 방지하는지 테스트")
     def test_e1_double_alert_prevented(self):
         """같은 이벤트에 대한 알림이 설정된 시간 내 중복 전송되지 않음.
 
         core.state_store.is_recent_alert 동작 검증.
+
+        위협: 같은 시그널(예: 급락 경보)이 매 실행마다 재전송되면
+        투자자가 새 이벤트로 오인해 잘못된 매매 판단을 내림.
         """
-        pass
+        import tempfile
+        from datetime import datetime, timezone, timedelta
+
+        from core import (load_state, save_state, is_recent_alert,
+                          mark_alert_sent)
+
+        THRESHOLD = 12
+
+        # 1) 최초 알림: 기록 없음 → 전송 허용
+        state = {}
+        assert is_recent_alert(state, "kospi_crash", hours=THRESHOLD) is False
+
+        # 2) 전송 직후: 같은 key 재전송 차단
+        state = mark_alert_sent(state, "kospi_crash")
+        assert is_recent_alert(state, "kospi_crash", hours=THRESHOLD) is True, \
+            "이중 알림 차단 실패: 방금 보낸 알림이 다시 전송 가능 상태"
+
+        # 3) key 격리: 다른 이벤트는 차단되면 안 됨 (알림 유실 방지)
+        assert is_recent_alert(state, "samsung_earnings", hours=THRESHOLD) is False
+
+        # 4) 프로세스 재시작(저장 → 로드) 후에도 차단 유지
+        with tempfile.TemporaryDirectory() as tmpdir:
+            assert save_state("threat_e1", state, state_dir=tmpdir) is True
+            reloaded = load_state("threat_e1", state_dir=tmpdir)
+            assert is_recent_alert(reloaded, "kospi_crash", hours=THRESHOLD) is True, \
+                "이중 알림 차단 실패: 상태 파일 재로드 후 중복 전송 가능"
+
+        # 5) 임계 시간 경계: 이내는 차단, 초과는 허용
+        now = datetime.now(timezone.utc)
+        within = {"last_alerts": {
+            "kospi_crash": (now - timedelta(hours=THRESHOLD - 1)).isoformat()}}
+        expired = {"last_alerts": {
+            "kospi_crash": (now - timedelta(hours=THRESHOLD + 1)).isoformat()}}
+        assert is_recent_alert(within, "kospi_crash", hours=THRESHOLD) is True
+        assert is_recent_alert(expired, "kospi_crash", hours=THRESHOLD) is False, \
+            "임계 시간 초과 알림이 영구 차단됨 (알림 유실 위험)"
+
+        # 6) tz 없는 timestamp도 UTC로 해석 (로컬시간 오해로 인한 오차단 방지)
+        naive = {"last_alerts": {
+            "kospi_crash": (now - timedelta(hours=1)).replace(tzinfo=None).isoformat()}}
+        assert is_recent_alert(naive, "kospi_crash", hours=THRESHOLD) is True
+
+        # 7) 손상된 상태값 → fail-open (영구 차단으로 알림이 사라지면 안 됨)
+        for broken in ("", "not-a-timestamp", None, 12345, {"a": 1}):
+            assert is_recent_alert({"last_alerts": {"k": broken}},
+                                   "k", hours=THRESHOLD) is False, \
+                f"손상된 timestamp({broken!r})가 알림을 영구 차단함"
+
+        # 8) state 자체가 dict가 아닌 경우에도 예외 없이 처리
+        assert is_recent_alert(None, "kospi_crash", hours=THRESHOLD) is False
+        assert is_recent_alert([], "kospi_crash", hours=THRESHOLD) is False
 
     @pytest.mark.skip(reason="TODO: 금융 수치(PER, 배당률 등) 이상값 필터링 확인")
     def test_e2_financial_metric_outlier_filtered(self):
