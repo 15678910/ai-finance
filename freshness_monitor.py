@@ -38,6 +38,7 @@ MONITORED = [
     ("credit_spread.json", 30), ("liquidity_stress.json", 30),
     ("economic_calendar.json", 36), ("m2_data.json", 36), ("debt_gdp.json", 40),
     ("fear_greed.json", 30), ("trend_signal.json", 36), ("guru_13f.json", 36),
+    ("kospi_open_log.json", 30),   # 시초가 예측 워크포워드 채점 (해외시장 워크플로에 동봉, 매시간)
     ("dart_financials.json", 40),
     # kospi_valuation.json: 원천(INDEXerGO)이 GitHub 데이터센터 IP를 지역차단(403) → 자동갱신 불가.
     #   PER/PBR은 완만한 지표라 저빈도 허용 + 거짓 경보 방지 위해 감시 제외. (필요 시 수동 갱신)

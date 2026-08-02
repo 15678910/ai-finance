@@ -51,6 +51,14 @@ jobs:
         run: |
           python overseas_market_monitor.py
 
+      # KOSPI 시초가 예측 워크포워드 채점 — 개장 전(KST 06~09시) 예측 고정 + 지난 예측 채점
+      # overseas_market_monitor 바로 뒤에 둬야 방금 만든 신호를 그대로 기록한다.
+      - name: Run KOSPI open tracker
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python kospi_open_tracker.py || echo "KOSPI open tracker had errors, continuing..."
+
       # AI 패러다임 모니터 (MV=PY · 휴머노이드 · CAPEX) — 별도 JSON, 대시보드가 직접 fetch
       - name: Run AI paradigm monitor
         env:

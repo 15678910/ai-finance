@@ -75,6 +75,11 @@ MARKETS = {
         {"ticker": "KRW=X", "name": "USD/KRW", "region": "🇰🇷"},
         {"ticker": "JPY=X", "name": "USD/JPY", "region": "🇯🇵"},
     ],
+    "암호화폐": [
+        # BTC는 24시간 거래 — bitcoin_standard.json(1일 2회)만으론 최대 12시간 지연되어
+        # 노후 준비 패널의 BTC 수량 목표가 옛 시세로 계산됨. 시간당 도는 이 수집기에 함께 담는다.
+        {"ticker": "BTC-USD", "name": "비트코인", "region": "🟠"},
+    ],
     "원자재": [
         {"ticker": "GC=F", "name": "금 (Gold)", "region": "🥇"},
         {"ticker": "CL=F", "name": "WTI 원유", "region": "🛢️"},
@@ -253,21 +258,25 @@ OPEN_W_FUT = 1 - OPEN_W_EWY         # 미국 선물 비중
 #   ② 야간선물이 거래되는 시간대는 미국 정규장과 겹친다 = NQ 선물·EWY와 '같은 정보 창구'다.
 #      야간선물이 시초가를 움직인다기보다, 둘 다 같은 야간 뉴스를 반영한 결과다.
 #      따라서 야간선물을 넣어도 새 정보가 아니라 중복 신호에 가깝다.
-def predict_kospi_open(markets: list) -> str:
-    """미국 선물 + EWY(한국 ETF) 기반 KOSPI 시초가 예측 (가중치는 위 EVIDENCE로 실측 결정)."""
-    futures = [m for m in markets if m.get("is_futures")]
+def kospi_open_signal(markets: list):
+    """합성 신호값(%) 반환 — 채점기(kospi_open_tracker)가 같은 값을 쓰도록 분리."""
+    futures = [m for m in markets if m.get("is_futures") and m.get("change_pct") is not None]
     ewy = next((m for m in markets if m.get("is_korea_proxy") and m.get("change_pct") is not None), None)
-
     fut_change = (sum(m["change_pct"] for m in futures) / len(futures)) if futures else None
     ewy_change = ewy["change_pct"] if ewy else None
-
     if ewy_change is not None and fut_change is not None:
-        avg_change = OPEN_W_EWY * ewy_change + OPEN_W_FUT * fut_change
-    elif ewy_change is not None:
-        avg_change = ewy_change
-    elif fut_change is not None:
-        avg_change = fut_change
-    else:
+        return OPEN_W_EWY * ewy_change + OPEN_W_FUT * fut_change, ewy_change, fut_change
+    if ewy_change is not None:
+        return ewy_change, ewy_change, None
+    if fut_change is not None:
+        return fut_change, None, fut_change
+    return None, None, None
+
+
+def predict_kospi_open(markets: list) -> str:
+    """미국 선물 + EWY(한국 ETF) 기반 KOSPI 시초가 예측 (가중치는 위 EVIDENCE로 실측 결정)."""
+    avg_change, _, _ = kospi_open_signal(markets)
+    if avg_change is None:
         return ""
     abs_avg = abs(avg_change)
 
@@ -373,6 +382,11 @@ def main():
         "active_market": get_active_market(),
         "kospi_closed": is_kospi_closed(),
         "kospi_open_prediction": kospi_pred,
+        # 채점기(kospi_open_tracker.py)가 매일 기록·대조할 수 있도록 숫자 신호도 함께 저장
+        "kospi_open_signal": (lambda t: {"composite_pct": None if t[0] is None else round(t[0], 3),
+                                         "ewy_pct": None if t[1] is None else round(t[1], 3),
+                                         "futures_pct": None if t[2] is None else round(t[2], 3)})(
+            kospi_open_signal(all_markets)),
         # 예측 신뢰도 실측치 — 대시보드가 '얼마나 믿을 값인지' 함께 보여주도록 동봉
         "kospi_open_accuracy": {
             "weights": {"ewy": OPEN_W_EWY, "us_futures": round(OPEN_W_FUT, 2)},

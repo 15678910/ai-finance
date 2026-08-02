@@ -2460,9 +2460,9 @@ body {
             ${kospiPred && isClosed ? `<div>
               <div style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">KOSPI 시초가 예상</div>
               <div style="font-size:1.0rem;font-weight:600;color:var(--cyan);">${h(kospiPred)}</div>
-              ${kospiAcc ? `<div title="${h(kospiAcc.note || '')}" style="font-size:0.56rem;color:var(--text-muted);margin-top:2px;cursor:help;line-height:1.5;">
+              ${kospiAcc ? `<div id="kospi-open-acc" title="${h(kospiAcc.note || '')}" style="font-size:0.56rem;color:var(--text-muted);margin-top:2px;cursor:help;line-height:1.5;">
                 방향 적중 <b style="color:#4ade80;">${kospiAcc.direction_hit_pct}%</b> · 폭 오차 ±${kospiAcc.mae_pp}%p
-                <span style="opacity:0.7;">(실측 ${kospiAcc.sample_days}일 · 미국선물 ${Math.round((kospiAcc.weights || {}).us_futures * 100)}%+EWY ${Math.round((kospiAcc.weights || {}).ewy * 100)}%)</span>
+                <span style="opacity:0.7;">(과거검증 ${kospiAcc.sample_days}일 · 미국선물 ${Math.round((kospiAcc.weights || {}).us_futures * 100)}%+EWY ${Math.round((kospiAcc.weights || {}).ewy * 100)}%)</span>
               </div>` : ''}
             </div>` : ''}
             ${alertCount > 0 ? `<div>
@@ -10489,6 +10489,29 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.renderScreener = renderScreener;
 
+  // ── 시초가 예측 워크포워드 성적표 — 과거검증(백테스트) 대신 '실제 누적 성적'을 표시 ──
+  // 백테스트 성적은 가중치를 고른 데이터로 잰 값이라 부풀려지기 쉽다. 개장 전 고정 기록을
+  // 나중에 채점한 워크포워드 성적이 쌓이면 그 값으로 대체하고, 둘의 격차를 함께 보여준다.
+  function __koPaintAcc() {
+    const el = document.getElementById('kospi-open-acc');
+    const d = window.__koData;
+    if (!el || !d) return;
+    const s = d.stats_all, ref = d.backtest_reference || {};
+    if (!s || !s.n) {                                  // 아직 채점 기록 없음 → 안내만 덧붙임
+      el.insertAdjacentHTML('beforeend',
+        `<span style="opacity:0.75;"> · 실전 채점 <b style="color:#fbbf24;">집계 중</b>${d.pending_count ? ` (대기 ${d.pending_count}건)` : ''}</span>`);
+      return;
+    }
+    const thin = s.n < 30;                             // 표본 부족 경고
+    const gap = ref.direction_hit_pct != null ? s.direction_hit_pct - ref.direction_hit_pct : null;
+    const col = s.direction_hit_pct >= 65 ? '#4ade80' : s.direction_hit_pct >= 55 ? '#fbbf24' : '#f87171';
+    el.innerHTML = `실전 방향 적중 <b style="color:${col};">${s.direction_hit_pct}%</b> · 폭 오차 ±${s.mae_pp}%p
+      <span style="opacity:0.75;">(개장 전 고정 후 채점 ${s.n}건${thin ? ' · 표본 부족' : ''} · 기준선 ±${s.naive_mae_pp}%p ${s.beats_naive ? '우세' : '열세'})</span>
+      ${gap != null ? `<span style="opacity:0.75;"> · 과거검증 ${ref.direction_hit_pct}% 대비 <b style="color:${gap >= -5 ? '#4ade80' : '#f87171'};">${gap >= 0 ? '+' : ''}${gap.toFixed(1)}%p</b></span>` : ''}`;
+    el.title = (d.note || '') + (thin ? ' 표본 30건 미만이라 아직 성적을 신뢰하기 어렵습니다.' : '');
+  }
+  window.__koPaintAcc = __koPaintAcc;
+
   // ── 🏖️ 노후 준비 설계 — 은퇴자금 계산 + 자산별 비교 + BTC 수량목표 (전부 브라우저 계산·저장) ──
   // 입력값은 localStorage에만 저장되며 저장소·서버로 전송되지 않습니다.
   const RT_KEY = '__retire_v1';
@@ -10525,9 +10548,22 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function renderRetire() {
     const s = rtLoad();
     const bs = window.__bsData || {}, btc = bs.btc || {};
-    const usdkrw = (window.__avgData && window.__avgData.usdkrw) || 1436;
-    const btcUsd = btc.current || null;
+    // BTC 시세 출처 — 시간당 갱신되는 해외시장 모니터를 우선, 없으면 1일 2회 갱신 파일로 폴백.
+    // (BTC는 24시간 거래라 1일 2회로는 최대 12시간 지연된 값으로 수량 목표가 계산됨)
+    const om = (window.__dashboardData || {}).overseas_market || {};
+    const omFind = t => ((om.all_markets || []).find(m => m.ticker === t) || {});
+    const omBtc = omFind('BTC-USD'), omFx = omFind('KRW=X');
+    const btcUsd = omBtc.current || btc.current || null;
+    const btcSrc = omBtc.current ? (om.generated_at || '') : (bs.generated_at || '');
+    const btcFresh = !!omBtc.current;
+    const usdkrw = omFx.current || (window.__avgData && window.__avgData.usdkrw) || 1436;
     const btcKrw = btcUsd ? btcUsd * usdkrw : null;
+    const ageH = (() => {                              // 기준 시각 경과(시간) — 신선도 표기용
+      const m = /(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(btcSrc || '');
+      if (!m) return null;
+      const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+      return Math.max(0, (Date.now() - t.getTime()) / 3600000);
+    })();
     const V = window.__rtTab || 'goal';
     const TABS = [['goal', '🎯 은퇴 목표'], ['asset', '📊 자산별 비교'], ['btc', '₿ 비트코인 수량'],
       ['tent', '🏕️ 현금 텐트'], ['tax', '🧾 2027 과세 대응'], ['check', '⚠️ 가정 검증']];
@@ -10612,7 +10648,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
             <div style="font-size:0.55rem;color:var(--text-muted);">목표 보유 수량 (${s.years}년 후 ${eok(need)} 달성)</div>
             <div style="font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:#fb923c;">${qty == null ? '—' : qty.toFixed(3)} BTC</div>
             <div style="font-size:0.5rem;color:var(--text-muted);margin-top:2px;line-height:1.6;">
-              현재가 ${btcUsd ? '$' + nf(btcUsd) + ' · ' + nf(btcKrw / 10000) + '만원' : '—'} (환율 ${nf(usdkrw)})<br>
+              현재가 ${btcUsd ? '$' + nf(btcUsd) + ' · ' + nf(btcKrw / 10000) + '만원' : '—'} (환율 ${nf(usdkrw)})
+              ${btcSrc ? `<span title="${h(btcSrc)} 기준${btcFresh ? ' · 해외시장 모니터(시간당 갱신)' : ' · 비트코인 스탠다드(1일 2회 갱신)'}" style="cursor:help;color:${ageH == null ? 'var(--text-muted)' : ageH <= 2 ? '#4ade80' : ageH <= 12 ? '#fbbf24' : '#f87171'};">
+                ● ${ageH == null ? '기준시각 확인' : ageH < 1 ? '방금 갱신' : ageH < 24 ? Math.round(ageH) + '시간 전' : Math.round(ageH / 24) + '일 전'}</span>` : ''}<br>
               성장률 ${g}% 가정 시 ${s.years}년 후 1BTC = <b style="color:var(--text-bright);">${btcFut ? nf(btcFut / 100000000, 2) + '억원' : '—'}</b>
             </div>
           </div>
@@ -13590,6 +13628,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./bitcoin_standard.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { window.__bsData = d || {}; try { renderRetire(); } catch (e) { } });
+      // 시초가 예측 워크포워드 성적 — 과거검증 수치를 '실제 누적 성적'으로 교체
+      fetch('./kospi_open_log.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { window.__koData = d; try { __koPaintAcc(); } catch (e) { } });
       // Load FX Swap Monitor (외환위기 조기경보 — FX 스왑 그림자부채 6대 지표)
       fetch('./fx_swap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
