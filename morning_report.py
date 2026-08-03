@@ -1,11 +1,12 @@
 """
-모닝 브리핑 — 대시보드 수집 데이터 종합분석 보고서 (매일 07:00 KST 텔레그램 발송)
+모닝 브리핑 — 대시보드 수집 데이터 종합분석 보고서 (매일 아침 텔레그램 발송)
 ==================================================================================
 docs/*.json (밤사이 해외·예측·심리·추세신호·공매도·개인수급·밸류·일정·뉴스)을
 규칙 기반으로 종합해 한 편의 아침 보고서로 구성, 텔레그램으로 발송한다.
 LLM 미사용(무료·결정적). 각 데이터는 없으면 해당 섹션 생략(방어적).
 
-실행: GitHub Actions cron 22:00 UTC (= KST 07:00). 수동: python morning_report.py
+실행: GitHub Actions cron 21:15 UTC (= KST 06:15 예약, 큐 지연으로 실제 06:15~07:15 도착).
+수동: python morning_report.py
 🚨 정보 요약 · 투자자문 아님.
 """
 
@@ -46,7 +47,9 @@ def main():
     now = datetime.now(KST)
     S = []                                              # 섹션 리스트 (섹션별 문자열)
 
-    S.append(f"🌅 AI Finance 모닝 브리핑\n{now:%Y-%m-%d} ({WD[now.weekday()]}) 07:00 KST")
+    # 생성 시각은 실제 값을 쓴다 — GitHub Actions 예약 실행은 상습 지연되므로
+    # '07:00'을 하드코딩하면 07:50에 만든 리포트가 07:00짜리로 보인다(데이터 기준 시점 오해).
+    S.append(f"🌅 AI Finance 모닝 브리핑\n{now:%Y-%m-%d} ({WD[now.weekday()]}) {now:%H:%M} KST 생성")
 
     # ── 밤사이 해외 ──
     ov = L("overseas_market")
@@ -221,7 +224,7 @@ def main():
             "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
             "date": today_str, "weekday": WD[now.weekday()],
             "sections": sections, "archive": archive[:7],
-            "note": "매일 07:00 KST 자동 생성 — 대시보드 수집 데이터의 규칙기반 종합 요약(LLM 미사용). 텔레그램과 동일 내용. 투자자문 아님.",
+            "note": "매일 아침(KST 06~08시) 자동 생성 — 대시보드 수집 데이터의 규칙기반 종합 요약(LLM 미사용). 텔레그램과 동일 내용. 투자자문 아님.",
         }
         os.makedirs(DOCS, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
