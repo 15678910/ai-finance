@@ -55,15 +55,21 @@ def main():
     ov = L("overseas_market")
     mk = (ov.get("markets") or {})
     lines = []
-    for grp in ("미국_지수", "미국_선물"):
-        for it in (mk.get(grp) or [])[:4]:
-            nm = it.get("name") or it.get("label") or "?"
-            ch = it.get("change_pct", it.get("chg_pct", it.get("chg")))
-            if ch is not None:
-                arrow = "🔺" if float(ch) >= 0 else "🔻"
-                lines.append(f"  {arrow} {nm} {pct(ch)}")
+    # 앞에서부터 [:4]로 자르면 목록 뒤쪽의 '필라델피아 반도체'가 매번 잘려나갔다.
+    # 반도체 비중이 큰 관심종목 구성상 SOX는 나스닥보다도 중요한 선행지표라 우선순위를 명시한다.
+    PRIO = ["필라델피아 반도체", "Nasdaq", "S&P 500", "Dow Jones", "Russell 2000", "VIX",
+            "Nasdaq 선물", "S&P 선물", "Dow 선물"]
+    pool = [it for grp in ("미국_지수", "미국_선물") for it in (mk.get(grp) or [])]
+    pool.sort(key=lambda it: PRIO.index(it.get("name")) if it.get("name") in PRIO else len(PRIO))
+    for it in pool:
+        nm = it.get("name") or it.get("label") or "?"
+        ch = it.get("change_pct", it.get("chg_pct", it.get("chg")))
+        if ch is not None:
+            arrow = "🔺" if float(ch) >= 0 else "🔻"
+            tag = " ⭐" if nm == "필라델피아 반도체" else ""      # 국내 반도체 직결 지표
+            lines.append(f"  {arrow} {nm} {pct(ch)}{tag}")
     if lines:
-        S.append("🌎 밤사이 해외\n" + "\n".join(lines[:7]))
+        S.append("🌎 밤사이 해외\n" + "\n".join(lines[:9]))
 
     # ── 오늘 시초가·종합신호 ──
     cs = L("composite_signal")
@@ -113,14 +119,22 @@ def main():
     if lines:
         S.append(f"🩳 공매도 특이 (T+2 · {si.get('asof', '')})\n" + "\n".join(lines))
 
-    # ── 개인 수급 (물린물량 70%↑) ──
+    # ── 개인 수급 (감시 전 종목) ──
+    # 이전엔 70% 이상만 보여줘서 보유·관심 종목이 통째로 빠졌다(SK하이닉스 45%·로보티즈 30% 등).
+    # '물림이 적다'는 것도 매물대 부담이 가볍다는 유의미한 정보이므로 전 종목을 신호등으로 표시한다.
     pb = L("personal_buy_dist")
-    lines = []
-    for s in (pb.get("stocks") or []):
-        if (s.get("above_frac") or 0) >= 70:
-            lines.append(f"  {s['name']}: 물린물량 {s['above_frac']}% (평단 대비 {s.get('vs_avg_pct'):+}%)")
-    if lines:
-        S.append("👥 개인 물림 주의 (매물대 부담)\n" + "\n".join(lines))
+    rows = sorted((s for s in (pb.get("stocks") or []) if s.get("above_frac") is not None),
+                  key=lambda s: -s["above_frac"])
+    if rows:
+        def _pl(s):
+            f = s["above_frac"]
+            ic = "🔴" if f >= 70 else "🟡" if f >= 40 else "🟢"
+            va = s.get("vs_avg_pct")
+            vs = f" · 평단대비 {va:+}%" if va is not None else ""
+            return f"  {ic} {s['name']} 물린물량 {f}%{vs}"
+        heavy = sum(1 for s in rows if s["above_frac"] >= 70)
+        S.append(f"👥 개인 물림 현황 (매물대 부담 · {heavy}종목 주의)\n" + "\n".join(_pl(s) for s in rows)
+                 + "\n  ※ 물린물량=현재가 위에서 개인이 순매수한 비율 — 높을수록 반등 시 매물 압박")
 
     # ── 밸류에이션 ──
     kv = L("kospi_valuation")
