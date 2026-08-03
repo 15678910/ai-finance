@@ -1,23 +1,23 @@
 {
-  "generated_at": "2026-08-02 10:08:02 KST",
+  "generated_at": "2026-08-03 10:07:43 KST",
   "methodology": "ai-finance 모듈 JSON 통합 → 노드(엔티티) + 엣지(관계) 그래프. vis.js network 형식 호환. 클릭 가능한 객체 중심 탐색.",
   "entity_types": [
-    "Stock",
-    "Currency",
     "Sector",
-    "NewsItem",
     "Bill",
+    "Currency",
+    "MacroEvent",
+    "NewsItem",
     "Index",
-    "MacroEvent"
+    "Stock"
   ],
   "relation_types": [
-    "IN_SECTOR",
-    "AFFECTED_BY",
-    "SENSITIVE_TO",
-    "MENTIONS",
-    "CORRELATES_WITH",
+    "SUPPLIES",
     "COMPETES_WITH",
-    "SUPPLIES"
+    "IN_SECTOR",
+    "CORRELATES_WITH",
+    "MENTIONS",
+    "SENSITIVE_TO",
+    "AFFECTED_BY"
   ],
   "nodes": [
     {
@@ -141,7 +141,7 @@
         "value_score": 82.1,
         "irr_basic": {
           "gordon_irr_pct": 0.16,
-          "earnings_yield_pct": 18.02,
+          "earnings_yield_pct": 18.03,
           "implied_growth_pct": -5.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
           "primary_irr_pct": 0.16,
@@ -152,7 +152,7 @@
         "filter_passed": true,
         "irr_full": {
           "gordon_pct": 0.16,
-          "earnings_yield_pct": 18.02,
+          "earnings_yield_pct": 18.03,
           "roic_retention_pct": 13.64,
           "primary_irr_pct": 13.64,
           "implied_growth_pct": -5.0,
@@ -403,8 +403,8 @@
         "current_price": 262500.0,
         "market_cap_billion": 17237228.0,
         "metrics": {
-          "per": 3.98,
-          "forward_per": 3.98,
+          "per": 3.96,
+          "forward_per": 3.96,
           "pbr": 4.06,
           "psr": 3.55,
           "roe_pct": 30.79,
@@ -416,7 +416,7 @@
         "value_score": 76.2,
         "irr_basic": {
           "gordon_irr_pct": 8.57,
-          "earnings_yield_pct": 25.1,
+          "earnings_yield_pct": 25.28,
           "implied_growth_pct": 8.0,
           "growth_source": "sustainable growth (ROE × retention)",
           "primary_irr_pct": 8.57,
@@ -427,7 +427,7 @@
         "filter_passed": true,
         "irr_full": {
           "gordon_pct": 10.57,
-          "earnings_yield_pct": 25.1,
+          "earnings_yield_pct": 25.28,
           "roic_retention_pct": 10.57,
           "primary_irr_pct": 10.57,
           "implied_growth_pct": 10.0,
@@ -459,42 +459,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.3294,
-            "alpha": 0.005222,
-            "r_squared": 0.1272,
-            "correlation": 0.3566,
-            "n_samples": 234,
+            "beta": 1.3422,
+            "alpha": 0.005324,
+            "r_squared": 0.1286,
+            "correlation": 0.3586,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.329,
-              "up_3pct": 3.988,
-              "down_1pct": -1.329,
-              "down_3pct": -3.988
+              "up_1pct": 1.342,
+              "up_3pct": 4.027,
+              "down_1pct": -1.342,
+              "down_3pct": -4.027
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.678,
-            "alpha": 0.005195,
-            "r_squared": 0.0901,
-            "correlation": 0.3002,
-            "n_samples": 234,
+            "beta": 1.7019,
+            "alpha": 0.005294,
+            "r_squared": 0.0916,
+            "correlation": 0.3026,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.678,
-              "up_3pct": 5.034,
-              "down_1pct": -1.678,
-              "down_3pct": -5.034
+              "up_1pct": 1.702,
+              "up_3pct": 5.106,
+              "down_1pct": -1.702,
+              "down_3pct": -5.106
             }
           },
           "sox": {
@@ -562,24 +562,24 @@
           }
         },
         "semi_v2": {
-          "alpha": 0.002156,
+          "alpha": 0.00224,
           "betas": {
-            "nq": -0.0525,
-            "sox": -0.0396,
-            "ust10y": 0.0246,
-            "usdkrw": -0.1089,
-            "kospi": 1.3112
+            "nq": -0.0259,
+            "sox": -0.0489,
+            "ust10y": 0.0241,
+            "usdkrw": -0.1116,
+            "kospi": 1.3114
           },
           "t_stats": {
-            "nq": -0.28,
-            "sox": -0.46,
-            "ust10y": 0.86,
-            "usdkrw": -0.55,
-            "kospi": 34.26
+            "nq": -0.14,
+            "sox": -0.57,
+            "ust10y": 0.84,
+            "usdkrw": -0.57,
+            "kospi": 34.29
           },
-          "r_squared": 0.8749,
-          "adj_r_squared": 0.8721,
-          "n_samples": 234,
+          "r_squared": 0.8756,
+          "adj_r_squared": 0.8729,
+          "n_samples": 233,
           "n_predictors": 5
         },
         "dcf": {
@@ -632,8 +632,8 @@
         "current_price": 1718000.0,
         "market_cap_billion": 12195307.0,
         "metrics": {
-          "per": 3.84,
-          "forward_per": 3.84,
+          "per": 3.83,
+          "forward_per": 3.83,
           "pbr": 10.12,
           "psr": 6.45,
           "roe_pct": 92.68,
@@ -645,7 +645,7 @@
         "value_score": 76.2,
         "irr_basic": {
           "gordon_irr_pct": 8.17,
-          "earnings_yield_pct": 26.05,
+          "earnings_yield_pct": 26.14,
           "implied_growth_pct": 8.0,
           "growth_source": "sustainable growth (ROE × retention)",
           "primary_irr_pct": 8.17,
@@ -656,7 +656,7 @@
         "filter_passed": true,
         "irr_full": {
           "gordon_pct": 10.17,
-          "earnings_yield_pct": 26.05,
+          "earnings_yield_pct": 26.14,
           "roic_retention_pct": 10.17,
           "primary_irr_pct": 10.17,
           "implied_growth_pct": 10.0,
@@ -688,42 +688,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.7767,
-            "alpha": 0.007272,
-            "r_squared": 0.1525,
-            "correlation": 0.3905,
-            "n_samples": 234,
+            "beta": 1.7855,
+            "alpha": 0.007342,
+            "r_squared": 0.1528,
+            "correlation": 0.3909,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.777,
-              "up_3pct": 5.33,
-              "down_1pct": -1.777,
-              "down_3pct": -5.33
+              "up_1pct": 1.786,
+              "up_3pct": 5.357,
+              "down_1pct": -1.786,
+              "down_3pct": -5.357
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 2.1568,
-            "alpha": 0.0073,
-            "r_squared": 0.0999,
-            "correlation": 0.3161,
-            "n_samples": 234,
+            "beta": 2.1724,
+            "alpha": 0.007364,
+            "r_squared": 0.1002,
+            "correlation": 0.3165,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 2.157,
-              "up_3pct": 6.47,
-              "down_1pct": -2.157,
-              "down_3pct": -6.47
+              "up_1pct": 2.172,
+              "up_3pct": 6.517,
+              "down_1pct": -2.172,
+              "down_3pct": -6.517
             }
           },
           "sox": {
@@ -791,24 +791,24 @@
           }
         },
         "semi_v2": {
-          "alpha": 0.003555,
+          "alpha": 0.003582,
           "betas": {
-            "nq": -0.0368,
-            "sox": 0.0896,
-            "ust10y": 0.0146,
-            "usdkrw": 0.2349,
+            "nq": -0.0282,
+            "sox": 0.0866,
+            "ust10y": 0.0144,
+            "usdkrw": 0.234,
             "kospi": 1.5197
           },
           "t_stats": {
-            "nq": -0.13,
-            "sox": 0.72,
-            "ust10y": 0.35,
+            "nq": -0.1,
+            "sox": 0.69,
+            "ust10y": 0.34,
             "usdkrw": 0.82,
-            "kospi": 27.33
+            "kospi": 27.27
           },
           "r_squared": 0.8227,
           "adj_r_squared": 0.8188,
-          "n_samples": 234,
+          "n_samples": 233,
           "n_predictors": 5
         },
         "dcf": {
@@ -998,42 +998,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.2881,
-            "alpha": 0.00237,
-            "r_squared": 0.0842,
-            "correlation": 0.2901,
-            "n_samples": 234,
+            "beta": 1.2958,
+            "alpha": 0.002431,
+            "r_squared": 0.0845,
+            "correlation": 0.2906,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.288,
-              "up_3pct": 3.864,
-              "down_1pct": -1.288,
-              "down_3pct": -3.864
+              "up_1pct": 1.296,
+              "up_3pct": 3.887,
+              "down_1pct": -1.296,
+              "down_3pct": -3.887
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.4053,
-            "alpha": 0.002508,
-            "r_squared": 0.0445,
-            "correlation": 0.2111,
-            "n_samples": 234,
+            "beta": 1.417,
+            "alpha": 0.002557,
+            "r_squared": 0.0447,
+            "correlation": 0.2115,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.405,
-              "up_3pct": 4.216,
-              "down_1pct": -1.405,
-              "down_3pct": -4.216
+              "up_1pct": 1.417,
+              "up_3pct": 4.251,
+              "down_1pct": -1.417,
+              "down_3pct": -4.251
             }
           },
           "sox": {
@@ -1101,24 +1101,24 @@
           }
         },
         "semi_v2": {
-          "alpha": -0.000569,
+          "alpha": -0.000555,
           "betas": {
-            "nq": -0.136,
-            "sox": 0.205,
+            "nq": -0.1317,
+            "sox": 0.2035,
             "ust10y": 0.0922,
-            "usdkrw": 0.5349,
+            "usdkrw": 0.5345,
             "kospi": 1.0468
           },
           "t_stats": {
-            "nq": -0.28,
-            "sox": 0.94,
+            "nq": -0.27,
+            "sox": 0.92,
             "ust10y": 1.25,
             "usdkrw": 1.06,
-            "kospi": 10.68
+            "kospi": 10.66
           },
           "r_squared": 0.4222,
-          "adj_r_squared": 0.4095,
-          "n_samples": 234,
+          "adj_r_squared": 0.4094,
+          "n_samples": 233,
           "n_predictors": 5
         },
         "investor_flow": {
@@ -1395,42 +1395,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.5435,
-            "alpha": 0.004918,
-            "r_squared": 0.0838,
-            "correlation": 0.2894,
-            "n_samples": 234,
+            "beta": 1.5533,
+            "alpha": 0.004996,
+            "r_squared": 0.0841,
+            "correlation": 0.2901,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.544,
-              "up_3pct": 4.631,
-              "down_1pct": -1.544,
-              "down_3pct": -4.631
+              "up_1pct": 1.553,
+              "up_3pct": 4.66,
+              "down_1pct": -1.553,
+              "down_3pct": -4.66
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.7504,
-            "alpha": 0.005034,
-            "r_squared": 0.0479,
-            "correlation": 0.2189,
-            "n_samples": 234,
+            "beta": 1.7664,
+            "alpha": 0.0051,
+            "r_squared": 0.0482,
+            "correlation": 0.2195,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.75,
-              "up_3pct": 5.251,
-              "down_1pct": -1.75,
-              "down_3pct": -5.251
+              "up_1pct": 1.766,
+              "up_3pct": 5.299,
+              "down_1pct": -1.766,
+              "down_3pct": -5.299
             }
           },
           "sox": {
@@ -1498,24 +1498,24 @@
           }
         },
         "semi_v2": {
-          "alpha": 0.001798,
+          "alpha": 0.001836,
           "betas": {
-            "nq": -0.5757,
-            "sox": 0.2831,
-            "ust10y": -0.0382,
-            "usdkrw": -0.8015,
-            "kospi": 1.2631
+            "nq": -0.5636,
+            "sox": 0.2788,
+            "ust10y": -0.0385,
+            "usdkrw": -0.8028,
+            "kospi": 1.2632
           },
           "t_stats": {
-            "nq": -1.04,
-            "sox": 1.13,
+            "nq": -1.01,
+            "sox": 1.1,
             "ust10y": -0.45,
             "usdkrw": -1.39,
-            "kospi": 11.23
+            "kospi": 11.2
           },
-          "r_squared": 0.4718,
+          "r_squared": 0.4719,
           "adj_r_squared": 0.4603,
-          "n_samples": 234,
+          "n_samples": 233,
           "n_predictors": 5
         },
         "dcf": {
@@ -1568,8 +1568,8 @@
         "current_price": 397000.0,
         "market_cap_billion": 312414.0,
         "metrics": {
-          "per": 22.65,
-          "forward_per": 22.65,
+          "per": 22.2,
+          "forward_per": 22.2,
           "pbr": 1.46,
           "psr": 2.25,
           "roe_pct": null,
@@ -1581,20 +1581,20 @@
         "value_score": 31.9,
         "irr_basic": {
           "gordon_irr_pct": null,
-          "earnings_yield_pct": 4.42,
+          "earnings_yield_pct": 4.5,
           "implied_growth_pct": 3.0,
           "growth_source": "default 3%",
-          "primary_irr_pct": 4.42,
+          "primary_irr_pct": 4.5,
           "irr_method": "earnings_yield",
-          "risk_premium_pct": 0.92,
+          "risk_premium_pct": 1.0,
           "risk_free_rate_pct": 3.5
         },
         "filter_passed": true,
         "irr_full": {
           "gordon_pct": null,
-          "earnings_yield_pct": 4.42,
+          "earnings_yield_pct": 4.5,
           "roic_retention_pct": null,
-          "primary_irr_pct": 4.42,
+          "primary_irr_pct": 4.5,
           "implied_growth_pct": 3.0,
           "growth_source": "디폴트 3%",
           "method": "median of available methods"
@@ -1608,7 +1608,7 @@
           "beta_used": 1.58,
           "beta_source": "yfinance (1.58)"
         },
-        "margin_of_safety_pct": -10.56,
+        "margin_of_safety_pct": -10.48,
         "rating": "고평가",
         "rating_color": "red",
         "is_strong_buy": false,
@@ -1624,42 +1624,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.1582,
-            "alpha": 0.002611,
-            "r_squared": 0.0959,
-            "correlation": 0.3097,
-            "n_samples": 234,
+            "beta": 1.1199,
+            "alpha": 0.002306,
+            "r_squared": 0.0907,
+            "correlation": 0.3011,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.158,
-              "up_3pct": 3.475,
-              "down_1pct": -1.158,
-              "down_3pct": -3.475
+              "up_1pct": 1.12,
+              "up_3pct": 3.36,
+              "down_1pct": -1.12,
+              "down_3pct": -3.36
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.6802,
-            "alpha": 0.002425,
-            "r_squared": 0.0898,
-            "correlation": 0.2996,
-            "n_samples": 234,
+            "beta": 1.6132,
+            "alpha": 0.002147,
+            "r_squared": 0.0834,
+            "correlation": 0.2887,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.68,
-              "up_3pct": 5.041,
-              "down_1pct": -1.68,
-              "down_3pct": -5.041
+              "up_1pct": 1.613,
+              "up_3pct": 4.84,
+              "down_1pct": -1.613,
+              "down_3pct": -4.84
             }
           },
           "sox": {
@@ -1727,24 +1727,24 @@
           }
         },
         "semi_v2": {
-          "alpha": 0.001167,
+          "alpha": 0.00081,
           "betas": {
-            "nq": 0.5078,
-            "sox": -0.1734,
-            "ust10y": -0.0256,
-            "usdkrw": -0.7856,
-            "kospi": 0.7599
+            "nq": 0.3956,
+            "sox": -0.1341,
+            "ust10y": -0.0235,
+            "usdkrw": -0.7742,
+            "kospi": 0.7591
           },
           "t_stats": {
-            "nq": 1.2,
-            "sox": -0.91,
-            "ust10y": -0.4,
-            "usdkrw": -1.78,
-            "kospi": 8.87
+            "nq": 0.94,
+            "sox": -0.7,
+            "ust10y": -0.37,
+            "usdkrw": -1.77,
+            "kospi": 8.93
           },
-          "r_squared": 0.3769,
-          "adj_r_squared": 0.3633,
-          "n_samples": 234,
+          "r_squared": 0.3774,
+          "adj_r_squared": 0.3637,
+          "n_samples": 233,
           "n_predictors": 5
         },
         "dcf": {
@@ -1778,8 +1778,8 @@
       "emoji": "🏢",
       "data": {
         "name": "배터리",
-        "mean_irr_pct": 3.47,
-        "median_irr_pct": 3.47,
+        "mean_irr_pct": 3.46,
+        "median_irr_pct": 3.46,
         "count": 2
       }
     },
@@ -2422,7 +2422,7 @@
       "emoji": "🏢",
       "data": {
         "name": "방산",
-        "mean_irr_pct": 9.02,
+        "mean_irr_pct": 9.03,
         "median_irr_pct": 10.42,
         "count": 3
       }
@@ -2497,9 +2497,9 @@
         "current_price": 73500.0,
         "irr_full": {
           "gordon_pct": 8.02,
-          "earnings_yield_pct": 3.7,
-          "roic_retention_pct": 7.75,
-          "primary_irr_pct": 7.75,
+          "earnings_yield_pct": 3.8,
+          "roic_retention_pct": 7.8,
+          "primary_irr_pct": 7.8,
           "implied_growth_pct": 7.2,
           "growth_source": "매출 성장률",
           "method": "median of available methods"
@@ -2513,7 +2513,7 @@
           "beta_used": 0.411,
           "beta_source": "yfinance (0.41)"
         },
-        "margin_of_safety_pct": 0.28,
+        "margin_of_safety_pct": 0.33,
         "rating": "시장 평균",
         "rating_color": "amber",
         "is_strong_buy": false,
@@ -2548,8 +2548,8 @@
       "emoji": "🏢",
       "data": {
         "name": "제약",
-        "mean_irr_pct": 6.42,
-        "median_irr_pct": 6.42,
+        "mean_irr_pct": 6.45,
+        "median_irr_pct": 6.45,
         "count": 2
       }
     },
@@ -2618,8 +2618,8 @@
       "emoji": "🏢",
       "data": {
         "name": "에너지",
-        "mean_irr_pct": 8.23,
-        "median_irr_pct": 8.23,
+        "mean_irr_pct": 8.97,
+        "median_irr_pct": 8.97,
         "count": 2
       }
     },
@@ -2827,9 +2827,9 @@
         "current_price": 43550.0,
         "irr_full": {
           "gordon_pct": null,
-          "earnings_yield_pct": 7.89,
+          "earnings_yield_pct": 8.08,
           "roic_retention_pct": null,
-          "primary_irr_pct": 7.89,
+          "primary_irr_pct": 8.08,
           "implied_growth_pct": 8.4,
           "growth_source": "매출 성장률",
           "method": "median of available methods"
@@ -2843,7 +2843,7 @@
           "beta_used": 0.828,
           "beta_source": "yfinance (0.83)"
         },
-        "margin_of_safety_pct": -2.08,
+        "margin_of_safety_pct": -1.89,
         "rating": "고평가",
         "rating_color": "red",
         "is_strong_buy": false,
@@ -2864,8 +2864,8 @@
       "emoji": "🏢",
       "data": {
         "name": "관광",
-        "mean_irr_pct": 7.89,
-        "median_irr_pct": 7.89,
+        "mean_irr_pct": 8.08,
+        "median_irr_pct": 8.08,
         "count": 1
       }
     },
@@ -2940,62 +2940,6 @@
       }
     },
     {
-      "id": "stock:204320",
-      "label": "HL만도",
-      "type": "Stock",
-      "color": "#22d3ee",
-      "emoji": "📈",
-      "data": {
-        "ticker": "204320",
-        "name": "HL만도",
-        "sector": "자동차부품",
-        "market": "KOSPI",
-        "current_price": 44700.0,
-        "irr_full": {
-          "gordon_pct": 4.68,
-          "earnings_yield_pct": 12.02,
-          "roic_retention_pct": null,
-          "primary_irr_pct": 8.35,
-          "implied_growth_pct": 3.0,
-          "growth_source": "디폴트 3%",
-          "method": "median of available methods"
-        },
-        "required_return": {
-          "required_return_pct": 11.0,
-          "base_capm_pct": 9.5,
-          "korea_discount_pct": 1.5,
-          "debt_penalty_pct": 0.0,
-          "sector_penalty_pct": 0.0,
-          "beta_used": 1.0,
-          "beta_source": "default 1.0"
-        },
-        "margin_of_safety_pct": -2.65,
-        "rating": "고평가",
-        "rating_color": "red",
-        "is_strong_buy": false,
-        "snapshot": {
-          "per": null,
-          "pbr": null,
-          "roe_pct": null,
-          "dividend_yield_pct": 1.68,
-          "debt_to_equity_pct": null
-        }
-      }
-    },
-    {
-      "id": "sector:자동차부품",
-      "label": "자동차부품",
-      "type": "Sector",
-      "color": "#a78bfa",
-      "emoji": "🏢",
-      "data": {
-        "name": "자동차부품",
-        "mean_irr_pct": 8.35,
-        "median_irr_pct": 8.35,
-        "count": 1
-      }
-    },
-    {
       "id": "stock:128940",
       "label": "한미약품",
       "type": "Stock",
@@ -3057,6 +3001,62 @@
           "max_strength": 3,
           "rating": "관찰"
         }
+      }
+    },
+    {
+      "id": "stock:204320",
+      "label": "HL만도",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "204320",
+        "name": "HL만도",
+        "sector": "자동차부품",
+        "market": "KOSPI",
+        "current_price": 44700.0,
+        "irr_full": {
+          "gordon_pct": 4.68,
+          "earnings_yield_pct": 11.77,
+          "roic_retention_pct": null,
+          "primary_irr_pct": 8.23,
+          "implied_growth_pct": 3.0,
+          "growth_source": "디폴트 3%",
+          "method": "median of available methods"
+        },
+        "required_return": {
+          "required_return_pct": 11.0,
+          "base_capm_pct": 9.5,
+          "korea_discount_pct": 1.5,
+          "debt_penalty_pct": 0.0,
+          "sector_penalty_pct": 0.0,
+          "beta_used": 1.0,
+          "beta_source": "default 1.0"
+        },
+        "margin_of_safety_pct": -2.77,
+        "rating": "고평가",
+        "rating_color": "red",
+        "is_strong_buy": false,
+        "snapshot": {
+          "per": null,
+          "pbr": null,
+          "roe_pct": null,
+          "dividend_yield_pct": 1.68,
+          "debt_to_equity_pct": null
+        }
+      }
+    },
+    {
+      "id": "sector:자동차부품",
+      "label": "자동차부품",
+      "type": "Sector",
+      "color": "#a78bfa",
+      "emoji": "🏢",
+      "data": {
+        "name": "자동차부품",
+        "mean_irr_pct": 8.23,
+        "median_irr_pct": 8.23,
+        "count": 1
       }
     },
     {
@@ -3130,9 +3130,9 @@
         "current_price": 917000.0,
         "irr_full": {
           "gordon_pct": 5.66,
-          "earnings_yield_pct": 6.19,
+          "earnings_yield_pct": 6.21,
           "roic_retention_pct": 10.76,
-          "primary_irr_pct": 6.19,
+          "primary_irr_pct": 6.21,
           "implied_growth_pct": 4.9,
           "growth_source": "매출 성장률",
           "method": "median of available methods"
@@ -3146,7 +3146,7 @@
           "beta_used": 0.734,
           "beta_source": "yfinance (0.73)"
         },
-        "margin_of_safety_pct": -3.21,
+        "margin_of_safety_pct": -3.19,
         "rating": "고평가",
         "rating_color": "red",
         "is_strong_buy": false,
@@ -3487,7 +3487,7 @@
         "current_price": 206000.0,
         "irr_full": {
           "gordon_pct": 7.15,
-          "earnings_yield_pct": 5.55,
+          "earnings_yield_pct": 5.54,
           "roic_retention_pct": 7.15,
           "primary_irr_pct": 7.15,
           "implied_growth_pct": 5.6,
@@ -3742,83 +3742,6 @@
       }
     },
     {
-      "id": "stock:005490",
-      "label": "POSCO홀딩스",
-      "type": "Stock",
-      "color": "#22d3ee",
-      "emoji": "📈",
-      "data": {
-        "ticker": "005490",
-        "name": "POSCO홀딩스",
-        "sector": "철강",
-        "market": "KOSPI",
-        "current_price": 312500.0,
-        "irr_full": {
-          "gordon_pct": 12.74,
-          "earnings_yield_pct": 9.58,
-          "roic_retention_pct": 4.55,
-          "primary_irr_pct": 9.58,
-          "implied_growth_pct": 9.7,
-          "growth_source": "매출 성장률",
-          "method": "median of available methods"
-        },
-        "required_return": {
-          "required_return_pct": 14.94,
-          "base_capm_pct": 12.94,
-          "korea_discount_pct": 1.5,
-          "debt_penalty_pct": 0.0,
-          "sector_penalty_pct": 0.5,
-          "beta_used": 1.574,
-          "beta_source": "yfinance (1.57)"
-        },
-        "margin_of_safety_pct": -5.36,
-        "rating": "고평가",
-        "rating_color": "red",
-        "is_strong_buy": false,
-        "snapshot": {
-          "per": null,
-          "pbr": null,
-          "roe_pct": 2.21,
-          "dividend_yield_pct": 3.04,
-          "debt_to_equity_pct": 47.4
-        },
-        "dcf": {
-          "fair_price": -482704.0,
-          "upside_pct": -254.5,
-          "wacc_pct": 10.35,
-          "growth_rate_pct": 2.0,
-          "signal": "🔴 심각 고평가"
-        },
-        "investor_flow": {
-          "trading_date": "2026-07-31",
-          "foreign_5d_net_shares": -11341,
-          "institutional_5d_net_shares": 96654,
-          "foreign_streak_days": 3,
-          "foreign_streak_direction": "buy",
-          "institutional_streak_days": 1,
-          "institutional_streak_direction": "sell",
-          "foreign_holding_pct_now": 32.52,
-          "foreign_holding_pct_5d_change": 0.18,
-          "primary_signal": "외인 매도 vs 기관 매수",
-          "max_strength": 3,
-          "rating": "관찰"
-        }
-      }
-    },
-    {
-      "id": "sector:철강",
-      "label": "철강",
-      "type": "Sector",
-      "color": "#a78bfa",
-      "emoji": "🏢",
-      "data": {
-        "name": "철강",
-        "mean_irr_pct": 9.58,
-        "median_irr_pct": 9.58,
-        "count": 1
-      }
-    },
-    {
       "id": "stock:003490",
       "label": "대한항공",
       "type": "Stock",
@@ -3889,6 +3812,83 @@
       }
     },
     {
+      "id": "stock:005490",
+      "label": "POSCO홀딩스",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "005490",
+        "name": "POSCO홀딩스",
+        "sector": "철강",
+        "market": "KOSPI",
+        "current_price": 312500.0,
+        "irr_full": {
+          "gordon_pct": 12.74,
+          "earnings_yield_pct": 9.53,
+          "roic_retention_pct": 4.55,
+          "primary_irr_pct": 9.53,
+          "implied_growth_pct": 9.7,
+          "growth_source": "매출 성장률",
+          "method": "median of available methods"
+        },
+        "required_return": {
+          "required_return_pct": 14.94,
+          "base_capm_pct": 12.94,
+          "korea_discount_pct": 1.5,
+          "debt_penalty_pct": 0.0,
+          "sector_penalty_pct": 0.5,
+          "beta_used": 1.574,
+          "beta_source": "yfinance (1.57)"
+        },
+        "margin_of_safety_pct": -5.41,
+        "rating": "고평가",
+        "rating_color": "red",
+        "is_strong_buy": false,
+        "snapshot": {
+          "per": null,
+          "pbr": null,
+          "roe_pct": 2.21,
+          "dividend_yield_pct": 3.04,
+          "debt_to_equity_pct": 47.4
+        },
+        "dcf": {
+          "fair_price": -482704.0,
+          "upside_pct": -254.5,
+          "wacc_pct": 10.35,
+          "growth_rate_pct": 2.0,
+          "signal": "🔴 심각 고평가"
+        },
+        "investor_flow": {
+          "trading_date": "2026-07-31",
+          "foreign_5d_net_shares": -11341,
+          "institutional_5d_net_shares": 96654,
+          "foreign_streak_days": 3,
+          "foreign_streak_direction": "buy",
+          "institutional_streak_days": 1,
+          "institutional_streak_direction": "sell",
+          "foreign_holding_pct_now": 32.52,
+          "foreign_holding_pct_5d_change": 0.18,
+          "primary_signal": "외인 매도 vs 기관 매수",
+          "max_strength": 3,
+          "rating": "관찰"
+        }
+      }
+    },
+    {
+      "id": "sector:철강",
+      "label": "철강",
+      "type": "Sector",
+      "color": "#a78bfa",
+      "emoji": "🏢",
+      "data": {
+        "name": "철강",
+        "mean_irr_pct": 9.53,
+        "median_irr_pct": 9.53,
+        "count": 1
+      }
+    },
+    {
       "id": "stock:012330",
       "label": "현대모비스",
       "type": "Stock",
@@ -3946,6 +3946,63 @@
       }
     },
     {
+      "id": "stock:096770",
+      "label": "SK이노베이션",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "096770",
+        "name": "SK이노베이션",
+        "sector": "에너지",
+        "market": "KOSPI",
+        "current_price": 110500.0,
+        "irr_full": {
+          "gordon_pct": 11.84,
+          "earnings_yield_pct": 7.69,
+          "roic_retention_pct": -3.16,
+          "primary_irr_pct": 7.69,
+          "implied_growth_pct": 10.0,
+          "growth_source": "매출 성장률",
+          "method": "median of available methods"
+        },
+        "required_return": {
+          "required_return_pct": 14.13,
+          "base_capm_pct": 12.13,
+          "korea_discount_pct": 1.5,
+          "debt_penalty_pct": 0.0,
+          "sector_penalty_pct": 0.5,
+          "beta_used": 1.439,
+          "beta_source": "yfinance (1.44)"
+        },
+        "margin_of_safety_pct": -6.44,
+        "rating": "고평가",
+        "rating_color": "red",
+        "is_strong_buy": false,
+        "snapshot": {
+          "per": null,
+          "pbr": null,
+          "roe_pct": -10.5,
+          "dividend_yield_pct": 1.84,
+          "debt_to_equity_pct": 108.0
+        },
+        "investor_flow": {
+          "trading_date": "2026-07-31",
+          "foreign_5d_net_shares": -542262,
+          "institutional_5d_net_shares": 336470,
+          "foreign_streak_days": 3,
+          "foreign_streak_direction": "sell",
+          "institutional_streak_days": 1,
+          "institutional_streak_direction": "sell",
+          "foreign_holding_pct_now": 14.47,
+          "foreign_holding_pct_5d_change": 0.16,
+          "primary_signal": "외인 매도 vs 기관 매수",
+          "max_strength": 3,
+          "rating": "관찰"
+        }
+      }
+    },
+    {
       "id": "stock:090430",
       "label": "아모레퍼시픽",
       "type": "Stock",
@@ -3959,7 +4016,7 @@
         "current_price": 130000.0,
         "irr_full": {
           "gordon_pct": -1.05,
-          "earnings_yield_pct": 5.26,
+          "earnings_yield_pct": 5.28,
           "roic_retention_pct": 4.58,
           "primary_irr_pct": 4.58,
           "implied_growth_pct": -2.0,
@@ -4130,8 +4187,8 @@
       "emoji": "🏢",
       "data": {
         "name": "건설",
-        "mean_irr_pct": 7.14,
-        "median_irr_pct": 7.14,
+        "mean_irr_pct": 7.15,
+        "median_irr_pct": 7.15,
         "count": 2
       }
     },
@@ -4150,8 +4207,8 @@
         "irr_full": {
           "gordon_pct": -4.15,
           "earnings_yield_pct": 6.7,
-          "roic_retention_pct": 5.87,
-          "primary_irr_pct": 5.87,
+          "roic_retention_pct": 5.88,
+          "primary_irr_pct": 5.88,
           "implied_growth_pct": -5.0,
           "growth_source": "min(매출, 이익) 성장률",
           "method": "median of available methods"
@@ -4165,7 +4222,7 @@
           "beta_used": 1.373,
           "beta_source": "yfinance (1.37)"
         },
-        "margin_of_safety_pct": -7.87,
+        "margin_of_safety_pct": -7.86,
         "rating": "고평가",
         "rating_color": "red",
         "is_strong_buy": false,
@@ -4190,119 +4247,6 @@
           "max_strength": 3,
           "rating": "관찰"
         }
-      }
-    },
-    {
-      "id": "stock:096770",
-      "label": "SK이노베이션",
-      "type": "Stock",
-      "color": "#22d3ee",
-      "emoji": "📈",
-      "data": {
-        "ticker": "096770",
-        "name": "SK이노베이션",
-        "sector": "에너지",
-        "market": "KOSPI",
-        "current_price": 110500.0,
-        "irr_full": {
-          "gordon_pct": 11.84,
-          "earnings_yield_pct": 6.21,
-          "roic_retention_pct": -3.16,
-          "primary_irr_pct": 6.21,
-          "implied_growth_pct": 10.0,
-          "growth_source": "매출 성장률",
-          "method": "median of available methods"
-        },
-        "required_return": {
-          "required_return_pct": 14.13,
-          "base_capm_pct": 12.13,
-          "korea_discount_pct": 1.5,
-          "debt_penalty_pct": 0.0,
-          "sector_penalty_pct": 0.5,
-          "beta_used": 1.439,
-          "beta_source": "yfinance (1.44)"
-        },
-        "margin_of_safety_pct": -7.92,
-        "rating": "고평가",
-        "rating_color": "red",
-        "is_strong_buy": false,
-        "snapshot": {
-          "per": null,
-          "pbr": null,
-          "roe_pct": -10.5,
-          "dividend_yield_pct": 1.84,
-          "debt_to_equity_pct": 108.0
-        },
-        "investor_flow": {
-          "trading_date": "2026-07-31",
-          "foreign_5d_net_shares": -542262,
-          "institutional_5d_net_shares": 336470,
-          "foreign_streak_days": 3,
-          "foreign_streak_direction": "sell",
-          "institutional_streak_days": 1,
-          "institutional_streak_direction": "sell",
-          "foreign_holding_pct_now": 14.47,
-          "foreign_holding_pct_5d_change": 0.16,
-          "primary_signal": "외인 매도 vs 기관 매수",
-          "max_strength": 3,
-          "rating": "관찰"
-        }
-      }
-    },
-    {
-      "id": "stock:247540",
-      "label": "에코프로비엠",
-      "type": "Stock",
-      "color": "#22d3ee",
-      "emoji": "📈",
-      "data": {
-        "ticker": "247540",
-        "name": "에코프로비엠",
-        "sector": "배터리소재",
-        "market": "KOSDAQ",
-        "current_price": 103500.0,
-        "irr_full": {
-          "gordon_pct": null,
-          "earnings_yield_pct": 0.95,
-          "roic_retention_pct": 5.13,
-          "primary_irr_pct": 3.04,
-          "implied_growth_pct": -3.9,
-          "growth_source": "매출 성장률",
-          "method": "median of available methods"
-        },
-        "required_return": {
-          "required_return_pct": 11.23,
-          "base_capm_pct": 9.23,
-          "korea_discount_pct": 1.5,
-          "debt_penalty_pct": 0.0,
-          "sector_penalty_pct": 0.5,
-          "beta_used": 0.955,
-          "beta_source": "yfinance (0.95)"
-        },
-        "margin_of_safety_pct": -8.19,
-        "rating": "고평가",
-        "rating_color": "red",
-        "is_strong_buy": false,
-        "snapshot": {
-          "per": null,
-          "pbr": null,
-          "roe_pct": 5.62,
-          "dividend_yield_pct": 0.1,
-          "debt_to_equity_pct": 122.9
-        }
-      }
-    },
-    {
-      "id": "sector:배터리소재",
-      "label": "배터리소재",
-      "type": "Sector",
-      "color": "#a78bfa",
-      "emoji": "🏢",
-      "data": {
-        "name": "배터리소재",
-        "mean_irr_pct": 3.04,
-        "median_irr_pct": 3.04,
-        "count": 1
       }
     },
     {
@@ -4363,6 +4307,62 @@
       }
     },
     {
+      "id": "stock:247540",
+      "label": "에코프로비엠",
+      "type": "Stock",
+      "color": "#22d3ee",
+      "emoji": "📈",
+      "data": {
+        "ticker": "247540",
+        "name": "에코프로비엠",
+        "sector": "배터리소재",
+        "market": "KOSDAQ",
+        "current_price": 103500.0,
+        "irr_full": {
+          "gordon_pct": null,
+          "earnings_yield_pct": 0.87,
+          "roic_retention_pct": 5.08,
+          "primary_irr_pct": 2.98,
+          "implied_growth_pct": -3.9,
+          "growth_source": "매출 성장률",
+          "method": "median of available methods"
+        },
+        "required_return": {
+          "required_return_pct": 11.23,
+          "base_capm_pct": 9.23,
+          "korea_discount_pct": 1.5,
+          "debt_penalty_pct": 0.0,
+          "sector_penalty_pct": 0.5,
+          "beta_used": 0.955,
+          "beta_source": "yfinance (0.95)"
+        },
+        "margin_of_safety_pct": -8.25,
+        "rating": "고평가",
+        "rating_color": "red",
+        "is_strong_buy": false,
+        "snapshot": {
+          "per": null,
+          "pbr": null,
+          "roe_pct": 5.62,
+          "dividend_yield_pct": 0.1,
+          "debt_to_equity_pct": 122.9
+        }
+      }
+    },
+    {
+      "id": "sector:배터리소재",
+      "label": "배터리소재",
+      "type": "Sector",
+      "color": "#a78bfa",
+      "emoji": "🏢",
+      "data": {
+        "name": "배터리소재",
+        "mean_irr_pct": 2.98,
+        "median_irr_pct": 2.98,
+        "count": 1
+      }
+    },
+    {
       "id": "stock:373220",
       "label": "LG에너지솔루션",
       "type": "Stock",
@@ -4376,9 +4376,9 @@
         "current_price": 328000.0,
         "irr_full": {
           "gordon_pct": null,
-          "earnings_yield_pct": 2.53,
+          "earnings_yield_pct": 2.42,
           "roic_retention_pct": null,
-          "primary_irr_pct": 2.53,
+          "primary_irr_pct": 2.42,
           "implied_growth_pct": -2.5,
           "growth_source": "매출 성장률",
           "method": "median of available methods"
@@ -4392,7 +4392,7 @@
           "beta_used": 0.988,
           "beta_source": "yfinance (0.99)"
         },
-        "margin_of_safety_pct": -8.9,
+        "margin_of_safety_pct": -9.01,
         "rating": "고평가",
         "rating_color": "red",
         "is_strong_buy": false,
@@ -4408,42 +4408,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 0.6454,
-            "alpha": -0.00056,
-            "r_squared": 0.0405,
-            "correlation": 0.2011,
-            "n_samples": 234,
+            "beta": 0.6366,
+            "alpha": -0.000631,
+            "r_squared": 0.0391,
+            "correlation": 0.1978,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 보통",
               "confidence": "낮음",
               "color": "cyan"
             },
             "impact": {
-              "up_1pct": 0.645,
-              "up_3pct": 1.936,
-              "down_1pct": -0.645,
-              "down_3pct": -1.936
+              "up_1pct": 0.637,
+              "up_3pct": 1.91,
+              "down_1pct": -0.637,
+              "down_3pct": -1.91
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.1641,
-            "alpha": -0.000834,
-            "r_squared": 0.0585,
-            "correlation": 0.2419,
-            "n_samples": 234,
+            "beta": 1.1524,
+            "alpha": -0.000883,
+            "r_squared": 0.0568,
+            "correlation": 0.2383,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.164,
-              "up_3pct": 3.492,
-              "down_1pct": -1.164,
-              "down_3pct": -3.492
+              "up_1pct": 1.152,
+              "up_3pct": 3.457,
+              "down_1pct": -1.152,
+              "down_3pct": -3.457
             }
           },
           "sox": {
@@ -4511,24 +4511,24 @@
           }
         },
         "semi_v2": {
-          "alpha": -0.00126,
+          "alpha": -0.001324,
           "betas": {
-            "nq": 0.4321,
-            "sox": -0.2728,
-            "ust10y": -0.0336,
-            "usdkrw": -0.9894,
-            "kospi": 0.507
+            "nq": 0.412,
+            "sox": -0.2658,
+            "ust10y": -0.0332,
+            "usdkrw": -0.9873,
+            "kospi": 0.5068
           },
           "t_stats": {
-            "nq": 1.08,
-            "sox": -1.51,
-            "ust10y": -0.55,
+            "nq": 1.02,
+            "sox": -1.46,
+            "ust10y": -0.54,
             "usdkrw": -2.37,
-            "kospi": 6.25
+            "kospi": 6.24
           },
-          "r_squared": 0.2417,
-          "adj_r_squared": 0.2251,
-          "n_samples": 234,
+          "r_squared": 0.2405,
+          "adj_r_squared": 0.2238,
+          "n_samples": 233,
           "n_predictors": 5
         },
         "dcf": {
@@ -4668,7 +4668,7 @@
         "current_price": 162100.0,
         "irr_full": {
           "gordon_pct": -4.17,
-          "earnings_yield_pct": 10.03,
+          "earnings_yield_pct": 10.06,
           "roic_retention_pct": 5.21,
           "primary_irr_pct": 5.21,
           "implied_growth_pct": -5.0,
@@ -4808,7 +4808,7 @@
         "current_price": 258000.0,
         "irr_full": {
           "gordon_pct": -1.82,
-          "earnings_yield_pct": 8.87,
+          "earnings_yield_pct": 8.59,
           "roic_retention_pct": -4.22,
           "primary_irr_pct": -1.82,
           "implied_growth_pct": -2.6,
@@ -5012,7 +5012,7 @@
       }
     },
     {
-      "id": "news:621661062093",
+      "id": "news:315313421127",
       "label": "STS Digital CEO는 암호화폐가 다음 상승세를 가로막는 3가지 장벽에 직면해 있다",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -5027,7 +5027,7 @@
       }
     },
     {
-      "id": "news:677213527898",
+      "id": "news:30654196512",
       "label": "재무부 장관, 명확성 법안에 대한 호소로 비트코인 ​​창시자 나카모토 사토시 소환",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -5038,21 +5038,6 @@
         "summary_ko": "스콧 베센트(Scott Bessent)는 민주당이 정치적 이유로 법안을 지연시키고 있다고 비난하면서 암호화폐 시장 구조 법안에 대해 상원에 즉시 투표할 것을 촉구했습니다.",
         "source": "Decrypt",
         "link": "https://decrypt.co/374758/treasury-secretary-bitcoin-satoshi-nakamoto-clarity-act",
-        "matched_keyword": "CLARITY Act"
-      }
-    },
-    {
-      "id": "news:130292884442",
-      "label": "SEC는 명확성법이 실패할 경우 암호화 규칙을 제공할 준비가 되어 있습니다: Atkins ",
-      "type": "NewsItem",
-      "color": "#9ca3af",
-      "emoji": "📰",
-      "data": {
-        "title": "SEC Ready to Provide Crypto Rules if Clarity Act Flounders: Chair Atkins",
-        "title_ko": "SEC는 명확성법이 실패할 경우 암호화 규칙을 제공할 준비가 되어 있습니다: Atkins 의장",
-        "summary_ko": "1년 전 하원을 통과한 이 법안은 지난 5월 상원 은행 업무를 통과시켰으며 여전히 투표를 기다리고 있습니다.",
-        "source": "Decrypt",
-        "link": "https://decrypt.co/374643/sec-ready-to-provide-crypto-rules-if-clarity-act-flounders-chair-atkins",
         "matched_keyword": "CLARITY Act"
       }
     },
@@ -5521,7 +5506,7 @@
         "score": 26,
         "level": "약한 신호",
         "severity": "green",
-        "btc_current": 63053.21
+        "btc_current": 63045.43
       }
     }
   ],
@@ -5744,15 +5729,15 @@
       "data": {}
     },
     {
-      "from": "stock:204320",
-      "to": "sector:자동차부품",
+      "from": "stock:128940",
+      "to": "sector:제약",
       "type": "IN_SECTOR",
       "weight": 1.0,
       "data": {}
     },
     {
-      "from": "stock:128940",
-      "to": "sector:제약",
+      "from": "stock:204320",
+      "to": "sector:자동차부품",
       "type": "IN_SECTOR",
       "weight": 1.0,
       "data": {}
@@ -5842,13 +5827,6 @@
       "data": {}
     },
     {
-      "from": "stock:005490",
-      "to": "sector:철강",
-      "type": "IN_SECTOR",
-      "weight": 1.0,
-      "data": {}
-    },
-    {
       "from": "stock:003490",
       "to": "sector:항공",
       "type": "IN_SECTOR",
@@ -5856,8 +5834,22 @@
       "data": {}
     },
     {
+      "from": "stock:005490",
+      "to": "sector:철강",
+      "type": "IN_SECTOR",
+      "weight": 1.0,
+      "data": {}
+    },
+    {
       "from": "stock:012330",
       "to": "sector:자동차",
+      "type": "IN_SECTOR",
+      "weight": 1.0,
+      "data": {}
+    },
+    {
+      "from": "stock:096770",
+      "to": "sector:에너지",
       "type": "IN_SECTOR",
       "weight": 1.0,
       "data": {}
@@ -5891,8 +5883,8 @@
       "data": {}
     },
     {
-      "from": "stock:096770",
-      "to": "sector:에너지",
+      "from": "stock:035720",
+      "to": "sector:IT플랫폼",
       "type": "IN_SECTOR",
       "weight": 1.0,
       "data": {}
@@ -5900,13 +5892,6 @@
     {
       "from": "stock:247540",
       "to": "sector:배터리소재",
-      "type": "IN_SECTOR",
-      "weight": 1.0,
-      "data": {}
-    },
-    {
-      "from": "stock:035720",
-      "to": "sector:IT플랫폼",
       "type": "IN_SECTOR",
       "weight": 1.0,
       "data": {}
@@ -5957,10 +5942,10 @@
       "from": "stock:005930",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.3294,
+      "weight": 1.3422,
       "data": {
-        "beta": 1.3294,
-        "r_squared": 0.1272,
+        "beta": 1.3422,
+        "r_squared": 0.1286,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5968,10 +5953,10 @@
       "from": "stock:005930",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.678,
+      "weight": 1.7019,
       "data": {
-        "beta": 1.678,
-        "r_squared": 0.0901,
+        "beta": 1.7019,
+        "r_squared": 0.0916,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6012,10 +5997,10 @@
       "from": "stock:000660",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.7767,
+      "weight": 1.7855,
       "data": {
-        "beta": 1.7767,
-        "r_squared": 0.1525,
+        "beta": 1.7855,
+        "r_squared": 0.1528,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6023,10 +6008,10 @@
       "from": "stock:000660",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 2.1568,
+      "weight": 2.1724,
       "data": {
-        "beta": 2.1568,
-        "r_squared": 0.0999,
+        "beta": 2.1724,
+        "r_squared": 0.1002,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6067,10 +6052,10 @@
       "from": "stock:042700",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.5435,
+      "weight": 1.5533,
       "data": {
-        "beta": 1.5435,
-        "r_squared": 0.0838,
+        "beta": 1.5533,
+        "r_squared": 0.0841,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6078,10 +6063,10 @@
       "from": "stock:042700",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.7504,
+      "weight": 1.7664,
       "data": {
-        "beta": 1.7504,
-        "r_squared": 0.0479,
+        "beta": 1.7664,
+        "r_squared": 0.0482,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6122,10 +6107,10 @@
       "from": "stock:000990",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.2881,
+      "weight": 1.2958,
       "data": {
-        "beta": 1.2881,
-        "r_squared": 0.0842,
+        "beta": 1.2958,
+        "r_squared": 0.0845,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6133,10 +6118,10 @@
       "from": "stock:000990",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.4053,
+      "weight": 1.417,
       "data": {
-        "beta": 1.4053,
-        "r_squared": 0.0445,
+        "beta": 1.417,
+        "r_squared": 0.0447,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6177,10 +6162,10 @@
       "from": "stock:373220",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 0.6454,
+      "weight": 0.6366,
       "data": {
-        "beta": 0.6454,
-        "r_squared": 0.0405,
+        "beta": 0.6366,
+        "r_squared": 0.0391,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6188,10 +6173,10 @@
       "from": "stock:373220",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.1641,
+      "weight": 1.1524,
       "data": {
-        "beta": 1.1641,
-        "r_squared": 0.0585,
+        "beta": 1.1524,
+        "r_squared": 0.0568,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6221,10 +6206,10 @@
       "from": "stock:006400",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.1582,
+      "weight": 1.1199,
       "data": {
-        "beta": 1.1582,
-        "r_squared": 0.0959,
+        "beta": 1.1199,
+        "r_squared": 0.0907,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6232,10 +6217,10 @@
       "from": "stock:006400",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.6802,
+      "weight": 1.6132,
       "data": {
-        "beta": 1.6802,
-        "r_squared": 0.0898,
+        "beta": 1.6132,
+        "r_squared": 0.0834,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -6276,9 +6261,9 @@
       "from": "stock:005930",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 1.3112,
+      "weight": 1.3114,
       "data": {
-        "beta_kospi": 1.3112,
+        "beta_kospi": 1.3114,
         "method": "다변량 OLS v2"
       }
     },
@@ -6286,9 +6271,9 @@
       "from": "stock:005930",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.1089,
+      "weight": 0.1116,
       "data": {
-        "beta_usdkrw": -0.1089,
+        "beta_usdkrw": -0.1116,
         "method": "다변량 OLS v2"
       }
     },
@@ -6306,9 +6291,9 @@
       "from": "stock:000660",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.2349,
+      "weight": 0.234,
       "data": {
-        "beta_usdkrw": 0.2349,
+        "beta_usdkrw": 0.234,
         "method": "다변량 OLS v2"
       }
     },
@@ -6316,9 +6301,9 @@
       "from": "stock:042700",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 1.2631,
+      "weight": 1.2632,
       "data": {
-        "beta_kospi": 1.2631,
+        "beta_kospi": 1.2632,
         "method": "다변량 OLS v2"
       }
     },
@@ -6326,9 +6311,9 @@
       "from": "stock:042700",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.8015,
+      "weight": 0.8028,
       "data": {
-        "beta_usdkrw": -0.8015,
+        "beta_usdkrw": -0.8028,
         "method": "다변량 OLS v2"
       }
     },
@@ -6346,9 +6331,9 @@
       "from": "stock:000990",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.5349,
+      "weight": 0.5345,
       "data": {
-        "beta_usdkrw": 0.5349,
+        "beta_usdkrw": 0.5345,
         "method": "다변량 OLS v2"
       }
     },
@@ -6356,9 +6341,9 @@
       "from": "stock:373220",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 0.507,
+      "weight": 0.5068,
       "data": {
-        "beta_kospi": 0.507,
+        "beta_kospi": 0.5068,
         "method": "다변량 OLS v2"
       }
     },
@@ -6366,9 +6351,9 @@
       "from": "stock:373220",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.9894,
+      "weight": 0.9873,
       "data": {
-        "beta_usdkrw": -0.9894,
+        "beta_usdkrw": -0.9873,
         "method": "다변량 OLS v2"
       }
     },
@@ -6376,9 +6361,9 @@
       "from": "stock:006400",
       "to": "index:^KS11",
       "type": "CORRELATES_WITH",
-      "weight": 0.7599,
+      "weight": 0.7591,
       "data": {
-        "beta_kospi": 0.7599,
+        "beta_kospi": 0.7591,
         "method": "다변량 OLS v2"
       }
     },
@@ -6386,9 +6371,9 @@
       "from": "stock:006400",
       "to": "currency:KRW",
       "type": "SENSITIVE_TO",
-      "weight": 0.7856,
+      "weight": 0.7742,
       "data": {
-        "beta_usdkrw": -0.7856,
+        "beta_usdkrw": -0.7742,
         "method": "다변량 OLS v2"
       }
     },
@@ -6420,14 +6405,7 @@
       }
     },
     {
-      "from": "news:677213527898",
-      "to": "bill:CLARITYAct",
-      "type": "MENTIONS",
-      "weight": 1.0,
-      "data": {}
-    },
-    {
-      "from": "news:130292884442",
+      "from": "news:30654196512",
       "to": "bill:CLARITYAct",
       "type": "MENTIONS",
       "weight": 1.0,
@@ -6930,8 +6908,8 @@
     }
   ],
   "stats": {
-    "node_count": 132,
-    "edge_count": 152,
+    "node_count": 131,
+    "edge_count": 151,
     "node_types": {
       "Stock": 77,
       "Sector": 32,
@@ -6939,14 +6917,14 @@
       "Bill": 3,
       "Currency": 1,
       "MacroEvent": 10,
-      "NewsItem": 3
+      "NewsItem": 2
     },
     "edge_types": {
       "IN_SECTOR": 61,
       "CORRELATES_WITH": 35,
       "SENSITIVE_TO": 6,
       "AFFECTED_BY": 11,
-      "MENTIONS": 2,
+      "MENTIONS": 1,
       "COMPETES_WITH": 23,
       "SUPPLIES": 14
     }
