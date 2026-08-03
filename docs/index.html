@@ -11227,7 +11227,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   window.__pfSell = function (i) {
     const pf = __pfLoad(), hd = pf.holdings[i]; if (!hd) return;
     const info = __pfPrices()[hd.code];
-    const sp = +((prompt('📕 매도 단가(원) — ' + hd.name, info ? String(info.price) : '') || '').replace(/[,\s]/g, ''));
+    // 단가는 비워 둔다 — 기본값을 채워 두면 실제 체결가 대신 '현재가'가 그대로 기록되기 쉽다.
+    // 현재가는 참고용으로 안내문에만 표시한다.
+    const ref = info ? `\n(참고 현재가 ${__pfNum(info.price)}원 — 실제 체결가를 입력하세요)` : '';
+    const sp = +((prompt('📕 매도 단가(원) — ' + hd.name + ref, '') || '').replace(/[,\s]/g, ''));
     if (!(sp > 0)) return;
     const sq = +((prompt('매도 수량 (보유 ' + hd.qty + '주)', String(hd.qty)) || '').replace(/[,\s]/g, ''));
     if (!(sq > 0) || sq > hd.qty) { alert('수량이 올바르지 않습니다.'); return; }
@@ -11236,12 +11239,32 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const buyPortion = hd.buyPrice * sq, sellAmt = sp * sq;
     const fee = buyPortion * PF_FEE + sellAmt * PF_FEE + sellAmt * PF_TAX;   // 매수·매도 수수료 + 매도 거래세
     const realized = Math.round(sellAmt - buyPortion - fee);
-    pf.txns.push({ date: sd, code: hd.code, name: hd.name, type: 'sell', price: sp, qty: sq, amt: Math.round(sellAmt), fee: Math.round(fee), realized });
+    // 기록 전 최종 확인 — 잘못된 단가가 그대로 저장되는 것을 막는 마지막 관문
+    if (!confirm(`아래 내용으로 매도를 기록합니다.\n\n종목  ${hd.name}\n단가  ${__pfNum(sp)}원\n수량  ${__pfNum(sq)}주 (보유 ${__pfNum(hd.qty)}주)\n일자  ${sd}\n\n매도금  ${__pfNum(Math.round(sellAmt))}원\n매수원가 ${__pfNum(Math.round(buyPortion))}원 (평단 ${__pfNum(hd.buyPrice)})\n수수료·세금 ${__pfNum(Math.round(fee))}원\n실현손익 ${realized >= 0 ? '+' : ''}${__pfNum(realized)}원\n\n맞으면 확인을 누르세요.`)) return;
+    // buyPrice 를 함께 남긴다 — 나중에 이 기록을 지울 때 보유 수량·평단을 되돌리기 위함
+    pf.txns.push({ date: sd, code: hd.code, name: hd.name, type: 'sell', price: sp, qty: sq, amt: Math.round(sellAmt), fee: Math.round(fee), realized, buyPrice: hd.buyPrice });
     pf.txns.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     hd.qty -= sq; if (hd.qty <= 0) pf.holdings.splice(i, 1);
     __pfSave(pf); renderPortfolio();
   };
-  window.__pfDelTxn = function (i) { const pf = __pfLoad(); pf.txns.splice(i, 1); __pfSave(pf); renderPortfolio(); };
+  // 거래기록 삭제 — 매도 기록을 지우면 팔았던 수량을 보유로 되돌린다.
+  // (되돌리지 않으면 잘못 입력한 매도를 취소할 방법이 없어 주식이 사라진다)
+  window.__pfDelTxn = function (i) {
+    const pf = __pfLoad(), t = pf.txns[i]; if (!t) return;
+    if (t.type === 'sell') {
+      let bp = t.buyPrice;
+      if (!(bp > 0)) {                                   // 구버전 기록엔 buyPrice 가 없다
+        bp = +((prompt(`이 매도 기록에는 당시 매수평단이 없습니다.\n${t.name} ${__pfNum(t.qty)}주를 보유로 되돌리려면 매수평단(원)을 입력하세요.\n(취소하면 기록만 지우고 수량은 되돌리지 않습니다)`, '') || '').replace(/[,\s]/g, ''));
+      }
+      if (bp > 0) {
+        if (!confirm(`매도 기록을 지우고 ${t.name} ${__pfNum(t.qty)}주를 보유로 되돌립니다.\n(평단 ${__pfNum(bp)}원 기준)`)) return;
+        const ex = pf.holdings.find(hd => hd.code === t.code);
+        if (ex) { const tq = ex.qty + t.qty; ex.buyPrice = Math.round((ex.buyPrice * ex.qty + bp * t.qty) / tq); ex.qty = tq; }
+        else pf.holdings.push({ code: t.code, name: t.name, buyPrice: bp, qty: t.qty });
+      } else if (!confirm('수량은 되돌리지 않고 기록만 삭제합니다. 진행할까요?')) return;
+    } else if (!confirm(`매수 기록만 삭제합니다. 보유 수량은 그대로 유지됩니다.\n(보유를 줄이려면 보유 목록의 '삭제'를 쓰세요)`)) return;
+    pf.txns.splice(i, 1); __pfSave(pf); renderPortfolio();
+  };
   window.__pfDel = function (i) { const pf = __pfLoad(); pf.holdings.splice(i, 1); __pfSave(pf); renderPortfolio(); };
   window.__pfManual = function (i) { const pf = __pfLoad(); const v = +(document.getElementById('pf-manual-' + i).value.replace(/[,\s]/g, '')) || 0; if (v > 0 && pf.holdings[i]) { pf.holdings[i].manualPrice = v; __pfSave(pf); renderPortfolio(); } };
   window.__pfSnapshot = function () {
