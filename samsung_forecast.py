@@ -26,7 +26,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "samsung_forecast.json")
 CODE = "005930"  # 삼성전자
 W = 25           # 워크포워드 윈도우
-BAND_MULT = 1.5  # [v1.1] 예측 밴드 배수 — PQI 자동진단 권고로 확대(범위적중 20% 개선). 채점·예측 동일 적용.
+BAND_MULT = 1.5  # 예측 밴드 기본 배수(중앙값 꼬리폭에 곱함)
+# [v1.3] PQI 자동진단 권고 반영 — 범위적중 13~27%, 급오차일(±3%↑) 80%
+#   원인: 밴드가 '꼬리폭'만으로 만들어져 종가 예측 자체의 오차(MAE 6~8%)를 담지 못했다.
+#         꼬리 배수만 키워도 밴드 중심이 틀리면 소용이 없다.
+#   보완: 밴드 반폭에 '창 내 종가회귀 잔차σ'를 더하고, 디커플링(선물↔종가 r² 낮음)일수록
+#         추가로 넓힌다. r²=1이면 가산 없음, r²=0이면 DECOUP_K 만큼 더 넓어진다.
+#   ⚠️ 채점(워크포워드)과 오늘 예측에 '같은 공식'을 적용한다 — 예측만 넓히면 성적이 부풀려진다.
+Z_SIG = 1.0      # 잔차σ 배수 (≈68% 구간)
+DECOUP_K = 0.6   # 디커플링 가중: 반폭 ×(1 + DECOUP_K×(1-r²))
 
 
 def naver_ohlc(code, days=120):
@@ -144,10 +152,17 @@ def main():
         bG *= k
         uw = float(np.median([r["uw"] for r in win]))
         dw = float(np.median([r["dw"] for r in win]))
-        return bC, bG, uw, dw
+        # [v1.3] 창 내 종가회귀 잔차σ — 밴드 폭에 모델 실제 오차를 반영하기 위해 함께 반환
+        sig = float((C - bC * F).std(ddof=1)) if len(win) > 2 else 0.0
+        return bC, bG, uw, dw, sig, r2w
+
+    def band(center_hi, center_lo, uw, dw, sig, r2w):
+        """예측 밴드 — 꼬리폭 + 잔차σ, 디커플링일수록 확대. 채점·예측 공용."""
+        pad = Z_SIG * sig * (1 + DECOUP_K * (1 - max(0.0, min(1.0, r2w))))
+        return center_hi * (1 + uw * BAND_MULT + pad), center_lo * (1 + dw * BAND_MULT - pad)
 
     # 최신 윈도우 베타 (오늘 예측·표시용)
-    b_close, b_gap, up_wick, dn_wick = betas(recs[-W:])
+    b_close, b_gap, up_wick, dn_wick, sig_w, r2_w = betas(recs[-W:])
     G2 = np.array([r["g_ret"] for r in recs[-W:]])
     Yc2 = np.array([r["c_ret"] for r in recs[-W:]])
     b_oc = float((G2 @ Yc2) / (float(G2 @ G2) or 1e-9))
@@ -159,12 +174,11 @@ def main():
     entries = []
     for j in range(W, len(recs)):
         r = recs[j]
-        bC, bG, uw, dw = betas(recs[j - W:j])
+        bC, bG, uw, dw, sg, r2j = betas(recs[j - W:j])
         base, fov = r["base"], r["fov"]
         p_open = base * (1 + bG * fov)
         p_close = base * (1 + bC * fov)
-        p_high = max(p_open, p_close) * (1 + uw * BAND_MULT)
-        p_low = min(p_open, p_close) * (1 + dw * BAND_MULT)
+        p_high, p_low = band(max(p_open, p_close), min(p_open, p_close), uw, dw, sg, r2j)
         actual = r["c"]
         err = (actual / p_close - 1) * 100
         entries.append({
@@ -197,8 +211,7 @@ def main():
         sig = (f_now / f0 - 1) if (f0 and f0 > 0) else 0.0
         op = last_close * (1 + b_gap * sig)
         cl = last_close * (1 + b_close * sig)
-        hi = max(op, cl) * (1 + up_wick * BAND_MULT)
-        lo = min(op, cl) * (1 + dn_wick * BAND_MULT)
+        hi, lo = band(max(op, cl), min(op, cl), up_wick, dn_wick, sig_w, r2_w)
         return {
             "target_date": target_label, "status": status,
             "locked_at": now.strftime("%Y-%m-%d %H:%M KST"),

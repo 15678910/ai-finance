@@ -32,8 +32,9 @@ DOCS = os.path.join(BASE_DIR, "docs")
 OUTPUT_FILE = os.path.join(DOCS, "prediction_quality.json")
 
 # 모델 로직을 바꿀 때마다 올린다 → 버전별 PQI가 기준표에 기록됨(변경 전/후 비교).
-MODEL_VERSION = "v1.2"
-VERSION_NOTE = "디커플링 방향 보정 — 창 내 선물↔종가 r² 낮으면 베타 수축(k=0.25+0.75·r²)"
+MODEL_VERSION = "v1.3"
+VERSION_NOTE = ("밴드에 잔차σ·디커플링 반영 — 반폭 = 꼬리×1.5 + 1.0σ×(1+0.6·(1−r²)). "
+                "범위적중 13~27%·급오차 80% 권고 대응. 채점·예측 동일 공식")
 
 
 def _load(name):
