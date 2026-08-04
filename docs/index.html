@@ -7708,7 +7708,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ['노후준비', /노후 준비/],
       ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
       ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체|디커플링 진단/],
-      ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성|통화 저평가|외환개입/],
+      ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성|통화 저평가|외환개입|통화량·물가/],
       ['분석·평가', /IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|분봉|단타|감정지수|적중|평가지수|성적표|백테스트|OHLC|사이클 변곡점|이벤트 사전영향|이벤트 기반/],
       ['추세추종 보드', /추세추종 신호 보드|거장 매매 추적|과열|차익실현|공포·탐욕|Fear|종합 예측 신호/],
     ];
@@ -8946,6 +8946,146 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
     scheduleNavRebuild();
   }
+
+  // ── 💴 통화량·물가·자산 전달경로 — 주요국 M3 · M2→물가→세수 · 실질주택 · 관세 ──
+  function renderMoneyMacro(d) {
+    if (d) window.__mmData = d;
+    d = window.__mmData;
+    if (!d || !d.money) return;
+    const V = window.__mmTab || 'money';
+    const TABS = [['money', '🌍 주요국 통화량'], ['trans', '🔗 전달경로'],
+      ['prop', '🏠 실질주택가격'], ['fisc', '🧾 관세·세수']];
+    const nf = (v, g) => v == null || !isFinite(v) ? '—' : Number(v.toFixed(g == null ? 0 : g)).toLocaleString();
+    const sgn = v => v == null ? 'var(--text-muted)' : v >= 0 ? '#4ade80' : '#f87171';
+    const rc = r => Math.abs(r) >= 0.6 ? '#4ade80' : Math.abs(r) >= 0.3 ? '#fbbf24' : 'var(--text-muted)';
+
+    let body = '';
+    if (V === 'money') {
+      const mx = Math.max(...d.money.map(m => m.yoy_pct == null ? 0 : Math.abs(m.yoy_pct)), 1);
+      const rows = d.money.slice().sort((a, b) => (b.yoy_pct ?? -99) - (a.yoy_pct ?? -99)).map(m => `
+        <tr style="border-top:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:6px 8px;white-space:nowrap;font-size:0.66rem;font-weight:700;color:var(--text-bright);">${m.flag} ${h(m.name)}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.62rem;font-family:var(--font-mono);">$${nf(m.level_usd_bn)}B</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${m.share_pct}%</td>
+          <td style="padding:6px 8px;">
+            <div style="display:flex;align-items:center;gap:7px;">
+              <span style="font-size:0.68rem;font-family:var(--font-mono);font-weight:800;color:${sgn(m.yoy_pct)};min-width:52px;text-align:right;">${m.yoy_pct >= 0 ? '+' : ''}${m.yoy_pct}%</span>
+              <div style="flex:1;height:7px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;min-width:60px;">
+                <div style="height:100%;width:${(Math.abs(m.yoy_pct || 0) / mx * 100).toFixed(0)}%;background:${sgn(m.yoy_pct)};opacity:0.8;"></div></div>
+            </div></td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.55rem;font-family:var(--font-mono);color:var(--text-muted);">${m.yoy_1y_ago == null ? '—' : (m.yoy_1y_ago >= 0 ? '+' : '') + m.yoy_1y_ago + '%'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.5rem;color:var(--text-muted);">${h(m.asof)}</td>
+        </tr>`).join('');
+      body = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:600px;">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+          <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">경제권</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">M3(달러환산)</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">비중</th>
+          <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">전년비 증가율</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">1년 전</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">기준</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>`;
+    } else if (V === 'trans') {
+      const t = d.transmission || {};
+      const gridOf = (o, lab) => {
+        if (!o || !o.grid || !o.grid.length) return '';
+        const mx = Math.max(...o.grid.map(g => Math.abs(g.r)), 0.1);
+        return `<div style="flex:1;min-width:230px;">
+          <div style="font-size:0.6rem;font-weight:700;color:var(--text-bright);margin-bottom:4px;">${lab}
+            <span style="font-size:0.5rem;color:var(--text-muted);font-weight:400;">최강 ${o.best.lag_m}개월 · r=${o.best.r} (n=${o.best.n})</span></div>
+          ${o.grid.map(g => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+            <span style="font-size:0.5rem;color:var(--text-muted);width:34px;text-align:right;font-family:var(--font-mono);">${g.lag_m}M</span>
+            <div style="flex:1;height:8px;background:rgba(255,255,255,0.04);border-radius:2px;position:relative;">
+              <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.15);"></div>
+              <div style="position:absolute;top:0;bottom:0;${g.r >= 0 ? 'left:50%' : 'right:50%'};width:${(Math.abs(g.r) / mx * 48).toFixed(1)}%;background:${g.r >= 0 ? '#4ade80' : '#f87171'};opacity:0.85;border-radius:2px;"></div></div>
+            <span style="font-size:0.52rem;font-family:var(--font-mono);color:${rc(g.r)};width:44px;">${g.r >= 0 ? '+' : ''}${g.r}</span>
+          </div>`).join('')}</div>`;
+      };
+      const eras = (t.m2_to_cpi && t.m2_to_cpi.eras) || [];
+      body = `<div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">${gridOf(t.m2_to_cpi, '① M2 → 물가(CPI)')}${gridOf(t.cpi_to_tax, '② 물가 → 연방세수')}${gridOf(t.m2_to_tax, '③ M2 → 세수 (직접)')}</div>
+        ${eras.length ? `<div style="margin-top:11px;padding:9px 12px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);border-radius:9px;">
+          <div style="font-size:0.6rem;font-weight:700;color:var(--text-bright);">⚠️ 같은 관계가 시대마다 뒤집힙니다 (M2 → 물가, ${t.m2_to_cpi.best.lag_m}개월 시차 고정)</div>
+          <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px;">
+            ${eras.map(e => `<span style="font-size:0.56rem;background:rgba(255,255,255,0.05);border-radius:8px;padding:3px 10px;">${h(e.label)} <b style="color:${rc(e.r)};font-family:var(--font-mono);">${e.r >= 0 ? '+' : ''}${e.r}</b></span>`).join('')}
+          </div></div>` : ''}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.75;">
+          💡 <b>${h(t.verdict || '')}</b><br>⚠️ ${h(t.caveat || '')}
+        </div></div>`;
+    } else if (V === 'prop') {
+      const rows = (d.property || []).map(p => `
+        <tr style="border-top:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:6px 8px;font-size:0.66rem;font-weight:700;color:var(--text-bright);white-space:nowrap;">${p.flag} ${h(p.name)}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);">${p.index}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);font-weight:800;color:${sgn(p.chg_10y_pct)};">${p.chg_10y_pct >= 0 ? '+' : ''}${p.chg_10y_pct}%</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sgn(p.yoy_pct)};">${p.yoy_pct == null ? '—' : (p.yoy_pct >= 0 ? '+' : '') + p.yoy_pct + '%'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.55rem;font-family:var(--font-mono);color:${p.m2_lead ? rc(p.m2_lead.r) : 'var(--text-muted)'};">${p.m2_lead ? `${p.m2_lead.lag_m}M r=${p.m2_lead.r}` : '—'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:0.5rem;color:var(--text-muted);">${h(p.asof)}</td>
+        </tr>`).join('');
+      body = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:560px;">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+          <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">국가</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">지수(2010=100)</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">10년 실질변화</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">전년비</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">美M2 선행</th>
+          <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">기준</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;line-height:1.75;">
+          📖 <b>실질주택가격 = 명목 주택가격 ÷ 소비자물가</b>. +면 집값이 물가를 이겼고, −면 물가가 더 올랐다는 뜻입니다.
+          한국 +1.0%는 <b>10년간 집값과 물가가 거의 같은 속도로 올랐다</b>는 의미입니다(물가가 더 오른 게 아닙니다).<br>
+          ⚠️ <b>전국 평균이라 서울·수도권 체감과 크게 다를 수 있습니다</b> — 인구 감소 지역의 하락이 함께 섞여 있습니다.
+        </div>`;
+    } else if (V === 'fisc') {
+      const f = d.fiscal;
+      if (!f) body = '<div style="font-size:0.6rem;color:var(--text-muted);">데이터 없음</div>';
+      else {
+        const mx = Math.max(...f.rows.map(r => r.duty_share_pct || 0), 1);
+        const rows = f.rows.map(r => `
+          <tr style="border-top:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:5px 8px;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-bright);">${h(r.q)}</td>
+            <td style="padding:5px 8px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);">${nf(r.duty_bn, 1)}</td>
+            <td style="padding:5px 8px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:var(--text-muted);">${nf(r.tax_bn)}</td>
+            <td style="padding:5px 8px;">
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="font-size:0.64rem;font-family:var(--font-mono);font-weight:700;color:#fbbf24;min-width:44px;text-align:right;">${r.duty_share_pct}%</span>
+                <div style="flex:1;height:7px;background:rgba(255,255,255,0.05);border-radius:3px;min-width:50px;overflow:hidden;">
+                  <div style="height:100%;width:${((r.duty_share_pct || 0) / mx * 100).toFixed(0)}%;background:#fbbf24;opacity:0.8;"></div></div>
+              </div></td>
+            <td style="padding:5px 8px;text-align:right;font-size:0.58rem;font-family:var(--font-mono);color:#22d3ee;">${r.dxy == null ? '—' : r.dxy}</td>
+          </tr>`).join('');
+        body = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:540px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">분기</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">관세수입(십억$)</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">연방 총세수</th>
+            <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">총세수 대비 비중</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">달러지수</th>
+          </tr></thead><tbody>${rows}</tbody></table></div>
+          <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;line-height:1.75;">${h(f.note || '')}</div>`;
+      }
+    }
+
+    const tabs = TABS.map(([k, lab]) => `<button onclick="window.__mmTab='${k}';renderMoneyMacro()" style="padding:3px 11px;border-radius:7px;font-size:0.6rem;cursor:pointer;font-weight:${k === V ? 700 : 400};background:${k === V ? 'rgba(52,211,153,0.2)' : 'transparent'};color:${k === V ? '#34d399' : 'var(--text-muted)'};border:1px solid ${k === V ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');
+    const html = `<section class="section-wrap" id="money-macro-section">
+      <div class="section-label" style="color:#34d399;">💴 통화량·물가·자산 전달경로 <span style="font-size:0.62rem;color:var(--text-muted);">(OECD 주요국 M3 · FRED · BIS)</span></div>
+      <div class="glass-card" style="padding:12px 16px 14px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.08);">${tabs}
+          <span style="margin-left:auto;font-size:0.48rem;color:var(--text-muted);">${h(d.generated_at || '')}</span></div>
+        <div style="margin-top:11px;">${body}</div>
+        <div style="font-size:0.52rem;color:var(--text-muted);margin-top:11px;line-height:1.75;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          ${(d.caveats || []).map(c => '⚠️ ' + h(c)).join('<br>')}<br>🚨 ${h(d.note || '')}
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('money-macro-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('fx-intervention-section') || document.getElementById('fx-swap-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.renderMoneyMacro = renderMoneyMacro;
 
   // ── 🏛️ 통화 저평가·외환개입 모니터 — REER 괴리 + FIMA 레포 + 미·일 금리차 ──
   function renderFxIntervention(d) {
@@ -13743,6 +13883,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./fx_swap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderFxSwap(d); });
+      // 통화량·물가·자산 전달경로 (OECD 주요국 M3 · M2→물가→세수 · 실질주택 · 관세)
+      fetch('./money_macro.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderMoneyMacro(d); } catch (e) { } } });
       // 통화 저평가·외환개입 모니터 (BIS 실질실효환율 · FIMA 레포 · 미·일 금리차)
       fetch('./fx_intervention.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

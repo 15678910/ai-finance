@@ -184,6 +184,15 @@ jobs:
         run: |
           python fx_intervention_monitor.py || echo "FX intervention monitor had errors, continuing..."
 
+      # 통화량·물가·자산 전달경로 (OECD 주요국 M3 · M2→물가→세수 · BIS 실질주택 · 관세)
+      # OECD SDMX 8MB 다운로드가 있어 다소 느림 — 원본이 월간이라 하루 1회면 충분하나
+      # 별도 워크플로를 늘리지 않고 여기에 둔다(실패해도 다음 스텝 진행).
+      - name: Run money macro monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python money_macro_monitor.py || echo "Money macro monitor had errors, continuing..."
+
       # (국내 증권사 리포트 analyst_reports.py·주요일정 earnings_calendar.py는
       #  무겁고 느리게 변해 korea-research.yml로 분리 — 5분 타임아웃 초과 방지)
 
