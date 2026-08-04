@@ -189,6 +189,9 @@ jobs:
       # 별도 워크플로를 늘리지 않고 여기에 둔다(실패해도 다음 스텝 진행).
       - name: Run money macro monitor
         env:
+          # BOK 키가 없으면 ECOS 블록(서울 아파트 실질가격·한국 분배지표)이 통째로 건너뛰어진다.
+          # 키를 안 넘겨 두 기능이 만들어진 뒤로 한 번도 수집되지 않았다 — 2026-08-04 발견.
+          BOK_API_KEY: ${{ secrets.BOK_API_KEY }}
           PYTHONIOENCODING: utf-8
         run: |
           python money_macro_monitor.py || echo "Money macro monitor had errors, continuing..."
