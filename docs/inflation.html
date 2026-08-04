@@ -290,6 +290,7 @@ function gapCard(c){
   const mRev=main?main.revenue:(CM.revenue||null);
   const mOp=main?main.operating_income:(CM.op||null);
   const mPayroll=main?main.payroll_total:((CM.headcount||0)*(CM.avg_pay||0)||null);
+  const mHead=main?main.headcount:(CM.headcount||null);
 
   // ── 사내 고용형태 ──────────────────────────────────────────────
   const reg=(G.regN!=null?G.regN:(main?main.regular:null));
@@ -316,6 +317,26 @@ function gapCard(c){
   const extra=(subD&&subD.revenue)?subD.revenue*unit/100:null;
   const toWage=extra!=null?extra*pass/100:null;
   const perHead=(toWage&&subD&&subD.headcount)?toWage/subD.headcount:null;
+
+  // ── 간접고용(사내하도급·파견·용역) ────────────────────────────
+  // 공시에는 아예 없는 인력이다. 원청 손익에서 이들의 비용은 '인건비'가 아니라
+  // 외주비·지급수수료로 잡히므로, ④의 인건비/매출 비중이 실제보다 낮게 나온다.
+  // 사용자가 인원·임금·도급비를 넣으면 그 왜곡을 되돌려 계산한다.
+  const iN=G.indN,iPay=G.indPay,iCost=G.indCost;
+  const iWage=(iN&&iPay)?iN*iPay:null;                       // 노동자가 실제 받는 총액
+  const realHead=(mHead&&iN)?mHead+iN:null;                  // 실질 사업장 인력
+  const iRatio=realHead?iN/realHead*100:null;
+  const rphDisc=(mRev&&mHead)?mRev/mHead:null;               // 공시 기준 1인당 매출
+  const rphReal=(mRev&&realHead)?mRev/realHead:null;         // 간접고용 포함 1인당 매출
+  const labCost=(iCost!=null&&iCost>0)?iCost:iWage;          // 원청이 실제 부담하는 금액
+  const p2rDisc=(mPayroll&&mRev)?mPayroll/mRev*100:null;
+  const p2rReal=(mPayroll&&mRev&&labCost)?(mPayroll+labCost)/mRev*100:null;
+  const perCost=(iCost&&iN)?iCost/iN:null;                   // 원청이 1인당 지급하는 단가
+  const midMargin=(perCost&&iPay)?perCost-iPay:null;         // 용역업체 마진·관리비 몫
+  const iTarget=G.indTarget!=null?G.indTarget:80;            // 원청 평균의 몇 %까지
+  const iGoalPay=mPay?mPay*iTarget/100:null;
+  const need3=(iN&&iGoalPay&&iPay&&iGoalPay>iPay)?iN*(iGoalPay-iPay):null;
+  const costUp=(need3&&iCost)?need3/iCost*100:null;          // 도급단가를 몇 % 올리면 되나
 
   const num=(k,lab,ph,setter)=>`<div style="flex:1;min-width:150px"><div class="lab">${lab}</div>
     <input type="number" step="1" min="0" value="${(setter==='sub'?(SM[k]!=null?SM[k]:''):(G[k]!=null?G[k]:''))}"
@@ -440,10 +461,83 @@ function gapCard(c){
       원재료비를 대상으로 하며 인건비는 임의 합의 사항입니다 — 법적 강제 근거로 인용하지 마세요.</div>
     `}
 
+    <div class="lab" style="margin:20px 0 6px;font-weight:600;color:var(--tx)">Ⓒ 사내하도급·파견·용역 (간접고용)</div>
+    <div class="hint">공시에 <b>아예 없는 인력</b>입니다. 원청 손익에서 이들의 비용은 인건비가 아니라
+      <b>외주비·지급수수료</b>로 잡히므로, ④의 인건비/매출 비중과 1인당 매출이 모두 실제와 어긋납니다.
+      노조가 파악한 인원·임금·도급비를 넣으면 그 왜곡을 되돌려 계산합니다.</div>
+    ${!mName?`<div class="lab" style="margin-top:8px">④에서 회사를 먼저 선택하세요.</div>`:`
+    <div class="row" style="margin:10px 0">
+      ${num('indN','간접고용 인원 (명)','사내하도급+파견+용역')}
+      ${num('indPay','간접고용 1인평균 연봉 (원)','노동자 실수령 기준')}
+      ${num('indCost','연간 도급·용역비 총액 (원)','원청이 지급하는 계약금액')}
+    </div>
+    <div class="lab" style="margin-bottom:10px">인원·임금은 노조 실태조사·업체별 근로계약으로, 도급비는 원청 감사보고서 주석
+      (특수관계자 거래·외주가공비)이나 정보공개 청구로 확인할 수 있습니다. 도급비는 몰라도 앞의 두 칸만으로 계산됩니다.</div>
+    ${!iN?'':`
+    <div class="row">
+      <div class="box"><div class="lab">실질 사업장 인력</div>
+        <div class="big mono" style="font-size:1.05rem">${realHead?won(realHead):'—'}명</div>
+        <div class="lab">직접 ${won(mHead)} + 간접 ${won(iN)}</div></div>
+      <div class="box"><div class="lab">간접고용 비율</div>
+        <div class="big mono ${iRatio!=null&&iRatio>30?'warn':''}">${fmt(iRatio,1)}%</div>
+        <div class="lab">공시 직원현황엔 0명으로 잡힘</div></div>
+      <div class="box"><div class="lab">1인당 매출 — 공시 → 실질</div>
+        <div class="big mono" style="font-size:1.02rem">${rphDisc?won(rphDisc/1e6):'—'} → ${rphReal?won(rphReal/1e6):'—'}백만</div>
+        <div class="lab">${(rphDisc&&rphReal)?`공시 수치가 실질 대비 ${fmt((rphDisc/rphReal-1)*100,1)}% 부풀려짐`:''}</div></div>
+      <div class="box"><div class="lab">인건비/매출 — 공시 → 실질</div>
+        <div class="big mono" style="font-size:1.02rem">${fmt(p2rDisc,1)}% → ${fmt(p2rReal,1)}%</div>
+        <div class="lab">${(p2rDisc!=null&&p2rReal!=null)?`사측 지불능력 근거가 ${fmt(p2rReal-p2rDisc,1)}%p 낮게 제시됨`:''}</div></div>
+    </div>
+    <div class="note" style="margin-top:10px">📖 <b>왜 이 두 지표가 핵심인가</b> — 협상에서 사측은 '인건비 비중이 이미 높다',
+      '1인당 매출이 이 정도다'를 근거로 듭니다. 그런데 그 분모·분자에서 간접고용 인력이 통째로 빠져 있으면
+      <b>같은 매출을 더 적은 사람이 만든 것처럼</b> 보입니다. 위 두 칸은 그 계산을 원래대로 되돌린 값입니다.</div>
+    ${perCost!=null?`
+    <div class="row" style="margin-top:12px">
+      <div class="box"><div class="lab">원청 지급 단가 (1인당)</div>
+        <div class="big mono" style="font-size:1.05rem">${won(perCost)}원</div>
+        <div class="lab">도급비 ÷ 간접고용 인원</div></div>
+      <div class="box"><div class="lab">노동자 실수령</div>
+        <div class="big mono" style="font-size:1.05rem">${won(iPay)}원</div></div>
+      <div class="box"><div class="lab">중간 차액</div>
+        <div class="big mono ${midMargin!=null&&midMargin>0?'neg':'pos'}" style="font-size:1.05rem">${midMargin!=null?won(midMargin):'—'}원</div>
+        <div class="lab">${(midMargin!=null&&perCost)?`지급 단가의 ${fmt(midMargin/perCost*100,1)}%`:''}</div></div>
+      <div class="box"><div class="lab">직접고용 대비</div>
+        <div class="big mono" style="font-size:1.05rem">${(mPay&&perCost)?fmt(perCost/mPay*100,1)+'%':'—'}</div>
+        <div class="lab">원청이 쓰는 돈 기준 · 실수령 기준 ${(mPay&&iPay)?fmt(iPay/mPay*100,1)+'%':'—'}</div></div>
+    </div>
+    <div class="note">⚠️ 도급비에는 자재·장비·관리비가 섞여 있을 수 있어 <b>중간 차액 전부가 업체 마진은 아닙니다</b>.
+      다만 '원청이 쓰는 돈'과 '노동자가 받는 돈'의 간격을 협상 테이블에 올리는 출발점은 됩니다.
+      순수 인력도급이면 차액 대부분이 관리비·마진입니다.</div>`:''}
+    <div class="row" style="align-items:center;margin:14px 0 8px">
+      <div class="lab">간접고용 임금을 원청 평균의
+        <input type="number" step="5" min="0" max="100" value="${iTarget}" oninput="setGap('indTarget',this.value)" style="width:70px"> % 까지 올리면</div>
+    </div>
+    <div class="row">
+      <div class="box"><div class="lab">목표 연봉</div>
+        <div class="big mono" style="font-size:1.05rem">${iGoalPay?won(iGoalPay):'—'}원</div>
+        <div class="lab">${(iGoalPay&&iPay)?`현재 대비 +${won(iGoalPay-iPay)}원`:''}</div></div>
+      <div class="box"><div class="lab">필요 재원</div>
+        <div class="big mono" style="font-size:1.05rem">${need3!=null?won(need3/1e8)+'억원':'—'}</div>
+        <div class="lab">연간 · 간접고용 ${won(iN)}명 기준</div></div>
+      <div class="box"><div class="lab">원청 영업이익 대비</div>
+        <div class="big mono ${need3&&mOp&&need3/mOp>0.1?'warn':''}">${(need3&&mOp)?fmt(need3/mOp*100,1)+'%':'—'}</div>
+        <div class="lab">${(need3&&mRev)?`매출 대비 ${fmt(need3/mRev*100,2)}%`:''}</div></div>
+      <div class="box"><div class="lab">도급단가 인상률</div>
+        <div class="big mono">${costUp!=null?'+'+fmt(costUp,1)+'%':'—'}</div>
+        <div class="lab">${costUp!=null?'이만큼 올려 배분하면 목표 달성':'도급비를 넣으면 계산됩니다'}</div></div>
+    </div>
+    <div class="note">📖 <b>단협에서 쓰는 법</b> — 간접고용은 원청과 직접 근로계약이 없어 임금을 직접 정할 수 없습니다.
+      그래서 현실적인 요구 형태는 ①<b>도급단가 인상 + 인건비 배분 합의</b>(위 마지막 칸), ②원·하청 공동 협의체,
+      ③직접고용 전환입니다. 위 숫자는 그중 ①의 크기를 특정하기 위한 것입니다.<br>
+      원청의 교섭의무 범위, 파견·도급 구분, 직접고용 의무는 <b>법률 판단 영역</b>이라 이 계산기로 다투지 마세요 —
+      노무사·변호사 확인이 필요합니다.</div>`}
+    `}
+
     <div class="note">⚠️ <b>이 카드의 한계</b><br>
       · 고용형태별 급여는 DART 미공시 → 사용자 입력값에 전적으로 의존합니다. 출처를 함께 제시하세요.<br>
       · 하청 비교는 <b>협력사도 공시 대상</b>이거나 감사보고서를 구할 수 있을 때만 가능합니다.<br>
-      · 사내하도급·파견·용역 인력은 원청 직원현황에 잡히지 않아 여기 숫자에 포함되지 않습니다.<br>
+      · 사내하도급·파견·용역은 어떤 공시에도 없습니다 → Ⓒ에 직접 넣어야 하며, 그 값의 정확도가 Ⓒ 전체를 좌우합니다.<br>
+      · Ⓒ의 '실질' 지표는 <b>회계 기준이 아닙니다</b>. 회사 공식 재무제표와 다른 값이므로 근거를 명시해 제시하세요.<br>
       · 근속·직무·근무지가 다르면 평균 비교만으로 '동일노동'을 단정할 수 없습니다.<br>
       ⚖️ 이 계산은 어느 쪽 주장도 대변하지 않습니다. 협상 자료로 쓸 때는 원문 공시로 교차 확인하세요.</div>
   </div>`;
