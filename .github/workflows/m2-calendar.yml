@@ -72,6 +72,14 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python dart_financials.py || echo "dart_financials had errors, continuing..."
 
+      # 회사별 임금협상 근거 (DART 직원현황 + 손익 → 지불능력·인상 시나리오)
+      # 사업보고서 기반이라 연 1회만 바뀌지만, 같은 DART 키를 쓰는 이 워크플로에 함께 둔다.
+      - name: Collect wage negotiation data
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: python wage_negotiation.py || echo "wage_negotiation had errors, continuing..."
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"

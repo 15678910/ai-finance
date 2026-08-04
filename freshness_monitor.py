@@ -31,6 +31,7 @@ MONITORED = [
     ("earnings.json", 30), ("ai_value_gap.json", 30), ("fx_swap.json", 14),
     ("fx_intervention.json", 40),   # REER 월간·FIMA 주간이라 여유 있게
     ("money_macro.json", 40),       # OECD M3 월간·BIS 주택 분기
+    ("wage_negotiation.json", 200), # DART 사업보고서 기반 — 연 1회 갱신
     ("analyst_reports.json", 30), ("watchlist.json", 14), ("dart_disclosures.json", 16),
     ("vkospi.json", 14), ("key_events.json", 30), ("composite_signal.json", 12),
     ("prediction_quality.json", 14), ("memory_price.json", 14), ("quotes.json", 14),

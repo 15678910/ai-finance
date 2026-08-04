@@ -71,7 +71,7 @@ const fmt=(v,d)=>v==null||!isFinite(v)?'—':Number(v.toFixed(d==null?2:d)).toLo
 const won=v=>v==null||!isFinite(v)?'—':Math.round(v).toLocaleString();
 const sc=v=>v==null?'':v>=0?'pos':'neg';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let D=null,S=null,LASTMAP=null;
+let D=null,S=null,LASTMAP=null,CO=null;
 
 /* 가맹점명 → 품목 분류 사전.
    카드 내역의 가맹점명은 표기가 제각각이라 완벽 분류는 불가능하다.
@@ -118,6 +118,7 @@ function init(d){
      weights:st.weights||Object.fromEntries(items.map(i=>[i.key,i.default_weight])),
      amounts:st.amounts||Object.fromEntries(items.map(i=>[i.key,0])),
      subs:st.subs??0, spendManual:st.spendManual??300,
+     co:st.co||'', coManual:st.coManual||{},
      wage:st.wage??((d.wage&&d.wage.nominal_yoy_pct)||0)};
   render();
 }
@@ -203,6 +204,71 @@ window.onCSV=async file=>{
            unTot:Math.round(unTot),file:file.name};
   save();render();
 };
+
+/* ── ④ 회사별 지불능력 ── 노동측 근거(물가)와 사측 근거(재무)를 같은 화면에 둔다 */
+window.setCo=v=>{S.co=v;save();render()};
+window.setCoF=(k,v)=>{S.coManual=S.coManual||{};S.coManual[k]=Math.max(0,parseFloat(v)||0);save();render()};
+function coCard(c){
+  const list=(CO&&CO.companies)||[];
+  const sel=S.co||'';
+  const M=S.coManual||{};
+  const picked=sel==='manual'?null:list.find(x=>x.code===sel);
+  const D_=picked||{headcount:M.headcount||0,avg_pay:M.avg_pay||0,
+    payroll_total:(M.headcount||0)*(M.avg_pay||0),revenue:M.revenue||0,operating_income:M.op||0,year:'직접입력'};
+  const pay=D_.payroll_total,rev=D_.revenue,op=D_.operating_income;
+  const p2r=pay&&rev?pay/rev*100:null, opm=op!=null&&rev?op/rev*100:null;
+  const rates=[2,3,5,c.felt].filter(x=>x!=null&&isFinite(x));
+  const scen=(pay&&rev&&op!=null)?rates.map(r=>{
+    const add=pay*r/100;
+    return{r,add,opAfter:op-add,opmAfter:(op-add)/rev*100,drop:add/rev*100};
+  }):[];
+  const opts=`<option value="">— 회사 선택 —</option>`+
+    list.map(x=>`<option value="${esc(x.code)}"${x.code===sel?' selected':''}>${esc(x.name)} (${x.year}년)</option>`).join('')+
+    `<option value="manual"${sel==='manual'?' selected':''}>직접 입력 (비상장·미수록)</option>`;
+  const mi=(k,lab,ph)=>`<div style="flex:1;min-width:130px"><div class="lab">${lab}</div>
+    <input type="number" step="1" min="0" value="${M[k]||0}" oninput="setCoF('${k}',this.value)" style="width:100%" placeholder="${ph||''}"></div>`;
+  return `<div class="card">
+    <h2>④ 회사별 지불능력 — 사측 근거</h2>
+    <div class="hint">임금협상에서 노동측은 <b>생계비(물가)</b>를, 사측은 <b>지불능력(재무)</b>을 근거로 듭니다.
+      위 ②③이 앞의 절반이라면 여기가 뒤의 절반입니다. 상장사는 DART 사업보고서에서 자동으로 채워집니다.</div>
+    <div class="row noprint" style="margin-bottom:10px">
+      <select onchange="setCo(this.value)" style="background:#0d1219;border:1px solid var(--line);color:var(--tx);border-radius:7px;padding:7px 10px;font-size:.85rem;min-width:230px">${opts}</select>
+    </div>
+    ${sel==='manual'?`<div class="row" style="margin-bottom:12px">
+      ${mi('headcount','직원 수 (명)')}${mi('avg_pay','1인평균 연봉 (원)')}
+      ${mi('revenue','연 매출액 (원)')}${mi('op','연 영업이익 (원)')}
+      </div><div class="lab" style="margin-bottom:10px">사업보고서·감사보고서의 '직원 등의 현황'과 손익계산서에서 옮겨 적으세요.</div>`:''}
+    ${!pay||!rev?`<div class="lab">회사를 선택하거나 직접 입력하면 지불능력 지표가 계산됩니다.</div>`:`
+    <div class="row">
+      <div class="box"><div class="lab">직원 수 / 1인평균 연봉</div>
+        <div class="big mono" style="font-size:1.15rem">${won(D_.headcount)}명</div>
+        <div class="lab">${won(D_.avg_pay)}원 · ${esc(String(D_.year))}년 기준</div></div>
+      <div class="box"><div class="lab">인건비 / 매출</div>
+        <div class="big mono ${p2r>25?'warn':''}">${fmt(p2r)}%</div>
+        <div class="lab">연간급여총액 ${won(pay/1e8)}억 ÷ 매출 ${won(rev/1e8)}억</div></div>
+      <div class="box"><div class="lab">영업이익률</div>
+        <div class="big mono ${sc(opm)}">${fmt(opm)}%</div>
+        <div class="lab">영업이익 ${won(op/1e8)}억원</div></div>
+      <div class="box"><div class="lab">1인당 매출</div>
+        <div class="big mono" style="font-size:1.15rem">${won(rev/D_.headcount/1e6)}백만</div>
+        <div class="lab">생산성 참고치</div></div>
+    </div>
+    ${scen.length?`<table style="margin-top:14px"><thead><tr>
+        <th>인상률</th><th>인건비 증가액</th><th>영업이익 (후)</th><th>영업이익률 (후)</th><th>하락폭</th>
+      </tr></thead><tbody>${scen.map(s=>`<tr${Math.abs(s.r-c.felt)<0.01?' style="background:rgba(210,153,34,.09)"':''}>
+        <td>${fmt(s.r)}%${Math.abs(s.r-c.felt)<0.01?' <span class="lab">← 내 체감물가</span>':''}</td>
+        <td class="mono">${won(s.add/1e8)}억원</td>
+        <td class="mono">${won(s.opAfter/1e8)}억원</td>
+        <td class="mono ${sc(s.opmAfter)}">${fmt(s.opmAfter)}%</td>
+        <td class="mono neg">−${fmt(s.drop)}%p</td></tr>`).join('')}</tbody></table>
+      <div class="note">📖 <b>읽는 법</b> — 인건비/매출 비중이 낮을수록 같은 인상률이 영업이익에 주는 충격이 작습니다.
+        예컨대 비중이 10%면 5% 인상 시 영업이익률은 0.5%p만 내려갑니다.
+        시나리오는 <b>다른 조건이 그대로일 때</b>의 산술 계산이며 매출 변동·생산성 향상은 반영하지 않았습니다.</div>`:''}
+    `}
+    <div class="note">⚠️ ${esc(((CO||{}).caveats||[]).join(' / '))}<br>
+      ⚖️ ${esc((CO||{}).neutrality||'')}</div>
+  </div>`;
+}
 
 function render(){
   const c=calc(),W=D.wage||{},A=(D.money||[]);
@@ -305,8 +371,10 @@ function render(){
       제출 시에는 아래 출처와 기준시점을 반드시 함께 표기하세요.</div>
   </div>
 
+  ${coCard(c)}
+
   <div class="card">
-    <h2>④ 주요국 통화량(M3) 연도별 증가율</h2>
+    <h2>⑤ 주요국 통화량(M3) 연도별 증가율</h2>
     <div class="hint">물가의 배경 조건입니다. 통화량이 실질성장보다 빠르게 늘면 물가 압력이 쌓입니다
       (다만 시차가 길고 시대에 따라 관계가 뒤집히므로 단정은 금물).</div>
     <div style="overflow-x:auto"><table><thead><tr><th>경제권</th><th>최근</th>${years}</tr></thead>
@@ -343,12 +411,14 @@ function render(){
   }
 }
 
-fetch('./money_macro.json?v='+Date.now(),{cache:'no-store'})
-  .then(r=>r.ok?r.json():null).catch(()=>null)
-  .then(d=>{
-    if(!d||!d.cpi_items){$('app').innerHTML='<div class="card">데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</div>';return}
-    init(d);
-  });
+Promise.all([
+  fetch('./money_macro.json?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch('./wage_negotiation.json?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)
+]).then(([d,co])=>{
+  CO=co;
+  if(!d||!d.cpi_items){$('app').innerHTML='<div class="card">데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</div>';return}
+  init(d);
+});
 </script>
 </body>
 </html>
