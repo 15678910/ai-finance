@@ -9030,11 +9030,22 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">전년비</th>
           <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">美M2 선행</th>
           <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">기준</th>
-        </tr></thead><tbody>${rows}</tbody></table></div>
+        </tr></thead><tbody>${rows}${(function () {
+          const s = d.seoul_property;
+          if (!s) return `<tr style="border-top:1px solid rgba(255,255,255,0.05);"><td colspan="6" style="padding:6px 8px;font-size:0.53rem;color:var(--text-muted);">🏙️ 서울 아파트 — 한국은행 ECOS 수집 대기(자동 수집 시 여기 표시됩니다)</td></tr>`;
+          return `<tr style="border-top:1px solid rgba(52,211,153,0.35);background:rgba(52,211,153,0.06);">
+            <td style="padding:6px 8px;font-size:0.66rem;font-weight:800;color:#34d399;white-space:nowrap;">${s.flag} ${h(s.name)}</td>
+            <td style="padding:6px 8px;text-align:right;font-size:0.66rem;font-family:var(--font-mono);">${s.real_index}</td>
+            <td style="padding:6px 8px;text-align:right;font-size:0.7rem;font-family:var(--font-mono);font-weight:800;color:${sgn(s.chg_10y_pct)};">${s.chg_10y_pct >= 0 ? '+' : ''}${s.chg_10y_pct}%</td>
+            <td style="padding:6px 8px;text-align:right;font-size:0.6rem;font-family:var(--font-mono);color:${sgn(s.yoy_pct)};">${s.yoy_pct == null ? '—' : (s.yoy_pct >= 0 ? '+' : '') + s.yoy_pct + '%'}</td>
+            <td style="padding:6px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);" title="명목 기준 10년 변화">명목 ${s.nominal_10y_pct >= 0 ? '+' : ''}${s.nominal_10y_pct}%</td>
+            <td style="padding:6px 8px;text-align:right;font-size:0.5rem;color:var(--text-muted);">${h(s.asof)}</td></tr>`;
+        })()}</tbody></table></div>
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;line-height:1.75;">
           📖 <b>실질주택가격 = 명목 주택가격 ÷ 소비자물가</b>. +면 집값이 물가를 이겼고, −면 물가가 더 올랐다는 뜻입니다.
           한국 +1.0%는 <b>10년간 집값과 물가가 거의 같은 속도로 올랐다</b>는 의미입니다(물가가 더 오른 게 아닙니다).<br>
-          ⚠️ <b>전국 평균이라 서울·수도권 체감과 크게 다를 수 있습니다</b> — 인구 감소 지역의 하락이 함께 섞여 있습니다.
+          ⚠️ 위 4개국은 <b>전국 평균</b>이라 인구 감소 지역의 하락이 섞여 있습니다 — 그래서 <b style="color:#34d399;">서울 아파트</b>를 따로 붙였습니다(한국은행 ECOS).
+          ${d.seoul_property ? `<br>🏙️ 서울 아파트: 실질 <b style="color:${sgn(d.seoul_property.chg_10y_pct)};">${d.seoul_property.chg_10y_pct >= 0 ? '+' : ''}${d.seoul_property.chg_10y_pct}%</b> · 명목 <b>${d.seoul_property.nominal_10y_pct >= 0 ? '+' : ''}${d.seoul_property.nominal_10y_pct}%</b> (10년) — 전국(${(d.property.find(p => p.name === '한국') || {}).chg_10y_pct}%)과의 차이가 곧 <b>지역 편차</b>입니다. 기준 ${h(d.seoul_property.base || '')}` : ''}
         </div>`;
     } else if (V === 'fisc') {
       const f = d.fiscal;

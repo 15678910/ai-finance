@@ -54,6 +54,27 @@ FX_TICKER = {"KRW": "KRW=X", "JPY": "JPY=X", "CNY": "CNY=X", "EUR": "EURUSD=X"}
 PROPERTY = [("QUSR628BIS", "미국", "🇺🇸"), ("QKRR628BIS", "한국", "🇰🇷"),
             ("QJPR628BIS", "일본", "🇯🇵"), ("QCNR628BIS", "중국", "🇨🇳")]
 
+# ── ECOS(한국은행) 자동 탐색 설정 ──────────────────────────────────
+# 통계표코드를 상수로 박지 않고 '이름 키워드'로 찾는다.
+# 한국은행이 코드를 바꿔도 깨지지 않게 하려는 것(m2_monitor.py와 같은 방식).
+ECOS_BASE = "https://ecos.bok.or.kr/api"
+ECOS_TARGETS = {
+    # 4.4 부동산 가격지수 → 서울 아파트 매매
+    "seoul_apt": {
+        "table_kw": ["주택매매가격", "부동산 가격", "부동산가격"],
+        "item_kw_all": ["서울"],              # 항목명에 반드시 포함
+        "item_kw_any": ["아파트"],            # 이 중 하나 포함
+        "label": "서울 아파트 매매가격지수",
+    },
+    # 4.2 소비자물가지수 → 총지수 (실질화 분모)
+    "kr_cpi": {
+        "table_kw": ["소비자물가지수"],
+        "item_kw_all": [],
+        "item_kw_any": ["총지수", "총 지수"],
+        "label": "한국 소비자물가지수",
+    },
+}
+
 
 # ── 수집 ────────────────────────────────────────────────────────────
 _USE_CURL = None      # None=미판별 / True=urllib 막힌 환경 / False=urllib 사용
@@ -105,6 +126,110 @@ def fred(series_id, start="1995-01-01"):
                 out[p[0].strip()] = float(p[1])
             except ValueError:
                 pass
+    return out
+
+
+# ── ECOS (한국은행) ─────────────────────────────────────────────────
+def _ecos_key():
+    k = os.environ.get("BOK_API_KEY")
+    if k:
+        return k.strip()
+    try:
+        from core import get_secret
+        return (get_secret("BOK_API_KEY") or "").strip() or None
+    except Exception:
+        return None
+
+
+def _ecos(key, path):
+    txt = _http(f"{ECOS_BASE}/{path}", timeout=40)
+    try:
+        return json.loads(txt) if txt else {}
+    except Exception:
+        return {}
+
+
+def ecos_find(key, spec):
+    """통계표·항목 코드를 이름 키워드로 탐색 → (stat_code, item_code, 라벨) 또는 None.
+    코드를 하드코딩하지 않으므로 한국은행이 코드를 바꿔도 계속 동작한다."""
+    d = _ecos(key, f"StatisticTableList/{key}/json/kr/1/1000/")
+    tables = (d.get("StatisticTableList") or {}).get("row") or []
+    if not tables:
+        print(f"    [WARN] 통계표 목록 조회 실패 ({spec['label']})")
+        return None
+    cands = [t for t in tables
+             if any(k in (t.get("STAT_NAME") or "") for k in spec["table_kw"]) and t.get("STAT_CODE")]
+    print(f"    통계표 후보 {len(cands)}건: " + ", ".join(
+        f"{t['STAT_CODE']}({(t.get('STAT_NAME') or '')[:22]})" for t in cands[:4]))
+    for t in cands:
+        code = t["STAT_CODE"]
+        d2 = _ecos(key, f"StatisticItemList/{key}/json/kr/1/500/{code}/")
+        items = (d2.get("StatisticItemList") or {}).get("row") or []
+        for it in items:
+            nm = it.get("ITEM_NAME") or ""
+            if spec["item_kw_all"] and not all(k in nm for k in spec["item_kw_all"]):
+                continue
+            if spec["item_kw_any"] and not any(k in nm for k in spec["item_kw_any"]):
+                continue
+            print(f"    ✅ 채택 {code} / {it.get('ITEM_CODE')} — {nm[:34]} ({t.get('STAT_NAME','')[:20]})")
+            return code, it.get("ITEM_CODE"), nm
+    print(f"    [WARN] 조건에 맞는 항목 없음 ({spec['label']})")
+    return None
+
+
+def ecos_series(key, stat, item, start="201001", end=None):
+    """월별 시계열 → {YYYY-MM-01: value}"""
+    end = end or datetime.now(KST).strftime("%Y%m")
+    d = _ecos(key, f"StatisticSearch/{key}/json/kr/1/1000/{stat}/M/{start}/{end}/{item}/")
+    rows = (d.get("StatisticSearch") or {}).get("row") or []
+    out = {}
+    for r in rows:
+        t, v = r.get("TIME"), r.get("DATA_VALUE")
+        if not t or v in (None, "", "-"):
+            continue
+        try:
+            out[f"{t[:4]}-{t[4:6]}-01"] = float(v)
+        except ValueError:
+            pass
+    return out
+
+
+def seoul_property_block():
+    """서울 아파트 실질 매매가격 = 명목지수 ÷ 소비자물가지수.
+    BIS 전국 평균이 감추는 '지역 편차'를 보완한다."""
+    key = _ecos_key()
+    if not key:
+        print("  [INFO] BOK_API_KEY 없음 — 서울 아파트 블록 생략(로컬). GitHub Actions에서는 수집됨.")
+        return None
+    print("  ECOS 코드 자동 탐색:")
+    fa = ecos_find(key, ECOS_TARGETS["seoul_apt"])
+    fc = ecos_find(key, ECOS_TARGETS["kr_cpi"])
+    if not fa or not fc:
+        return None
+    apt = ecos_series(key, fa[0], fa[1])
+    cpi = ecos_series(key, fc[0], fc[1])
+    ks = sorted(set(apt) & set(cpi))
+    if len(ks) < 24:
+        print(f"  [WARN] 서울 아파트 겹치는 표본 부족 {len(ks)}")
+        return None
+    base = apt[ks[0]] / cpi[ks[0]]
+    real = {k: apt[k] / cpi[k] / base * 100 for k in ks}      # 시작=100 으로 재기준
+    last = ks[-1]
+    i10 = max(0, len(ks) - 121)                               # 약 10년(120개월) 전
+    yv = ks[-13] if len(ks) >= 13 else ks[0]
+    out = {
+        "name": "서울 아파트", "flag": "🏙️", "asof": last[:7],
+        "nominal_index": round(apt[last], 1),
+        "real_index": round(real[last], 1), "base": f"{ks[0][:7]}=100 (명목÷CPI)",
+        "chg_10y_pct": round((real[last] / real[ks[i10]] - 1) * 100, 1),
+        "nominal_10y_pct": round((apt[last] / apt[ks[i10]] - 1) * 100, 1),
+        "yoy_pct": round((real[last] / real[yv] - 1) * 100, 1),
+        "source": {"apt": f"{fa[0]}/{fa[1]} {fa[2][:30]}", "cpi": f"{fc[0]}/{fc[1]} {fc[2][:20]}"},
+        "spark": [round(real[k], 1) for k in ks[-60:]],
+        "note": "ECOS 자동 탐색으로 통계표·항목 코드를 찾아 수집(코드 하드코딩 없음).",
+    }
+    print(f"  🏙️ 서울 아파트: 실질 {out['real_index']} · 10년 실질 {out['chg_10y_pct']:+.1f}% "
+          f"(명목 {out['nominal_10y_pct']:+.1f}%)")
     return out
 
 
@@ -332,8 +457,9 @@ def main():
         b = trans[k]["best"]
         if b:
             print(f"  {lab} 최강 {b['lag_m']}개월 r={b['r']} (n={b['n']})")
-    print("\n[3] 실질주택가격 (BIS)")
+    print("\n[3] 실질주택가격 (BIS 4개국 + 서울 아파트)")
     prop = property_block()
+    seoul = seoul_property_block()
     print("\n[4] 재정 (관세·세수)")
     fisc = fiscal_block()
 
@@ -343,12 +469,14 @@ def main():
 
     out = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
-        "money": money, "transmission": trans, "property": prop, "fiscal": fisc,
+        "money": money, "transmission": trans, "property": prop,
+        "seoul_property": seoul, "fiscal": fisc,
         "sources": {
             "money": "OECD SDMX DF_MONAGG (M3, 월별, 자국통화) — 키 불필요",
             "us_macro": "FRED M2SL·CPIAUCSL·W006RC1Q027SBEA·B235RC1Q027SBEA·DTWEXBGS",
             "property": "BIS 실질주거용부동산가격(FRED 경유, 2010=100, 명목÷물가)",
             "fx": "yfinance 최신 환율(비중 계산용 근사)",
+            "seoul": "한국은행 ECOS — 통계표·항목 코드를 이름 키워드로 자동 탐색(하드코딩 없음)",
         },
         "caveats": [
             "통화량 '증가율'은 자국통화 기준이라 환율 영향이 없지만, '비중'은 최신 환율로 환산한 근사치다(과거 환율 미반영).",
