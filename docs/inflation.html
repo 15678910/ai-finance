@@ -119,6 +119,7 @@ function init(d){
      amounts:st.amounts||Object.fromEntries(items.map(i=>[i.key,0])),
      subs:st.subs??0, spendManual:st.spendManual??300,
      co:st.co||'', coManual:st.coManual||{}, share:st.share??30, caseRate:st.caseRate??0,
+     gap:st.gap||{}, gapSubM:st.gapSubM||{},
      wage:st.wage??((d.wage&&d.wage.nominal_yoy_pct)||0)};
   render();
 }
@@ -269,6 +270,182 @@ function coCard(c){
     ${formulaTable(c,D_,picked)}
     <div class="note">⚠️ ${esc(((CO||{}).caveats||[]).join(' / '))}<br>
       ⚖️ ${esc((CO||{}).neutrality||'')}</div>
+  </div>`;
+}
+
+/* ⑤ 고용형태·원하청 격차 — 같은 회사 안의 정규직/기간제, 그리고 원청과 하청.
+   DART가 자동으로 주는 것은 '인원'뿐이다(rgllbr_co·cnttk_co). 급여는 합산 공시라
+   고용형태별 임금은 공시에 없고, 사용자가 단체협약 자료·급여명세로 넣어야 한다.
+   대신 넣은 값이 공시된 1인평균과 맞는지 검산해 주고, 격차를 좁히는 데 드는 돈을
+   재무제표 대비로 환산한다 — 협상장에서 '얼마면 되는가'를 숫자로 놓기 위한 것이다. */
+window.setGap=(k,v)=>{S.gap=S.gap||{};S.gap[k]=(v===''||v==null)?null:Math.max(0,parseFloat(v)||0);save();render()};
+window.setGapCo=v=>{S.gap=S.gap||{};S.gap.sub=v;save();render()};
+window.setGapSubF=(k,v)=>{S.gapSubM=S.gapSubM||{};S.gapSubM[k]=Math.max(0,parseFloat(v)||0);save();render()};
+
+function gapCard(c){
+  const list=(CO&&CO.companies)||[],G=S.gap||{},SM=S.gapSubM||{},CM=S.coManual||{};
+  const main=(S.co&&S.co!=='manual')?list.find(x=>x.code===S.co):null;
+  const mName=main?main.name:(S.co==='manual'?'직접입력 회사':null);
+  const mPay=main?main.avg_pay:(CM.avg_pay||null);
+  const mRev=main?main.revenue:(CM.revenue||null);
+  const mOp=main?main.operating_income:(CM.op||null);
+  const mPayroll=main?main.payroll_total:((CM.headcount||0)*(CM.avg_pay||0)||null);
+
+  // ── 사내 고용형태 ──────────────────────────────────────────────
+  const reg=(G.regN!=null?G.regN:(main?main.regular:null));
+  const tmp=(G.tmpN!=null?G.tmpN:(main?main.temporary:null));
+  const typed=(reg||0)+(tmp||0);
+  const tRatio=typed?(tmp||0)/typed*100:(main?main.temp_ratio_pct:null);
+  const rp=G.regPay,tp=G.tmpPay;
+  const chk=(reg&&tmp&&rp&&tp)?(reg*rp+tmp*tp)/(reg+tmp):null;      // 검산: 가중평균 = 공시 1인평균?
+  const chkErr=(chk&&mPay)?(chk/mPay-1)*100:null;
+  const gPct=(rp&&tp)?(rp-tp)/rp*100:null;
+  const close=G.close!=null?G.close:50;
+  const need=(tmp&&rp&&tp&&rp>tp)?tmp*(rp-tp)*close/100:null;
+
+  // ── 원청 vs 하청 ──────────────────────────────────────────────
+  const subSel=G.sub||'';
+  const subCo=(subSel&&subSel!=='manual')?list.find(x=>x.code===subSel):null;
+  const subD=subCo||(subSel==='manual'?{name:'하청(직접입력)',year:'직접입력',
+    headcount:SM.headcount||0,avg_pay:SM.avg_pay||0,revenue:SM.revenue||0,operating_income:SM.op||0}:null);
+  const sPct=(subD&&mPay&&subD.avg_pay)?(mPay-subD.avg_pay)/mPay*100:null;
+  const close2=G.close2!=null?G.close2:50;
+  const need2=(subD&&mPay&&subD.avg_pay&&subD.headcount&&mPay>subD.avg_pay)
+    ?subD.headcount*(mPay-subD.avg_pay)*close2/100:null;
+  const unit=G.unit!=null?G.unit:3, pass=G.pass!=null?G.pass:50;
+  const extra=(subD&&subD.revenue)?subD.revenue*unit/100:null;
+  const toWage=extra!=null?extra*pass/100:null;
+  const perHead=(toWage&&subD&&subD.headcount)?toWage/subD.headcount:null;
+
+  const num=(k,lab,ph,setter)=>`<div style="flex:1;min-width:150px"><div class="lab">${lab}</div>
+    <input type="number" step="1" min="0" value="${(setter==='sub'?(SM[k]!=null?SM[k]:''):(G[k]!=null?G[k]:''))}"
+      oninput="${setter==='sub'?`setGapSubF('${k}',this.value)`:`setGap('${k}',this.value)`}"
+      style="width:100%" placeholder="${ph||''}"></div>`;
+  const opts=`<option value="">— 비교할 하청·협력사 선택 —</option>`+
+    list.filter(x=>x.code!==S.co).map(x=>`<option value="${esc(x.code)}"${x.code===subSel?' selected':''}>${esc(x.name)} (${x.year}년)</option>`).join('')+
+    `<option value="manual"${subSel==='manual'?' selected':''}>직접 입력 (비상장 협력사)</option>`;
+
+  return `<div class="card">
+    <h2>⑤ 고용형태·원하청 격차 — 좁히는 데 드는 돈</h2>
+    <div class="hint">같은 사업장 안의 <b>정규직·기간제</b>, 그리고 <b>원청과 하청</b>의 임금 차이를 숫자로 놓고,
+      그 격차를 좁히는 데 필요한 재원이 회사 손익에서 어느 정도인지 환산합니다.
+      ④에서 회사를 먼저 고르면 그 회사가 기준(원청)이 됩니다.</div>
+
+    <div class="lab" style="margin:14px 0 6px;font-weight:600;color:var(--tx)">Ⓐ 사내 고용형태 격차${mName?` — ${esc(mName)}`:''}</div>
+    ${!mName?`<div class="lab">④에서 회사를 먼저 선택하세요.</div>`:`
+    <div class="row">
+      <div class="box"><div class="lab">정규직 / 기간제 인원</div>
+        <div class="big mono" style="font-size:1.05rem">${reg!=null?won(reg):'—'} / ${tmp!=null?won(tmp):'—'}명</div>
+        <div class="lab">${main?'DART 직원현황 자동':'직접 입력'}</div></div>
+      <div class="box"><div class="lab">비정규 비율</div>
+        <div class="big mono ${tRatio!=null&&tRatio>20?'warn':''}">${fmt(tRatio,1)}%</div>
+        <div class="lab">기간제 ÷ (정규+기간제)</div></div>
+      <div class="box"><div class="lab">평균 근속연수</div>
+        <div class="big mono" style="font-size:1.05rem">${main&&main.avg_tenure_yr!=null?fmt(main.avg_tenure_yr,1)+'년':'—'}</div>
+        <div class="lab">전체 평균 (형태별 구분 없음)</div></div>
+      <div class="box"><div class="lab">공시 1인평균 연봉</div>
+        <div class="big mono" style="font-size:1.05rem">${mPay?won(mPay):'—'}원</div>
+        <div class="lab">정규·기간제 <b>합산</b> 평균</div></div>
+    </div>
+    <div class="note" style="margin-top:10px">📌 <b>DART는 고용형태별 급여를 공시하지 않습니다.</b>
+      인원만 정규직·기간제로 나뉘고 급여총액·1인평균은 합산입니다.
+      아래 두 칸은 단체협약 자료·급여명세·노조 실태조사로 확인해 직접 넣으세요.</div>
+    <div class="row" style="margin:10px 0">
+      ${num('regPay','정규직 평균 연봉 (원)','예: 120000000')}
+      ${num('tmpPay','기간제·비정규직 평균 연봉 (원)','예: 60000000')}
+      ${num('regN','정규직 인원 (비우면 공시값)')}
+      ${num('tmpN','비정규 인원 (비우면 공시값)')}
+    </div>
+    ${chkErr!=null?`<div class="lab" style="margin-bottom:10px">🔎 검산 — 넣은 값의 인원가중 평균 ${won(chk)}원은
+      공시 1인평균 ${won(mPay)}원과 <b class="${Math.abs(chkErr)<10?'pos':'neg'}">${chkErr>=0?'+':''}${fmt(chkErr,1)}%</b> 차이입니다.
+      ${Math.abs(chkErr)<10?'대체로 일치합니다.':'차이가 큽니다 — 인원 기준(연결/별도·해외법인 포함 여부)이나 급여 범위가 다를 수 있습니다.'}</div>`:''}
+    ${gPct!=null?`
+    <div class="row">
+      <div class="box"><div class="lab">임금 격차</div>
+        <div class="big mono neg">${fmt(gPct,1)}%</div>
+        <div class="lab">비정규직은 정규직의 ${fmt(100-gPct,1)}% 수준</div></div>
+      <div class="box"><div class="lab">1인당 차액</div>
+        <div class="big mono" style="font-size:1.05rem">${won(rp-tp)}원</div>
+        <div class="lab">연간 기준</div></div>
+      <div class="box"><div class="lab">해소 목표
+          <input type="number" step="5" min="0" max="100" value="${close}" oninput="setGap('close',this.value)"
+            style="width:62px;margin-left:6px"> %</div>
+        <div class="big mono" style="font-size:1.05rem">${need!=null?won(need/1e8)+'억원':'—'}</div>
+        <div class="lab">격차의 ${fmt(close,0)}%를 좁히는 데 필요한 연간 재원</div></div>
+      <div class="box"><div class="lab">손익 대비</div>
+        <div class="big mono ${need&&mOp&&need/mOp>0.1?'warn':''}">${need&&mOp?fmt(need/mOp*100,1)+'%':'—'}</div>
+        <div class="lab">영업이익 대비${need&&mRev?` · 매출 대비 ${fmt(need/mRev*100,2)}%`:''}${need&&mPayroll?` · 인건비 대비 ${fmt(need/mPayroll*100,1)}%`:''}</div></div>
+    </div>
+    <div class="note">📖 <b>읽는 법</b> — 전 직원 일괄 X% 인상(④)과 달리, 격차 해소는 <b>비정규직에게만</b> 재원이 갑니다.
+      인원이 적으면 총액도 작아 영업이익 대비 부담이 낮게 나옵니다. 그만큼 '못 한다'가 아니라
+      '얼마면 되는가'를 먼저 확정하는 것이 협상의 출발점입니다.</div>`:''}
+    `}
+
+    <div class="lab" style="margin:20px 0 6px;font-weight:600;color:var(--tx)">Ⓑ 원청 ↔ 하청·협력사 격차</div>
+    <div class="row noprint" style="margin-bottom:10px">
+      <select onchange="setGapCo(this.value)" style="background:#0d1219;border:1px solid var(--line);color:var(--tx);border-radius:7px;padding:7px 10px;font-size:.85rem;min-width:250px">${opts}</select>
+    </div>
+    ${subSel==='manual'?`<div class="row" style="margin-bottom:10px">
+      ${num('headcount','협력사 직원 수 (명)','','sub')}${num('avg_pay','협력사 1인평균 연봉 (원)','','sub')}
+      ${num('revenue','협력사 연 매출액 (원)','','sub')}${num('op','협력사 연 영업이익 (원)','','sub')}
+      </div><div class="lab" style="margin-bottom:10px">비상장 협력사는 감사보고서(DART 전자공시 → 감사보고서)나 사업자 제출 자료에서 옮겨 적으세요.</div>`:''}
+    ${!subD||!mPay?`<div class="lab">④에서 원청을 고르고 여기서 협력사를 고르면 비교가 계산됩니다.</div>`:`
+    <div class="row">
+      <div class="box"><div class="lab">${esc(mName||'원청')} 1인평균</div>
+        <div class="big mono" style="font-size:1.05rem">${won(mPay)}원</div></div>
+      <div class="box"><div class="lab">${esc(subD.name)} 1인평균</div>
+        <div class="big mono" style="font-size:1.05rem">${subD.avg_pay?won(subD.avg_pay):'—'}원</div>
+        <div class="lab">${esc(String(subD.year))}년 기준 · ${subD.headcount?won(subD.headcount)+'명':'—'}</div></div>
+      <div class="box"><div class="lab">원하청 임금 격차</div>
+        <div class="big mono ${sPct!=null&&sPct>0?'neg':'pos'}">${fmt(sPct,1)}%</div>
+        <div class="lab">${sPct!=null?`협력사는 원청의 ${fmt(100-sPct,1)}% 수준`:''}</div></div>
+      <div class="box"><div class="lab">해소 목표
+          <input type="number" step="5" min="0" max="100" value="${close2}" oninput="setGap('close2',this.value)"
+            style="width:62px;margin-left:6px"> %</div>
+        <div class="big mono" style="font-size:1.05rem">${need2!=null?won(need2/1e8)+'억원':'—'}</div>
+        <div class="lab">협력사 전 직원 기준 연간 재원</div></div>
+    </div>
+    ${need2!=null?`<table style="margin-top:12px"><thead><tr>
+        <th>부담 주체</th><th>필요 재원</th><th>영업이익 대비</th><th>매출 대비</th></tr></thead><tbody>
+      <tr><td>${esc(subD.name)} 자체 부담</td><td class="mono">${won(need2/1e8)}억원</td>
+        <td class="mono ${subD.operating_income&&need2/subD.operating_income>0.3?'neg':''}">${subD.operating_income?fmt(need2/subD.operating_income*100,1)+'%':'—'}</td>
+        <td class="mono">${subD.revenue?fmt(need2/subD.revenue*100,2)+'%':'—'}</td></tr>
+      <tr><td>${esc(mName||'원청')}이 납품단가로 전액 보전</td><td class="mono">${won(need2/1e8)}억원</td>
+        <td class="mono">${mOp?fmt(need2/mOp*100,1)+'%':'—'}</td>
+        <td class="mono">${mRev?fmt(need2/mRev*100,2)+'%':'—'}</td></tr>
+      </tbody></table>
+      <div class="note">📖 같은 금액도 <b>누가 부담하느냐</b>에 따라 체감이 다릅니다. 협력사 영업이익 대비로는 감당 불가로 보이던 금액이
+        원청 손익에서는 소수점 이하인 경우가 흔합니다. 이 표는 그 비대칭을 그대로 보여주기 위한 것입니다.</div>`:''}
+
+    <div class="lab" style="margin:16px 0 6px;font-weight:600;color:var(--tx)">납품단가 연동 시뮬레이션</div>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+      <div class="lab">납품단가 <input type="number" step="0.5" min="0" value="${unit}" oninput="setGap('unit',this.value)" style="width:70px"> % 인상 시,
+        그 중 <input type="number" step="5" min="0" max="100" value="${pass}" oninput="setGap('pass',this.value)" style="width:70px"> % 를 인건비로 배분</div>
+    </div>
+    <div class="row">
+      <div class="box"><div class="lab">협력사 추가 수입</div>
+        <div class="big mono" style="font-size:1.05rem">${extra!=null?won(extra/1e8)+'억원':'—'}</div>
+        <div class="lab">매출 × ${fmt(unit,1)}%</div></div>
+      <div class="box"><div class="lab">인건비 배분액</div>
+        <div class="big mono" style="font-size:1.05rem">${toWage!=null?won(toWage/1e8)+'억원':'—'}</div></div>
+      <div class="box"><div class="lab">1인당 인상액</div>
+        <div class="big mono pos" style="font-size:1.05rem">${perHead!=null?won(perHead)+'원':'—'}</div>
+        <div class="lab">${perHead&&subD.avg_pay?`현재 연봉의 +${fmt(perHead/subD.avg_pay*100,1)}%`:''}</div></div>
+      <div class="box"><div class="lab">격차 해소 충당률</div>
+        <div class="big mono ${toWage&&need2&&toWage/need2>=1?'pos':'warn'}">${(toWage!=null&&need2)?fmt(toWage/need2*100,0)+'%':'—'}</div>
+        <div class="lab">목표 재원 대비</div></div>
+    </div>
+    <div class="note">⚠️ 협력사 매출 전부가 이 원청 향(向)이라고 가정한 계산입니다. 거래 비중을 알면
+      '협력사 매출 × 거래비중'을 매출 칸에 넣어 다시 계산하세요. 하도급법상 <b>납품대금 연동제</b>는
+      원재료비를 대상으로 하며 인건비는 임의 합의 사항입니다 — 법적 강제 근거로 인용하지 마세요.</div>
+    `}
+
+    <div class="note">⚠️ <b>이 카드의 한계</b><br>
+      · 고용형태별 급여는 DART 미공시 → 사용자 입력값에 전적으로 의존합니다. 출처를 함께 제시하세요.<br>
+      · 하청 비교는 <b>협력사도 공시 대상</b>이거나 감사보고서를 구할 수 있을 때만 가능합니다.<br>
+      · 사내하도급·파견·용역 인력은 원청 직원현황에 잡히지 않아 여기 숫자에 포함되지 않습니다.<br>
+      · 근속·직무·근무지가 다르면 평균 비교만으로 '동일노동'을 단정할 수 없습니다.<br>
+      ⚖️ 이 계산은 어느 쪽 주장도 대변하지 않습니다. 협상 자료로 쓸 때는 원문 공시로 교차 확인하세요.</div>
   </div>`;
 }
 
@@ -438,8 +615,10 @@ function render(){
 
   ${coCard(c)}
 
+  ${gapCard(c)}
+
   <div class="card">
-    <h2>⑤ 주요국 통화량(M3) 연도별 증가율</h2>
+    <h2>⑥ 주요국 통화량(M3) 연도별 증가율</h2>
     <div class="hint">물가의 배경 조건입니다. 통화량이 실질성장보다 빠르게 늘면 물가 압력이 쌓입니다
       (다만 시차가 길고 시대에 따라 관계가 뒤집히므로 단정은 금물).</div>
     <div style="overflow-x:auto"><table><thead><tr><th>경제권</th><th>최근</th>${years}</tr></thead>

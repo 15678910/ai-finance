@@ -87,7 +87,12 @@ def corp_map(key):
 
 
 def employees(key, corp, year):
-    """직원 현황 — 직원 수·연간급여총액·1인평균급여액 (사업보고서 11011)."""
+    """직원 현황 — 인원·급여 + 고용형태(정규직/기간제) 구분 (사업보고서 11011).
+
+    DART는 정규직(rgllbr_co)과 기간제(cnttk_co) '인원'은 구분 공시하지만
+    급여는 합산으로만 공시한다. 따라서 고용형태별 임금 격차는 이 API로 알 수 없고,
+    화면에서 사용자가 직접 입력해야 한다(단체협약 자료·급여명세로 확인 가능).
+    """
     try:
         d = json.loads(_get(f"{DART}/empSttus.json?crtfc_key={key}&corp_code={corp}"
                             f"&bsns_year={year}&reprt_code=11011").decode("utf-8", "replace"))
@@ -96,10 +101,15 @@ def employees(key, corp, year):
     if d.get("status") != "000" or not d.get("list"):
         return None
     n, pay, avg_w, avg_n = 0, 0.0, 0.0, 0
+    reg, tmp, tenure_w, tenure_n = 0, 0, 0.0, 0
     for r in d["list"]:
-        c = _num(r.get("sm"))                       # 직원 수
+        c = _num(r.get("sm"))                       # 직원 수 합계
         t = _num(r.get("fyer_salary_totamt"))       # 연간급여 총액
         a = _num(r.get("jan_salary_am"))            # 1인평균 급여액
+        # 고용형태 — 정규직/기간제(단시간 포함). 항목이 없는 회사도 있어 방어적으로 합산.
+        rg = (_num(r.get("rgllbr_co")) or 0) + (_num(r.get("rgllbr_abacpt_labrr_co")) or 0)
+        ct = (_num(r.get("cnttk_co")) or 0) + (_num(r.get("cnttk_abacpt_labrr_co")) or 0)
+        tn = _num(r.get("avrg_cnwk_sdytrn"))        # 평균 근속연수
         if c:
             n += int(c)
         if t:
@@ -107,11 +117,20 @@ def employees(key, corp, year):
         if a and c:                                 # 부문별 평균을 인원 가중으로 합산
             avg_w += a * c
             avg_n += int(c)
+        reg += int(rg)
+        tmp += int(ct)
+        if tn and c:
+            tenure_w += tn * c
+            tenure_n += int(c)
     if not n:
         return None
+    typed = reg + tmp
     return {"headcount": n,
             "payroll_total": round(pay) if pay else None,
-            "avg_pay": round(avg_w / avg_n) if avg_n else (round(pay / n) if pay else None)}
+            "avg_pay": round(avg_w / avg_n) if avg_n else (round(pay / n) if pay else None),
+            "regular": reg or None, "temporary": tmp or None,
+            "temp_ratio_pct": round(tmp / typed * 100, 1) if typed else None,
+            "avg_tenure_yr": round(tenure_w / tenure_n, 1) if tenure_n else None}
 
 
 def financials(key, corp, year):
@@ -181,6 +200,8 @@ def build(code, name, key, cmap):
             "code": code, "name": name, "year": y, "fs_div": fin["fs_div"],
             "headcount": emp["headcount"], "avg_pay": emp.get("avg_pay"),
             "headcount_prev": (prev_emp or {}).get("headcount"),
+            "regular": emp.get("regular"), "temporary": emp.get("temporary"),
+            "temp_ratio_pct": emp.get("temp_ratio_pct"), "avg_tenure_yr": emp.get("avg_tenure_yr"),
             "payroll_total": pay, "revenue": rev, "operating_income": op,
             "net_income": fin.get("net_income"),
             "revenue_yoy_pct": fin.get("revenue_yoy_pct"),
@@ -206,6 +227,9 @@ def build(code, name, key, cmap):
               f"{out['payroll_to_revenue_pct']}% · 영업이익률 {out['op_margin_pct']}%")
         print(f"      전년비 매출 {out['revenue_yoy_pct']}% · 영업이익 {out['op_yoy_pct']}% · "
               f"순이익 {out['net_yoy_pct']}% · 1인당매출 {out['productivity_yoy_pct']}%")
+        if out.get("temp_ratio_pct") is not None:
+            print(f"      고용형태 정규직 {out['regular']:,}명 · 기간제 {out['temporary']:,}명 "
+                  f"(비정규 비율 {out['temp_ratio_pct']}%) · 평균근속 {out['avg_tenure_yr']}년")
         return out
     print(f"  [WARN] {name} 최근 {YEARS}개 연도 데이터 없음")
     return None
