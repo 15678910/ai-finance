@@ -120,6 +120,7 @@ function init(d){
      weights:st.weights||Object.fromEntries(items.map(i=>[i.key,i.default_weight])),
      amounts:st.amounts||Object.fromEntries(items.map(i=>[i.key,0])),
      subs:st.subs??0, spendManual:st.spendManual??300,
+     intNow:st.intNow??0, intPrev:st.intPrev??0,
      co:st.co||'', coManual:st.coManual||{}, share:st.share??30, caseRate:st.caseRate??0,
      gap:st.gap||{}, gapSubM:st.gapSubM||{},
      wage:st.wage??((d.wage&&d.wage.nominal_yoy_pct)||0)};
@@ -142,9 +143,14 @@ function calc(){
   // 소비 총액: 금액모드면 입력 합계(원), 비중모드면 사용자가 넣은 만원 단위
   const spendWon=amtMode?tw:(S.spendManual*10000);
   const subAdd=spendWon>0?(S.subs/spendWon)*100:0;
-  const felt=basket==null?null:basket+subAdd;
+  /* 주거 금융비용(대출이자) — CPI에 없는 항목이다.
+     이자는 '소비지출'이 아니라 금융거래로 분류돼 국제 기준(COICOP)상 물가에서 제외된다.
+     신규 구독과 달리 작년에도 있던 지출이므로 '전액'이 아니라 '증감분'만 물가 압력으로 본다.
+     금리가 내려 이자가 줄었다면 음수가 되어 체감물가를 낮춘다 — 그것이 맞는 계산이다. */
+  const intAdd=spendWon>0?((S.intNow||0)-(S.intPrev||0))/spendWon*100:0;
+  const felt=basket==null?null:basket+subAdd+intAdd;
   const official=(D.cpi_items&&D.cpi_items.total_yoy_pct)??null;
-  return{items,tw,basket,subAdd,felt,official,amtMode,spendWon,
+  return{items,tw,basket,subAdd,intAdd,felt,official,amtMode,spendWon,
     realOfficial:official==null?null:S.wage-official,
     realFelt:felt==null?null:S.wage-felt};
 }
@@ -995,6 +1001,27 @@ function render(){
         <input type="number" step="1000" min="0" value="${S.subs}" oninput="setF('subs',this.value)" style="width:120px;font-size:1rem">
         <div class="lab" style="margin-top:5px">작년엔 없던 지출. 공식 물가가 <b>구조적으로 못 잡는</b> 부분입니다.</div></div>
     </div>
+    <div class="row" style="margin-top:12px">
+      <div class="box" style="min-width:260px"><div class="lab">주거 금융비용 — 월 대출이자 (원)</div>
+        <div class="row" style="gap:10px;margin-top:4px">
+          <div style="flex:1"><div class="lab">현재</div>
+            <input type="number" step="10000" min="0" value="${S.intNow}" oninput="setF('intNow',this.value)" style="width:100%;font-size:1rem"></div>
+          <div style="flex:1"><div class="lab">1년 전</div>
+            <input type="number" step="10000" min="0" value="${S.intPrev}" oninput="setF('intPrev',this.value)" style="width:100%;font-size:1rem"></div>
+        </div>
+        <div class="lab" style="margin-top:6px">전세자금·주택담보·보증금 대출의 <b>월 이자</b>를 넣으세요.
+          원금 상환액은 빼고 <b>이자만</b> 넣습니다(원금은 자산 이전이지 소비가 아닙니다).</div></div>
+      <div class="box"><div class="lab">이자 증감 → 물가 기여</div>
+        <div class="big mono ${c.intAdd>0?'warn':c.intAdd<0?'pos':''}" style="font-size:1.3rem">${c.intAdd>=0?'+':''}${fmt(c.intAdd)}%p</div>
+        <div class="lab">${won((S.intNow||0)-(S.intPrev||0))}원 ÷ 소비 ${won(c.spendWon)}원<br>
+          금리가 내려 이자가 줄면 <b>마이너스</b>가 됩니다.</div></div>
+    </div>
+    <div class="note">🏠 <b>대출이자는 공식 물가에 들어 있지 않습니다.</b>
+      국제 기준(COICOP)에서 이자는 소비지출이 아니라 <b>금융거래</b>로 분류돼 물가지수에서 제외됩니다.
+      한국 소비자물가의 '주거·수도·광열'에 들어가는 것은 <b>집세(전세·월세)</b>와 수도·전기·가스요금뿐이고,
+      <b>대출이자와 자가주거비(내 집에 사는 데 드는 기회비용)는 빠져 있습니다</b>.<br>
+      → 금리가 오른 해에 "물가는 2%인데 왜 이렇게 힘든가"의 큰 부분이 여기서 옵니다.
+      위 칸에 넣으면 그만큼이 체감물가에 더해집니다.</div>
   </div>
 
   <div class="card">
@@ -1006,6 +1033,9 @@ function render(){
         <div class="lab">공식 대비 ${c.basket!=null&&c.official!=null?((c.basket-c.official)>=0?'+':'')+fmt(c.basket-c.official)+'%p':'—'}</div></div>
       <div class="box"><div class="lab">＋ 신규 구독 부담</div><div class="big mono warn">+${fmt(c.subAdd)}%p</div>
         <div class="lab">월 ${won(S.subs)}원 ÷ 소비 ${won(c.spendWon)}원</div></div>
+      <div class="box"><div class="lab">${c.intAdd>=0?'＋':'−'} 주거 금융비용</div>
+        <div class="big mono ${c.intAdd>0?'warn':c.intAdd<0?'pos':''}">${c.intAdd>=0?'+':''}${fmt(c.intAdd)}%p</div>
+        <div class="lab">월 이자 ${won(S.intNow)}원 (1년 전 ${won(S.intPrev)}원)<br>공식 물가에 없는 항목</div></div>
       <div class="box" style="border-color:var(--amb)"><div class="lab">＝ 내 체감물가</div>
         <div class="big mono warn">${fmt(c.felt)}%</div>
         <div class="lab">공식 대비 ${c.felt!=null&&c.official!=null?((c.felt-c.official)>=0?'+':'')+fmt(c.felt-c.official)+'%p':'—'}</div></div>
@@ -1057,6 +1087,9 @@ function render(){
       · 임금지수: <b>FRED ${esc(W.series_id||'')}</b> (한국 분기 임금지수), 기준 ${esc(W.asof||'—')} · ${esc(W.method||'')}<br>
       · 통화량(M3): <b>OECD SDMX</b> Monetary Aggregates, 자국통화 기준 증가율<br>
       · 데이터 생성: ${esc(D.generated_at||'')} · 자동 갱신<br>
+      · <b>대출이자</b>도 공식 CPI에 없습니다 — 국제 기준(COICOP)상 이자는 소비가 아니라 금융거래로 분류됩니다.
+        '주거·수도·광열'에 들어가는 것은 집세(전세·월세)와 수도·전기·가스요금뿐이며,
+        대출이자와 자가주거비(귀속임대료)는 제외됩니다.<br>
       · 신규 구독 부담은 <b>공식 CPI에 없는 항목</b>입니다. CPI는 '같은 물건의 가격 변화'를 재고
         '없던 지출이 새로 생긴 것'은 재지 않기 때문에, 사용자가 직접 입력하는 값입니다.<br>
       · CSV 자동 분류는 <b>가맹점명 키워드</b> 기반이라 완벽하지 않습니다. 분류 실패분은 '기타'로 들어가니
