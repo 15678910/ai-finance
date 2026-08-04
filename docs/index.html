@@ -8954,7 +8954,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     if (!d || !d.money) return;
     const V = window.__mmTab || 'money';
     const TABS = [['money', '🌍 주요국 통화량'], ['trans', '🔗 전달경로'],
-      ['prop', '🏠 실질주택가격'], ['fisc', '🧾 관세·세수']];
+      ['prop', '🏠 실질주택가격'], ['fisc', '🧾 관세·세수'], ['ineq', '⚖️ 분배·격차']];
     const nf = (v, g) => v == null || !isFinite(v) ? '—' : Number(v.toFixed(g == null ? 0 : g)).toLocaleString();
     const sgn = v => v == null ? 'var(--text-muted)' : v >= 0 ? '#4ade80' : '#f87171';
     const rc = r => Math.abs(r) >= 0.6 ? '#4ade80' : Math.abs(r) >= 0.3 ? '#fbbf24' : 'var(--text-muted)';
@@ -9075,6 +9075,51 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           </tr></thead><tbody>${rows}</tbody></table></div>
           <div style="font-size:0.54rem;color:var(--text-muted);margin-top:8px;line-height:1.75;">${h(f.note || '')}</div>`;
       }
+    }
+
+    if (V === 'ineq') {
+      const q = d.inequality || {}, us = q.us;
+      const era = (e, lab) => !e ? '' : `<tr style="border-top:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:6px 8px;font-size:0.62rem;color:var(--text-bright);white-space:nowrap;">${lab}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.5rem;color:var(--text-muted);">${h(e.from)}~${h(e.to)}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:${sgn(e.top1_chg_pp)};">${e.top1_chg_pp >= 0 ? '+' : ''}${e.top1_chg_pp}%p</td>
+        <td style="padding:6px 8px;text-align:right;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:${sgn(e.bot50_chg_pp)};">${e.bot50_chg_pp >= 0 ? '+' : ''}${e.bot50_chg_pp}%p</td></tr>`;
+      body = !us ? '<div style="font-size:0.6rem;color:var(--text-muted);">분배 데이터 없음</div>' : `<div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:150px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.25);border-radius:10px;padding:10px 13px;">
+            <div style="font-size:0.53rem;color:var(--text-muted);">🇺🇸 상위 1% 자산 점유율</div>
+            <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:#f87171;">${us.top1_pct}%</div>
+            <div style="font-size:0.48rem;color:var(--text-muted);">${h(us.start)} ${us.top1_start}% → ${us.top1_pct}% (${(us.top1_pct - us.top1_start) >= 0 ? '+' : ''}${(us.top1_pct - us.top1_start).toFixed(1)}%p)</div></div>
+          <div style="flex:1;min-width:150px;background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.25);border-radius:10px;padding:10px 13px;">
+            <div style="font-size:0.53rem;color:var(--text-muted);">🇺🇸 하위 50% 자산 점유율</div>
+            <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:#22d3ee;">${us.bot50_pct}%</div>
+            <div style="font-size:0.48rem;color:var(--text-muted);">${h(us.start)} ${us.bot50_start}% → ${us.bot50_pct}% (${(us.bot50_pct - us.bot50_start) >= 0 ? '+' : ''}${(us.bot50_pct - us.bot50_start).toFixed(1)}%p)</div></div>
+          <div style="flex:1;min-width:130px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 13px;">
+            <div style="font-size:0.53rem;color:var(--text-muted);">격차 배율</div>
+            <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${us.ratio}배</div>
+            <div style="font-size:0.48rem;color:var(--text-muted);">${h(us.asof)} 기준</div></div>
+        </div>
+        <div style="margin-top:11px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:420px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            <th style="padding:5px 8px;text-align:left;font-size:0.53rem;color:var(--text-muted);font-weight:600;">구간</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">기간</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">상위 1% 변화</th>
+            <th style="padding:5px 8px;text-align:right;font-size:0.53rem;color:var(--text-muted);font-weight:600;">하위 50% 변화</th>
+          </tr></thead><tbody>
+          ${era((us.eras || {}).pre_qe, 'QE 이전')}${era((us.eras || {}).qe, 'QE기')}${era((us.eras || {}).post, '팬데믹 이후')}
+        </tbody></table></div>
+        <div style="margin-top:10px;padding:9px 12px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);border-radius:9px;font-size:0.55rem;line-height:1.8;color:var(--text-bright);">
+          🔍 <b>'통화팽창이 양극화의 원인'인지 이 표로 판정할 수 없습니다.</b>
+          하위 50%가 가장 크게 무너진 건 <b>QE 이전</b>이고, QE기에는 오히려 회복했습니다 — 격차가 벌어진 건
+          상위 1%가 더 빨리 늘었기 때문이지 하위가 더 가난해져서가 아닙니다.
+          같은 통화팽창인데 국가별 자산가격 결과가 정반대(중국 −10.3% vs 미국 +31.6%)인 것도
+          통화량 단독 설명을 약화시킵니다. <b>증폭기일 수는 있어도 단일 원인으로 보기는 어렵습니다.</b>
+        </div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:9px;line-height:1.75;">
+          🇰🇷 <b>한국 분배지표</b>: ${q.kr ? `${h(q.kr.label)} ${q.kr.value} (${h(q.kr.asof)}) · 출처 ${h(q.kr_source || '')}` :
+            `<b style="color:#fbbf24;">미확보</b> — ${h(q.kosis_guide || '')}`}<br>
+          ⚠️ ${h(q.note || '')}
+        </div></div>`;
     }
 
     const tabs = TABS.map(([k, lab]) => `<button onclick="window.__mmTab='${k}';renderMoneyMacro()" style="padding:3px 11px;border-radius:7px;font-size:0.6rem;cursor:pointer;font-weight:${k === V ? 700 : 400};background:${k === V ? 'rgba(52,211,153,0.2)' : 'transparent'};color:${k === V ? '#34d399' : 'var(--text-muted)'};border:1px solid ${k === V ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.1)'};">${lab}</button>`).join(' ');

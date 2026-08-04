@@ -194,6 +194,105 @@ def ecos_series(key, stat, item, start="201001", end=None):
     return out
 
 
+# ── 분배·불평등 (ECOS 우선, KOSIS 폴백) ────────────────────────────
+KOSIS_BASE = "https://kosis.kr/openapi"
+# 가계금융복지조사는 통계청·한국은행·금감원 공동조사라 ECOS에도 실릴 수 있다.
+# 새 키(KOSIS) 없이 기존 BOK_API_KEY로 되는지 먼저 시도한다.
+ECOS_INEQ = {
+    "table_kw": ["가계금융", "가계 금융", "소득분배", "가계자산"],
+    "item_kw_all": [],
+    "item_kw_any": ["지니", "5분위", "분위", "순자산"],
+    "label": "가계 분배지표(지니·분위)",
+}
+
+
+def _kosis_key():
+    k = os.environ.get("KOSIS_API_KEY")
+    if k:
+        return k.strip()
+    try:
+        from core import get_secret
+        return (get_secret("KOSIS_API_KEY") or "").strip() or None
+    except Exception:
+        return None
+
+
+def inequality_block():
+    """한국 분배지표 — 통화팽창→자산→격차 사슬을 한국 데이터로 검정하기 위한 축.
+
+    미국은 Fed 분배계정(WFRBST01134 등)으로 상위1%/하위50% 자산점유율을 바로 볼 수 있으나
+    한국은 동등한 시계열이 FRED에 없다. KOSIS(키 필요) 또는 ECOS(기존 키)로 확보를 시도한다.
+    """
+    out = {"us": None, "kr": None, "kr_source": None}
+
+    # 1) 미국 — 키 없이 확보되는 기준선. 한국 값이 없어도 비교 축은 남는다.
+    top, bot = fred("WFRBST01134", "1999-01-01"), fred("WFRBSB50215", "1999-01-01")
+    ks = sorted(set(top) & set(bot))
+    if len(ks) >= 8:
+        def era(lo, hi):
+            s = [k for k in ks if lo <= k[:4] <= hi]
+            if len(s) < 4:
+                return None
+            return {"from": s[0][:7], "to": s[-1][:7],
+                    "top1_chg_pp": round(top[s[-1]] - top[s[0]], 1),
+                    "bot50_chg_pp": round(bot[s[-1]] - bot[s[0]], 1)}
+        out["us"] = {
+            "asof": ks[-1][:7], "top1_pct": round(top[ks[-1]], 1), "bot50_pct": round(bot[ks[-1]], 1),
+            "ratio": round(top[ks[-1]] / bot[ks[-1]], 1) if bot[ks[-1]] else None,
+            "top1_start": round(top[ks[0]], 1), "bot50_start": round(bot[ks[0]], 1), "start": ks[0][:7],
+            "eras": {"pre_qe": era("1999", "2008"), "qe": era("2009", "2019"), "post": era("2020", "2026")},
+            "source": "Fed Distributional Financial Accounts (FRED WFRBST01134 / WFRBSB50215)",
+            "spark_top1": [round(top[k], 1) for k in ks[-60:]],
+            "spark_bot50": [round(bot[k], 1) for k in ks[-60:]],
+        }
+        print(f"  🇺🇸 상위1% {out['us']['top1_pct']}% · 하위50% {out['us']['bot50_pct']}% "
+              f"({out['us']['asof']}) · {out['us']['start']} 대비 상위1% "
+              f"{out['us']['top1_pct'] - out['us']['top1_start']:+.1f}%p")
+    else:
+        print("  [WARN] 미국 분배계정 수집 실패")
+
+    # 2) 한국 — ECOS 우선(기존 키), 없으면 KOSIS(신규 키)
+    bok = _ecos_key()
+    if bok:
+        print("  🇰🇷 ECOS에서 분배지표 탐색:")
+        f = ecos_find(bok, ECOS_INEQ)
+        if f:
+            s = ecos_series(bok, f[0], f[1], start="201001")
+            if len(s) >= 3:
+                kk = sorted(s)
+                out["kr"] = {"asof": kk[-1][:7], "value": round(s[kk[-1]], 3),
+                             "label": f[2], "series": [{"t": k[:7], "v": round(s[k], 3)} for k in kk[-20:]]}
+                out["kr_source"] = f"ECOS {f[0]}/{f[1]}"
+                print(f"    ✅ {f[2][:30]} = {s[kk[-1]]} ({kk[-1][:7]})")
+    else:
+        print("  [INFO] BOK_API_KEY 없음 — ECOS 탐색 생략(로컬)")
+
+    if not out["kr"]:
+        kk = _kosis_key()
+        if kk:
+            print("  🇰🇷 KOSIS 시도…")
+            # KOSIS는 통계표ID를 알아야 해서 목록 검색부터 — 실패해도 전체는 계속 진행
+            try:
+                q = urllib.parse.urlencode({"method": "getList", "apiKey": kk, "vwCd": "MT_ZTITLE",
+                                            "parentListId": "A_7", "format": "json", "jsonVD": "Y"})
+                d = json.loads(_http(f"{KOSIS_BASE}/statisticsList.do?{q}", timeout=40) or "[]")
+                if isinstance(d, dict) and d.get("err"):
+                    print(f"    [WARN] KOSIS 오류 {d.get('err')}: {d.get('errMsg')}")
+                else:
+                    print(f"    KOSIS 목록 {len(d) if isinstance(d, list) else '?'}건 — 통계표 지정 필요")
+                    out["kr_source"] = "KOSIS(목록 확보, 통계표 지정 대기)"
+            except Exception as e:
+                print(f"    [WARN] KOSIS 실패: {str(e)[:60]}")
+        else:
+            print("  [INFO] KOSIS_API_KEY 없음 — 한국 분배지표 미확보")
+    out["note"] = ("미국은 Fed 분배계정으로 자산 점유율을 직접 관측할 수 있으나 한국은 동등한 공개 시계열이 없다. "
+                   "따라서 '통화팽창→자산→격차' 사슬을 한국 데이터로 직접 검정하지는 못한 상태이며, "
+                   "미국 분포는 참고 기준선일 뿐 한국에 그대로 적용할 수 없다.")
+    out["kosis_guide"] = ("KOSIS_API_KEY 발급: kosis.kr → 우측 상단 '오픈API' → 활용신청(무료, 즉시 발급) → "
+                          "GitHub 저장소 Settings > Secrets and variables > Actions 에 KOSIS_API_KEY 로 등록")
+    return out
+
+
 def seoul_property_block():
     """서울 아파트 실질 매매가격 = 명목지수 ÷ 소비자물가지수.
     BIS 전국 평균이 감추는 '지역 편차'를 보완한다."""
@@ -547,6 +646,8 @@ def main():
     cpi_items = cpi_items_block()
     print("\n[6] 임금 (실질임금·단협 근거)")
     wage = wage_block()
+    print("\n[7] 분배·불평등 (통화팽창→자산→격차 검정축)")
+    ineq = inequality_block()
 
     if not money and not prop:
         print("\n[ERROR] 주요 블록 수집 실패 — 기존 파일 보존.")
@@ -556,7 +657,7 @@ def main():
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "money": money, "transmission": trans, "property": prop,
         "seoul_property": seoul, "fiscal": fisc,
-        "cpi_items": cpi_items, "wage": wage,
+        "cpi_items": cpi_items, "wage": wage, "inequality": ineq,
         "sources": {
             "money": "OECD SDMX DF_MONAGG (M3, 월별, 자국통화) — 키 불필요",
             "us_macro": "FRED M2SL·CPIAUCSL·W006RC1Q027SBEA·B235RC1Q027SBEA·DTWEXBGS",
