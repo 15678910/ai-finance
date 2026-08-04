@@ -699,14 +699,15 @@ function pathCard(c){
         :(p1Up!=null?`단가 <b>+${fmt(p1Up,1)}%</b> 필요`:'도급비를 입력하면 필요 인상률이 나옵니다'),
      risk:T.direct?'호봉·직무급 체계와 충돌할 수 있어 임금체계 개편이 함께 필요할 수 있음'
         :'인상분이 임금으로 갔는지 확인할 장치가 없으면 업체 마진으로 흡수될 수 있음',
-     lv:T.direct?'중':'중',t:'단기(1년)'},
+     lv:T.direct?'중':'중',t:'단기(1년)',covers:totalNeed?100:null,sized:'goal'},
     {n:'② 연대임금 — '+esc(T.giverLabel)+' 인상분 이전',need:solPool,who:esc(T.giverLabel),per:solGet,
      note:solLever?`${esc(T.giverLabel)} 1인 <b>${won(solGive)}원</b> 양보 → 대상자 1인 <b>${won(solGet)}원</b> (${fmt(solLever,1)}배)`:'',
-     risk:'조합원 총회 동의 필요 — 가장 어려운 관문이자 가장 빠른 경로',lv:'상',t:'단기(1년)'},
+     risk:'조합원 총회 동의 필요 — 가장 어려운 관문이자 가장 빠른 경로',lv:'상',t:'단기(1년)',
+     covers:(solPool&&totalNeed)?solPool/totalNeed*100:null,sized:'capacity'},
     {n:'③ 공동근로복지기금·상생기금 출연',need:fundAmt,who:'회사',per:fundPer,
      note:fundCover!=null?`목표액의 <b>${fmt(fundCover,0)}%</b> 충당`:'',
      risk:'기금은 임금이 아니라 복지(학자금·의료비 등) — 실질소득은 늘지만 임금격차 지표는 그대로',
-     lv:'하',t:'중기(1~2년)'},
+     lv:'하',t:'중기(1~2년)',covers:fundCover,sized:'capacity'},
     {n:T.direct?'④ 정규직(무기계약) 전환':'④ 직접고용 전환',
      need:convNet!=null?convNet:convCost,who:'회사',per:goalPay-T.pay,
      note:convNet!=null?`총비용 ${eok(convCost)} − 현행 ${eok(convBase)} = 순증 <b>${eok(convNet)}</b>`
@@ -714,7 +715,7 @@ function pathCard(c){
      risk:T.direct?'고용 안정과 임금 인상은 별개 — 전환해도 임금이 자동으로 같아지지는 않음'
         :(convSave?`용역업체 마진 ${eok(convSave)}이 사라져 순증이 줄어듦 · 정원·직무체계 개편 수반`
           :'정원·직무체계 개편 수반 · 파견도급 구분은 법률 판단 영역'),
-     lv:'상',t:'장기(2~3년)'},
+     lv:'상',t:'장기(2~3년)',covers:totalNeed?100:null,sized:'goal'},
   ];
 
   const tsel=TARGETS.length>1?`<div class="row noprint" style="margin-bottom:10px">
@@ -791,16 +792,27 @@ function pathCard(c){
 
     <div class="lab" style="margin:22px 0 6px;font-weight:600;color:var(--tx)">💰 재원을 어디서 — 경로별 비교</div>
     <div style="overflow-x:auto"><table><thead><tr>
-      <th>경로</th><th>연간 재원</th><th>영업이익 대비</th><th>1인당 증가</th><th>부담 주체</th><th>난이도</th><th>기간</th>
+      <th>경로</th><th>연간 재원</th><th>목표 충당률</th><th>영업이익 대비</th><th>1인당 증가</th><th>부담 주체</th><th>난이도</th><th>기간</th>
     </tr></thead><tbody>
     ${ROWS.map(r=>`<tr><td><b>${r.n}</b><div class="lab" style="margin-top:3px">${r.note}</div></td>
-      <td class="mono">${eok(r.need)}원</td><td class="mono">${opPct(r.need)}</td>
+      <td class="mono">${eok(r.need)}원</td>
+      <td class="mono ${r.covers==null?'':r.covers>=100?'pos':r.covers>=50?'warn':'neg'}">${
+        r.covers==null?'—':(r.sized==='goal'?'🎯 100%':fmt(r.covers,0)+'%')}</td>
+      <td class="mono">${opPct(r.need)}</td>
       <td class="mono">${r.per!=null?won(r.per)+'원':'—'}</td><td>${r.who}</td>
       <td>${r.lv==='상'?'🔴 상':r.lv==='중'?'🟡 중':'🟢 하'}</td><td class="lab">${r.t}</td></tr>
-      <tr><td colspan="7" class="lab" style="padding-top:0;border-top:none">⚠️ ${r.risk}</td></tr>`).join('')}
+      <tr><td colspan="8" class="lab" style="padding-top:0;border-top:none">⚠️ ${r.risk}</td></tr>`).join('')}
     </tbody></table></div>
-    <div class="note">난이도·기간은 <b>일반적인 평가</b>이며 사업장 사정에 따라 완전히 달라집니다.
-      ①②③은 병행할 수 있고, 실제 합의는 대개 여러 경로를 섞습니다.</div>
+    <div class="note">📖 <b>'연간 재원'을 그대로 비교하면 안 됩니다</b> — 두 종류가 섞여 있습니다.<br>
+      · <b>🎯 목표 달성형(①④)</b> — 목표(${esc(T.baseLabel)}의 ${fmt(goal,0)}%)를 <b>채우는 데 드는 금액</b>입니다. 충당률은 정의상 100%.<br>
+      · <b>조달 가능형(②③)</b> — 위에서 정한 설정(이전 ${fmt(sol,1)}%p · 출연 ${fmt(fund,1)}%)으로
+        <b>모을 수 있는 금액</b>입니다. 목표보다 작으면 그만큼만 채웁니다.<br>
+      금액이 작다고 '싼 경로'가 아닙니다. <b>충당률 열을 함께 보세요</b> —
+      ②③의 비율을 올리려면 이전 %p나 출연율을 키워야 하고, 그만큼 부담 주체의 몫이 커집니다.<br>
+      난이도·기간은 <b>일반적인 평가</b>이며 사업장 사정에 따라 달라집니다.
+      ①②③은 병행할 수 있고 실제 합의는 대개 여러 경로를 섞습니다 —
+      ②③을 합쳐 ${(function(){const a=ROWS[1].covers||0,b=ROWS[2].covers||0;return fmt(a+b,0)})()}% 를 채우고
+      나머지를 ①로 메우는 식입니다.</div>
 
     <div class="lab" style="margin:20px 0 6px;font-weight:600;color:var(--tx)">② 연대임금 상세 — 인원 차이가 만드는 지렛대</div>
     <div class="row" style="align-items:center;margin-bottom:8px">
