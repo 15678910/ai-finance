@@ -86,12 +86,54 @@ def corp_map(key):
     return m
 
 
+TOTAL_KW = ("합계", "소계", "총계", "전체")
+
+
+def _detail_rows(rows):
+    """부문별 상세 행만 남긴다.
+
+    ⚠️ 회사에 따라 '성별합계' 같은 소계 행을 상세 행과 **함께** 공시한다.
+       그대로 다 더하면 인원·급여가 정확히 2배가 된다.
+       (실측 2026-08-05: 삼성전자 128,881명 → 257,762명, LG전자·삼성전기도 동일 증상)
+       소계 행만 공시한 회사도 있으므로, 상세 행이 없을 때만 소계를 쓴다.
+    """
+    detail = [r for r in rows
+              if not any(k in (r.get("fo_bbm") or "") for k in TOTAL_KW)]
+    return detail or rows
+
+
+def _emp_split(r):
+    """행 하나의 (정규직, 기간제) 인원 → 판별 불가면 None.
+
+    ⚠️ 단시간 근로자(*_abacpt_labrr_co)를 본 인원에 포함해 공시하는 회사와
+       따로 떼어 공시하는 회사가 섞여 있다. 문서만 보고는 알 수 없으므로
+       그 행의 합계(sm)와 맞춰 보아 어느 방식인지 판별한다.
+         삼성전자      rgllbr + cnttk           = sm  → 단시간이 이미 포함
+         LG에너지솔루션 rgllbr+단시간 + cnttk+단시간 = sm  → 단시간이 별도
+    """
+    sm = _num(r.get("sm")) or 0
+    rg = _num(r.get("rgllbr_co")) or 0
+    ra = _num(r.get("rgllbr_abacpt_labrr_co")) or 0
+    ct = _num(r.get("cnttk_co")) or 0
+    ca = _num(r.get("cnttk_abacpt_labrr_co")) or 0
+    if not sm or not (rg or ct):
+        return None
+    if abs(rg + ct - sm) < 1:
+        return rg, ct
+    if abs(rg + ra + ct + ca - sm) < 1:
+        return rg + ra, ct + ca
+    return None
+
+
 def employees(key, corp, year):
     """직원 현황 — 인원·급여 + 고용형태(정규직/기간제) 구분 (사업보고서 11011).
 
     DART는 정규직(rgllbr_co)과 기간제(cnttk_co) '인원'은 구분 공시하지만
     급여는 합산으로만 공시한다. 따라서 고용형태별 임금 격차는 이 API로 알 수 없고,
     화면에서 사용자가 직접 입력해야 한다(단체협약 자료·급여명세로 확인 가능).
+
+    ⚠️ rgllbr_abacpt_labrr_co(정규직 단시간)는 rgllbr_co에 **이미 포함된 부분집합**이다.
+       더하면 이중 계상된다. 실측으로 확인: 삼성전자 rgllbr_co + cnttk_co = sm 과 정확히 일치.
     """
     try:
         d = json.loads(_get(f"{DART}/empSttus.json?crtfc_key={key}&corp_code={corp}"
@@ -100,31 +142,47 @@ def employees(key, corp, year):
         return None
     if d.get("status") != "000" or not d.get("list"):
         return None
-    n, pay, avg_w, avg_n = 0, 0.0, 0.0, 0
-    reg, tmp, tenure_w, tenure_n = 0, 0, 0.0, 0
-    for r in d["list"]:
+    rows_all = d["list"]
+    # 인원·고용형태·근속은 상세 행에서
+    n, reg, tmp, tenure_w, tenure_n, split_ok = 0, 0, 0, 0.0, 0, True
+    for r in _detail_rows(rows_all):
         c = _num(r.get("sm"))                       # 직원 수 합계
-        t = _num(r.get("fyer_salary_totamt"))       # 연간급여 총액
-        a = _num(r.get("jan_salary_am"))            # 1인평균 급여액
-        # 고용형태 — 정규직/기간제(단시간 포함). 항목이 없는 회사도 있어 방어적으로 합산.
-        rg = (_num(r.get("rgllbr_co")) or 0) + (_num(r.get("rgllbr_abacpt_labrr_co")) or 0)
-        ct = (_num(r.get("cnttk_co")) or 0) + (_num(r.get("cnttk_abacpt_labrr_co")) or 0)
         tn = _num(r.get("avrg_cnwk_sdytrn"))        # 평균 근속연수
         if c:
             n += int(c)
-        if t:
-            pay += t
-        if a and c:                                 # 부문별 평균을 인원 가중으로 합산
-            avg_w += a * c
-            avg_n += int(c)
-        reg += int(rg)
-        tmp += int(ct)
+        sp = _emp_split(r)
+        if sp is None:
+            split_ok = False
+        else:
+            reg += int(sp[0])
+            tmp += int(sp[1])
         if tn and c:
             tenure_w += tn * c
             tenure_n += int(c)
     if not n:
         return None
+
+    # 급여는 소계 행에만 싣는 회사가 있다(삼성전자 등) → 급여가 있는 행만 골라 다시 중복 제거.
+    # 상세·소계 어느 쪽에 있든 한 벌만 더해진다.
+    pay, avg_w, avg_n = 0.0, 0.0, 0
+    for r in _detail_rows([r for r in rows_all
+                           if _num(r.get("fyer_salary_totamt")) or _num(r.get("jan_salary_am"))]):
+        c = _num(r.get("sm"))
+        t = _num(r.get("fyer_salary_totamt"))       # 연간급여 총액
+        a = _num(r.get("jan_salary_am"))            # 1인평균 급여액
+        if t:
+            pay += t
+        if a and c:                                 # 부문별 평균을 인원 가중으로 합산
+            avg_w += a * c
+            avg_n += int(c)
+
     typed = reg + tmp
+    # 검산 — 고용형태 합이 인원 합계와 어긋나면 공시 구조가 예상과 다른 것이다.
+    # 조용히 틀린 숫자를 내보내느니 경고를 남기고 고용형태만 버린다.
+    if not split_ok or (typed and abs(typed - n) > max(2, n * 0.01)):
+        if typed:
+            print(f"      [WARN] 고용형태 합 {typed:,} ≠ 인원 {n:,} — 고용형태 제외")
+        reg = tmp = typed = 0
     return {"headcount": n,
             "payroll_total": round(pay) if pay else None,
             "avg_pay": round(avg_w / avg_n) if avg_n else (round(pay / n) if pay else None),
