@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>내 체감물가 · 실질임금 계산기</title>
-<meta name="description" content="카드 이용내역 CSV를 올리면 품목별 소비액이 자동 분류되어 체감물가와 실질임금이 계산됩니다. 임금 단체협약 근거자료로 인쇄할 수 있습니다.">
+<title>내 실질임금 · 임금단협 · 양극화 해소 계산기</title>
+<meta name="description" content="카드 이용내역 CSV로 체감물가·실질임금을 계산하고, 회사 지불능력과 임금인상률 산식을 비교합니다. 정규직·비정규직, 원청·하청, 사내하도급 임금격차와 그 해소 경로까지 숫자로 냅니다.">
 <style>
   :root{--bg:#0b1017;--card:#131a24;--line:#20293a;--tx:#e6edf3;--mut:#8b98a9;
         --grn:#3fb950;--red:#f85149;--amb:#d29922;--cy:#39c5cf;--acc:#58a6ff;}
@@ -57,9 +57,11 @@
 <body>
 <div class="wrap">
 <header>
-  <h1>내 체감물가 · 실질임금 계산기</h1>
-  <div class="sub">품목별 <b>소비액</b>을 넣으면 비중이 자동 계산되어 체감물가가 나오고, 명목임금과 비교해 실질임금을 냅니다.
-    카드 이용내역 CSV를 올리면 <b>자동 분류</b>됩니다. 임금 단체협약 근거자료로 인쇄할 수 있습니다.</div>
+  <h1>내 실질임금 · 임금단협 · 양극화 해소 계산기</h1>
+  <div class="sub">①②③ <b>내 실질임금</b> — 카드내역 CSV로 체감물가를 내고 명목임금과 비교합니다.<br>
+    ④ <b>임금단협</b> — 회사 지불능력(DART)과 인상률 산식 여섯 가지를 같은 화면에 놓습니다.<br>
+    ⑤⑥ <b>양극화 해소</b> — 정규직·비정규직, 원청·하청, 사내하도급 격차를 재고 좁히는 경로별 비용을 계산합니다.<br>
+    입력값은 이 브라우저에만 저장되며 서버로 전송되지 않습니다. 단체협약 근거자료로 인쇄할 수 있습니다.</div>
 </header>
 <div id="app"><div class="card">데이터를 불러오는 중…</div></div>
 </div>
@@ -551,6 +553,56 @@ function gapCard(c){
   </div>`;
 }
 
+/* 국민경제의 노동 몫 — 임금협상에서 가장 오래된 거시 논거.
+   회사별 '인건비/매출'과는 분모가 달라(GDP vs 매출) 직접 비교하면 안 된다.
+   여기서 보는 것은 수준이 아니라 '추세와 국제 위치'다. */
+function laborShareBlock(){
+  const L=D.labor_share;
+  if(!L||!L.areas||!L.areas.length)return '';
+  const kr=L.areas.find(a=>a.code==='KOR');
+  const box=a=>`<div class="box"${a.code==='KOR'?' style="border-color:var(--amb)"':''}>
+    <div class="lab">${a.flag} ${esc(a.name)}</div>
+    <div class="big mono" style="font-size:1.05rem">${fmt(a.share_pct,1)}%</div>
+    <div class="lab">${esc(a.asof)} · ${esc(a.start_year)} 대비
+      <b class="${a.chg_since_start_pp>=0?'pos':'neg'}">${a.chg_since_start_pp>=0?'+':''}${fmt(a.chg_since_start_pp,1)}%p</b>
+      · 10년 ${a.chg_10y_pp>=0?'+':''}${fmt(a.chg_10y_pp,1)}%p</div></div>`;
+  return `<div class="lab" style="margin:18px 0 6px;font-weight:600;color:var(--tx)">거시 기준선 — 국민경제의 노동 몫</div>
+    <div class="hint" style="margin-bottom:8px">생산된 소득(GDP) 중 <b>피용자보수</b>가 차지하는 비율입니다.
+      "회사가 아니라 나라 전체에서 노동 몫이 어떻게 변했나"를 보는 지표로, 단협에서 가장 오래 쓰인 거시 논거입니다.</div>
+    <div class="row">${L.areas.map(box).join('')}</div>
+    <div class="note">📖 <b>읽는 법</b> — ${kr?`한국은 ${esc(kr.start_year)}년 ${fmt(kr.start_pct,1)}%에서 ${esc(kr.asof)}년 ${fmt(kr.share_pct,1)}%로
+      ${kr.chg_since_start_pp>=0?'올랐습니다':'내렸습니다'}. `:''}수준 자체보다 <b>방향</b>이 중요합니다.
+      노동 몫이 오르는데 내 실질임금이 제자리라면, 늘어난 몫이 고용 증가나 다른 계층으로 갔다는 뜻입니다.<br>
+      ⚠️ <b>④의 '인건비/매출'과 직접 비교하지 마세요</b> — 분모가 GDP와 매출로 완전히 다릅니다.<br>
+      ⚠️ ${esc(L.caveat||'')}<br>
+      ⚠️ ${esc(L.bok_note||'')}</div>`;
+}
+
+/* 1인당 실질 가계소비 — "통계는 올랐다는데 왜 쓸 돈이 없나"의 간극을 메우는 지표.
+   실질임금은 '근로자 1인', 이 지표는 '인구 1인'이라 부양 부담·고용 구성까지 반영된다. */
+function householdBlock(c){
+  const H=D.household;
+  if(!H||!H.areas||!H.areas.length)return '';
+  const kr=H.areas.find(a=>a.code==='KOR');
+  const rw=(c&&c.realFelt!=null&&kr)?c.realFelt-kr.avg4q_pct:null;
+  return `<div class="lab" style="margin:18px 0 6px;font-weight:600;color:var(--tx)">체감 대조 — 1인당 실질 가계소비</div>
+    <div class="hint" style="margin-bottom:8px">실질임금은 <b>근로자 1인</b> 기준이지만 이 지표는 <b>인구 1인</b> 기준입니다.
+      부양 가족 수와 고용 구성 변화까지 들어가서, 통계상 임금이 올라도 이 값이 제자리면 체감이 나아지지 않습니다.</div>
+    <div class="row">
+      ${H.areas.map(a=>`<div class="box"${a.code==='KOR'?' style="border-color:var(--amb)"':''}>
+        <div class="lab">${a.flag} ${esc(a.name)}</div>
+        <div class="big mono ${sc(a.avg4q_pct)}" style="font-size:1.05rem">${a.avg4q_pct>=0?'+':''}${fmt(a.avg4q_pct,2)}%</div>
+        <div class="lab">최근 4분기 평균 · ${esc(a.asof)} ${a.yoy_pct>=0?'+':''}${fmt(a.yoy_pct,2)}%</div></div>`).join('')}
+    </div>
+    ${rw!=null?`<div class="note">📖 내 체감물가 기준 실질임금 <b>${c.realFelt>=0?'+':''}${fmt(c.realFelt)}%</b> vs
+      한국 1인당 실질소비 <b>${kr.avg4q_pct>=0?'+':''}${fmt(kr.avg4q_pct,2)}%</b> —
+      차이 <b class="${rw>=0?'pos':'neg'}">${rw>=0?'+':''}${fmt(rw)}%p</b>.
+      ${rw>1?'임금이 소비보다 빠르게 늘고 있습니다 — 늘어난 몫이 저축·부채상환으로 갔거나, 내 물가 입력이 실제보다 낮을 수 있습니다.'
+        :rw<-1?'소비가 임금보다 빠릅니다 — 저축을 헐거나 빚으로 메우고 있을 가능성이 있습니다.'
+        :'임금과 소비가 대체로 같은 속도로 움직이고 있습니다.'}</div>`:''}
+    <div class="note">⚠️ ${esc(H.caveat||'')}<br>⚠️ ${esc(H.why||'')}</div>`;
+}
+
 /* ⑥ 격차 해소 경로 — 재는 것(⑤)과 좁히는 것은 다른 문제다.
    외주·도급 노동자는 원청과 근로계약이 없어 '임금을 올려달라'고 직접 교섭할 상대가 없다.
    그래서 실제로 쓰이는 방법은 우회로 다섯 가지이고, 각각 부담 주체·법적 근거·소요기간이
@@ -904,6 +956,8 @@ function render(){
         <div class="big mono cy">${fmt(c.felt)}%</div>
         <div class="lab">현재 ${fmt(S.wage)}% → <b>${c.felt!=null?fmt(c.felt-S.wage):'—'}%p 부족</b></div></div>
     </div>
+    ${laborShareBlock()}
+    ${householdBlock(c)}
     <div class="note">⚖️ 이 표는 <b>어느 쪽 주장도 대변하지 않습니다</b>. 공개 통계와 입력값으로 계산한 결과일 뿐이며,
       적정 임금 수준은 생산성·지불능력·업계 관행 등 여기 없는 요소도 함께 따져야 합니다.
       제출 시에는 아래 출처와 기준시점을 반드시 함께 표기하세요.</div>

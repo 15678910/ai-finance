@@ -177,21 +177,64 @@ def ecos_find(key, spec):
     return None
 
 
-def ecos_series(key, stat, item, start="201001", end=None):
-    """월별 시계열 → {YYYY-MM-01: value}"""
-    end = end or datetime.now(KST).strftime("%Y%m")
-    d = _ecos(key, f"StatisticSearch/{key}/json/kr/1/1000/{stat}/M/{start}/{end}/{item}/")
-    rows = (d.get("StatisticSearch") or {}).get("row") or []
-    out = {}
-    for r in rows:
-        t, v = r.get("TIME"), r.get("DATA_VALUE")
-        if not t or v in (None, "", "-"):
-            continue
+def _ecos_time(t):
+    """ECOS 시점 문자열 → ISO 날짜. 주기마다 형식이 달라 방어적으로 판정한다.
+        연 '2025' / 분기 '2025Q1' 또는 '20251' / 월 '202501' / 일 '20250131'
+    분기 형식은 API 버전에 따라 두 가지가 모두 관측되므로 둘 다 받는다."""
+    t = str(t).strip().upper()
+    if "Q" in t:
+        y, q = t.split("Q")[0], t.split("Q")[1]
         try:
-            out[f"{t[:4]}-{t[4:6]}-01"] = float(v)
+            return f"{y}-{(int(q) - 1) * 3 + 1:02d}-01"
         except ValueError:
-            pass
-    return out
+            return None
+    if not t.isdigit():
+        return None
+    if len(t) == 4:
+        return f"{t}-01-01"
+    if len(t) == 5:                       # YYYYQ (분기 축약형)
+        return f"{t[:4]}-{(int(t[4]) - 1) * 3 + 1:02d}-01"
+    if len(t) == 6:
+        return f"{t[:4]}-{t[4:6]}-01"
+    if len(t) == 8:
+        return f"{t[:4]}-{t[4:6]}-{t[6:8]}"
+    return None
+
+
+def ecos_series(key, stat, item, start="201001", end=None, cycles=("M", "Q", "A")):
+    """시계열 → {ISO날짜: value}. 주기를 모르면 월→분기→연 순으로 시도한다.
+
+    ⚠️ 예전엔 월(M)로 고정 호출했는데, 연간 통계(가계금융복지조사 등)에서는
+       항목을 제대로 찾고도 빈 응답이 와서 '데이터 없음'으로 오판했다.
+       주기가 맞아야 값이 나온다 — 이 폴백이 그 오판을 막는다."""
+    now = datetime.now(KST)
+    for cyc in cycles:
+        if cyc == "A":
+            s, e = start[:4], (end or now.strftime("%Y"))[:4]
+        elif cyc == "Q":
+            s = f"{start[:4]}Q{(int(start[4:6] or 1) - 1) // 3 + 1}" if len(start) >= 6 else f"{start[:4]}Q1"
+            e = end or f"{now.year}Q{(now.month - 1) // 3 + 1}"
+        else:
+            s, e = start, (end or now.strftime("%Y%m"))
+        d = _ecos(key, f"StatisticSearch/{key}/json/kr/1/1000/{stat}/{cyc}/{s}/{e}/{item}/")
+        rows = (d.get("StatisticSearch") or {}).get("row") or []
+        out = {}
+        for r in rows:
+            t, v = r.get("TIME"), r.get("DATA_VALUE")
+            if not t or v in (None, "", "-"):
+                continue
+            iso = _ecos_time(t)
+            if not iso:
+                continue
+            try:
+                out[iso] = float(v)
+            except ValueError:
+                pass
+        if out:
+            if cyc != "M":
+                print(f"    (주기 {cyc}로 확보 — {len(out)}개)")
+            return out
+    return {}
 
 
 # ── 분배·불평등 (ECOS 우선, KOSIS 폴백) ────────────────────────────
@@ -404,6 +447,128 @@ def wage_block():
             "series_id": WAGE_KR,
             "method": "분기 임금지수의 4분기 이동평균 전년비 — 상여금·계절 변동을 평활",
             "note": "실질임금 = 명목임금 상승률 − 물가상승률. 어떤 물가를 쓰느냐에 따라 결과가 달라진다."}
+
+
+# ── 노동 몫 (피용자보수 / GDP) ──────────────────────────────────────
+# 임금단협의 가장 오래된 거시 논거: "생산된 소득 중 노동에 돌아가는 몫이 얼마인가".
+# 한국은행도 같은 개념을 공표하지만(2022년부터 '노동소득분배율' → '피용자보수비율'로 개칭)
+# ECOS는 API 키가 필요하다. OECD 국민계정은 키 없이 4개국 25년치를 주므로 이쪽을 쓴다.
+#
+# ⚠️ 분모가 다르면 값이 크게 달라진다 — 아래 값은 한국은행 발표치와 다르다.
+#    · 여기(OECD)   = 피용자보수 ÷ GDP                    → 한국 48% 수준
+#    · 한국은행     = 피용자보수 ÷ 요소비용국민소득       → 한국 68% 수준
+#    요소비용국민소득은 GDP에서 고정자본소모와 생산세를 뺀 것이라 분모가 작다.
+#    둘 다 맞는 계산이며, 국제 비교에는 분모가 통일된 전자를 쓴다.
+OECD_NAMAIN = ("https://sdmx.oecd.org/public/rest/data/OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1,"
+               "/A.{areas}.S1..D1+B1GQ.......?startPeriod=2000&format=csvfilewithlabels")
+LABOR_AREAS = [("KOR", "한국", "🇰🇷"), ("USA", "미국", "🇺🇸"),
+               ("JPN", "일본", "🇯🇵"), ("DEU", "독일", "🇩🇪")]
+
+
+def labor_share_block():
+    """피용자보수/GDP — 국민경제 전체에서 노동에 돌아가는 몫."""
+    url = OECD_NAMAIN.format(areas="+".join(a for a, _, _ in LABOR_AREAS))
+    txt = _http(url, timeout=120)
+    if not txt:
+        print("  [WARN] OECD 국민계정 조회 실패")
+        return None
+    # 같은 거래코드가 산업별(ACTIVITY)·표별(TABLE_IDENTIFIER)로 중복 수록되므로
+    # 전산업(_T)·경상가격(V)·자국통화(XDC)·T0103 한 조합만 남긴다. 안 걸러내면 값이 뒤섞인다.
+    got = {}
+    for r in csv.DictReader(io.StringIO(txt)):
+        if (r.get("UNIT_MEASURE") != "XDC" or r.get("PRICE_BASE") != "V"
+                or r.get("TRANSFORMATION") != "N" or r.get("SECTOR") != "S1"
+                or r.get("ACTIVITY") not in ("_T", "_Z") or r.get("TABLE_IDENTIFIER") != "T0103"):
+            continue
+        try:
+            got.setdefault((r["REF_AREA"], r["TRANSACTION"]), {})[r["TIME_PERIOD"]] = float(r["OBS_VALUE"])
+        except (ValueError, KeyError):
+            pass
+    out = []
+    for code, name, flag in LABOR_AREAS:
+        d1, gq = got.get((code, "D1"), {}), got.get((code, "B1GQ"), {})
+        ys = sorted(set(d1) & set(gq))
+        if len(ys) < 10:
+            print(f"  [WARN] {name} 표본 부족 {len(ys)}")
+            continue
+        sh = {y: d1[y] / gq[y] * 100 for y in ys if gq[y]}
+        last, first = ys[-1], ys[0]
+        y10 = ys[-11] if len(ys) >= 11 else first
+        out.append({
+            "code": code, "name": name, "flag": flag, "asof": last,
+            "share_pct": round(sh[last], 1),
+            "start_year": first, "start_pct": round(sh[first], 1),
+            "chg_since_start_pp": round(sh[last] - sh[first], 1),
+            "chg_10y_pp": round(sh[last] - sh[y10], 1),
+            "series": [{"y": y, "v": round(sh[y], 1)} for y in ys],
+        })
+        print(f"  {flag} {name} {sh[last]:.1f}% ({last}) · {first} 대비 {sh[last] - sh[first]:+.1f}%p "
+              f"· 10년 {sh[last] - sh[y10]:+.1f}%p")
+    if not out:
+        return None
+    return {
+        "areas": out,
+        "definition": "피용자보수(D1) ÷ 국내총생산(B1GQ) — 경상가격·자국통화·전산업",
+        "source": "OECD SDMX DSD_NAMAIN10@DF_TABLE1 (키 불필요)",
+        "bok_note": ("한국은행은 같은 개념을 '피용자보수비율'(2022년까지 '노동소득분배율')로 공표하며 "
+                     "분모가 요소비용국민소득이라 값이 더 크다(한국 68% 수준). 분모만 다를 뿐 둘 다 맞는 계산이고, "
+                     "국제 비교에는 분모가 통일된 GDP 기준을 쓴다."),
+        "caveat": ("자영업자의 노동소득은 피용자보수가 아니라 영업잉여·혼합소득에 들어간다. "
+                   "자영업 비중이 큰 한국에서는 이 지표가 실제 노동 몫을 과소평가한다 — "
+                   "한국은행이 '노동소득분배율'이라는 이름을 버린 이유이기도 하다. "
+                   "자영업 비중이 줄어들면 지표는 저절로 올라가므로 상승분 전부를 분배 개선으로 읽으면 안 된다."),
+    }
+
+
+# ── 가계 소비 여력 (1인당 실질 가계소비) ───────────────────────────
+# 실질임금이 올랐다는 통계와 "쓸 돈이 없다"는 체감이 어긋날 때, 그 사이를 메우는 지표.
+# 임금은 근로자 1인 기준이지만 소비는 인구 1인 기준이라 가구 구성·고용 변화까지 반영된다.
+#
+# ⚠️ 한국은 OECD 가계 대시보드에 '가처분소득'과 '저축률'이 수록돼 있지 않다(2026-08 확인).
+#    수록된 나라는 있으나 한국은 소비·실업률·소비자심리만 제공된다.
+#    가계총처분가능소득·순저축률이 필요하면 한국은행 ECOS(키 필요) 경로를 따로 써야 한다.
+OECD_HHDASH = ("https://sdmx.oecd.org/public/rest/data/OECD.SDD.NAD,DSD_HHDASH@DF_HHDASH_CTRY,"
+               "/Q.{areas}.P3S1M_R_POP_GR.PC?startPeriod=2015&format=csvfilewithlabels")
+HH_AREAS = [("KOR", "한국", "🇰🇷"), ("USA", "미국", "🇺🇸"), ("JPN", "일본", "🇯🇵")]
+
+
+def household_block():
+    """1인당 실질 가계소비 증가율(전년동기비, 분기)."""
+    txt = _http(OECD_HHDASH.format(areas="+".join(a for a, _, _ in HH_AREAS)), timeout=90)
+    if not txt:
+        print("  [WARN] OECD 가계 대시보드 조회 실패")
+        return None
+    got = {}
+    for r in csv.DictReader(io.StringIO(txt)):
+        try:
+            got.setdefault(r["REF_AREA"], {})[r["TIME_PERIOD"]] = float(r["OBS_VALUE"])
+        except (ValueError, KeyError):
+            pass
+    out = []
+    for code, name, flag in HH_AREAS:
+        d = got.get(code) or {}
+        qs = sorted(q for q in d if "-Q" in q)
+        if len(qs) < 4:
+            print(f"  [WARN] {name} 분기 표본 부족 {len(qs)}")
+            continue
+        last = qs[-1]
+        y4 = sum(d[q] for q in qs[-4:]) / 4          # 최근 4분기 평균 = 연간 체감에 가깝다
+        out.append({"code": code, "name": name, "flag": flag, "asof": last,
+                    "yoy_pct": round(d[last], 2), "avg4q_pct": round(y4, 2),
+                    "series": [{"q": q, "v": round(d[q], 2)} for q in qs[-16:]]})
+        print(f"  {flag} {name} {last} {d[last]:+.2f}% · 최근 4분기 평균 {y4:+.2f}%")
+    if not out:
+        return None
+    return {
+        "areas": out,
+        "definition": "1인당 실질 가계·비영리단체 최종소비지출 증가율(전년동기비)",
+        "source": "OECD SDMX DSD_HHDASH@DF_HHDASH_CTRY (키 불필요)",
+        "why": ("실질임금은 '근로자 1인'이지만 이 지표는 '인구 1인'이라 가구원 수·고용률 변화까지 반영한다. "
+                "실질임금이 플러스인데 이 값이 0 부근이면, 오른 임금이 늘어난 부양 부담이나 "
+                "고용 구성 변화로 흡수됐다는 뜻이다."),
+        "caveat": ("소비는 저축을 헐거나 빚을 내서도 늘릴 수 있으므로 소득의 대용치로 쓰면 안 된다. "
+                   "한국은 OECD 대시보드에 가처분소득·저축률이 수록돼 있지 않아 소비만 본다."),
+    }
 
 
 # ── 통계 도우미 ─────────────────────────────────────────────────────
@@ -648,6 +813,10 @@ def main():
     wage = wage_block()
     print("\n[7] 분배·불평등 (통화팽창→자산→격차 검정축)")
     ineq = inequality_block()
+    print("\n[8] 노동 몫 (피용자보수/GDP — 임금단협 거시 기준선)")
+    lshare = labor_share_block()
+    print("\n[9] 가계 소비 여력 (1인당 실질 가계소비)")
+    hh = household_block()
 
     if not money and not prop:
         print("\n[ERROR] 주요 블록 수집 실패 — 기존 파일 보존.")
@@ -657,13 +826,15 @@ def main():
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "money": money, "transmission": trans, "property": prop,
         "seoul_property": seoul, "fiscal": fisc,
-        "cpi_items": cpi_items, "wage": wage, "inequality": ineq,
+        "cpi_items": cpi_items, "wage": wage, "inequality": ineq, "labor_share": lshare, "household": hh,
         "sources": {
             "money": "OECD SDMX DF_MONAGG (M3, 월별, 자국통화) — 키 불필요",
             "us_macro": "FRED M2SL·CPIAUCSL·W006RC1Q027SBEA·B235RC1Q027SBEA·DTWEXBGS",
             "property": "BIS 실질주거용부동산가격(FRED 경유, 2010=100, 명목÷물가)",
             "fx": "yfinance 최신 환율(비중 계산용 근사)",
             "seoul": "한국은행 ECOS — 통계표·항목 코드를 이름 키워드로 자동 탐색(하드코딩 없음)",
+            "labor_share": "OECD SDMX DSD_NAMAIN10@DF_TABLE1 — 피용자보수÷GDP, 키 불필요",
+            "household": "OECD SDMX DSD_HHDASH@DF_HHDASH_CTRY — 1인당 실질 가계소비 증가율, 키 불필요",
         },
         "caveats": [
             "통화량 '증가율'은 자국통화 기준이라 환율 영향이 없지만, '비중'은 최신 환율로 환산한 근사치다(과거 환율 미반영).",
