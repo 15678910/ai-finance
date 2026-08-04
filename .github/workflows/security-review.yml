@@ -50,8 +50,29 @@ jobs:
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
             | tar -xz -C /usr/local/bin gitleaks
+      # 탐지 결과를 반드시 로그에 남긴다.
+      # 예전에는 결과 없이 "leaks found: 1"만 찍혀 무엇이 걸렸는지 알 수 없었다.
+      # --redact 로 값 자체는 가려지고 위치(파일·라인·커밋·규칙)만 남는다.
       - name: Run gitleaks
-        run: gitleaks detect --source . --redact
+        run: |
+          set +e
+          gitleaks detect --source . --redact --report-format json --report-path leaks.json -v
+          code=$?
+          echo "----- 탐지 요약 (값은 가려짐) -----"
+          if [ -s leaks.json ]; then
+            echo "탐지 $(jq 'length' leaks.json)건"
+            jq -r '.[] | "규칙    : \(.RuleID)\n설명    : \(.Description)\n파일    : \(.File):\(.StartLine)\n커밋    : \(.Commit[0:12])  \(.Date)\n작성자  : \(.Author)\n엔트로피: \(.Entropy)\n지문    : \(.Fingerprint)\n"' leaks.json
+          else
+            echo "리포트 없음 (탐지 0건)"
+          fi
+          exit $code
+      - name: Upload leak report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: leaks.json
+          if-no-files-found: ignore
 
   sast-python:
     name: SAST (bandit, Python)
