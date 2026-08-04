@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>내 체감물가 · 실질임금 계산기</title>
-<meta name="description" content="공식 품목별 물가에 내 소비 비중을 적용한 체감물가와 실질임금을 계산합니다. 임금 단체협약 근거자료로 인쇄·제출할 수 있습니다.">
+<meta name="description" content="카드 이용내역 CSV를 올리면 품목별 소비액이 자동 분류되어 체감물가와 실질임금이 계산됩니다. 임금 단체협약 근거자료로 인쇄할 수 있습니다.">
 <style>
   :root{--bg:#0b1017;--card:#131a24;--line:#20293a;--tx:#e6edf3;--mut:#8b98a9;
         --grn:#3fb950;--red:#f85149;--amb:#d29922;--cy:#39c5cf;--acc:#58a6ff;}
@@ -21,10 +21,11 @@
   .hint{color:var(--mut);font-size:.78rem;margin-bottom:12px;line-height:1.65}
   table{width:100%;border-collapse:collapse}
   th,td{padding:7px 8px;text-align:right;font-size:.85rem;border-top:1px solid var(--line)}
-  th{color:var(--mut);font-weight:600;font-size:.75rem;text-align:right;border-top:none}
+  th{color:var(--mut);font-weight:600;font-size:.75rem;border-top:none}
   th:first-child,td:first-child{text-align:left}
   input[type=number]{width:74px;background:#0d1219;border:1px solid var(--line);color:var(--tx);
        border-radius:6px;padding:5px 7px;font-size:.85rem;text-align:right;font-variant-numeric:tabular-nums}
+  input.amt{width:104px}
   input:focus{outline:none;border-color:var(--acc)}
   .big{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
   .row{display:flex;gap:14px;flex-wrap:wrap}
@@ -35,9 +36,15 @@
   button{background:#1f6feb;color:#fff;border:none;border-radius:7px;padding:7px 14px;
          font-size:.82rem;cursor:pointer;font-weight:600}
   button.ghost{background:transparent;color:var(--mut);border:1px solid var(--line)}
+  button.on{background:#238636}
   .mono{font-variant-numeric:tabular-nums}
   .bar{height:7px;background:#0d1219;border-radius:4px;overflow:hidden;min-width:52px}
   .bar>i{display:block;height:100%}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;
+        color:var(--mut);font-size:.82rem;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--acc);color:var(--tx);background:#0d1219}
+  .tag{display:inline-block;background:#0d1219;border:1px solid var(--line);border-radius:20px;
+       padding:2px 10px;font-size:.72rem;margin:2px 3px 2px 0}
   @media print{
     body{background:#fff;color:#000}
     .card,.box{background:#fff;border-color:#bbb}
@@ -51,19 +58,55 @@
 <div class="wrap">
 <header>
   <h1>내 체감물가 · 실질임금 계산기</h1>
-  <div class="sub">공식 품목별 물가에 <b>내 소비 비중</b>을 적용해 체감물가를 계산하고, 명목임금과 비교해 실질임금을 냅니다.
-    임금 단체협약 근거자료로 인쇄해 제출할 수 있습니다.</div>
+  <div class="sub">품목별 <b>소비액</b>을 넣으면 비중이 자동 계산되어 체감물가가 나오고, 명목임금과 비교해 실질임금을 냅니다.
+    카드 이용내역 CSV를 올리면 <b>자동 분류</b>됩니다. 임금 단체협약 근거자료로 인쇄할 수 있습니다.</div>
 </header>
 <div id="app"><div class="card">데이터를 불러오는 중…</div></div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
-const KEY='__infl_calc_v1';
+const KEY='__infl_calc_v2';
 const fmt=(v,d)=>v==null||!isFinite(v)?'—':Number(v.toFixed(d==null?2:d)).toLocaleString();
+const won=v=>v==null||!isFinite(v)?'—':Math.round(v).toLocaleString();
 const sc=v=>v==null?'':v>=0?'pos':'neg';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let D=null,S=null;
+let D=null,S=null,LASTMAP=null;
+
+/* 가맹점명 → 품목 분류 사전.
+   카드 내역의 가맹점명은 표기가 제각각이라 완벽 분류는 불가능하다.
+   흔한 상호·업종 키워드만 잡고, 못 잡은 건 '미분류'로 남겨 사용자가 확인하게 한다. */
+const RULES=[
+  ['__subs', ['openai','chatgpt','anthropic','claude','gemini','google one','copilot','cursor',
+              'midjourney','perplexity','notion','adobe','icloud','dropbox','github']],
+  ['Recreation and culture', ['netflix','넷플릭스','youtube','유튜브','watcha','왓챠','tving','티빙','wavve','웨이브',
+              'spotify','스포티파이','멜론뮤직','지니뮤직','벅스뮤직','cgv','메가박스','롯데시네마','영화관',
+              '서점','교보문고','yes24','알라딘','스팀','steam','nintendo','플레이스테이션','게임']],
+  ['Fuels and lubricants for personal transport equipment',
+             ['주유','주유소','sk에너지','gs칼텍스','s-oil','에스오일','현대오일뱅크','알뜰주유','ev충전','충전소']],
+  ['Transport', ['지하철','버스','택시','카카오t','우버','코레일','ktx','srt','고속도로','하이패스','주차','통행료','대중교통','항공','대한항공','아시아나']],
+  // 외식·배달을 식료품보다 먼저 둔다 — '쿠팡이츠'가 식료품의 '쿠팡'에 먼저 걸리는 것을 막기 위함.
+  // 규칙은 위에서부터 순서대로 매칭되므로 '더 구체적인 것'이 앞에 와야 한다.
+  ['Restaurants and hotels',
+             ['배달의민족','배민','요기요','쿠팡이츠','스타벅스','커피','카페','투썸','이디야','메가커피','빽다방',
+              '식당','국밥','치킨','피자','버거','맥도날드','롯데리아','김밥','분식','호텔','모텔','펜션','숙박','에어비앤비']],
+  ['Food and non-alcoholic beverages',
+             ['이마트','홈플러스','롯데마트','코스트코','하나로마트','농협','슈퍼','마트','청과','정육','수산','생협','마켓컬리','오아시스','쿠팡']],
+  ['Housing, water, electricity, gas and other fuels',
+             ['관리비','도시가스','한국전력','한전','수도','상수도','월세','전기요금','난방']],
+  ['Communication', ['skt','sk텔레콤','kt','lg유플러스','lgu','유플러스','알뜰폰','통신','인터넷요금']],
+  ['Health', ['병원','의원','약국','치과','한의원','클리닉','메디컬','건강검진','안과','피부과','정형외과']],
+  ['Education', ['학원','교육','학습지','대학교','등록금','스터디','인강','ebs','과외']],
+  ['Clothing and footwear', ['유니클로','자라','무신사','나이키','아디다스','의류','신발','아울렛','스파오','탑텐']],
+  ['Furnishings, household equipment and routine household maintenance',
+             ['다이소','이케아','ikea','가구','생활용품','올리브영','홈세트','한샘']],
+  ['Alcoholic beverages, tobacco and narcotics', ['주류','와인','맥주','소주','담배','전자담배']],
+];
+function classify(name){
+  const s=(name||'').toLowerCase();
+  for(const [k,kws] of RULES){ if(kws.some(w=>s.includes(w))) return k; }
+  return null;
+}
 
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return{}}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -71,38 +114,108 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function init(d){
   D=d; const st=load();
   const items=(d.cpi_items&&d.cpi_items.items)||[];
-  S={weights:st.weights||Object.fromEntries(items.map(i=>[i.key,i.default_weight])),
-     spend:st.spend??300, subs:st.spend_subs??st.subs??0,
+  S={mode:st.mode||'amount',
+     weights:st.weights||Object.fromEntries(items.map(i=>[i.key,i.default_weight])),
+     amounts:st.amounts||Object.fromEntries(items.map(i=>[i.key,0])),
+     subs:st.subs??0, spendManual:st.spendManual??300,
      wage:st.wage??((d.wage&&d.wage.nominal_yoy_pct)||0)};
   render();
 }
+window.setMode=m=>{S.mode=m;save();render()};
 window.setW=(k,v)=>{S.weights[k]=Math.max(0,parseFloat(v)||0);save();render()};
+window.setA=(k,v)=>{S.amounts[k]=Math.max(0,parseFloat(v)||0);save();render()};
 window.setF=(k,v)=>{S[k]=Math.max(0,parseFloat(v)||0);save();render()};
 window.setWage=v=>{S.wage=parseFloat(v)||0;save();render()};
-window.reset=()=>{localStorage.removeItem(KEY);init(D)};
+window.reset=()=>{localStorage.removeItem(KEY);LASTMAP=null;init(D)};
 
 function calc(){
   const items=(D.cpi_items&&D.cpi_items.items)||[];
+  const amtMode=S.mode==='amount';
+  const raw=k=>amtMode?(S.amounts[k]||0):(S.weights[k]||0);
   let tw=0,acc=0;
-  items.forEach(i=>{const w=S.weights[i.key]||0;tw+=w;acc+=w*i.yoy_pct});
-  const basket=tw>0?acc/tw:null;                       // 비중 가중 물가
-  const subAdd=S.spend>0?(S.subs/(S.spend*10000))*100:0; // 신규 구독의 소비 대비 비중(%p)
+  items.forEach(i=>{const w=raw(i.key);tw+=w;acc+=w*i.yoy_pct});
+  const basket=tw>0?acc/tw:null;
+  // 소비 총액: 금액모드면 입력 합계(원), 비중모드면 사용자가 넣은 만원 단위
+  const spendWon=amtMode?tw:(S.spendManual*10000);
+  const subAdd=spendWon>0?(S.subs/spendWon)*100:0;
   const felt=basket==null?null:basket+subAdd;
   const official=(D.cpi_items&&D.cpi_items.total_yoy_pct)??null;
-  return{items,tw,basket,subAdd,felt,official,
+  return{items,tw,basket,subAdd,felt,official,amtMode,spendWon,
     realOfficial:official==null?null:S.wage-official,
     realFelt:felt==null?null:S.wage-felt};
 }
 
+/* ── CSV 파싱 ── 브라우저에서만 처리. 서버 전송 없음. 원본은 저장하지 않는다. */
+function parseCSV(text){
+  const rows=[];let f='',row=[],q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++} else q=false } else f+=c }
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f=''}
+    else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}
+    else if(c!=='\r')f+=c;
+  }
+  if(f||row.length){row.push(f);rows.push(row)}
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+const COL_NAME=['가맹점','상호','내용','적요','거래처','사용처','기재내용','설명','메모','항목'];
+const COL_AMT=['금액','이용금액','사용금액','승인금액','출금','출금액','결제금액','합계','거래금액'];
+
+window.onCSV=async file=>{
+  const buf=await file.arrayBuffer();
+  let text='';
+  for(const enc of ['utf-8','euc-kr']){            // 국내 카드사 CSV는 EUC-KR이 흔하다
+    try{ const t=new TextDecoder(enc,{fatal:false}).decode(buf);
+         if(!/�/.test(t.slice(0,4000))){text=t;break} if(!text)text=t; }catch(e){}
+  }
+  const rows=parseCSV(text);
+  if(rows.length<2){alert('내용을 읽지 못했습니다. CSV 파일인지 확인해 주세요.');return}
+  // 헤더 행 찾기 (앞 10줄 중 이름/금액 컬럼이 함께 있는 줄)
+  let hi=-1,ci=-1,ai=-1;
+  for(let r=0;r<Math.min(10,rows.length);r++){
+    const h=rows[r].map(x=>String(x).replace(/\s/g,''));
+    const c=h.findIndex(x=>COL_NAME.some(k=>x.includes(k)));
+    const a=h.findIndex(x=>COL_AMT.some(k=>x.includes(k)));
+    if(c>=0&&a>=0){hi=r;ci=c;ai=a;break}
+  }
+  if(hi<0){alert('가맹점명·금액 컬럼을 찾지 못했습니다.\n헤더에 「가맹점/내용」과 「금액」이 포함된 CSV를 사용해 주세요.');return}
+  const sum={},unmatched={};let subs=0,n=0,total=0;
+  for(let r=hi+1;r<rows.length;r++){
+    const nm=String(rows[r][ci]||'').trim();
+    const am=Math.abs(parseFloat(String(rows[r][ai]||'').replace(/[^0-9.\-]/g,''))||0);
+    if(!nm||!am)continue;
+    n++;total+=am;
+    const k=classify(nm);
+    if(k==='__subs')subs+=am;
+    else if(k)sum[k]=(sum[k]||0)+am;
+    else unmatched[nm]=(unmatched[nm]||0)+am;
+  }
+  if(!n){alert('집계할 거래를 찾지 못했습니다.');return}
+  const items=(D.cpi_items&&D.cpi_items.items)||[];
+  S.mode='amount';
+  S.amounts=Object.fromEntries(items.map(i=>[i.key,Math.round(sum[i.key]||0)]));
+  const misc='Miscellaneous goods and services';
+  const unTot=Object.values(unmatched).reduce((a,b)=>a+b,0);
+  if(items.some(i=>i.key===misc)) S.amounts[misc]=(S.amounts[misc]||0)+Math.round(unTot);
+  S.subs=Math.round(subs);
+  LASTMAP={n,total,subs:Math.round(subs),unmatched:Object.entries(unmatched).sort((a,b)=>b[1]-a[1]).slice(0,8),
+           unTot:Math.round(unTot),file:file.name};
+  save();render();
+};
+
 function render(){
   const c=calc(),W=D.wage||{},A=(D.money||[]);
+  const mx=Math.max(...c.items.map(x=>Math.abs(x.yoy_pct)),1);
   const rows=c.items.map(i=>{
-    const w=S.weights[i.key]||0, share=c.tw>0?w/c.tw*100:0;
-    const mx=Math.max(...c.items.map(x=>Math.abs(x.yoy_pct)),1);
+    const share=c.tw>0?(c.amtMode?(S.amounts[i.key]||0):(S.weights[i.key]||0))/c.tw*100:0;
+    const inp=c.amtMode
+      ? `<input class="amt" type="number" step="1000" min="0" value="${S.amounts[i.key]||0}" oninput="setA('${esc(i.key)}',this.value)">`
+      : `<input type="number" step="1" min="0" value="${S.weights[i.key]||0}" oninput="setW('${esc(i.key)}',this.value)">`;
     return `<tr>
       <td>${esc(i.name)}</td>
       <td class="mono ${sc(i.yoy_pct)}">${i.yoy_pct>=0?'+':''}${fmt(i.yoy_pct)}%</td>
-      <td><input type="number" step="1" min="0" value="${w}" oninput="setW('${esc(i.key)}',this.value)"></td>
+      <td>${inp}</td>
       <td class="mono" style="color:var(--mut)">${fmt(share,1)}%</td>
       <td><div class="bar"><i style="width:${(Math.abs(i.yoy_pct)/mx*100).toFixed(0)}%;background:${i.yoy_pct>=0?'var(--red)':'var(--grn)'};opacity:.75"></i></div></td>
     </tr>`}).join('');
@@ -115,16 +228,40 @@ function render(){
     </tr>`}).join('');
   const years=((A[0]||{}).annual||[]).slice(-10).map(a=>`<th>${a.year}</th>`).join('');
 
+  const mapInfo=!LASTMAP?'':`<div class="note" style="border-top:none;margin-top:10px;padding-top:0">
+      📄 <b>${esc(LASTMAP.file)}</b> — 거래 ${won(LASTMAP.n)}건 · 합계 ${won(LASTMAP.total)}원 분류 완료.
+      ${LASTMAP.subs?`구독 서비스 <b class="warn">${won(LASTMAP.subs)}원</b>은 아래 '신규 구독'으로 분리했습니다.`:''}
+      ${LASTMAP.unTot?`<br>⚠️ 자동 분류 실패 <b>${won(LASTMAP.unTot)}원</b>은 '기타'로 넣었습니다 — 아래 상호를 보고 직접 옮기세요:<br>
+        ${LASTMAP.unmatched.map(([nm,v])=>`<span class="tag">${esc(nm.slice(0,18))} ${won(v)}원</span>`).join('')}`:''}
+    </div>`;
+
   $('app').innerHTML=`
   <div class="card">
-    <h2>① 내 소비 비중 입력</h2>
-    <div class="hint">기본값은 한국 CPI 공식 가중치의 근사값입니다. <b>본인 지출에 맞게 숫자를 바꾸세요</b>(합계가 100이 아니어도 자동으로 비율 환산됩니다).
-      <b>자동차 연료</b>는 교통에 포함된 세부항목이라 기본 0입니다 — 차를 많이 쓰면 올리고 교통을 낮추세요.</div>
-    <table><thead><tr><th>품목</th><th>물가(전년비)</th><th>내 비중</th><th>환산 비율</th><th></th></tr></thead>
-      <tbody>${rows}</tbody></table>
+    <h2>① 내 소비 입력</h2>
+    <div class="hint">
+      <b>금액 모드</b>를 권합니다 — 월 소비액을 품목별로 넣으면 비중이 자동 계산됩니다.
+      <b>자동차 연료</b>는 교통에 포함된 세부항목이라 별도 칸입니다(연료비를 여기 넣으면 교통에서 빼세요).
+    </div>
+    <div class="row noprint" style="margin-bottom:12px;gap:8px">
+      <button class="${c.amtMode?'on':'ghost'}" onclick="setMode('amount')">💰 금액(원) 입력</button>
+      <button class="${c.amtMode?'ghost':'on'}" onclick="setMode('weight')">％ 비중 직접 입력</button>
+    </div>
+    <div class="drop noprint" id="dz" onclick="document.getElementById('fi').click()">
+      📂 <b>카드 이용내역 CSV를 여기에 올리면 자동 분류됩니다</b><br>
+      <span style="font-size:.76rem">클릭하거나 파일을 끌어다 놓으세요 · 카드사 홈페이지 [이용내역 다운로드] 또는 가계부 앱 내보내기<br>
+      🔒 파일은 <b>이 브라우저 안에서만</b> 읽힙니다 — 서버로 전송되지 않고 원본도 저장되지 않습니다(집계 금액만 남습니다)</span>
+    </div>
+    <input type="file" id="fi" accept=".csv,text/csv" style="display:none">
+    ${mapInfo}
+    <table style="margin-top:12px"><thead><tr>
+      <th>품목</th><th>물가(전년비)</th><th>${c.amtMode?'월 소비액(원)':'내 비중'}</th><th>환산 비율</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>
     <div class="row" style="margin-top:14px">
-      <div class="box"><div class="lab">월 소비 총액 (만원)</div>
-        <input type="number" step="10" min="0" value="${S.spend}" oninput="setF('spend',this.value)" style="width:100px;font-size:1rem"></div>
+      <div class="box"><div class="lab">월 소비 총액</div>
+        ${c.amtMode
+          ? `<div class="big mono" style="font-size:1.3rem">${won(c.tw)}원</div><div class="lab">위 입력값 자동 합계</div>`
+          : `<input type="number" step="10" min="0" value="${S.spendManual}" oninput="setF('spendManual',this.value)" style="width:100px;font-size:1rem"> <span class="lab">만원</span>`}
+      </div>
       <div class="box"><div class="lab">신규 구독 월 지출 (원) — AI·OTT·클라우드 등</div>
         <input type="number" step="1000" min="0" value="${S.subs}" oninput="setF('subs',this.value)" style="width:120px;font-size:1rem">
         <div class="lab" style="margin-top:5px">작년엔 없던 지출. 공식 물가가 <b>구조적으로 못 잡는</b> 부분입니다.</div></div>
@@ -139,7 +276,7 @@ function render(){
       <div class="box"><div class="lab">내 비중 적용</div><div class="big mono ${c.basket>c.official?'warn':''}">${fmt(c.basket)}%</div>
         <div class="lab">공식 대비 ${c.basket!=null&&c.official!=null?((c.basket-c.official)>=0?'+':'')+fmt(c.basket-c.official)+'%p':'—'}</div></div>
       <div class="box"><div class="lab">＋ 신규 구독 부담</div><div class="big mono warn">+${fmt(c.subAdd)}%p</div>
-        <div class="lab">월 ${fmt(S.subs,0)}원 ÷ 소비 ${fmt(S.spend,0)}만원</div></div>
+        <div class="lab">월 ${won(S.subs)}원 ÷ 소비 ${won(c.spendWon)}원</div></div>
       <div class="box" style="border-color:var(--amb)"><div class="lab">＝ 내 체감물가</div>
         <div class="big mono warn">${fmt(c.felt)}%</div>
         <div class="lab">공식 대비 ${c.felt!=null&&c.official!=null?((c.felt-c.official)>=0?'+':'')+fmt(c.felt-c.official)+'%p':'—'}</div></div>
@@ -185,6 +322,8 @@ function render(){
       · 데이터 생성: ${esc(D.generated_at||'')} · 자동 갱신<br>
       · 신규 구독 부담은 <b>공식 CPI에 없는 항목</b>입니다. CPI는 '같은 물건의 가격 변화'를 재고
         '없던 지출이 새로 생긴 것'은 재지 않기 때문에, 사용자가 직접 입력하는 값입니다.<br>
+      · CSV 자동 분류는 <b>가맹점명 키워드</b> 기반이라 완벽하지 않습니다. 분류 실패분은 '기타'로 들어가니
+        결과를 확인하고 직접 조정하세요.<br>
       🚨 정보 제공용이며 투자자문·법률자문이 아닙니다. 입력값은 이 브라우저에만 저장되고 서버로 전송되지 않습니다.
     </div>
     <div class="row noprint" style="margin-top:12px">
@@ -193,6 +332,15 @@ function render(){
       <a href="./" style="color:var(--mut);font-size:.8rem;align-self:center;margin-left:auto">← 전체 대시보드</a>
     </div>
   </div>`;
+
+  const fi=$('fi'),dz=$('dz');
+  if(fi){fi.onchange=e=>{if(e.target.files[0])onCSV(e.target.files[0]);e.target.value=''}}
+  if(dz){
+    dz.ondragover=e=>{e.preventDefault();dz.classList.add('over')};
+    dz.ondragleave=()=>dz.classList.remove('over');
+    dz.ondrop=e=>{e.preventDefault();dz.classList.remove('over');
+      const f=e.dataTransfer.files[0];if(f)onCSV(f)};
+  }
 }
 
 fetch('./money_macro.json?v='+Date.now(),{cache:'no-store'})
