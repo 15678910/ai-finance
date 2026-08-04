@@ -115,7 +115,11 @@ def employees(key, corp, year):
 
 
 def financials(key, corp, year):
-    """매출액·영업이익 (연결 우선, 없으면 별도)."""
+    """매출액·영업이익·당기순이익 + 전년 동일 항목 (연결 우선, 없으면 별도).
+
+    DART 응답은 당기(thstrm)와 전기(frmtrm)를 함께 주므로 한 번의 호출로 증가율까지 낼 수 있다.
+    성과배분형 임금 산식은 '전년 대비 이익 증가율'을 쓰므로 전기 값이 필수다.
+    """
     for fs in ("CFS", "OFS"):
         try:
             d = json.loads(_get(f"{DART}/fnlttSinglAcntAll.json?crtfc_key={key}&corp_code={corp}"
@@ -124,20 +128,32 @@ def financials(key, corp, year):
             continue
         if d.get("status") != "000" or not d.get("list"):
             continue
-        rev = op = None
+        cur, prv = {}, {}
         for it in d["list"]:
             nm = (it.get("account_nm") or "").replace(" ", "")
             aid = it.get("account_id") or ""
-            v = _num(it.get("thstrm_amount"))
-            if v is None:
+            c, p = _num(it.get("thstrm_amount")), _num(it.get("frmtrm_amount"))
+            if c is None:
                 continue
-            if rev is None and (nm in ("매출액", "수익(매출액)", "영업수익") or aid == "ifrs-full_Revenue"):
-                rev = v
-            if op is None and (nm == "영업이익" or aid in ("dart_OperatingIncomeLoss",
-                                                        "ifrs-full_ProfitLossFromOperatingActivities")):
-                op = v
-        if rev:
-            return {"fs_div": fs, "revenue": rev, "operating_income": op}
+            key_ = None
+            if nm in ("매출액", "수익(매출액)", "영업수익") or aid == "ifrs-full_Revenue":
+                key_ = "revenue"
+            elif nm == "영업이익" or aid in ("dart_OperatingIncomeLoss",
+                                          "ifrs-full_ProfitLossFromOperatingActivities"):
+                key_ = "operating_income"
+            elif nm in ("당기순이익", "당기순이익(손실)") or aid == "ifrs-full_ProfitLoss":
+                key_ = "net_income"
+            if key_ and key_ not in cur:
+                cur[key_] = c
+                if p is not None:
+                    prv[key_] = p
+        if cur.get("revenue"):
+            out = {"fs_div": fs, **cur}
+            for k in ("revenue", "operating_income", "net_income"):
+                if cur.get(k) is not None and prv.get(k):
+                    out[f"{k}_prev"] = prv[k]
+                    out[f"{k}_yoy_pct"] = round((cur[k] / prv[k] - 1) * 100, 1) if prv[k] else None
+            return out
     return None
 
 
@@ -154,12 +170,26 @@ def build(code, name, key, cmap):
             continue
         rev, op = fin["revenue"], fin.get("operating_income")
         pay = emp.get("payroll_total")
+        # 노동생산성 대용치 — 1인당 매출 증가율. 직원 수 전년치가 없으면 매출 증가율로 근사.
+        prod = fin.get("revenue_yoy_pct")
+        prev_emp = employees(key, corp, y - 1)
+        if prev_emp and prev_emp.get("headcount") and fin.get("revenue_prev"):
+            rph_now = rev / emp["headcount"]
+            rph_prv = fin["revenue_prev"] / prev_emp["headcount"]
+            prod = round((rph_now / rph_prv - 1) * 100, 1) if rph_prv else prod
         out = {
             "code": code, "name": name, "year": y, "fs_div": fin["fs_div"],
             "headcount": emp["headcount"], "avg_pay": emp.get("avg_pay"),
+            "headcount_prev": (prev_emp or {}).get("headcount"),
             "payroll_total": pay, "revenue": rev, "operating_income": op,
+            "net_income": fin.get("net_income"),
+            "revenue_yoy_pct": fin.get("revenue_yoy_pct"),
+            "op_yoy_pct": fin.get("operating_income_yoy_pct"),
+            "net_yoy_pct": fin.get("net_income_yoy_pct"),
+            "productivity_yoy_pct": prod,          # 1인당 매출 증가율 (노동생산성 대용)
             "payroll_to_revenue_pct": round(pay / rev * 100, 2) if (pay and rev) else None,
             "op_margin_pct": round(op / rev * 100, 2) if (op and rev) else None,
+            "net_margin_pct": round(fin["net_income"] / rev * 100, 2) if (fin.get("net_income") and rev) else None,
             "revenue_per_head": round(rev / emp["headcount"]) if emp["headcount"] else None,
         }
         # 인상률 시나리오 — 인건비 증가가 영업이익률을 얼마나 깎는지
@@ -174,6 +204,8 @@ def build(code, name, key, cmap):
         print(f"  {name}: {y}년 직원 {emp['headcount']:,}명 · 1인평균 "
               f"{(emp.get('avg_pay') or 0)/1e6:.1f}백만원 · 인건비/매출 "
               f"{out['payroll_to_revenue_pct']}% · 영업이익률 {out['op_margin_pct']}%")
+        print(f"      전년비 매출 {out['revenue_yoy_pct']}% · 영업이익 {out['op_yoy_pct']}% · "
+              f"순이익 {out['net_yoy_pct']}% · 1인당매출 {out['productivity_yoy_pct']}%")
         return out
     print(f"  [WARN] {name} 최근 {YEARS}개 연도 데이터 없음")
     return None
