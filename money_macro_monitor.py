@@ -233,6 +233,80 @@ def seoul_property_block():
     return out
 
 
+# ── 품목별 물가·임금 (체감물가 계산기/임금협상 근거용) ──────────────
+OECD_PRICES = ("https://sdmx.oecd.org/public/rest/data/OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,"
+               "/all?startPeriod={start}&format=csvfilewithlabels")
+# COICOP 영문 항목명 → 화면 표기. 계산기에서 사용자가 비중을 조정할 축이다.
+CPI_ITEMS = [
+    ("Food and non-alcoholic beverages", "식료품·비주류음료", 13.0),
+    ("Housing, water, electricity, gas and other fuels", "주거·수도·광열", 17.0),
+    ("Transport", "교통", 11.0),
+    ("Fuels and lubricants for personal transport equipment", "자동차 연료", 0.0),
+    ("Restaurants and hotels", "음식·숙박", 13.0),
+    ("Recreation and culture", "오락·문화", 7.0),
+    ("Communication", "통신", 5.0),
+    ("Health", "보건", 8.0),
+    ("Education", "교육", 7.0),
+    ("Clothing and footwear", "의류·신발", 6.0),
+    ("Furnishings, household equipment and routine household maintenance", "가정용품·가사서비스", 5.0),
+    ("Alcoholic beverages, tobacco and narcotics", "주류·담배", 2.0),
+    ("Miscellaneous goods and services", "기타 상품·서비스", 6.0),
+]
+WAGE_KR = "LCEAMN01KRQ661S"      # 한국 임금지수(분기). 상여 변동이 커 4분기 이동평균으로 평활
+
+
+def cpi_items_block():
+    """한국 품목별 전년동월비 — 체감물가 계산기의 입력값."""
+    txt = _http(OECD_PRICES.format(start="2025-06"), timeout=180)
+    if not txt or "REF_AREA" not in txt:
+        print("  [WARN] OECD 물가 수집 실패")
+        return None
+    latest, vals = "", {}
+    for r in csv.DictReader(io.StringIO(txt)):
+        if (r.get("REF_AREA") != "KOR" or r.get("FREQ") != "M"
+                or r.get("Measure") != "Consumer price index"
+                or r.get("Transformation") != "Growth rate, over 1 year"):
+            continue
+        t = r.get("TIME_PERIOD") or ""
+        try:
+            vals.setdefault(t, {})[r["Expenditure"]] = float(r["OBS_VALUE"])
+        except (ValueError, KeyError):
+            pass
+        latest = max(latest, t)
+    if not latest:
+        return None
+    cur = vals[latest]
+    items = [{"key": en, "name": ko, "default_weight": w, "yoy_pct": round(cur[en], 2)}
+             for en, ko, w in CPI_ITEMS if en in cur]
+    total = cur.get("Total")
+    print(f"  품목 {len(items)}개 ({latest}) · 총지수 {total}%")
+    for it in sorted(items, key=lambda x: -x["yoy_pct"])[:4]:
+        print(f"    {it['name']} {it['yoy_pct']:+.2f}%")
+    return {"asof": latest, "total_yoy_pct": round(total, 2) if total is not None else None,
+            "items": items,
+            "note": ("가중치는 한국 CPI 실제 가중치의 근사값(기본값)이며 사용자가 조정하는 축이다. "
+                     "'자동차 연료'는 교통에 포함된 세부항목이라 기본 가중 0 — 차를 많이 쓰는 경우만 올려 쓴다.")}
+
+
+def wage_block():
+    """한국 명목임금 상승률(4분기 이동평균) — 실질임금 계산의 분자."""
+    d = fred(WAGE_KR, "2013-01-01")
+    ks = sorted(d)
+    if len(ks) < 9:
+        print("  [WARN] 임금지수 표본 부족")
+        return None
+    ma = [(ks[i], sum(d[k] for k in ks[i - 3:i + 1]) / 4) for i in range(3, len(ks))]
+    series = []
+    for i in range(4, len(ma)):
+        series.append({"q": ma[i][0][:7], "yoy_pct": round((ma[i][1] / ma[i - 4][1] - 1) * 100, 2)})
+    last = series[-1]
+    print(f"  명목임금 {last['q']} {last['yoy_pct']:+.2f}% (4분기 이동평균)")
+    return {"asof": last["q"], "nominal_yoy_pct": last["yoy_pct"], "series": series[-24:],
+            "series_id": WAGE_KR,
+            "method": "분기 임금지수의 4분기 이동평균 전년비 — 상여금·계절 변동을 평활",
+            "note": "실질임금 = 명목임금 상승률 − 물가상승률. 어떤 물가를 쓰느냐에 따라 결과가 달라진다."}
+
+
 # ── 통계 도우미 ─────────────────────────────────────────────────────
 def yoy(d, per):
     ks = sorted(d)
@@ -337,7 +411,14 @@ def money_block():
         elif fx.get(cur):
             usd = last / fx[cur] / 1000
         gk = sorted(g)
+        # 연도별 증가율(각 연도 마지막 관측의 전년동월비) — 단협·장기추세용
+        annual = []
+        for y in range(int(gk[0][:4]) if gk else 2016, int(gk[-1][:4]) + 1 if gk else 2026):
+            yy = [k for k in gk if k.startswith(str(y))]
+            if yy:
+                annual.append({"year": y, "yoy_pct": round(g[yy[-1]], 2), "month": yy[-1][:7]})
         out.append({
+            "annual": annual,
             "code": code, "name": name, "flag": flag, "currency": cur,
             "asof": asof[:7], "level_local_mn": round(last, 0),
             "level_usd_bn": round(usd, 1) if usd else None,
@@ -462,6 +543,10 @@ def main():
     seoul = seoul_property_block()
     print("\n[4] 재정 (관세·세수)")
     fisc = fiscal_block()
+    print("\n[5] 품목별 물가 (체감물가 계산기 입력)")
+    cpi_items = cpi_items_block()
+    print("\n[6] 임금 (실질임금·단협 근거)")
+    wage = wage_block()
 
     if not money and not prop:
         print("\n[ERROR] 주요 블록 수집 실패 — 기존 파일 보존.")
@@ -471,6 +556,7 @@ def main():
         "generated_at": now.strftime("%Y-%m-%d %H:%M:%S KST"),
         "money": money, "transmission": trans, "property": prop,
         "seoul_property": seoul, "fiscal": fisc,
+        "cpi_items": cpi_items, "wage": wage,
         "sources": {
             "money": "OECD SDMX DF_MONAGG (M3, 월별, 자국통화) — 키 불필요",
             "us_macro": "FRED M2SL·CPIAUCSL·W006RC1Q027SBEA·B235RC1Q027SBEA·DTWEXBGS",

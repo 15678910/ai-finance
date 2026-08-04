@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>내 체감물가 · 실질임금 계산기</title>
+<meta name="description" content="공식 품목별 물가에 내 소비 비중을 적용한 체감물가와 실질임금을 계산합니다. 임금 단체협약 근거자료로 인쇄·제출할 수 있습니다.">
+<style>
+  :root{--bg:#0b1017;--card:#131a24;--line:#20293a;--tx:#e6edf3;--mut:#8b98a9;
+        --grn:#3fb950;--red:#f85149;--amb:#d29922;--cy:#39c5cf;--acc:#58a6ff;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+       font-size:15px;line-height:1.6}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+  header{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:20px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:.82rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .card h2{font-size:1.02rem;margin:0 0 4px}
+  .hint{color:var(--mut);font-size:.78rem;margin-bottom:12px;line-height:1.65}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 8px;text-align:right;font-size:.85rem;border-top:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:.75rem;text-align:right;border-top:none}
+  th:first-child,td:first-child{text-align:left}
+  input[type=number]{width:74px;background:#0d1219;border:1px solid var(--line);color:var(--tx);
+       border-radius:6px;padding:5px 7px;font-size:.85rem;text-align:right;font-variant-numeric:tabular-nums}
+  input:focus{outline:none;border-color:var(--acc)}
+  .big{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .box{flex:1;min-width:190px;background:#0d1219;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .lab{color:var(--mut);font-size:.74rem}
+  .pos{color:var(--grn)}.neg{color:var(--red)}.warn{color:var(--amb)}.cy{color:var(--cy)}
+  .note{color:var(--mut);font-size:.74rem;line-height:1.7;border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+  button{background:#1f6feb;color:#fff;border:none;border-radius:7px;padding:7px 14px;
+         font-size:.82rem;cursor:pointer;font-weight:600}
+  button.ghost{background:transparent;color:var(--mut);border:1px solid var(--line)}
+  .mono{font-variant-numeric:tabular-nums}
+  .bar{height:7px;background:#0d1219;border-radius:4px;overflow:hidden;min-width:52px}
+  .bar>i{display:block;height:100%}
+  @media print{
+    body{background:#fff;color:#000}
+    .card,.box{background:#fff;border-color:#bbb}
+    .noprint{display:none!important}
+    .lab,.hint,.note,th{color:#444}
+    .pos{color:#0a6b2b}.neg{color:#a01b12}.cy{color:#0b6b73}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>내 체감물가 · 실질임금 계산기</h1>
+  <div class="sub">공식 품목별 물가에 <b>내 소비 비중</b>을 적용해 체감물가를 계산하고, 명목임금과 비교해 실질임금을 냅니다.
+    임금 단체협약 근거자료로 인쇄해 제출할 수 있습니다.</div>
+</header>
+<div id="app"><div class="card">데이터를 불러오는 중…</div></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const KEY='__infl_calc_v1';
+const fmt=(v,d)=>v==null||!isFinite(v)?'—':Number(v.toFixed(d==null?2:d)).toLocaleString();
+const sc=v=>v==null?'':v>=0?'pos':'neg';
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let D=null,S=null;
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return{}}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+function init(d){
+  D=d; const st=load();
+  const items=(d.cpi_items&&d.cpi_items.items)||[];
+  S={weights:st.weights||Object.fromEntries(items.map(i=>[i.key,i.default_weight])),
+     spend:st.spend??300, subs:st.spend_subs??st.subs??0,
+     wage:st.wage??((d.wage&&d.wage.nominal_yoy_pct)||0)};
+  render();
+}
+window.setW=(k,v)=>{S.weights[k]=Math.max(0,parseFloat(v)||0);save();render()};
+window.setF=(k,v)=>{S[k]=Math.max(0,parseFloat(v)||0);save();render()};
+window.setWage=v=>{S.wage=parseFloat(v)||0;save();render()};
+window.reset=()=>{localStorage.removeItem(KEY);init(D)};
+
+function calc(){
+  const items=(D.cpi_items&&D.cpi_items.items)||[];
+  let tw=0,acc=0;
+  items.forEach(i=>{const w=S.weights[i.key]||0;tw+=w;acc+=w*i.yoy_pct});
+  const basket=tw>0?acc/tw:null;                       // 비중 가중 물가
+  const subAdd=S.spend>0?(S.subs/(S.spend*10000))*100:0; // 신규 구독의 소비 대비 비중(%p)
+  const felt=basket==null?null:basket+subAdd;
+  const official=(D.cpi_items&&D.cpi_items.total_yoy_pct)??null;
+  return{items,tw,basket,subAdd,felt,official,
+    realOfficial:official==null?null:S.wage-official,
+    realFelt:felt==null?null:S.wage-felt};
+}
+
+function render(){
+  const c=calc(),W=D.wage||{},A=(D.money||[]);
+  const rows=c.items.map(i=>{
+    const w=S.weights[i.key]||0, share=c.tw>0?w/c.tw*100:0;
+    const mx=Math.max(...c.items.map(x=>Math.abs(x.yoy_pct)),1);
+    return `<tr>
+      <td>${esc(i.name)}</td>
+      <td class="mono ${sc(i.yoy_pct)}">${i.yoy_pct>=0?'+':''}${fmt(i.yoy_pct)}%</td>
+      <td><input type="number" step="1" min="0" value="${w}" oninput="setW('${esc(i.key)}',this.value)"></td>
+      <td class="mono" style="color:var(--mut)">${fmt(share,1)}%</td>
+      <td><div class="bar"><i style="width:${(Math.abs(i.yoy_pct)/mx*100).toFixed(0)}%;background:${i.yoy_pct>=0?'var(--red)':'var(--grn)'};opacity:.75"></i></div></td>
+    </tr>`}).join('');
+
+  const money=A.map(m=>{
+    const an=(m.annual||[]).slice(-10);
+    return `<tr><td>${esc(m.flag)} ${esc(m.name)}</td>
+      <td class="mono ${sc(m.yoy_pct)}">${m.yoy_pct>=0?'+':''}${fmt(m.yoy_pct)}%</td>
+      ${an.map(a=>`<td class="mono" style="font-size:.76rem;color:${a.yoy_pct>=8?'var(--red)':a.yoy_pct<0?'var(--cy)':'var(--mut)'}">${a.yoy_pct>=0?'+':''}${fmt(a.yoy_pct,1)}</td>`).join('')}
+    </tr>`}).join('');
+  const years=((A[0]||{}).annual||[]).slice(-10).map(a=>`<th>${a.year}</th>`).join('');
+
+  $('app').innerHTML=`
+  <div class="card">
+    <h2>① 내 소비 비중 입력</h2>
+    <div class="hint">기본값은 한국 CPI 공식 가중치의 근사값입니다. <b>본인 지출에 맞게 숫자를 바꾸세요</b>(합계가 100이 아니어도 자동으로 비율 환산됩니다).
+      <b>자동차 연료</b>는 교통에 포함된 세부항목이라 기본 0입니다 — 차를 많이 쓰면 올리고 교통을 낮추세요.</div>
+    <table><thead><tr><th>품목</th><th>물가(전년비)</th><th>내 비중</th><th>환산 비율</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <div class="row" style="margin-top:14px">
+      <div class="box"><div class="lab">월 소비 총액 (만원)</div>
+        <input type="number" step="10" min="0" value="${S.spend}" oninput="setF('spend',this.value)" style="width:100px;font-size:1rem"></div>
+      <div class="box"><div class="lab">신규 구독 월 지출 (원) — AI·OTT·클라우드 등</div>
+        <input type="number" step="1000" min="0" value="${S.subs}" oninput="setF('subs',this.value)" style="width:120px;font-size:1rem">
+        <div class="lab" style="margin-top:5px">작년엔 없던 지출. 공식 물가가 <b>구조적으로 못 잡는</b> 부분입니다.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>② 내 체감물가</h2>
+    <div class="row">
+      <div class="box"><div class="lab">공식 소비자물가</div><div class="big mono">${fmt(c.official)}%</div>
+        <div class="lab">${esc((D.cpi_items||{}).asof||'')} 기준</div></div>
+      <div class="box"><div class="lab">내 비중 적용</div><div class="big mono ${c.basket>c.official?'warn':''}">${fmt(c.basket)}%</div>
+        <div class="lab">공식 대비 ${c.basket!=null&&c.official!=null?((c.basket-c.official)>=0?'+':'')+fmt(c.basket-c.official)+'%p':'—'}</div></div>
+      <div class="box"><div class="lab">＋ 신규 구독 부담</div><div class="big mono warn">+${fmt(c.subAdd)}%p</div>
+        <div class="lab">월 ${fmt(S.subs,0)}원 ÷ 소비 ${fmt(S.spend,0)}만원</div></div>
+      <div class="box" style="border-color:var(--amb)"><div class="lab">＝ 내 체감물가</div>
+        <div class="big mono warn">${fmt(c.felt)}%</div>
+        <div class="lab">공식 대비 ${c.felt!=null&&c.official!=null?((c.felt-c.official)>=0?'+':'')+fmt(c.felt-c.official)+'%p':'—'}</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>③ 실질임금 — 단체협약 근거</h2>
+    <div class="hint">실질임금 = <b>명목임금 상승률 − 물가상승률</b>. 마이너스면 임금이 올라도 구매력은 줄었다는 뜻입니다.</div>
+    <div class="row">
+      <div class="box"><div class="lab">명목임금 상승률 (%) — 수정 가능</div>
+        <input type="number" step="0.1" value="${S.wage}" oninput="setWage(this.value)" style="width:100px;font-size:1rem">
+        <div class="lab" style="margin-top:5px">기본값=한국 임금지수 ${esc(W.asof||'')} <b>${W.nominal_yoy_pct>=0?'+':''}${fmt(W.nominal_yoy_pct)}%</b><br>${esc(W.method||'')}</div></div>
+      <div class="box"><div class="lab">실질임금 — 공식물가 기준</div>
+        <div class="big mono ${sc(c.realOfficial)}">${c.realOfficial>=0?'+':''}${fmt(c.realOfficial)}%</div>
+        <div class="lab">${fmt(S.wage)}% − ${fmt(c.official)}%</div></div>
+      <div class="box" style="border-color:var(--amb)"><div class="lab">실질임금 — 내 체감물가 기준</div>
+        <div class="big mono ${sc(c.realFelt)}">${c.realFelt>=0?'+':''}${fmt(c.realFelt)}%</div>
+        <div class="lab">${fmt(S.wage)}% − ${fmt(c.felt)}%</div></div>
+      <div class="box"><div class="lab">구매력 유지에 필요한 인상률</div>
+        <div class="big mono cy">${fmt(c.felt)}%</div>
+        <div class="lab">현재 ${fmt(S.wage)}% → <b>${c.felt!=null?fmt(c.felt-S.wage):'—'}%p 부족</b></div></div>
+    </div>
+    <div class="note">⚖️ 이 표는 <b>어느 쪽 주장도 대변하지 않습니다</b>. 공개 통계와 입력값으로 계산한 결과일 뿐이며,
+      적정 임금 수준은 생산성·지불능력·업계 관행 등 여기 없는 요소도 함께 따져야 합니다.
+      제출 시에는 아래 출처와 기준시점을 반드시 함께 표기하세요.</div>
+  </div>
+
+  <div class="card">
+    <h2>④ 주요국 통화량(M3) 연도별 증가율</h2>
+    <div class="hint">물가의 배경 조건입니다. 통화량이 실질성장보다 빠르게 늘면 물가 압력이 쌓입니다
+      (다만 시차가 길고 시대에 따라 관계가 뒤집히므로 단정은 금물).</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>경제권</th><th>최근</th>${years}</tr></thead>
+      <tbody>${money}</tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>출처 · 기준시점</h2>
+    <div class="note" style="border:none;padding:0;margin:0">
+      · 품목별 소비자물가: <b>OECD</b> Consumer Price Index (전년동월비), 기준 ${esc((D.cpi_items||{}).asof||'—')}<br>
+      · 임금지수: <b>FRED ${esc(W.series_id||'')}</b> (한국 분기 임금지수), 기준 ${esc(W.asof||'—')} · ${esc(W.method||'')}<br>
+      · 통화량(M3): <b>OECD SDMX</b> Monetary Aggregates, 자국통화 기준 증가율<br>
+      · 데이터 생성: ${esc(D.generated_at||'')} · 자동 갱신<br>
+      · 신규 구독 부담은 <b>공식 CPI에 없는 항목</b>입니다. CPI는 '같은 물건의 가격 변화'를 재고
+        '없던 지출이 새로 생긴 것'은 재지 않기 때문에, 사용자가 직접 입력하는 값입니다.<br>
+      🚨 정보 제공용이며 투자자문·법률자문이 아닙니다. 입력값은 이 브라우저에만 저장되고 서버로 전송되지 않습니다.
+    </div>
+    <div class="row noprint" style="margin-top:12px">
+      <button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+      <button class="ghost" onclick="reset()">기본값으로 되돌리기</button>
+      <a href="./" style="color:var(--mut);font-size:.8rem;align-self:center;margin-left:auto">← 전체 대시보드</a>
+    </div>
+  </div>`;
+}
+
+fetch('./money_macro.json?v='+Date.now(),{cache:'no-store'})
+  .then(r=>r.ok?r.json():null).catch(()=>null)
+  .then(d=>{
+    if(!d||!d.cpi_items){$('app').innerHTML='<div class="card">데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</div>';return}
+    init(d);
+  });
+</script>
+</body>
+</html>
