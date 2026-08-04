@@ -7708,7 +7708,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ['노후준비', /노후 준비/],
       ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
       ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체|디커플링 진단/],
-      ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성/],
+      ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성|통화 저평가|외환개입/],
       ['분석·평가', /IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|분봉|단타|감정지수|적중|평가지수|성적표|백테스트|OHLC|사이클 변곡점|이벤트 사전영향|이벤트 기반/],
       ['추세추종 보드', /추세추종 신호 보드|거장 매매 추적|과열|차익실현|공포·탐욕|Fear|종합 예측 신호/],
     ];
@@ -8946,6 +8946,87 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     }
     scheduleNavRebuild();
   }
+
+  // ── 🏛️ 통화 저평가·외환개입 모니터 — REER 괴리 + FIMA 레포 + 미·일 금리차 ──
+  function renderFxIntervention(d) {
+    if (d) window.__fxiData = d;
+    d = window.__fxiData;
+    if (!d || !d.reer || !d.reer.length) return;
+    const sg = d.signal || {}, rg = d.rate_gap, fm = d.fima_repo;
+    const vc = c => c === 'green' ? '#4ade80' : c === 'cyan' ? '#22d3ee' : c === 'yellow' ? '#fbbf24' : c === 'red' ? '#f87171' : 'var(--text-muted)';
+    const nf = (v, dg) => v == null || !isFinite(v) ? '—' : Number(v.toFixed(dg == null ? 0 : dg)).toLocaleString();
+
+    // REER 카드 — 10년 레인지 위에 현재 위치를 점으로
+    const cards = d.reer.map(r => {
+      const pos = Math.max(0, Math.min(100, (r.value - r.min10y) / ((r.max10y - r.min10y) || 1) * 100));
+      const mpos = Math.max(0, Math.min(100, (r.mean10y - r.min10y) / ((r.max10y - r.min10y) || 1) * 100));
+      return `<div style="flex:1;min-width:168px;background:rgba(255,255,255,0.03);border:1px solid ${vc(r.color)}44;border-radius:10px;padding:9px 12px;">
+        <div style="display:flex;align-items:baseline;gap:5px;">
+          <span style="font-size:0.72rem;font-weight:800;color:var(--text-bright);">${r.flag} ${h(r.name)}</span>
+          <span style="margin-left:auto;font-size:0.5rem;font-weight:700;color:${vc(r.color)};">${h(r.verdict)}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:3px;">
+          <span style="font-size:1.05rem;font-weight:800;font-family:var(--font-mono);color:${vc(r.color)};">${r.dev_pct > 0 ? '+' : ''}${r.dev_pct}%</span>
+          <span style="font-size:0.5rem;color:var(--text-muted);">10년평균 대비 · z ${r.z > 0 ? '+' : ''}${r.z}</span>
+        </div>
+        <div style="position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:7px;">
+          <div style="position:absolute;left:${mpos.toFixed(1)}%;top:-2px;width:1px;height:10px;background:rgba(255,255,255,0.35);" title="10년 평균"></div>
+          <div style="position:absolute;left:${pos.toFixed(1)}%;top:-2px;transform:translateX(-50%);width:7px;height:10px;border-radius:2px;background:${vc(r.color)};"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.45rem;color:var(--text-muted);margin-top:2px;">
+          <span>${r.min10y}</span><span>REER ${r.value}${r.at_10y_low ? ' · 10년 최저' : ''}</span><span>${r.max10y}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    const fimaBox = !fm ? '' : `<div style="flex:1;min-width:250px;background:${fm.spike ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.03)'};border:1px solid ${fm.spike ? 'rgba(248,113,113,0.35)' : 'rgba(255,255,255,0.08)'};border-radius:10px;padding:9px 12px;">
+      <div style="font-size:0.58rem;font-weight:700;color:var(--text-bright);">💵 FIMA 레포 잔액 <span style="font-size:0.48rem;color:var(--text-muted);font-weight:400;">외국 중앙은행 달러 조달</span></div>
+      <div style="display:flex;align-items:baseline;gap:7px;margin-top:3px;">
+        <span style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${fm.spike ? '#f87171' : 'var(--text-bright)'};">$${fm.value_musd >= 1000 ? nf(fm.value_musd / 1000, 1) + 'B' : nf(fm.value_musd) + 'M'}</span>
+        <span style="font-size:0.5rem;color:var(--text-muted);">${h(fm.asof)} 기준 · 4주평균 $${nf(fm.avg_4w)}M</span>
+        ${fm.spike ? '<span style="font-size:0.52rem;font-weight:700;color:#f87171;">⚠️ 급증</span>' : ''}
+      </div>
+      ${fm.next_asof ? `<div style="font-size:0.5rem;color:#22d3ee;margin-top:4px;">📅 다음 공시 ${h(fm.next_asof)} — 이 값이 뛰면 그 주에 공식 개입이 있었을 가능성</div>` : ''}
+      ${(fm.past_spikes || []).length ? `<div style="font-size:0.48rem;color:var(--text-muted);margin-top:5px;line-height:1.6;border-top:1px solid rgba(255,255,255,0.07);padding-top:4px;">과거 급증: ${fm.past_spikes.slice(0, 4).map(s => `${s.date.slice(2)} <b style="color:var(--text-bright);">$${s.busd}B</b>${s.year_end ? '<span style="opacity:0.6;">(연말)</span>' : ''}`).join(' · ')}</div>` : ''}
+    </div>`;
+
+    const rgBox = !rg ? '' : `<div style="flex:1;min-width:220px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:9px 12px;">
+      <div style="font-size:0.58rem;font-weight:700;color:var(--text-bright);">📉 미·일 정책금리차 <span style="font-size:0.48rem;color:var(--text-muted);font-weight:400;">엔 캐리 동력</span></div>
+      <div style="display:flex;align-items:baseline;gap:7px;margin-top:3px;">
+        <span style="font-size:1.0rem;font-weight:800;font-family:var(--font-mono);color:${rg.gap_pp >= 3 ? '#f87171' : rg.gap_pp >= 1.5 ? '#fbbf24' : '#4ade80'};">${rg.gap_pp}%p</span>
+        <span style="font-size:0.5rem;color:var(--text-muted);">캐리 유인 ${h(rg.carry)}${rg.gap_chg_6m_pp != null ? ` · 6개월 ${rg.gap_chg_6m_pp > 0 ? '+' : ''}${rg.gap_chg_6m_pp}%p` : ''}</span>
+      </div>
+      <div style="font-size:0.48rem;color:var(--text-muted);margin-top:4px;line-height:1.6;">美 ${rg.us_rate}% (${h(rg.us_asof)}) − 日 ${rg.jp_rate}% (${h(rg.jp_asof)})<br>격차가 빠르게 좁아지면 캐리 청산 → 글로벌 위험자산 동반 조정 위험</div>
+    </div>`;
+
+    const html = `<section class="section-wrap" id="fx-intervention-section">
+      <div class="section-label" style="color:#38bdf8;">🏛️ 통화 저평가·외환개입 모니터 <span style="font-size:0.62rem;color:var(--text-muted);">(BIS 실질실효환율 · FIMA 레포 · 미·일 금리차)</span></div>
+      <div class="glass-card" style="padding:12px 16px 14px;">
+        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+          <span style="font-size:0.8rem;font-weight:800;color:${vc(sg.color)};">${h(sg.level || '')}</span>
+          <span style="font-size:0.52rem;color:var(--text-muted);">개입 압력 점수 ${sg.score}</span>
+          <span style="margin-left:auto;font-size:0.48rem;color:var(--text-muted);">${h(d.generated_at || '')}</span>
+        </div>
+        ${(sg.reasons || []).length ? `<div style="font-size:0.53rem;color:var(--text-muted);margin-top:4px;line-height:1.6;">${sg.reasons.map(h).join(' · ')}</div>` : ''}
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:10px;">${cards}</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:9px;">${fimaBox}${rgBox}</div>
+        <div style="font-size:0.53rem;color:var(--text-muted);margin-top:11px;line-height:1.75;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+          📖 <b>REER(실질실효환율)</b>=교역 상대국 물가차를 반영한 실질 통화가치(BIS, 2020=100). 명목환율보다 저평가 판단에 적합합니다. 막대는 10년 레인지에서 현재 위치, 흰 선은 10년 평균입니다.<br>
+          💡 <b>내 포트폴리오와의 연결</b> — ${h(d.portfolio_note || '')}<br>
+          ⚠️ <b>${h((d.method || {}).caveat || '')}</b><br>
+          ${fm ? `⚠️ ${h(fm.caveat || '')}<br>` : ''}
+          🚨 ${h(d.note || '')}
+        </div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('fx-intervention-section');
+    if (existing) { existing.outerHTML = html; return; }
+    const tmp = document.createElement('div'); tmp.innerHTML = html; const node = tmp.firstElementChild;
+    const anchor = document.getElementById('fx-swap-section') || document.getElementById('kospi-val-section') || document.getElementById('portfolio-section');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else (document.getElementById('app') || document.body).appendChild(node);
+  }
+  window.renderFxIntervention = renderFxIntervention;
 
   function renderFxSwap(d) {
     if (!d || !Array.isArray(d.indicators)) return;
@@ -13662,6 +13743,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./fx_swap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderFxSwap(d); });
+      // 통화 저평가·외환개입 모니터 (BIS 실질실효환율 · FIMA 레포 · 미·일 금리차)
+      fetch('./fx_intervention.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderFxIntervention(d); } catch (e) { } } });
       // Load Asia Semiconductor Monitor (아시아 반도체 당일 동조 — 디커플링 선행동력)
       fetch('./asia_semi.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
