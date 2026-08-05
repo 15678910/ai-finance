@@ -144,10 +144,30 @@ def main():
                  f"  후행PER {_r2(kv.get('per'))} · PBR {_r2(kv.get('pbr'))} · 배당 {_r2(kv.get('div_yield'))}%")
 
     # ── 예측 성적 자기평가 ──
+    # 제목만 싣고 본문을 비워 두면 "PQI 58.4"라는 숫자 하나만 남아 아무 판단도 못 한다.
+    # prediction_quality.py 가 이미 진단·권고까지 만들어 두므로 그것을 함께 보인다.
     pq = L("prediction_quality")
     if pq.get("pqi_overall") is not None:
-        S.append(f"🎯 예측 자기평가: PQI {pq['pqi_overall']} {pq.get('grade', '')}"
-                 + (f" (추세 {pq.get('trend'):+})" if pq.get("trend") is not None else ""))
+        head = (f"🎯 예측 자기평가: PQI {pq['pqi_overall']} {pq.get('grade', '')}"
+                + (f" (추세 {pq.get('trend'):+})" if pq.get("trend") is not None else ""))
+        lines = []
+        dg = pq.get("diagnosis") or {}
+        if dg:
+            lines.append(f"  방향 {dg.get('dir_avg', '—')}% · 종가오차 {dg.get('mae_avg', '—')}% · "
+                         f"밴드적중 {dg.get('range_avg', '—')}% · 급오차일 {dg.get('big_miss_avg', '—')}%")
+        # 모델별 성적 — 어느 모델이 발목을 잡는지 한 줄로
+        ms = [m for m in (pq.get("models") or []) if isinstance(m, dict) and m.get("pqi") is not None]
+        if ms:
+            ms.sort(key=lambda m: m["pqi"], reverse=True)
+            lines.append("  " + " · ".join(f"{m.get('name')} {m['pqi']}" for m in ms[:4]))
+        # 자동진단 권고 — 우선순위 순, 자동적용 가능 여부까지
+        for r in (pq.get("recommendations") or [])[:2]:
+            mark = "🔧" if r.get("auto_safe") else "⚠️"
+            lines.append(f"  {mark} {r.get('issue')} → {r.get('fix')}")
+        dv = pq.get("delta_vs_prev_version")
+        if dv is not None:
+            lines.append(f"  이전 모델 버전 대비 {dv:+}p")
+        S.append(head + ("\n" + "\n".join(lines) if lines else ""))
 
     # ── 오늘·내일 일정 ──
     ec = L("economic_calendar")
