@@ -53,6 +53,12 @@ def main():
 
     # ── 밤사이 해외 ──
     ov = L("overseas_market")
+    # 해외 수집기가 아직 안 돌았는데 브리핑만 먼저 나가면 '어제 밤사이'를 오늘 것으로 싣게 된다.
+    # 예약 지연 폭이 매일 달라 순서가 뒤집힐 수 있으므로 기준 시각을 직접 확인한다.
+    _ovg = str(ov.get("generated_at") or "")[:10]
+    if _ovg and _ovg != now.strftime("%Y-%m-%d"):
+        print(f"  [WARN] 해외 데이터가 {_ovg} 자 — 오늘({now:%Y-%m-%d}) 것이 아니다. "
+              f"브리핑에 '기준' 표기를 덧붙인다.")
     mk = (ov.get("markets") or {})
     lines = []
     # 앞에서부터 [:4]로 자르면 목록 뒤쪽의 '필라델피아 반도체'가 매번 잘려나갔다.
@@ -69,7 +75,9 @@ def main():
             tag = " ⭐" if nm == "필라델피아 반도체" else ""      # 국내 반도체 직결 지표
             lines.append(f"  {arrow} {nm} {pct(ch)}{tag}")
     if lines:
-        S.append("🌎 밤사이 해외\n" + "\n".join(lines[:9]))
+        # 데이터가 오늘 것이 아니면 제목에 기준일을 박아 오해를 막는다.
+        _t = "🌎 밤사이 해외" + (f" (기준 {_ovg})" if _ovg and _ovg != now.strftime("%Y-%m-%d") else "")
+        S.append(_t + "\n" + "\n".join(lines[:9]))
 
     # ── 오늘 시초가·종합신호 ──
     cs = L("composite_signal")

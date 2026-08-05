@@ -11065,7 +11065,9 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   }
   window.renderRetire = renderRetire;
 
-  // ── 🌅 모닝 브리핑 — 매일 07:00 자동 생성 종합 리포트 (텔레그램과 동일 내용) ──
+  // ── 🌅 모닝 브리핑 — 이른 아침 자동 생성 종합 리포트 (텔레그램과 동일 내용)
+//    ⚠️ 예약은 05:30 KST 지만 GitHub Actions 지연으로 실제 완료는 07:00~08:00 이다.
+//       그 사이엔 어제 브리핑이 남으므로 staleBanner 로 반드시 알린다.
   function renderMorningReport(d) {
     if (d) window.__mrData = d;
     d = window.__mrData;
@@ -11075,7 +11077,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const cur = sel === d.date ? d : (AR.find(a => a.date === sel) || d);
     const secs = cur.sections || [];
     const dates = [{ date: d.date, weekday: d.weekday }].concat(AR.map(a => ({ date: a.date, weekday: a.weekday })));
-    const tabs = dates.slice(0, 8).map((x, i) => `<button onclick="window.__mrDate='${x.date}';renderMorningReport()" style="padding:2px 9px;border-radius:6px;font-size:0.55rem;cursor:pointer;font-weight:${x.date === sel ? 700 : 400};background:${x.date === sel ? 'rgba(251,191,36,0.2)' : 'transparent'};color:${x.date === sel ? '#fbbf24' : 'var(--text-muted)'};border:1px solid ${x.date === sel ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)'};">${i === 0 ? '오늘' : x.date.slice(5)}${x.weekday ? `(${x.weekday})` : ''}</button>`).join(' ');
+    const tabs = dates.slice(0, 8).map((x, i) => `<button onclick="window.__mrDate='${x.date}';renderMorningReport()" style="padding:2px 9px;border-radius:6px;font-size:0.55rem;cursor:pointer;font-weight:${x.date === sel ? 700 : 400};background:${x.date === sel ? 'rgba(251,191,36,0.2)' : 'transparent'};color:${x.date === sel ? '#fbbf24' : 'var(--text-muted)'};border:1px solid ${x.date === sel ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)'};">${i === 0 ? (x.date === new Date(Date.now() + 324e5).toISOString().slice(0, 10) ? '오늘' : '최신') : x.date.slice(5)}${x.weekday ? `(${x.weekday})` : ''}</button>`).join(' ');
     const colorize = t => t
       .replace(/([+\-]\d+(?:\.\d+)?%p?)/g, m => `<b style="color:${m[0] === '+' ? '#4ade80' : '#f87171'};font-family:var(--font-mono);">${m}</b>`)
       .replace(/(🔥)/g, '<span style="color:#fb923c;">$1</span>');
@@ -11084,9 +11086,21 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       <div style="font-size:0.62rem;line-height:1.75;color:var(--text);">${(s.lines || []).map(l => colorize(h(l.trim()))).join('<br>')}</div>
     </div>`).join('');
     const head = (secs[0] && secs[0].lines && secs[0].lines[0]) || '';
+    // 오늘(KST) 날짜와 브리핑 날짜가 다르면 그대로 두지 않고 알린다.
+    // GitHub Actions 예약이 70~100분씩 밀려, 이른 아침엔 어제 브리핑이 '오늘' 자리에 남는다.
+    // 다른 패널은 이미 갱신돼 있어 숫자가 어긋나는데 아무 표시가 없으면 오해한다.
+    const _kstToday = new Date(Date.now() + 324e5).toISOString().slice(0, 10);   // UTC+9
+    const _isStale = sel === d.date && d.date !== _kstToday;
+    const staleBanner = _isStale ? `<div style="background:rgba(251,146,60,0.12);border:1px solid rgba(251,146,60,0.45);
+        border-radius:8px;padding:8px 11px;margin-bottom:9px;font-size:0.6rem;line-height:1.6;color:#fdba74;">
+        ⏳ <b>오늘(${_kstToday.slice(5)}) 브리핑은 아직 생성 전입니다.</b>
+        아래는 <b>${h(d.date.slice(5))}</b> 자료라 위쪽 시세 패널과 수치가 다를 수 있습니다.
+        <span style="color:var(--text-muted);">자동 생성은 보통 07:00~08:00 KST에 완료됩니다.</span>
+      </div>` : '';
     const html = `<section class="section-wrap" id="morning-report-section">
-      <div class="section-label" style="color:#fbbf24;">🌅 모닝 브리핑 <span style="font-size:0.62rem;color:var(--text-muted);">(매일 07:00 자동 생성 · 텔레그램과 동일 내용)</span></div>
+      <div class="section-label" style="color:#fbbf24;">🌅 모닝 브리핑 <span style="font-size:0.62rem;color:var(--text-muted);">(매일 이른 아침 자동 생성 · 텔레그램과 동일 내용)</span></div>
       <div class="glass-card" style="padding:14px 16px;">
+        ${staleBanner}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:9px;">
           <span style="font-size:0.68rem;font-weight:800;color:var(--text-bright);font-family:var(--font-mono);">${h(cur.date)}${cur.weekday ? ` (${h(cur.weekday)})` : ''}</span>
           ${sel !== d.date ? '<span style="font-size:0.52rem;color:var(--text-muted);">지난 브리핑</span>' : `<span style="font-size:0.52rem;color:var(--text-muted);">${h(head)}</span>`}
