@@ -163,7 +163,11 @@ def main():
     kv = L("kospi_valuation")
     if kv.get("per") is not None:
         _r2 = lambda v: (f"{float(v):.2f}".rstrip("0").rstrip(".") if v is not None else "—")
-        S.append(f"📐 코스피 밸류 ({kv.get('asof', '')})\n"
+        # 기준일이 직전 거래일보다 뒤처지면 그대로 두지 않고 표기한다.
+        # 폴백 출처가 하루 늦게 갱신돼 조용히 뒤처지는 일이 있었다(2026-08-07).
+        _lag = kv.get("asof_lag_days")
+        _lagtxt = f" ⚠️{_lag}일 지연" if _lag else ""
+        S.append(f"📐 코스피 밸류 ({kv.get('asof', '')}{_lagtxt})\n"
                  f"  후행PER {_r2(kv.get('per'))} · PBR {_r2(kv.get('pbr'))} · 배당 {_r2(kv.get('div_yield'))}%")
 
     # ── 예측 성적 자기평가 ──

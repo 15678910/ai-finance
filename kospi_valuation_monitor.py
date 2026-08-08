@@ -144,6 +144,39 @@ def main():
         print("[ERROR] KRX·INDEXerGO 모두 실패 — 기존 파일 보존.")
         return 1
 
+    # ── 후퇴 방지 ────────────────────────────────────────────────────
+    # 폴백(INDEXerGO)은 원본보다 하루 늦게 갱신된다. KRX 파싱이 한 번 실패하면
+    # 이미 갖고 있던 최신 자료를 '더 낡은 값'으로 덮어쓰게 된다.
+    # 데이터가 채워지긴 하므로 정체 경보에도 안 걸려 조용히 하루 뒤처진다.
+    # (2026-08-07 실제 발생: KRX 파싱 실패 → 08-06 자료로 후퇴)
+    prev = {}
+    try:
+        with open(OUTPUT_FILE, encoding="utf-8") as f:
+            prev = json.load(f)
+    except Exception:
+        pass
+    if prev.get("asof") and data.get("asof") and data["asof"] < prev["asof"]:
+        print(f"  [WARN] 새 자료({data['asof']})가 기존({prev['asof']})보다 오래됨 — "
+              f"덮어쓰지 않고 기존 파일 보존. (출처: {data.get('source')})")
+        return 0
+
+    # 직전 거래일보다 뒤처지면 화면에서 알 수 있게 표시한다.
+    data["asof_lag_days"] = None
+    try:
+        from core.expiry import is_closed
+        d = now.date()
+        for _ in range(10):                       # 직전 거래일 탐색
+            d -= timedelta(days=1)
+            if not is_closed(d, "KRX"):
+                break
+        if data.get("asof"):
+            gap = (d - datetime.strptime(data["asof"], "%Y-%m-%d").date()).days
+            data["asof_lag_days"] = max(0, gap)
+            if gap > 0:
+                print(f"  [WARN] 기준일 {data['asof']} 는 직전 거래일({d})보다 {gap}일 뒤짐")
+    except Exception:
+        pass
+
     data["generated_at"] = now.strftime("%Y-%m-%d %H:%M:%S KST")
     data["note"] = (
         "코스피 지수 후행 PER·PBR·배당수익률 (마감 기준, 일 1회). "
