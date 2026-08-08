@@ -124,8 +124,23 @@ def main():
             lines.append(f"  {'🔴' if s['signal'] == 'warning' else '🟡'} {s['name']} {s.get('ratio')}% ({tr}{s.get('chg_5d'):+}%p/5일)")
         elif s.get("trend") == "up" and (s.get("chg_5d") or 0) >= 0.5:
             lines.append(f"  ⚠️ {s['name']} 잔고 급증 {s.get('chg_5d'):+}%p/5일 (현재 {s.get('ratio')}%)")
+    # 거래 비중 급증 — 잔고(T+2)보다 하루 빠르고, 잔고가 정체여도 움직임이 잡힌다.
+    # 두 '비중'은 분모가 달라(잔고=상장주식수 / 거래=당일거래량) 줄을 나눠 섞이지 않게 쓴다.
+    vlines, vasof = [], ""
+    for s_ in (si.get("stocks") or []):
+        v = s_.get("volume") or {}
+        if not v.get("ratio"):
+            continue
+        vasof = v.get("asof") or vasof
+        if v.get("spike") or (v.get("vs_avg_pp") or 0) >= 5:
+            mk = "⚡" if v.get("spike") else "▲"
+            vlines.append(f"  {mk} {s_['name']} 거래비중 {v['ratio']}% "
+                          f"(5일평균 {v.get('avg_5d')}% 대비 {v.get('vs_avg_pp'):+}%p)")
     if lines:
-        S.append(f"🩳 공매도 특이 (T+2 · {si.get('asof', '')})\n" + "\n".join(lines))
+        S.append(f"🩳 공매도 잔고 특이 (T+2 · {si.get('asof', '')})\n" + "\n".join(lines))
+    if vlines:
+        S.append(f"⚡ 공매도 거래 급증 (T+1 · {vasof})\n" + "\n".join(vlines)
+                 + "\n  ※ 거래비중=그날 거래량 중 공매도 비율 — 잔고(누적)와 분모가 다름")
 
     # ── 개인 수급 (감시 전 종목) ──
     # 이전엔 70% 이상만 보여줘서 보유·관심 종목이 통째로 빠졌다(SK하이닉스 45%·로보티즈 30% 등).
