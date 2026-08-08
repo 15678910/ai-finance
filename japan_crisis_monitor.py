@@ -139,13 +139,26 @@ def get_latest_fred(series_id: str, label: str) -> dict:
 # ====================================================================
 # yfinance 데이터 수집
 # ====================================================================
+def _yf_blank(label: str, ticker: str = "") -> dict:
+    """수집 실패 시에도 성공 시와 **같은 키 구성**을 돌려준다.
+
+    ⚠️ 예전엔 실패하면 {"label", "current"} 만 반환했다. 그런데 하위 분석에서
+       data["market"]["usd_jpy"]["change_1w"] 처럼 직접 첨자로 꺼내 쓰는 곳이 있어
+       yfinance가 한 번 흔들리면 KeyError 로 스크립트 전체가 죽었다.
+       (2026-08-07 실제 발생 — japan_crisis.json 이 21시간 넘게 멈춤)
+       키 구성을 맞춰 두면 값이 없어도 흐름은 이어진다.
+    """
+    return {"label": label, "ticker": ticker, "current": None,
+            "change_1d": None, "change_1w": None, "change_1m": None, "stale": True}
+
+
 def fetch_yf_market(ticker: str, label: str, period: str = "3mo") -> dict:
     """yfinance에서 시장 데이터 수집."""
     try:
         stock = yf.Ticker(ticker)
         hist = stock.history(period=period)
         if hist.empty:
-            return {"label": label, "current": None}
+            return _yf_blank(label, ticker)
 
         current = float(hist["Close"].iloc[-1])
         prev_1d = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else current
@@ -169,7 +182,7 @@ def fetch_yf_market(ticker: str, label: str, period: str = "3mo") -> dict:
         }
     except Exception as e:
         print(f"  [yfinance 실패] {ticker}: {e}")
-        return {"label": label, "current": None}
+        return _yf_blank(label, ticker)
 
 
 # ====================================================================
@@ -265,7 +278,7 @@ def calculate_crisis_score(data: dict) -> dict:
     factors = []
 
     usd_jpy = data["market"]["usd_jpy"]["current"] or 0
-    nikkei_w = data["market"]["nikkei"]["change_1w"] or 0
+    nikkei_w = (data.get("market", {}).get("nikkei", {}) or {}).get("change_1w") or 0
     cpi = data["macro"]["cpi"]["current"] or 0
     debt_gdp = data["macro"]["debt_gdp"]["current"] or 0
     carry_score = data["carry_pressure"]["score"]
@@ -333,7 +346,7 @@ def analyze_global_impact(carry: dict, crisis: dict, data: dict) -> list:
     """일본 위기가 글로벌 시장에 미치는 영향 분석."""
     impacts = []
     carry_score = carry["score"]
-    yen_1w = data["market"]["usd_jpy"]["change_1w"] or 0
+    yen_1w = (data.get("market", {}).get("usd_jpy", {}) or {}).get("change_1w") or 0
 
     # 캐리 트레이드 청산 영향
     if carry_score >= 70:
