@@ -138,39 +138,55 @@ def main():
             return None
         return f"{fmt.format(float(p))}{unit} ({pct(c)})" if c is not None else f"{fmt.format(float(p))}{unit}"
 
+    # 한 줄에 여러 항목을 '·'로 붙이면 카드 폭에서 어지럽게 접힌다.
+    # '밤사이 해외'처럼 소제목 아래 한 줄에 하나씩 둔다.
+    # 대시보드 렌더가 앞 공백을 잘라내므로(l.trim()) 들여쓰기 대신
+    # 화살표·신호등 이모지로 항목임을 표시한다.
+    def _arrow(it):
+        c = (it or {}).get("change_pct")
+        return "🔺" if c is not None and float(c) >= 0 else ("🔻" if c is not None else "▪")
+
+    DOT = {"green": "🟢", "amber": "🟡", "yellow": "🟡", "red": "🔴"}
     mlines = []
     fx = [(_find("통화_금리", "USD/KRW"), "USD/KRW", "{:,.2f}", ""),
           (_find("통화_금리", "달러 인덱스"), "달러인덱스", "{:.2f}", ""),
           (_find("통화_금리", "美 10Y 국채"), "美10Y", "{:.2f}", "%")]
-    fxs = [f"{lab} {_lv(it, f_, u)}" for it, lab, f_, u in fx if _lv(it, f_, u)]
+    fxs = [f"  {_arrow(it)} {lab} {_lv(it, f_, u)}" for it, lab, f_, u in fx if _lv(it, f_, u)]
     if fxs:
-        mlines.append("  💱 " + " · ".join(fxs))
-    cm = [(_find("원자재", "WTI 원유"), "WTI", "${:,.2f}", ""),
+        mlines.append("  💱 환율 · 금리")
+        mlines += fxs
+    cm = [(_find("원자재", "WTI 원유"), "WTI 원유", "${:,.2f}", ""),
           (_find("원자재", "금 (Gold)"), "금", "${:,.0f}", "")]
-    cms = [f"{lab} {_lv(it, f_, u)}" for it, lab, f_, u in cm if _lv(it, f_, u)]
+    cms = [f"  {_arrow(it)} {lab} {_lv(it, f_, u)}" for it, lab, f_, u in cm if _lv(it, f_, u)]
     if cms:
-        mlines.append("  🛢 " + " · ".join(cms))
+        mlines.append("  🛢 원자재")
+        mlines += cms
 
-    # 위험 게이지 — 세 곳에 흩어져 있던 것을 한 줄로 모은다.
+    # 위험 게이지 — 네 파일에 흩어져 있던 것을 한 묶음으로 모은다.
     ls, cs2, jc = L("liquidity_stress"), L("credit_spread"), L("japan_crisis")
     gauges = []
     if ls.get("overall"):
-        gauges.append(f"유동성 {str(ls['overall']).split('—')[0].strip()}")
+        gauges.append(f"  {DOT.get(ls.get('overall_color'), '⚪')} 유동성 "
+                      f"{str(ls['overall']).split('—')[0].strip().lstrip('🟢🟡🔴 ')}")
     if cs2.get("macro_regime"):
-        gauges.append(f"신용 {cs2.get('macro_regime_emoji', '')}{cs2['macro_regime']}")
+        gauges.append(f"  {cs2.get('macro_regime_emoji', '⚪')} 신용 {cs2['macro_regime']}")
     cp, cri = (jc.get("carry_pressure") or {}), (jc.get("crisis") or {})
     if cp.get("score") is not None:
-        gauges.append(f"엔캐리 {cp['score']}/100({cp.get('level', '')})")
+        gauges.append(f"  {DOT.get(cp.get('severity'), '⚪')} 엔캐리 압력 "
+                      f"{cp['score']}/100 ({cp.get('level', '')})")
     if cri.get("score") is not None:
-        gauges.append(f"日위기 {cri['score']:.0f}/100({cri.get('level', '')})")
+        gauges.append(f"  {DOT.get(cri.get('severity'), '⚪')} 日 위기 점수 "
+                      f"{cri['score']:.0f}/100 ({cri.get('level', '')})")
     if gauges:
-        mlines.append("  🚦 " + " · ".join(gauges))
+        mlines.append("  🚦 위험 게이지")
+        mlines += gauges
 
     # 환율 개입 압력 — 경고 수준일 때만. 원화 저평가는 외국인 수급과 직결된다.
     fi = (L("fx_intervention").get("signal") or {})
     if fi.get("level") and fi.get("color") in ("red", "amber"):
-        why = " · ".join((fi.get("reasons") or [])[:2])
-        mlines.append(f"  {fi['level']}" + (f" — {why}" if why else ""))
+        mlines.append(f"  {fi['level']}")
+        for r in (fi.get("reasons") or [])[:3]:
+            mlines.append(f"  ▪ {r}")
     if mlines:
         S.append("🌐 글로벌 매크로\n" + "\n".join(mlines))
 
