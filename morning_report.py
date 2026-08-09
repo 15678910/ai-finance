@@ -119,6 +119,61 @@ def main():
     if lines:
         S.append("😱 시장 심리\n" + "\n".join(lines))
 
+    # ── 글로벌 매크로 ──
+    # 지금까지 브리핑은 '한국 증시'에만 붙어 있었다. 그런데 국내 시초가를 흔드는 것은
+    # 대개 환율·금리·유가와 해외 위험지표다. 이미 수집 중인데 화면에만 없었다.
+    # 숫자를 나열하기보다 '레벨 + 변동 + 경고'만 추려 4줄 안에 담는다.
+    def _find(group, name):
+        for it in (mk.get(group) or []):
+            if (it.get("name") or "") == name:
+                return it
+        return None
+
+    def _lv(it, fmt="{:,.2f}", unit=""):
+        if not it:
+            return None
+        p = it.get("price", it.get("current"))
+        c = it.get("change_pct")
+        if p is None:
+            return None
+        return f"{fmt.format(float(p))}{unit} ({pct(c)})" if c is not None else f"{fmt.format(float(p))}{unit}"
+
+    mlines = []
+    fx = [(_find("통화_금리", "USD/KRW"), "USD/KRW", "{:,.2f}", ""),
+          (_find("통화_금리", "달러 인덱스"), "달러인덱스", "{:.2f}", ""),
+          (_find("통화_금리", "美 10Y 국채"), "美10Y", "{:.2f}", "%")]
+    fxs = [f"{lab} {_lv(it, f_, u)}" for it, lab, f_, u in fx if _lv(it, f_, u)]
+    if fxs:
+        mlines.append("  💱 " + " · ".join(fxs))
+    cm = [(_find("원자재", "WTI 원유"), "WTI", "${:,.2f}", ""),
+          (_find("원자재", "금 (Gold)"), "금", "${:,.0f}", "")]
+    cms = [f"{lab} {_lv(it, f_, u)}" for it, lab, f_, u in cm if _lv(it, f_, u)]
+    if cms:
+        mlines.append("  🛢 " + " · ".join(cms))
+
+    # 위험 게이지 — 세 곳에 흩어져 있던 것을 한 줄로 모은다.
+    ls, cs2, jc = L("liquidity_stress"), L("credit_spread"), L("japan_crisis")
+    gauges = []
+    if ls.get("overall"):
+        gauges.append(f"유동성 {str(ls['overall']).split('—')[0].strip()}")
+    if cs2.get("macro_regime"):
+        gauges.append(f"신용 {cs2.get('macro_regime_emoji', '')}{cs2['macro_regime']}")
+    cp, cri = (jc.get("carry_pressure") or {}), (jc.get("crisis") or {})
+    if cp.get("score") is not None:
+        gauges.append(f"엔캐리 {cp['score']}/100({cp.get('level', '')})")
+    if cri.get("score") is not None:
+        gauges.append(f"日위기 {cri['score']:.0f}/100({cri.get('level', '')})")
+    if gauges:
+        mlines.append("  🚦 " + " · ".join(gauges))
+
+    # 환율 개입 압력 — 경고 수준일 때만. 원화 저평가는 외국인 수급과 직결된다.
+    fi = (L("fx_intervention").get("signal") or {})
+    if fi.get("level") and fi.get("color") in ("red", "amber"):
+        why = " · ".join((fi.get("reasons") or [])[:2])
+        mlines.append(f"  {fi['level']}" + (f" — {why}" if why else ""))
+    if mlines:
+        S.append("🌐 글로벌 매크로\n" + "\n".join(mlines))
+
     # ── 추세추종 신호 (9종목) ──
     ts = L("trend_signal")
     lines = []
