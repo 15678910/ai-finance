@@ -63,21 +63,34 @@ def main():
     lines = []
     # 앞에서부터 [:4]로 자르면 목록 뒤쪽의 '필라델피아 반도체'가 매번 잘려나갔다.
     # 반도체 비중이 큰 관심종목 구성상 SOX는 나스닥보다도 중요한 선행지표라 우선순위를 명시한다.
-    PRIO = ["필라델피아 반도체", "Nasdaq", "S&P 500", "Dow Jones", "Russell 2000", "VIX",
-            "Nasdaq 선물", "S&P 선물", "Dow 선물"]
-    pool = [it for grp in ("미국_지수", "미국_선물") for it in (mk.get(grp) or [])]
+    # 국내 야간선물(코스피200 야간물)은 넣고 싶어도 받을 경로가 없다 — 2026-08-09 재확인.
+    #   · pykrx 선물 상품군 28개에 야간·EUREX·CME 연계 상품이 없다
+    #   · 코스피200 선물 전 종목이 '(주간)' 으로만 조회되고 alternative=True 도 동일
+    #   · 네이버 FUT API 는 거래시간이 09:00~15:30 (정규장)
+    # 대신 같은 시간대(미국 정규장)에 거래되는 한국 대리지표 EWY 를 맨 앞에 세운다.
+    # 야간선물과 EWY 는 같은 야간 뉴스를 반영하므로 '밤사이 한국'을 읽는 목적에는 대체 가능하다.
+    PRIO = ["iShares MSCI 한국 ETF", "필라델피아 반도체", "Nasdaq", "S&P 500", "Dow Jones",
+            "Russell 2000", "VIX", "Nasdaq 선물", "S&P 선물", "Dow 선물"]
+    kr_proxy = [it for it in (mk.get("아시아") or [])
+                if (it.get("name") or "").startswith("iShares MSCI 한국")]
+    pool = kr_proxy + [it for grp in ("미국_지수", "미국_선물") for it in (mk.get(grp) or [])]
     pool.sort(key=lambda it: PRIO.index(it.get("name")) if it.get("name") in PRIO else len(PRIO))
     for it in pool:
         nm = it.get("name") or it.get("label") or "?"
         ch = it.get("change_pct", it.get("chg_pct", it.get("chg")))
         if ch is not None:
             arrow = "🔺" if float(ch) >= 0 else "🔻"
-            tag = " ⭐" if nm == "필라델피아 반도체" else ""      # 국내 반도체 직결 지표
+            if nm.startswith("iShares MSCI 한국"):
+                nm, tag = "한국 ETF(EWY) — 밤사이 한국", " 🇰🇷"   # 야간선물 대용
+            else:
+                tag = " ⭐" if nm == "필라델피아 반도체" else ""    # 국내 반도체 직결 지표
             lines.append(f"  {arrow} {nm} {pct(ch)}{tag}")
     if lines:
         # 데이터가 오늘 것이 아니면 제목에 기준일을 박아 오해를 막는다.
         _t = "🌎 밤사이 해외" + (f" (기준 {_ovg})" if _ovg and _ovg != now.strftime("%Y-%m-%d") else "")
-        S.append(_t + "\n" + "\n".join(lines[:9]))
+        _note = ("\n  ※ EWY=미국 상장 한국 ETF. 국내 야간선물은 공개 시세 경로가 없어 "
+                 "같은 시간대 거래되는 EWY로 대신 봅니다.") if kr_proxy else ""
+        S.append(_t + "\n" + "\n".join(lines[:10]) + _note)
 
     # ── 오늘 시초가·종합신호 ──
     cs = L("composite_signal")
