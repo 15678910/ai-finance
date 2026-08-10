@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-08-10 10:05:49 KST",
+  "generated_at": "2026-08-10 17:26:51 KST",
   "model_version": "v1.3",
-  "pqi_overall": 62.6,
+  "pqi_overall": 60.5,
   "grade": "🟢 양호",
   "grade_color": "green",
-  "trend": -0.7,
+  "trend": -13.2,
   "models": [
     {
       "name": "KOSPI(선물)",
       "dir": 73,
-      "mae": 3.56,
+      "mae": 3.62,
       "range": null,
       "n": 15,
-      "pqi": 67.4,
+      "pqi": 67.0,
       "significance": {
         "n": 15,
         "k": 11,
@@ -25,70 +25,77 @@
         "verdict": "약한 신호 (관찰 지속) · n=15",
         "verdict_color": "yellow"
       },
-      "pqi_recent": 51.7,
-      "pqi_prev": 52.9,
+      "pqi_recent": 52.3,
+      "pqi_prev": 60.2,
       "big_miss_frac": 60
     },
     {
       "name": "SK하이닉스",
-      "dir": 67,
-      "mae": 6.55,
+      "dir": 60,
+      "mae": 6.53,
       "range": 93,
       "n": 15,
-      "pqi": 55.2,
+      "pqi": 52.1,
       "significance": {
         "n": 15,
-        "k": 10,
-        "p_value": 0.1509,
-        "null_pctile": 89.8,
+        "k": 9,
+        "p_value": 0.3036,
+        "null_pctile": 77.9,
         "boot_ci": [
-          46.7,
-          86.7
+          40.0,
+          80.0
         ],
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 50.5,
-      "pqi_prev": 54.4,
+      "pqi_recent": 45.1,
+      "pqi_prev": 61.1,
       "big_miss_frac": 73
     },
     {
       "name": "삼성전자",
-      "dir": 80,
-      "mae": 5.43,
+      "dir": 73,
+      "mae": 5.38,
       "range": 87,
       "n": 15,
-      "pqi": 65.3,
+      "pqi": 62.4,
       "significance": {
         "n": 15,
-        "k": 12,
-        "p_value": 0.0176,
-        "null_pctile": 99.1,
+        "k": 11,
+        "p_value": 0.0592,
+        "null_pctile": 96.3,
         "boot_ci": [
-          60.0,
+          53.3,
           93.3
         ],
-        "verdict": "유의미한 엣지 ✅ (표본 적음) · n=15",
-        "verdict_color": "green"
+        "verdict": "약한 신호 (관찰 지속) · n=15",
+        "verdict_color": "yellow"
       },
-      "pqi_recent": 65.0,
-      "pqi_prev": 62.1,
-      "big_miss_frac": 60
+      "pqi_recent": 57.1,
+      "pqi_prev": 72.7,
+      "big_miss_frac": 53
     }
   ],
   "diagnosis": {
-    "dir_avg": 73.3,
+    "dir_avg": 68.7,
     "mae_avg": 5.18,
     "range_avg": 90.0,
-    "big_miss_avg": 64.3
+    "big_miss_avg": 62.0
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "급오차일(±3%↑) 빈발 (64%)",
+      "issue": "급오차일(±3%↑) 빈발 (62%)",
       "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
       "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
       "auto_safe": true
+    },
+    {
+      "priority": 1,
+      "issue": "PQI 하락 추세 (-13.2)",
+      "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
+      "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
+      "auto_safe": false
     },
     {
       "priority": 2,
@@ -129,7 +136,7 @@
       "avg_pqi": 61.6,
       "start_date": "2026-08-04",
       "last_date": "2026-08-10",
-      "n_days": 86
+      "n_days": 87
     }
   ],
   "delta_vs_prev_version": 12.1,
