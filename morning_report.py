@@ -331,10 +331,34 @@ def main():
         S.append("⏳ 파생 만기일\n" + "\n".join(lines))
 
     # ── 주요 뉴스 톱3 ──
+    # 텔레그램 본문에는 제목만 넣는다(구글 뉴스 URL이 300자+라 4096자 제한을 잡아먹음).
+    # 원문 링크는 아래 JSON에만 실어 대시보드에서 클릭으로 열 수 있게 한다.
     mn = L("market_news")
     items = (mn.get("items") or [])[:3]
+    news_links = []
     if items:
         S.append("📰 주요 뉴스\n" + "\n".join(f"  • {(it.get('title') or '')[:70]}" for it in items))
+        for it in items:
+            title = (it.get("title") or "").strip()
+            if not title:
+                continue
+            # 구글 뉴스 제목은 "헤드라인 - 언론사" 형식 → 언론사를 분리해 따로 표시.
+            # 야후 등 다른 소스는 접미사가 없고, 제목 중간의 ' - '를 언론사로 오인하면
+            # 헤드라인이 잘리므로 짧고 문장부호로 끝나지 않을 때만 언론사로 본다.
+            headline, _, tail = title.rpartition(" - ")
+            if headline and len(tail) <= 40 and not tail.rstrip().endswith((".", "?", "!")):
+                source = tail
+            else:
+                headline, source = title, ""
+            news_links.append({
+                "text": headline,
+                "source": source,
+                "url": it.get("link") or "",
+                "category": it.get("category") or "",
+                "cat_emoji": it.get("cat_emoji") or "",
+                "sent_emoji": it.get("sent_emoji") or "",
+                "region": it.get("region") or "",
+            })
 
     # ── 데이터 신선도 경고 ──
     fr = L("freshness")
@@ -353,6 +377,22 @@ def main():
         for s in S:
             p = s.split("\n")
             sections.append({"title": p[0], "lines": [x for x in p[1:] if x.strip()]})
+
+        # 섹션 부가정보 — lines(텍스트)는 그대로 두고 links를 덧붙인다.
+        # 대시보드는 links가 있으면 클릭 가능한 항목으로, 없으면 기존 텍스트로 렌더한다
+        # (아카이브된 지난 브리핑은 links가 없으므로 자동으로 텍스트 폴백).
+        extras = {
+            "📰 주요 뉴스": {"links": news_links, "jump": "market-news-section",
+                             "jump_label": "전체 뉴스"},
+            "🌎 밤사이 해외": {"jump": "overseas-market-section",
+                              "jump_label": "해외 시장 동향"},
+        }
+        for sec in sections:
+            for prefix, extra in extras.items():
+                if sec["title"].startswith(prefix):
+                    sec.update({k: v for k, v in extra.items() if v})
+                    break
+
         today_str = now.strftime("%Y-%m-%d")
         out_path = os.path.join(DOCS, "morning_report.json")
         archive = []

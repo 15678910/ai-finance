@@ -68,7 +68,7 @@
 - **역할**: 모든 분석을 통합 실행 + dashboard data 빌드
 - **순서**:
   1. `daily_sector_analysis.py` (섹터 7개 × 종목별 분석)
-  2. `value_screener.py` (저평가 Top 10)
+  2. `value_screener.py` (저평가 Top 10) → `value_erosion_monitor.py` (가치 훼손 감시)
   3. `auto_research_value.py` (가중치 진화)
   4. `generate_dashboard_data.py` (data.json 통합)
   5. Telegram 발송 + Git push
@@ -97,8 +97,24 @@
 
 ### 6. Value Screener
 - **종목**: 47개 KOSPI/KOSDAQ 대형주
-- **점수**: 밸류(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%)
-- **필터**: 시총 1000억+, ROE -20%+, 부채비율 500%-
+- **점수**: 밸류(35%) + 수익성(35%) + 성장(20%) + 주주환원(10%) − 함정 감점 + 소외 가산점(±5)
+- **상대 평가**: PER/PBR을 `docs/kospi_valuation.json`(KRX 일일 갱신)의 코스피 평균 대비로 채점
+  - PER 앵커 = max(시장평균 × 0.7, 1 / (2 × 무위험금리))
+  - PBR 앵커 = 시장 평균
+  - 데이터 없음/30일 초과 → 기존 절대 임계값으로 폴백 (`scoring_mode` 필드로 표시)
+- **하드 필터**: 시총 1000억+, ROE -20%+, 부채비율 500%-, 3년 연속 적자 배제
+- **함정 감점**: 적자지속 / 사양산업(매출 CAGR<-5%) / 자산의질(재고+매출채권>50%) /
+  장부가허수(영업권·무형자산 > 자기자본 50%) — 배제 대신 감점해 경기민감주를 살린다
+- **소외도**: 애널리스트 커버리지(65%) + 거래 회전율(35%). '싸고 소외된' 종목에만 가산점
+
+### 6b. Value Erosion Monitor
+- **감시 대상**: 주가가 아니라 펀더멘털. 주가 하락은 가치가 유지되는 한 기회로 분류
+- **역산**: EPS = 주가/PER, BPS = 주가/PBR — 주가 요인과 이익 요인을 분리
+- **신호**: 이익훼손·자산훼손·수익성악화·ROE하락·부채증가·성장역전·함정신규·컨센서스컷
+- **분류**: EROSION(주가↓·가치↓) / EROSION_MASKED(주가↑·가치↓) / OPPORTUNITY(주가↓·가치유지) / STABLE
+- **기준선**: `docs/value_erosion_state.json`, `REBASE_DAYS`(30일) 경과 시에만 교체
+  (매 실행 갱신 시 서서히 진행되는 훼손이 묻힘)
+- **실행 순서**: `value_screener.py` 직후 (같은 워크플로) — 갱신된 펀더멘털이 입력
 
 ### 7. AutoResearch
 - **Portfolio**: 동일 가중 → ±10% 변형 → Sortino 최대화

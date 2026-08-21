@@ -29,6 +29,7 @@ MODULES = [
     "bitcoin_standard_monitor",
     # 분석
     "value_screener",
+    "value_erosion_monitor",
     "dcf_valuator",
     "earnings_reviewer",
     # AutoResearch

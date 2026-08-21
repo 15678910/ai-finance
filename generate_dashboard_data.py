@@ -1590,6 +1590,16 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] 저평가 스크리너 데이터 로드 실패: {e}")
 
+    # 10.6b) 가치 훼손 모니터 결과 병합 (있는 경우)
+    value_erosion_path = os.path.join(os.path.dirname(output_path), "value_erosion.json")
+    if os.path.exists(value_erosion_path):
+        try:
+            with open(value_erosion_path, encoding="utf-8") as f:
+                output_data["value_erosion"] = json.load(f)
+            print("[INFO] 가치 훼손 모니터 결과 병합 완료")
+        except Exception as e:
+            print(f"[WARN] 가치 훼손 데이터 로드 실패: {e}")
+
     # 10.7) 해외 시장 모니터링 결과 병합 (있는 경우)
     overseas_path = os.path.join(os.path.dirname(output_path), "overseas_market.json")
     if os.path.exists(overseas_path):
