@@ -334,7 +334,14 @@ def main():
     # 텔레그램 본문에는 제목만 넣는다(구글 뉴스 URL이 300자+라 4096자 제한을 잡아먹음).
     # 원문 링크는 아래 JSON에만 실어 대시보드에서 클릭으로 열 수 있게 한다.
     mn = L("market_news")
-    items = (mn.get("items") or [])[:3]
+    # market_news.json 은 최신순으로 저장된다(피드 성격). 브리핑은 3건만 실으므로
+    # 최신순 앞 3건을 그대로 쓰면 방금 올라온 투자 칼럼이 뽑히고 정작 시장을 움직인
+    # 헤드라인이 빠진다. priority(카테고리 가중 + 방향성 판정)로 다시 골라낸다.
+    # 동점이면 원래 순서(=최신순)를 유지한다. pub 은 RFC 2822 문자열이라
+    # 문자열 정렬하면 요일 이름순이 되어 의미가 없다.
+    # priority 가 없는 예전 데이터면 전부 0 → 기존 동작(최신 3건) 그대로.
+    items = [it for _, it in sorted(enumerate(mn.get("items") or []),
+                                    key=lambda p: (-p[1].get("priority", 0), p[0]))][:3]
     news_links = []
     if items:
         S.append("📰 주요 뉴스\n" + "\n".join(f"  • {(it.get('title') or '')[:70]}" for it in items))
