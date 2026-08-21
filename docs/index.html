@@ -2448,7 +2448,7 @@ body {
       const updateBadge = isClosed ? 'KOSPI 휴장 중' : 'KOSPI 운영 중';
       const updateColor = isClosed ? 'var(--amber,#fbbf24)' : 'var(--green,#4ade80)';
 
-      html += `<section class="section-wrap">
+      html += `<section class="section-wrap" id="overseas-market-section">
         <div class="section-label">&#127760; 해외 시장 동향 <span style="font-size:0.65rem;color:var(--text-muted);">(KOSPI 시간외 모니터링)</span></div>
 
         <div class="glass-card anim-item" style="padding:14px;margin-bottom:14px;">
@@ -11166,10 +11166,31 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const colorize = t => t
       .replace(/([+\-]\d+(?:\.\d+)?%p?)/g, m => `<b style="color:${m[0] === '+' ? '#4ade80' : '#f87171'};font-family:var(--font-mono);">${m}</b>`)
       .replace(/(🔥)/g, '<span style="color:#fb923c;">$1</span>');
-    const cards = secs.slice(1).map(s => `<div style="background:rgba(255,255,255,0.03);border-radius:9px;padding:9px 12px;">
-      <div style="font-size:0.66rem;font-weight:700;color:#fbbf24;margin-bottom:4px;">${h(s.title)}</div>
-      <div style="font-size:0.62rem;line-height:1.75;color:var(--text);">${(s.lines || []).map(l => colorize(h(l.trim()))).join('<br>')}</div>
-    </div>`).join('');
+    // 해당 섹션의 상세 화면으로 스크롤하는 앵커. 대상 섹션은 비동기 렌더라
+    // 아직 없을 수 있으므로 존재할 때만 이동한다.
+    const jump = s => s.jump ? `<a href="#${s.jump}" onclick="var e=document.getElementById('${s.jump}');if(e){e.scrollIntoView({behavior:'smooth',block:'start'});}return false;" style="font-size:0.55rem;color:#38bdf8;text-decoration:none;white-space:nowrap;margin-left:auto;">${h(s.jump_label || '상세')} &rarr;</a>` : '';
+    // 원문 링크가 있으면 클릭 가능한 헤드라인으로, 없으면 기존 텍스트 그대로
+    const newsRows = links => links.map(n => {
+      const meta = [n.cat_emoji, n.sent_emoji].filter(Boolean).join('');
+      const src = n.source ? `<span style="color:var(--text-muted);"> &mdash; ${h(n.source)}</span>` : '';
+      const inner = `<span style="color:#fbbf24;">${meta || '&bull;'}</span> ${h(n.text)}${src}`;
+      if (!n.url) return `<div style="padding:3px 0;">${inner}</div>`;
+      return `<a href="${h(n.url)}" target="_blank" rel="noopener" title="원문 기사 열기 — ${h(n.text)}"
+        style="display:block;padding:4px 0;color:var(--text);text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.05);"
+        onmouseover="this.style.color='#38bdf8';this.style.textDecoration='underline'"
+        onmouseout="this.style.color='var(--text)';this.style.textDecoration='none'">${inner} <span style="font-size:0.52rem;color:var(--text-muted);">&#8599;</span></a>`;
+    }).join('');
+    const cards = secs.slice(1).map(s => {
+      const body = (s.links && s.links.length)
+        ? newsRows(s.links)
+        : (s.lines || []).map(l => colorize(h(l.trim()))).join('<br>');
+      return `<div style="background:rgba(255,255,255,0.03);border-radius:9px;padding:9px 12px;">
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;">
+        <span style="font-size:0.66rem;font-weight:700;color:#fbbf24;">${h(s.title)}</span>${jump(s)}
+      </div>
+      <div style="font-size:0.62rem;line-height:1.75;color:var(--text);">${body}</div>
+    </div>`;
+    }).join('');
     const head = (secs[0] && secs[0].lines && secs[0].lines[0]) || '';
     // 오늘(KST) 날짜와 브리핑 날짜가 다르면 그대로 두지 않고 알린다.
     // GitHub Actions 예약이 70~100분씩 밀려, 이른 아침엔 어제 브리핑이 '오늘' 자리에 남는다.
