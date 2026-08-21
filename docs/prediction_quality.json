@@ -1,98 +1,98 @@
 {
-  "generated_at": "2026-08-21 09:48:32 KST",
+  "generated_at": "2026-08-21 16:40:40 KST",
   "model_version": "v1.3",
-  "pqi_overall": 62.6,
+  "pqi_overall": 58.3,
   "grade": "🟢 양호",
   "grade_color": "green",
-  "trend": 9.2,
+  "trend": 1.0,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 73,
-      "mae": 3.16,
+      "dir": 67,
+      "mae": 3.29,
       "range": null,
       "n": 15,
-      "pqi": 69.8,
+      "pqi": 65.7,
       "significance": {
         "n": 15,
-        "k": 11,
-        "p_value": 0.0592,
-        "null_pctile": 96.3,
+        "k": 10,
+        "p_value": 0.1509,
+        "null_pctile": 89.8,
         "boot_ci": [
-          53.3,
-          93.3
-        ],
-        "verdict": "약한 신호 (관찰 지속) · n=15",
-        "verdict_color": "yellow"
-      },
-      "pqi_recent": 57.7,
-      "pqi_prev": 52.3,
-      "big_miss_frac": 40
-    },
-    {
-      "name": "SK하이닉스",
-      "dir": 60,
-      "mae": 5.99,
-      "range": 87,
-      "n": 15,
-      "pqi": 53.5,
-      "significance": {
-        "n": 15,
-        "k": 9,
-        "p_value": 0.3036,
-        "null_pctile": 77.9,
-        "boot_ci": [
-          40.0,
-          80.0
+          46.7,
+          86.7
         ],
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 57.3,
-      "pqi_prev": 45.1,
+      "pqi_recent": 55.8,
+      "pqi_prev": 49.8,
+      "big_miss_frac": 40
+    },
+    {
+      "name": "SK하이닉스",
+      "dir": 53,
+      "mae": 6.18,
+      "range": 87,
+      "n": 15,
+      "pqi": 49.5,
+      "significance": {
+        "n": 15,
+        "k": 8,
+        "p_value": 0.5,
+        "null_pctile": 60.0,
+        "boot_ci": [
+          33.3,
+          73.3
+        ],
+        "verdict": "우연과 구분 불가 · n=15",
+        "verdict_color": "red"
+      },
+      "pqi_recent": 54.1,
+      "pqi_prev": 57.3,
       "big_miss_frac": 60
     },
     {
       "name": "삼성전자",
-      "dir": 73,
-      "mae": 5.18,
+      "dir": 67,
+      "mae": 5.6,
       "range": 93,
       "n": 15,
-      "pqi": 64.6,
+      "pqi": 59.8,
       "significance": {
         "n": 15,
-        "k": 11,
-        "p_value": 0.0592,
-        "null_pctile": 96.3,
+        "k": 10,
+        "p_value": 0.1509,
+        "null_pctile": 89.8,
         "boot_ci": [
-          53.3,
-          93.3
+          46.7,
+          86.7
         ],
-        "verdict": "약한 신호 (관찰 지속) · n=15",
-        "verdict_color": "yellow"
+        "verdict": "우연과 구분 불가 · n=15",
+        "verdict_color": "red"
       },
-      "pqi_recent": 67.0,
-      "pqi_prev": 57.1,
-      "big_miss_frac": 53
+      "pqi_recent": 66.0,
+      "pqi_prev": 65.7,
+      "big_miss_frac": 60
     }
   ],
   "diagnosis": {
-    "dir_avg": 68.7,
-    "mae_avg": 4.78,
+    "dir_avg": 62.3,
+    "mae_avg": 5.02,
     "range_avg": 90.0,
-    "big_miss_avg": 51.0
+    "big_miss_avg": 53.3
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "급오차일(±3%↑) 빈발 (51%)",
+      "issue": "급오차일(±3%↑) 빈발 (53%)",
       "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
       "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
       "auto_safe": true
     },
     {
       "priority": 2,
-      "issue": "종가 오차 큼 (MAE 4.8%)",
+      "issue": "종가 오차 큼 (MAE 5.0%)",
       "cause": "고변동성 레짐 + 20일 베타가 급변 미추종",
       "fix": "베타 추정창 단축(20→10) 또는 변동성 가중 회귀",
       "auto_safe": false
