@@ -23,18 +23,37 @@ OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "market_news.json")
 UA = "Mozilla/5.0 (compatible; ai-finance-news/1.0)"
 
 # 카테고리 키워드 (제목 매칭) — 우선순위 순
+# 표기 규칙은 news_impact 와 동일: "war"=단어 단위, "geopolit*"=어간, 한글=부분 일치.
+# (부분 일치로 두면 fed ⊂ FedEx, war ⊂ software 처럼 엉뚱한 기사가 끌려온다)
 CATEGORIES = [
-    ("지정학", "🌍", ["iran", "israel", "gaza", "war", "geopolit", "middle east", "russia", "ukraine",
-                     "missile", "strike", "sanction", "opec", "tariff", "trade war", "ceasefire", "nato",
-                     "summit", "diplomac", "foreign policy", "vance", "pakistan", "north korea", "taiwan strait",
+    ("지정학", "🌍", ["iran", "israel", "gaza", "war", "wars", "geopolit*", "middle east",
+                     "russia*", "ukrain*", "missile*", "strike", "strikes", "sanction*", "opec",
+                     "tariff*", "trade war", "ceasefire", "nato", "summit", "diplomac*",
+                     "foreign policy", "vance", "pakistan", "north korea", "taiwan strait",
                      "전쟁", "중동", "지정학", "이란", "이스라엘", "가자", "북한", "우크라", "러시아",
                      "외교", "정상회담", "나토", "휴전", "관세", "제재", "파키스탄"]),
-    ("Fed·물가", "🏦", ["fed", "cpi", "inflation", "rate cut", "rate hike", "fomc", "powell", "ppi", "treasury", "yield", "금리", "물가", "인플레", "연준", "국채"]),
-    ("AI·반도체", "🔌", ["nvidia", "chip stock", "semiconductor", "artificial intelligence", "tsmc", "micron", "broadcom", "데이터센터", "반도체", "엔비디아", "마이크론", "hbm", " a.i."]),
+    ("Fed·물가", "🏦", ["fed", "feds", "federal reserve", "cpi", "inflation", "deflation",
+                       "rate cut*", "rate hike*", "rate decision", "fomc", "powell", "bessent",
+                       "ppi", "treasury", "treasuries", "yield", "yields", "bond market",
+                       "basis point*", "jobs report", "payroll*", "jackson hole",
+                       "금리", "물가", "인플레", "연준", "국채", "베센트", "파월", "고용지표"]),
+    ("AI·반도체", "🔌", ["nvidia", "chip stock*", "semiconductor*", "artificial intelligence",
+                        "tsmc", "micron", "broadcom", "데이터센터", "반도체", "엔비디아",
+                        "마이크론", "hbm", "a.i."]),
     ("실적", "📈", ["earnings", "revenue", "guidance", "results", "실적", "매출", "어닝"]),
-    ("암호화폐", "🪙", ["bitcoin", "crypto", "ethereum", "비트코인", "코인", "이더리움"]),
+    ("암호화폐", "🪙", ["bitcoin", "btc", "crypto*", "ethereum", "stablecoin*", "digital asset*",
+                      "spot etf", "sec approval", "비트코인", "코인", "이더리움", "가상자산",
+                      "스테이블코인"]),
     ("기타", "📰", []),
 ]
+
+# 시장과 무관한데 키워드만 걸리는 기사 — 삭제하지 않고 우선순위만 낮춘다.
+# 실측 사례: 'Women's Global Sports Summit'(summit), 'lightning strike ignites
+# attic fire in Summit, NE'(strike+summit) 가 지정학 '하락 위험'으로 분류됐다.
+NOISE = ["sports", "tournament", "championship", "playoff*", "nfl", "nba", "mlb", "nhl",
+         "soccer", "olympic*", "athlete*", "lightning strike", "attic", "wildfire",
+         "high school", "obituary", "funeral", "arrested", "shooting", "weather forecast",
+         "recipe", "celebrity", "box office"]
 
 
 def _fetch(url):
@@ -43,12 +62,39 @@ def _fetch(url):
         return r.read().decode("utf-8", errors="replace")
 
 
+from news_impact import _compile as _compile_kw   # 단어 경계 매칭 (표기 규칙 공유)
+
+_CAT_RE = [(name, emoji, _compile_kw(kws) if kws else None) for name, emoji, kws in CATEGORIES]
+_NOISE_RE = _compile_kw(NOISE)
+
+
 def _categorize(title):
     t = title.lower()
-    for name, emoji, kws in CATEGORIES:
-        if any(k in t for k in kws):
+    for name, emoji, rx in _CAT_RE:
+        if rx and rx.search(t):
             return name, emoji
     return "기타", "📰"
+
+
+def is_noise(title):
+    """시장과 무관한 기사인지 — 키워드만 우연히 걸린 지역·스포츠·사건사고 기사."""
+    return bool(_NOISE_RE.search((title or "").lower()))
+
+
+# 중요도 가중 — 24건 상한과 브리핑 톱3 선별에 쓴다.
+# 이전에는 최신순으로만 잘라서, 시장을 움직인 헤드라인이 몇 시간 늦었다는
+# 이유만으로 투자 칼럼("If a Bear Market Is Coming…")에 밀려 잘려나갔다.
+CAT_WEIGHT = {"Fed·물가": 3, "지정학": 2, "AI·반도체": 2, "암호화폐": 2, "실적": 1, "기타": 0}
+
+
+def priority_score(category, sentiment, noise=False):
+    """기사 중요도 (높을수록 우선). 노이즈는 음수로 밀어낸다."""
+    if noise:
+        return -5
+    score = CAT_WEIGHT.get(category, 0)
+    if sentiment != 0:          # 격화/완화 판정이 붙은 = 방향성 있는 기사
+        score += 3
+    return score
 
 
 def fetch_yahoo(symbol):
@@ -128,10 +174,20 @@ def _gnews(q):
             + "&hl=en-US&gl=US&ceid=US:en")
 
 
-# 지정학·외교 전용 피드 (경제 RSS가 놓치는 정치·외교 헤드라인 — 이란합의·정상회담 등)
-GEO_FEEDS = [
+# 주제별 보강 피드 — Yahoo 지수 RSS(^GSPC 등)는 종목·증시 칼럼 위주라
+# 정책·통화·규제 헤드라인을 거의 싣지 않는다. 카테고리 분류기에는 'Fed·물가'와
+# '암호화폐'가 있는데 정작 그 뉴스를 가져오는 소스가 없어 항상 0~1건이었다.
+# (2026-08 실측: 24건 중 암호화폐 0건 · Fed·물가 1건)
+TOPIC_FEEDS = [
+    # 지정학·외교 (기존)
     (_gnews('(Iran OR Israel OR "Middle East" OR sanctions OR OPEC OR ceasefire) when:3d'), "🌍"),
     (_gnews('("foreign policy" OR summit OR diplomacy OR NATO OR tariff OR "trade war") when:3d'), "🌍"),
+    # 연준·국채·통화정책 — 베센트 재무장관·파월 의장 발언이 여기로 들어온다
+    (_gnews('(Bessent OR Powell OR "Federal Reserve" OR FOMC OR "Treasury yield" '
+            'OR "bond market" OR "rate cut" OR "rate hike") when:2d'), "🇺🇸"),
+    (_gnews('(CPI OR inflation OR "jobs report" OR payrolls OR "Jackson Hole") when:2d'), "🇺🇸"),
+    # 암호화폐 — 규제·정책 발언 포함
+    (_gnews('(bitcoin OR crypto OR stablecoin OR "digital assets" OR "SEC crypto") when:2d'), "🌐"),
 ]
 
 
@@ -151,7 +207,7 @@ def main():
     for sym in ("^GSPC", "^IXIC", "^SOX"):
         raw += fetch_yahoo(sym)
     raw += fetch_naver()
-    for url, region in GEO_FEEDS:   # 지정학·외교 보강
+    for url, region in TOPIC_FEEDS:   # 지정학·연준/국채·암호화폐 보강
         raw += fetch_rss(url, region)
 
     # 중복 제거 + 카테고리
@@ -166,8 +222,11 @@ def main():
         seen.add(key)
         cat, emoji = _categorize(n["title"])
         sc, slabel, semoji, impact = classify_news(n["title"])
+        noise = is_noise(n["title"])
         items.append({**n, "category": cat, "cat_emoji": emoji,
-                      "sentiment": sc, "sent_label": slabel, "sent_emoji": semoji, "impact": impact})
+                      "sentiment": sc, "sent_label": slabel, "sent_emoji": semoji,
+                      "impact": impact, "noise": noise,
+                      "priority": priority_score(cat, sc, noise)})
 
     # 최근순 정렬 + 오래된 기사(>4일) 제거 — 카테고리순이면 묵은 기사가 위로 올라와 '정체'처럼 보임
     from email.utils import parsedate_to_datetime
@@ -180,13 +239,20 @@ def main():
         except Exception:
             return None
     items = [it for it in items if (_pub(it) is None) or (_now - _pub(it)) <= _td(days=4)]
-    items.sort(key=lambda it: (_pub(it) or (_now - _td(days=999))), reverse=True)  # 최신 먼저
+
+    # 24건 상한은 '중요도' 로 자르고, 살아남은 것을 '최신순' 으로 보여준다.
+    # 최신순으로 자르면 몇 시간 늦은 정책 헤드라인이 방금 올라온 투자 칼럼에 밀린다.
+    _oldest = _now - _td(days=999)
+    items.sort(key=lambda it: (it["priority"], _pub(it) or _oldest), reverse=True)
     items = items[:24]
+    items.sort(key=lambda it: (_pub(it) or _oldest), reverse=True)   # 표시는 최신 먼저
 
     from collections import Counter
     cnt = Counter(i["category"] for i in items)
-    # 지정학·Fed·시장 헤드라인 중심으로 순심리 산출
-    sent_titles = [i["title"] for i in items if i["category"] in ("지정학", "Fed·물가", "AI·반도체")]
+    # 지정학·Fed·시장 헤드라인 중심으로 순심리 산출 (노이즈는 제외 —
+    # '낙뢰 strike' 같은 기사가 격화로 잡히면 반전 경보까지 오염된다)
+    sent_titles = [i["title"] for i in items
+                   if i["category"] in ("지정학", "Fed·물가", "AI·반도체") and not i["noise"]]
     sentiment = aggregate_sentiment(sent_titles)
     print(f"  수집 {len(items)}건 · 카테고리: {dict(cnt)}")
     print(f"  뉴스 심리: {sentiment['emoji']} {sentiment['label']} (완화 {sentiment['deesc']} · 격화 {sentiment['esc']} · 순 {sentiment['score']:+d})")
