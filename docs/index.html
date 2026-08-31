@@ -10,7 +10,9 @@
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
-<script src="https://unpkg.com/versor@0.2.0/build/versor.min.js"></script>
+<!-- versor: build/ 경로는 404 다. 패키지가 지정한 진입점은 dist/versor.min.js (package.json unpkg/jsdelivr).
+     잘못된 주소라 지구본 회전 드래그가 조용히 죽어 있었다 — 2026-08-09 발견. -->
+<script src="https://cdn.jsdelivr.net/npm/versor@0.2.0/dist/versor.min.js"></script>
 
 <style>
 /* ─── Reset & Base ─────────────────────────────────────── */
@@ -6062,8 +6064,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     // ─── 드래그 회전 ─────────
     let v0, q0;
+    // CDN 라이브러리는 언제든 못 올 수 있다(주소 오타·차단·장애).
+    // 가드가 없으면 드래그할 때마다 예외가 나 콘솔이 오류로 뒤덮인다.
+    // 실제로 versor 주소가 404 여서 그런 상태였다 — 회전만 안 되면 되지 오류일 필요는 없다.
+    const _hasVersor = typeof versor !== 'undefined';
+    if (!_hasVersor) console.warn('[globe] versor 미로드 — 드래그 회전 비활성(표시는 정상)');
     svg.call(d3.drag()
       .on('start', function(event) {
+        if (!_hasVersor) return;
         __globeAutoRotate = false;
         const toggleEl = document.getElementById('tcm-globe-toggle');
         if (toggleEl) toggleEl.textContent = 'OFF';
@@ -6071,6 +6079,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
         q0 = versor(projection.rotate());
       })
       .on('drag', function(event) {
+        if (!_hasVersor) return;
         const v1 = versor.cartesian(projection.rotate(q0).invert([event.x, event.y]));
         const q1 = versor.multiply(q0, versor.delta(v0, v1));
         __globeRotation = versor.rotation(q1);
