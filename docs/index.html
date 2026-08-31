@@ -11682,7 +11682,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     pf.history.push({ date: today, pnl: Math.round(tot.pnl), value: Math.round(tot.value), buy: Math.round(tot.buy), principal: pf.principal, byStock: __pfByStock(comp) });
     pf.history = pf.history.slice(-400); __pfSave(pf); renderPortfolio();
   };
-  window.__pfClear = function () { if (confirm('보유종목·원금·기록을 모두 지웁니다. 계속?')) { __pfSave({ principal: 0, cash: null, baseAsset: null, holdings: [], history: [], txns: [], deposits: [] }); renderPortfolio(); } };
+  // 초기화는 '사용자가 명시적으로 지운' 경우다 — 이때만 자동저장 파일도 함께 비운다.
+  // (__pfSave 안의 자동저장은 빈 값 쓰기를 막으므로 여기서 allowEmpty 로 한 번 더 부른다)
+  window.__pfClear = function () {
+    if (!confirm('보유종목·원금·기록을 모두 지웁니다.' + (window.__pfFH ? '\n자동저장 파일도 함께 비워집니다.' : '') + '\n계속?')) return;
+    __pfSave({ principal: 0, cash: null, baseAsset: null, holdings: [], history: [], txns: [], deposits: [] });
+    if (window.__pfFH) { try { __pfWriteFile(true); } catch (e) { } }
+    renderPortfolio();
+  };
   window.__pfExport = function () {   // 백업: 포트폴리오 전체를 JSON 파일로 저장
     // 비어 있는 상태로 받으면 '백업해뒀다'고 안심하게 되는데 실제로는 껍데기다.
     // (실제 사례: 7/3·7/6·7/7 세 번 받은 파일이 전부 내용 0 이었다)
@@ -11734,16 +11741,69 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   function __pfIdb(cb) { try { const r = indexedDB.open('__pf_fh', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => cb(r.result); r.onerror = () => cb(null); } catch (e) { cb(null); } }
   function __pfHGet(cb) { __pfIdb(db => { if (!db) return cb(null); try { const t = db.transaction('kv').objectStore('kv').get('fh'); t.onsuccess = () => cb(t.result || null); t.onerror = () => cb(null); } catch (e) { cb(null); } }); }
   function __pfHSet(v) { __pfIdb(db => { if (!db) return; try { db.transaction('kv', 'readwrite').objectStore('kv').put(v, 'fh'); } catch (e) { } }); }
-  async function __pfWriteFile() { try { if (!window.__pfFH) return; const w = await window.__pfFH.createWritable(); await w.write(localStorage.getItem(PF_KEY) || '{}'); await w.close(); } catch (e) { } }
+  // ⚠️ 빈 값을 파일에 쓰지 않는다.
+  //    예전엔 localStorage 가 비어 있으면 '{}' 를 그대로 덮어써서, 브라우저 데이터를 지운 뒤
+  //    자동저장을 재연결하는 순간 디스크의 멀쩡한 파일까지 2바이트로 날아갔다.
+  //    (실제 흔적: Documents\portfolio_backup_20260706.json = '{}' 2바이트)
+  //    파일은 마지막 방어선이라, 지울 때는 사용자가 [전체 초기화]로 명시해야 한다.
+  async function __pfWriteFile(allowEmpty) {
+    try {
+      if (!window.__pfFH) return;
+      const raw = localStorage.getItem(PF_KEY);
+      let cur = null; try { cur = raw ? JSON.parse(raw) : null; } catch (e) { }
+      if (!__pfHasData(cur) && !allowEmpty) {
+        console.warn('[portfolio] 저장할 내용이 없어 파일 덮어쓰기를 건너뜀 (파일 보호)');
+        return;
+      }
+      const w = await window.__pfFH.createWritable();
+      await w.write(raw || '{}');
+      await w.close();
+    } catch (e) { }
+  }
   function __pfHasData(o) { return !!(o && ((o.holdings && o.holdings.length) || (o.deposits && o.deposits.length) || (o.txns && o.txns.length))); }
   window.__pfLink = async function () {
     if (!__pfFSA()) { alert('이 브라우저는 파일 자동저장 미지원(크롬·엣지 데스크톱 권장). 대신 💾 백업/📂 복원을 쓰세요.'); return; }
+    // ⚠️ 기존 파일 재연결에 showSaveFilePicker 를 쓰면 안 된다 — '저장' 대화상자는 고른 파일을
+    //    비우고 시작해, 읽기도 전에 내용이 날아간다. 재연결은 showOpenFilePicker(읽기) 로 한다.
+    //    브라우저 데이터를 지운 뒤 재연결하는 것이 이 기능의 핵심 용도라 여기가 가장 중요하다.
+    const cur0 = __pfLoad(), empty0 = !__pfHasData(cur0);
+    const mode = confirm('파일 자동저장\n\n[확인] 기존 파일에 다시 연결 (데이터 복구)\n[취소] 새 파일 만들기')
+      ? 'open' : 'save';
     try {
-      const fh = await window.showSaveFilePicker({ suggestedName: 'portfolio.json', types: [{ description: '포트폴리오 백업', accept: { 'application/json': ['.json'] } }] });
-      const cur = __pfLoad(), empty = !__pfHasData(cur);
-      try { const f = await fh.getFile(); const t = await f.text(); if (t) { const o = JSON.parse(t); if (__pfHasData(o) && empty) __pfSave({ principal: +o.principal || 0, cash: (o.cash == null || isNaN(+o.cash)) ? null : +o.cash, baseAsset: (o.baseAsset == null || isNaN(+o.baseAsset)) ? null : +o.baseAsset, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] }); } } catch (e) { }
-      window.__pfFH = fh; __pfHSet(fh); await __pfWriteFile(); renderPortfolio();
-      alert('✅ 자동저장 연결! 변경할 때마다 이 파일에 자동 저장됩니다.\n데이터가 지워져도 이 파일을 다시 연결하면 그대로 복원됩니다.');
+      let fh;
+      if (mode === 'open') {
+        const picked = await window.showOpenFilePicker({ multiple: false,
+          types: [{ description: '포트폴리오 백업', accept: { 'application/json': ['.json'] } }] });
+        fh = picked && picked[0];
+        if (!fh) return;
+        if (await fh.requestPermission({ mode: 'readwrite' }) !== 'granted') {
+          alert('쓰기 권한이 없어 자동저장을 켤 수 없습니다.'); return;
+        }
+        let loaded = 0;
+        try {
+          const t = await (await fh.getFile()).text();
+          const o = t ? JSON.parse(t) : null;
+          if (__pfHasData(o)) {
+            if (empty0 || confirm('파일에 데이터가 있습니다. 지금 화면 내용을 파일 내용으로 바꿀까요?')) {
+              __pfSave({ principal: +o.principal || 0, cash: (o.cash == null || isNaN(+o.cash)) ? null : +o.cash, baseAsset: (o.baseAsset == null || isNaN(+o.baseAsset)) ? null : +o.baseAsset, holdings: o.holdings || [], history: o.history || [], txns: o.txns || [], deposits: o.deposits || [] });
+              loaded = (o.holdings || []).length;
+            }
+          } else {
+            alert('⚠️ 이 파일에는 저장된 내용이 없습니다.\n연결은 하지만 복구되는 데이터는 없습니다.');
+          }
+        } catch (e) { alert('파일을 읽을 수 없습니다: ' + (e && e.message ? e.message : e)); return; }
+        window.__pfFH = fh; __pfHSet(fh);
+        await __pfWriteFile();            // 비어 있으면 내부 가드가 쓰기를 막는다
+        renderPortfolio();
+        alert('✅ 자동저장 연결!' + (loaded ? '\n보유 ' + loaded + '종목을 파일에서 불러왔습니다.' : ''));
+      } else {
+        fh = await window.showSaveFilePicker({ suggestedName: 'portfolio.json',
+          types: [{ description: '포트폴리오 백업', accept: { 'application/json': ['.json'] } }] });
+        window.__pfFH = fh; __pfHSet(fh);
+        await __pfWriteFile(true);        // 새 파일은 비어 있어도 만들어 둔다
+        renderPortfolio();
+        alert('✅ 자동저장 연결! 변경할 때마다 이 파일에 자동 저장됩니다.\n브라우저 데이터를 지워도 [기존 파일에 다시 연결]로 복구할 수 있습니다.');
+      }
     } catch (e) { }
   };
   async function __pfAutoloadFile() {
