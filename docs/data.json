@@ -1,11 +1,11 @@
 {
   "date": "2026-09-02",
-  "generated_at": "2026-09-02 02:09:26",
+  "generated_at": "2026-09-02 03:12:00",
   "macro": {
     "cycle": "정점기",
     "rate": "동결기",
-    "inflation": "인플레이션 상승 (3-5%)",
     "ffr": "3.63%",
+    "inflation": "인플레이션 상승 (3-5%)",
     "cpi": "3.30%"
   },
   "macro_detail": {
@@ -50,7 +50,28 @@
       "score": "+1 (양수: 확장, 음수: 수축)",
       "description": "성장 둔화 조짐. 인플레이션 상승, 금리 고점 근접."
     },
-    "key_signals": [],
+    "key_signals": [
+      {
+        "signal": "장단기금리차 축소",
+        "interpretation": "둔화 신호",
+        "direction": "negative"
+      },
+      {
+        "signal": "실업률 안정",
+        "interpretation": "중립",
+        "direction": "neutral"
+      },
+      {
+        "signal": "GDP 성장 지속",
+        "interpretation": "확장 신호",
+        "direction": "positive"
+      },
+      {
+        "signal": "VIX 15 미만 (안정)",
+        "interpretation": "낙관",
+        "direction": "positive"
+      }
+    ],
     "dollar_index": {
       "current": 118.7479,
       "trend": "-> 보합"
@@ -63,89 +84,787 @@
       "current": 4.34,
       "trend": "^ 상승"
     },
-    "asset_outlook": [],
-    "fomc": {}
-  },
-  "geopolitical": {
-    "risk_score": 46.1,
-    "risk_level": "주의",
-    "summary": "현재 지정학 리스크 수준은 [주의] (46.1/100)입니다. 가장 높은 리스크 카테고리는 '전쟁/군사충돌'으로 관련 뉴스 11건이 감지되었습니다. 금 가격 주간 -4.2% 하락으로 리스크 선호 분위기입니다.",
-    "categories": [],
-    "safe_haven_assets": [],
-    "top_news": [
+    "asset_outlook": [
       {
-        "date": "Tue, 01 Sep 2026",
-        "title": "Why Trump's trade war with Canada is poised to drag past the midterms - Politico",
-        "title_kr": "트럼프와 캐나다의 무역전쟁이 중간고사를 통과할 준비가 되어 있는 이유 - 폴리티코",
-        "link": "https://news.google.com/rss/articles/CBMiugFBVV95cUxOSDhBWHRnaTE1N29jMXRxQkFBWWVRSEtnLUZXT0pXNUNOMnBOdkp0WkltNGd0QTQ4NzhYMTJoMHlabHZWdGlaWHZMRm9jVEpZbWxabkFTaEhnRHI1RkxsQzNqX3hMN2ExTGFKOEZYdzZlZXpyblI4NEYzWFZRcGV5RU1DdEJSS1ktRXhDUmYydkVVeXd5V0lIcWJJWWNMUTNOZ25kTVNyb0xkMGY2d3pTWUJtX0dnNFhfanc?oc=5",
-        "source": "🌍",
-        "category": "지정학",
-        "risk_score": 0
+        "asset": "미국 성장주",
+        "outlook": "중립",
+        "strategy": "금리 동결기 선별적 접근. 실적 성장 확실한 기업 중심.",
+        "risk": "금리 방향 전환 시 변동성 확대"
       },
       {
-        "date": "Tue, 01 Sep 2026",
-        "title": "At G20 Summit, Scott Bessent Says U.S. Has Support for Economic War Against Iran - The New York Times",
-        "title_kr": "G20 정상회담에서 Scott Bessent는 미국이 이란과의 경제 전쟁을 지지한다고 말했습니다 - The New York Times",
-        "link": "https://news.google.com/rss/articles/CBMifkFVX3lxTE1ZR3BWQWFMdXRKdHYyTFZSVjkxS0JEMGpWUnl2M3h2QWZjclUwbVhsbFJCZVVlaFp3MXNMdlUxZHZ4REtoTGMxMUY3WU1SVms1SkNpa3hReW0wTWhkVHdhd0NIVDlFbUtwZnJBV1RDdGtERlJIbXI0Zy1GMlRldw?oc=5",
-        "source": "🇺🇸",
-        "category": "지정학",
-        "risk_score": 0
+        "asset": "미국 가치주",
+        "outlook": "중립",
+        "strategy": "경기 둔화 국면에서 선별적 접근. 현금흐름 우량 기업 선호.",
+        "risk": "섹터별 차별화 심화"
       },
       {
-        "date": "Tue, 01 Sep 2026",
-        "title": "Mark Carney rebukes Trump officials, urging US to ‘start being serious’ amid escalating trade war - The Guardian",
-        "title_kr": "마크 카니, 트럼프 관리 질책하며 무역전쟁 격화 속에서 미국에 '진지하게 행동하라' 촉구 - 가디언",
-        "link": "https://news.google.com/rss/articles/CBMiigFBVV95cUxQVC1yVWpmVW9hcDZ1RFNOam9VcmIyTVMyUi05SjM4cjVaU2lFZ0lBb0Y4QUd4TkFjNERHZ1FFRlc0eTFXdnhnMVkwTHNqbldOMVdNVGE5bWxiWlpvcHBqa0lUbERXSUptN2p1RnpON2pjbHZoRUxJVFJKN0xHVGpiRlBzTHJudUQ3QWc?oc=5",
-        "source": "🌍",
-        "category": "지정학",
-        "risk_score": 0
+        "asset": "장기 채권(10Y+)",
+        "outlook": "중립",
+        "strategy": "금리 동결기 캐리 수익 확보. 듀레이션 중립 유지.",
+        "risk": "금리 방향 전환 시 가격 변동"
       },
       {
-        "date": "Tue, 01 Sep 2026",
-        "title": "Iran defiant as Bessent says US likely to announce bank sanctions this week - Reuters",
-        "title_kr": "베센트가 미국이 이번 주에 은행 제재를 발표할 가능성이 있다고 말하자 이란은 반항했다 - 로이터",
-        "link": "https://news.google.com/rss/articles/CBMiygFBVV95cUxOYWVYQlZISm1jT2ZUaUZ4bDJ2ZE10ZEpaeXo5MnBPQTJYS0ZJNDFjNmdBNGlPQjdyRTIxMVJWeDYzTlFEZi1wVm55eUJTUjkxSjB2WnVVU3NLaEtjTWlMTFFXZlZuTDYyNzREc3hxWnpxRzdUV2MtRUdhei12TE9TQ0Rrc1hTMEN4alFnS1VFcVRzSEM1dmVxR2FYbzZXb1B2a254Y2FlVXlNMFBhQVlFRTAyNzdoaE1FN2Q5dFF0LS1PZDR3bm1PS2JR?oc=5",
-        "source": "🌍",
-        "category": "지정학",
-        "risk_score": 0
+        "asset": "단기 채권(2Y)",
+        "outlook": "중립",
+        "strategy": "안전자산으로서 포트폴리오 안정화 역할.",
+        "risk": "인플레이션 대비 실질 수익률 저조 가능성"
       },
       {
-        "date": "Tue, 01 Sep 2026",
-        "title": "Iran's president says Iran would return to ceasefire agreement if US does, and other Mideast news - AP News",
-        "title_kr": "이란 대통령은 미국이 휴전 협정에 복귀한다면 이란은 휴전 협정에 복귀할 것이라고 말했습니다. 기타 중동 뉴스 - AP News",
-        "link": "https://news.google.com/rss/articles/CBMixgFBVV95cUxQdlc2ODRWbzc4Ujc2bkpMYWU2dGtJU3JNdk1UeHhYbThocGhLbG9WdDVGd3JpdlIxLUNRZFhWZU80TXhRMWk2RFVaYmVwRXhVdG9fcUl3Zk5Pd0Q1SHpzT0w1aURMQVVxUURyR2lZYTZGbjNfT18yTlBMRml2bTZGM3dDaWNKNmNfelRuLXlsWmw1SlIwNHY0c3ljY2cwc0pma0tId2VtUjBpVWQ4OE5TeE90QVFrWFI5UTZ5eV9HeWhVQ09WUGc?oc=5",
-        "source": "🌍",
-        "category": "지정학",
-        "risk_score": 0
+        "asset": "미국 달러",
+        "outlook": "중립",
+        "strategy": "달러 방향성 제한적. 통화 헤지 유지.",
+        "risk": "지정학적 리스크에 따른 급변동"
       },
       {
-        "date": "Tue, 01 Sep 2026",
-        "title": "U.S. Sanctions on Iran Cut Off Students From Tests Needed for Study Abroad - The New York Times",
-        "title_kr": "이란에 대한 미국의 제재로 학생들의 해외 유학에 필요한 시험 중단 - The New York Times",
-        "link": "https://news.google.com/rss/articles/CBMijAFBVV95cUxOUFB2WEhDZXpkVE9oVFpDbXloMFdyMUJyaXp6d2lnSHNXc2lKS0l1Zm5XSTI3dWVWM1VBUXdkenBBQjh1SzRCZlQ0MjNsVS1PMl9OV280NFR5dXJOYkJnd3B0MWhEUW1vOGhmQndoeUhDMmNqSTU0RTVXVDN1bUZHaEhQSXRkbVVmYlp6Sg?oc=5",
-        "source": "🌍",
-        "category": "지정학",
-        "risk_score": 0
+        "asset": "금/귀금속",
+        "outlook": "중립",
+        "strategy": "포트폴리오 헤지 목적으로 5-10% 유지.",
+        "risk": "실질금리 변동에 민감"
+      },
+      {
+        "asset": "원자재/에너지",
+        "outlook": "중립",
+        "strategy": "공급/수요 균형 탐색 구간. 선별적 접근.",
+        "risk": "OPEC+ 정책 및 글로벌 수요 변화"
+      },
+      {
+        "asset": "암호화폐/비트코인",
+        "outlook": "중립",
+        "strategy": "투기적 소규모 배분(1-3%) 가능. 장기 관점 접근.",
+        "risk": "높은 변동성, 규제 불확실성"
       }
     ],
-    "news_source": "market_news RSS 폴백"
+    "fomc": {
+      "next_meeting": "2026-09-16",
+      "days_until": 14,
+      "target_upper": 3.75,
+      "target_lower": 3.5,
+      "effective_rate": 3.63,
+      "market_expectation": "hold",
+      "recent_decisions": [
+        {
+          "date": "2025-09",
+          "rate": "4.25",
+          "change": "-0.25",
+          "direction": "인하"
+        },
+        {
+          "date": "2025-10",
+          "rate": "4",
+          "change": "-0.25",
+          "direction": "인하"
+        },
+        {
+          "date": "2025-12",
+          "rate": "3.75",
+          "change": "-0.25",
+          "direction": "인하"
+        }
+      ]
+    }
+  },
+  "geopolitical": {
+    "risk_score": 46.4,
+    "risk_level": "주의",
+    "summary": "현재 지정학 리스크 수준은 [주의] (46.4/100)입니다. 가장 높은 리스크 카테고리는 '전쟁/군사충돌'으로 관련 뉴스 11건이 감지되었습니다. 금 가격 주간 -4.5% 하락으로 리스크 선호 분위기입니다.",
+    "categories": [
+      {
+        "category": "전쟁/군사충돌",
+        "score": 42.0,
+        "news_count": "11건",
+        "key_news": "U.S. strikes Iran after new Hormuz Strai; Russian attack hits rail workers in new ; [이슈&논란] ‘쿠팡 제재’ 한미 관세전쟁 '도화선' 되나…미 의회 압박",
+        "affected_sectors": "방산, 에너지, 항공"
+      },
+      {
+        "category": "지역갈등",
+        "score": 28.0,
+        "news_count": "11건",
+        "key_news": "Bessent reportedly tells Russia it won't; Indian Prime Minister Modi asks Putin to; Israel says senior Hamas member seized a",
+        "affected_sectors": "방산, 에너지, 해운"
+      },
+      {
+        "category": "관세/무역분쟁",
+        "score": 6.0,
+        "news_count": "3건",
+        "key_news": "Indian Prime Minister Modi asks Putin to; How the US-Canada trade war is being fel; [이슈&논란] ‘쿠팡 제재’ 한미 관세전쟁 '도화선' 되나…미 의회 압박",
+        "affected_sectors": "반도체, 자동차, 철강, 배터리"
+      },
+      {
+        "category": "경제제재",
+        "score": 4.0,
+        "news_count": "2건",
+        "key_news": "U.S.-Iran escalation shows Washington's ; [이슈&논란] ‘쿠팡 제재’ 한미 관세전쟁 '도화선' 되나…미 의회 압박",
+        "affected_sectors": "반도체, 에너지, 금융"
+      },
+      {
+        "category": "공급망위기",
+        "score": 0.0,
+        "news_count": "0건",
+        "key_news": "관련 뉴스 없음",
+        "affected_sectors": "반도체, 배터리, 자동차, IT"
+      },
+      {
+        "category": "정치불안",
+        "score": 0.0,
+        "news_count": "0건",
+        "key_news": "관련 뉴스 없음",
+        "affected_sectors": "금융, 부동산, 내수"
+      }
+    ],
+    "safe_haven_assets": [
+      {
+        "name": "금(Gold)",
+        "current_value": 4391.3,
+        "week_change": "-4.50%",
+        "month_change": "+8.87%",
+        "signal": "<- 리스크 완화 신호 (금 약세)"
+      },
+      {
+        "name": "유가(WTI)",
+        "current_value": 89.93,
+        "week_change": "+9.36%",
+        "month_change": "+11.94%",
+        "signal": "<- 지정학 프리미엄 가능성"
+      },
+      {
+        "name": "VIX",
+        "current_value": 16.0,
+        "week_change": "+3.56%",
+        "month_change": "+0.88%",
+        "signal": "정상 범위"
+      },
+      {
+        "name": "USD/KRW",
+        "current_value": 1373.85,
+        "week_change": "-0.55%",
+        "month_change": "-4.31%",
+        "signal": "환율 안정"
+      },
+      {
+        "name": "미국10년국채",
+        "current_value": 4.79,
+        "week_change": "+3.30%",
+        "month_change": "+2.26%",
+        "signal": "<- 금리 상승 (인플레 우려)"
+      },
+      {
+        "name": "방산ETF(ITA)",
+        "current_value": 225.79,
+        "week_change": "-3.63%",
+        "month_change": "-8.25%",
+        "signal": "방산ETF 안정"
+      },
+      {
+        "name": "신흥국ETF(EEM)",
+        "current_value": 66.79,
+        "week_change": "-0.56%",
+        "month_change": "+3.84%",
+        "signal": "신흥국 안정"
+      }
+    ],
+    "top_news": [
+      {
+        "date": "2026-09-01 09:26",
+        "title": "[이슈&논란] ‘쿠팡 제재’ 한미 관세전쟁 '도화선' 되나…미 의회 압박·韓 정부 반박의 '충돌', 관세·ISDS까지 번질까 - 뉴스스페이스",
+        "title_kr": "[이슈&논란] ‘쿠팡 제재’ 한미 관세전쟁 '도화선' 되나…미 의회 압박·韓 정부 반박의 '충돌', 관세·ISDS까지 번질까 - 뉴스스페이스",
+        "link": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5jTmRhTU1rMkxiTHQ2dzhtQnBKMVFCZzhrMzVITVJpT2U5R2RsOGVVX3Y2SWhTS2llazFiXzVBU2lxZFdRUUZUQUtSLVYxdHY3UGJlYWR3amZLRUJ0QzAwTw?oc=5",
+        "source": "Google(KR)",
+        "category": "전쟁/군사충돌, 관세/무역분쟁, 경제제재",
+        "risk_score": 10.0
+      },
+      {
+        "date": "2026-09-01 14:23",
+        "title": "Indian Prime Minister Modi asks Putin to end Ukraine war amid U.S. tariff threat",
+        "title_kr": "Indian Prime Minister Modi asks Putin to end Ukraine war amid U.S. tariff threat on Russian oil",
+        "link": "https://www.cnbc.com/2026/09/01/russia-india-ukraine-war-oil-modi-putin.html",
+        "source": "CNBC",
+        "category": "전쟁/군사충돌, 관세/무역분쟁, 지역갈등",
+        "risk_score": 9.0
+      },
+      {
+        "date": "2026-09-01 18:05",
+        "title": "U.S. strikes Iran after new Hormuz Strait shipping attacks: Centcom",
+        "title_kr": "U.S. strikes Iran after new Hormuz Strait shipping attacks: Centcom",
+        "link": "https://www.cnbc.com/2026/09/01/us-strikes-iran-after-new-hormuz-strait-shipping-attacks-centcom.html",
+        "source": "CNBC",
+        "category": "전쟁/군사충돌, 지역갈등",
+        "risk_score": 8.0
+      },
+      {
+        "date": "2026-09-01 10:30",
+        "title": "Russian attack hits rail workers in new deadly strikes on Kyiv",
+        "title_kr": "러시아, 키예프에서 새로운 치명적인 파업으로 철도 노동자 공격",
+        "link": "https://www.bbc.co.uk/news/articles/cx2zmdgry3do?at_medium=RSS&at_campaign=rss",
+        "source": "BBC",
+        "category": "전쟁/군사충돌, 지역갈등",
+        "risk_score": 8.0
+      },
+      {
+        "date": "2026-09-01 14:31",
+        "title": "Bessent reportedly tells Russia it won't get economic relief until it ends Ukrai",
+        "title_kr": "Bessent reportedly tells Russia it won't get economic relief until it ends Ukraine war",
+        "link": "https://www.cnbc.com/2026/09/01/bessent-russia-ukraine-war-sanctions-war-g20-.html",
+        "source": "CNBC",
+        "category": "전쟁/군사충돌, 지역갈등",
+        "risk_score": 7.0
+      }
+    ]
   },
   "portfolios": {
-    "sectors": [],
-    "best_sector": null,
-    "worst_sector": null
+    "sectors": [
+      {
+        "name": "IT_반도체",
+        "sharpe_ratio": 1.68,
+        "annual_return": "77.9%",
+        "annual_volatility": "44.3%",
+        "sortino_ratio": 2.32,
+        "max_drawdown": "-32.0%",
+        "cumulative_return": "200.2%",
+        "beta": 0.97,
+        "var_95": "-4.30%",
+        "var_99": "-7.21%",
+        "cvar_95": "-6.35%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "Samsung": "2.6%",
+              "SK hynix": "95.2%",
+              "NAVER Co": "2.0%",
+              "Kakao Co": "0.2%"
+            },
+            "return": "142.6%",
+            "volatility": "72.3%",
+            "sharpe": 1.92,
+            "var_95": "-7.42%"
+          },
+          "balanced": {
+            "weights": {
+              "Samsung": "2.6%",
+              "SK hynix": "95.2%",
+              "NAVER Co": "2.0%",
+              "Kakao Co": "0.2%"
+            },
+            "return": "142.6%",
+            "volatility": "72.3%",
+            "sharpe": 1.92,
+            "var_95": "-7.42%"
+          },
+          "stable": {
+            "weights": {
+              "Samsung": "25.9%",
+              "SK hynix": "0.5%",
+              "NAVER Co": "35.6%",
+              "Kakao Co": "38.1%"
+            },
+            "return": "36.5%",
+            "volatility": "40.5%",
+            "sharpe": 0.81,
+            "var_95": "-3.55%"
+          }
+        },
+        "assets": [
+          {
+            "name": "Samsung Electronics Co., Ltd.",
+            "ticker": "005930.KS",
+            "weight": "25.0%"
+          },
+          {
+            "name": "SK hynix Inc.",
+            "ticker": "000660.KS",
+            "weight": "25.0%"
+          },
+          {
+            "name": "NAVER Corporation",
+            "ticker": "035420.KS",
+            "weight": "25.0%"
+          },
+          {
+            "name": "Kakao Corp.",
+            "ticker": "035720.KS",
+            "weight": "25.0%"
+          }
+        ],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "77.9%",
+            "sharpe": "1.76",
+            "max_drawdown": "-32.0%"
+          },
+          "sma200": {
+            "annual_return": "49.0%",
+            "sharpe": "0.94",
+            "max_drawdown": "-32.0%"
+          }
+        }
+      },
+      {
+        "name": "미국 빅테크",
+        "sharpe_ratio": 1.25,
+        "annual_return": "33.6%",
+        "annual_volatility": "24.2%",
+        "sortino_ratio": 1.85,
+        "max_drawdown": "-26.7%",
+        "cumulative_return": "77.7%",
+        "beta": 1.29,
+        "var_95": "-2.18%",
+        "var_99": "-4.05%",
+        "cvar_95": "-3.28%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "Apple In": "2.0%",
+              "NVIDIA C": "69.6%",
+              "Microsof": "0.3%",
+              "Alphabet": "28.2%"
+            },
+            "return": "44.3%",
+            "volatility": "35.6%",
+            "sharpe": 1.15,
+            "var_95": "-3.17%"
+          },
+          "balanced": {
+            "weights": {
+              "Apple In": "18.0%",
+              "NVIDIA C": "19.0%",
+              "Microsof": "0.0%",
+              "Alphabet": "62.9%"
+            },
+            "return": "40.2%",
+            "volatility": "26.9%",
+            "sharpe": 1.36,
+            "var_95": "-2.46%"
+          },
+          "stable": {
+            "weights": {
+              "Apple In": "35.6%",
+              "NVIDIA C": "0.4%",
+              "Microsof": "39.0%",
+              "Alphabet": "25.0%"
+            },
+            "return": "25.3%",
+            "volatility": "21.9%",
+            "sharpe": 1.0,
+            "var_95": "-2.02%"
+          }
+        },
+        "assets": [],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "33.6%",
+            "sharpe": "1.39",
+            "max_drawdown": "-26.7%"
+          },
+          "sma200": {
+            "annual_return": "22.3%",
+            "sharpe": "1.2",
+            "max_drawdown": "-13.7%"
+          }
+        }
+      },
+      {
+        "name": "바이오_헬스케어",
+        "sharpe_ratio": 0.34,
+        "annual_return": "16.0%",
+        "annual_volatility": "36.9%",
+        "sortino_ratio": 0.5,
+        "max_drawdown": "-31.5%",
+        "cumulative_return": "32.8%",
+        "beta": 0.4,
+        "var_95": "-3.35%",
+        "var_99": "-5.69%",
+        "cvar_95": "-5.01%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "Samsung": "1.2%",
+              "Celltrio": "0.5%",
+              "Hanmi Ph": "98.3%"
+            },
+            "return": "44.1%",
+            "volatility": "63.2%",
+            "sharpe": 0.64,
+            "var_95": "-5.26%"
+          },
+          "balanced": {
+            "weights": {
+              "Samsung": "1.2%",
+              "Celltrio": "0.5%",
+              "Hanmi Ph": "98.3%"
+            },
+            "return": "44.1%",
+            "volatility": "63.2%",
+            "sharpe": 0.64,
+            "var_95": "-5.26%"
+          },
+          "stable": {
+            "weights": {
+              "Samsung": "48.0%",
+              "Celltrio": "50.6%",
+              "Hanmi Ph": "1.3%"
+            },
+            "return": "10.6%",
+            "volatility": "32.2%",
+            "sharpe": 0.22,
+            "var_95": "-3.05%"
+          }
+        },
+        "assets": [
+          {
+            "name": "Samsung Biologics Co.,Ltd.",
+            "ticker": "207940.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "Celltrion, Inc.",
+            "ticker": "068270.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "Hanmi Pharm. Co., Ltd.",
+            "ticker": "128940.KS",
+            "weight": "33.3%"
+          }
+        ],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "16.0%",
+            "sharpe": "0.43",
+            "max_drawdown": "-31.5%"
+          },
+          "sma200": {
+            "annual_return": "2.0%",
+            "sharpe": "0.05",
+            "max_drawdown": "-32.1%"
+          }
+        }
+      },
+      {
+        "name": "방산",
+        "sharpe_ratio": 1.53,
+        "annual_return": "96.3%",
+        "annual_volatility": "60.7%",
+        "sortino_ratio": 2.53,
+        "max_drawdown": "-45.3%",
+        "cumulative_return": "262.4%",
+        "beta": 0.54,
+        "var_95": "-5.78%",
+        "var_99": "-9.08%",
+        "cvar_95": "-7.78%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "Hanwha A": "2.7%",
+              "LIG Defe": "96.8%",
+              "Hyundai": "0.4%"
+            },
+            "return": "97.6%",
+            "volatility": "77.4%",
+            "sharpe": 1.21,
+            "var_95": "-6.29%"
+          },
+          "balanced": {
+            "weights": {
+              "Hanwha A": "52.6%",
+              "LIG Defe": "34.3%",
+              "Hyundai": "13.1%"
+            },
+            "return": "88.7%",
+            "volatility": "61.9%",
+            "sharpe": 1.38,
+            "var_95": "-6.02%"
+          },
+          "stable": {
+            "weights": {
+              "Hanwha A": "45.8%",
+              "LIG Defe": "9.3%",
+              "Hyundai": "44.9%"
+            },
+            "return": "81.4%",
+            "volatility": "59.1%",
+            "sharpe": 1.32,
+            "var_95": "-5.73%"
+          }
+        },
+        "assets": [
+          {
+            "name": "Hanwha Aerospace Co., Ltd.",
+            "ticker": "012450.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "LIG Defense&Aerospace Co., Ltd.",
+            "ticker": "079550.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "Hyundai Rotem Company",
+            "ticker": "064350.KS",
+            "weight": "33.3%"
+          }
+        ],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "96.3%",
+            "sharpe": "1.59",
+            "max_drawdown": "-45.3%"
+          },
+          "sma200": {
+            "annual_return": "-2.8%",
+            "sharpe": "-0.05",
+            "max_drawdown": "-43.0%"
+          }
+        }
+      },
+      {
+        "name": "배터리_2차전지",
+        "sharpe_ratio": -0.01,
+        "annual_return": "3.0%",
+        "annual_volatility": "57.1%",
+        "sortino_ratio": -0.01,
+        "max_drawdown": "-50.6%",
+        "cumulative_return": "5.8%",
+        "beta": 0.78,
+        "var_95": "-5.65%",
+        "var_99": "-8.44%",
+        "cvar_95": "-7.36%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "LG Energ": "0.0%",
+              "Samsung": "97.8%",
+              "Ecopro B": "2.2%"
+            },
+            "return": "42.4%",
+            "volatility": "62.9%",
+            "sharpe": 0.62,
+            "var_95": "-5.83%"
+          },
+          "balanced": {
+            "weights": {
+              "LG Energ": "2.7%",
+              "Samsung": "96.8%",
+              "Ecopro B": "0.4%"
+            },
+            "return": "42.2%",
+            "volatility": "62.5%",
+            "sharpe": 0.62,
+            "var_95": "-5.77%"
+          },
+          "stable": {
+            "weights": {
+              "LG Energ": "73.8%",
+              "Samsung": "25.6%",
+              "Ecopro B": "0.7%"
+            },
+            "return": "18.7%",
+            "volatility": "53.8%",
+            "sharpe": 0.28,
+            "var_95": "-5.12%"
+          }
+        },
+        "assets": [
+          {
+            "name": "LG Energy Solution, Ltd.",
+            "ticker": "373220.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "Samsung SDI Co., Ltd.",
+            "ticker": "006400.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "Ecopro BM Co Ltd",
+            "ticker": "247540.KS",
+            "weight": "33.3%"
+          }
+        ],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "3.0%",
+            "sharpe": "0.05",
+            "max_drawdown": "-50.6%"
+          },
+          "sma200": {
+            "annual_return": "12.2%",
+            "sharpe": "0.2",
+            "max_drawdown": "-36.9%"
+          }
+        }
+      },
+      {
+        "name": "암호화폐",
+        "sharpe_ratio": 0.31,
+        "annual_return": "18.8%",
+        "annual_volatility": "49.5%",
+        "sortino_ratio": 0.46,
+        "max_drawdown": "-62.6%",
+        "cumulative_return": "64.7%",
+        "beta": 1.44,
+        "var_95": "-4.62%",
+        "var_99": "-7.49%",
+        "cvar_95": "-6.65%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "Bitcoin": "1.2%",
+              "Ethereum": "0.5%",
+              "XRP USD": "98.3%"
+            },
+            "return": "54.0%",
+            "volatility": "68.8%",
+            "sharpe": 0.73,
+            "var_95": "-5.42%"
+          },
+          "balanced": {
+            "weights": {
+              "Bitcoin": "1.2%",
+              "Ethereum": "0.5%",
+              "XRP USD": "98.3%"
+            },
+            "return": "54.0%",
+            "volatility": "68.8%",
+            "sharpe": 0.73,
+            "var_95": "-5.42%"
+          },
+          "stable": {
+            "weights": {
+              "Bitcoin": "99.5%",
+              "Ethereum": "0.5%",
+              "XRP USD": "0.0%"
+            },
+            "return": "17.1%",
+            "volatility": "37.2%",
+            "sharpe": 0.37,
+            "var_95": "-3.55%"
+          }
+        },
+        "assets": [],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "18.8%",
+            "sharpe": "0.38",
+            "max_drawdown": "-62.6%"
+          },
+          "sma200": {
+            "annual_return": "3.4%",
+            "sharpe": "0.08",
+            "max_drawdown": "-25.5%"
+          }
+        }
+      },
+      {
+        "name": "에너지",
+        "sharpe_ratio": 0.92,
+        "annual_return": "38.3%",
+        "annual_volatility": "37.7%",
+        "sortino_ratio": 1.44,
+        "max_drawdown": "-29.5%",
+        "cumulative_return": "85.7%",
+        "beta": 0.39,
+        "var_95": "-3.47%",
+        "var_99": "-5.40%",
+        "cvar_95": "-4.85%",
+        "allocations": {
+          "aggressive": {
+            "weights": {
+              "Korea El": "1.2%",
+              "SK Innov": "0.5%",
+              "S-Oil Co": "98.3%"
+            },
+            "return": "58.7%",
+            "volatility": "50.2%",
+            "sharpe": 1.1,
+            "var_95": "-4.32%"
+          },
+          "balanced": {
+            "weights": {
+              "Korea El": "39.8%",
+              "SK Innov": "0.1%",
+              "S-Oil Co": "60.1%"
+            },
+            "return": "49.8%",
+            "volatility": "36.3%",
+            "sharpe": 1.28,
+            "var_95": "-3.23%"
+          },
+          "stable": {
+            "weights": {
+              "Korea El": "48.1%",
+              "SK Innov": "6.9%",
+              "S-Oil Co": "45.0%"
+            },
+            "return": "45.5%",
+            "volatility": "35.3%",
+            "sharpe": 1.19,
+            "var_95": "-3.36%"
+          }
+        },
+        "assets": [
+          {
+            "name": "Korea Electric Power Corporation",
+            "ticker": "015760.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "SK Innovation Co., Ltd.",
+            "ticker": "096770.KS",
+            "weight": "33.3%"
+          },
+          {
+            "name": "S-Oil Corporation",
+            "ticker": "010950.KS",
+            "weight": "33.3%"
+          }
+        ],
+        "benchmarks": {
+          "buy_hold": {
+            "annual_return": "38.3%",
+            "sharpe": "1.02",
+            "max_drawdown": "-29.5%"
+          },
+          "sma200": {
+            "annual_return": "12.5%",
+            "sharpe": "0.3",
+            "max_drawdown": "-28.9%"
+          }
+        }
+      }
+    ],
+    "best_sector": {
+      "name": "IT_반도체",
+      "sharpe_ratio": 1.68
+    },
+    "worst_sector": {
+      "name": "배터리_2차전지",
+      "sharpe_ratio": -0.01
+    }
   },
   "insights": {
-    "market_assessment": "현재 시장: 경기 정점기, 금리 동결기, VIX 14.9 (낮은 변동성), 지정학 리스크 주의(46.1/100).",
+    "market_assessment": "현재 시장: 경기 정점기, 금리 동결기, VIX 14.9 (낮은 변동성), 지정학 리스크 주의(46.4/100).",
     "top_insights": [
       "금리 동결기: 연준이 금리를 동결하며 관망하는 국면입니다.",
-      "장단기 금리차 0.41%p - 평탄화 (경기 둔화 신호)"
+      "장단기 금리차 0.41%p - 평탄화 (경기 둔화 신호)",
+      "최고 Sharpe 섹터: IT_반도체 (1.68)"
     ],
     "key_risks": [
-      "지정학 리스크 주의 (46.1/100)",
+      "지정학 리스크 주의 (46.4/100)",
       "인플레이션 리스크: 높음 (인플레이션 상승 (3-5%))"
     ],
-    "best_opportunities": []
+    "best_opportunities": [
+      {
+        "asset": "IT_반도체",
+        "reason": "Sharpe 1.68, 연간수익률 77.9%"
+      },
+      {
+        "asset": "방산",
+        "reason": "Sharpe 1.53, 연간수익률 96.3%"
+      },
+      {
+        "asset": "미국 빅테크",
+        "reason": "Sharpe 1.25, 연간수익률 33.6%"
+      }
+    ]
   },
   "sectors": [
     {
@@ -154,24 +873,25 @@
         {
           "name": "삼성전자",
           "ticker": "005930",
-          "regime": "약한상승",
-          "sentiment_label": "약세",
-          "sentiment_score": "-1.0",
+          "regime": "약한하락",
+          "sentiment_label": "중립",
+          "sentiment_score": "-1.9",
           "price": 261000.0,
           "market_cap": 1713.873,
-          "change_pct": 0.38,
-          "per": 3.81,
+          "per": 3.76,
+          "forward_per": 3.76,
           "roe": 30.79,
+          "revenue_growth": 130.0,
+          "high_52w": 374500.0,
+          "low_52w": 0.0,
           "recommendation": "strong_buy",
-          "target_price_mean": 470155.62,
+          "target_price_mean": 471544.53,
           "recommendation_mean": 1.35,
           "analyst_count": 36,
           "profit_margin": 30.84,
           "beta": 1.55,
           "week52_high": 374500.0,
-          "week52_low": 67800.0,
-          "forward_per": 3.81,
-          "revenue_growth": 130.0,
+          "change_pct": 0.38,
           "target_price_high": 725000.0,
           "target_price_low": 210000.0,
           "debt_to_equity": 3.87
@@ -179,14 +899,17 @@
         {
           "name": "SK하이닉스",
           "ticker": "000660",
-          "regime": "약한상승",
-          "sentiment_label": "약세",
-          "sentiment_score": "-2.5",
+          "regime": "횡보",
+          "sentiment_label": "중립",
+          "sentiment_score": "-1.9",
           "price": 1693000.0,
           "market_cap": 1201.784,
-          "change_pct": 1.14,
           "per": 3.6,
+          "forward_per": 3.6,
           "roe": 92.68,
+          "revenue_growth": 256.8,
+          "high_52w": 2987000.0,
+          "low_52w": 0.0,
           "recommendation": "strong_buy",
           "target_price_mean": 3216024.8,
           "recommendation_mean": 1.34,
@@ -194,9 +917,7 @@
           "profit_margin": 85.62,
           "beta": 2.4,
           "week52_high": 2987000.0,
-          "week52_low": 256000.0,
-          "forward_per": 3.6,
-          "revenue_growth": 256.8,
+          "change_pct": 1.14,
           "target_price_high": 5300000.0,
           "target_price_low": 1535000.0,
           "debt_to_equity": 8.04
@@ -218,7 +939,6 @@
           "profit_margin": 1.12,
           "beta": 2.02,
           "week52_high": 438000.0,
-          "week52_low": 72000.0,
           "forward_per": 12.65,
           "revenue_growth": 14.9,
           "target_price_high": 350000.0,
@@ -243,7 +963,6 @@
           "profit_margin": 8.09,
           "beta": 2.91,
           "week52_high": 2417000.0,
-          "week52_low": 163200.0,
           "forward_per": 33.86,
           "revenue_growth": 24.2,
           "target_price_high": 3300000.0,
@@ -267,7 +986,6 @@
           "profit_margin": 2.76,
           "beta": 2.29,
           "week52_high": 1788000.0,
-          "week52_low": 159800.0,
           "forward_per": 12.58,
           "revenue_growth": 40.5,
           "target_price_high": 2000000.0,
@@ -292,7 +1010,6 @@
           "profit_margin": -5.34,
           "beta": 1.32,
           "week52_high": 17950.0,
-          "week52_low": 8120.0,
           "forward_per": 6.13,
           "revenue_growth": 0.4,
           "target_price_high": 17000.0,
@@ -317,7 +1034,6 @@
           "profit_margin": 40.27,
           "beta": 2.15,
           "week52_high": 426000.0,
-          "week52_low": 81800.0,
           "forward_per": 40.04,
           "revenue_growth": 39.5,
           "target_price_high": 500000.0,
@@ -352,14 +1068,17 @@
         {
           "name": "네이버",
           "ticker": "035420",
-          "regime": "약한상승",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+4.3",
+          "regime": "횡보",
+          "sentiment_label": "약세",
+          "sentiment_score": "-18.0",
           "price": 215000.0,
           "market_cap": 32.16,
-          "change_pct": -0.92,
           "per": 14.57,
+          "forward_per": 14.57,
           "roe": 6.42,
+          "revenue_growth": 16.2,
+          "high_52w": 304000.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
           "target_price_mean": 303074.06,
           "recommendation_mean": 1.56,
@@ -367,9 +1086,7 @@
           "profit_margin": 15.61,
           "beta": 1.19,
           "week52_high": 304000.0,
-          "week52_low": 181100.0,
-          "forward_per": 14.57,
-          "revenue_growth": 16.2,
+          "change_pct": -0.92,
           "target_price_high": 400000.0,
           "target_price_low": 210000.0,
           "debt_to_equity": 18.16
@@ -379,12 +1096,15 @@
           "ticker": "035720",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-2.3",
+          "sentiment_score": "-18.5",
           "price": 36500.0,
           "market_cap": 16.085,
-          "change_pct": -0.14,
           "per": 19.15,
+          "forward_per": 19.15,
           "roe": 3.72,
+          "revenue_growth": 9.4,
+          "high_52w": 69700.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
           "target_price_mean": 54960.0,
           "recommendation_mean": 1.68,
@@ -392,9 +1112,7 @@
           "profit_margin": 4.09,
           "beta": 1.15,
           "week52_high": 69700.0,
-          "week52_low": 32250.0,
-          "forward_per": 19.15,
-          "revenue_growth": 9.4,
+          "change_pct": -0.14,
           "target_price_high": 87000.0,
           "target_price_low": 40000.0,
           "debt_to_equity": 20.72
@@ -416,7 +1134,6 @@
           "profit_margin": 18.75,
           "beta": 0.72,
           "week52_high": 334500.0,
-          "week52_low": 199300.0,
           "forward_per": 9.27,
           "revenue_growth": 94.9,
           "target_price_high": 410000.0,
@@ -441,7 +1158,6 @@
           "profit_margin": 29.53,
           "beta": 0.96,
           "week52_high": 343500.0,
-          "week52_low": 176100.0,
           "forward_per": 9.92,
           "revenue_growth": 101.5,
           "target_price_high": 440000.0,
@@ -458,20 +1174,19 @@
           "market_cap": 3.179,
           "change_pct": 2.92,
           "per": 10.08,
-          "roe": 6.41,
+          "roe": 7.06,
           "recommendation": "buy",
           "target_price_mean": 61035.0,
           "recommendation_mean": 1.65,
           "analyst_count": 20,
-          "profit_margin": 12.54,
+          "profit_margin": 13.69,
           "beta": 0.85,
           "week52_high": 69000.0,
-          "week52_low": 34200.0,
           "forward_per": 10.08,
-          "revenue_growth": 4.5,
+          "revenue_growth": 4.4,
           "target_price_high": 93000.0,
           "target_price_low": 39700.0,
-          "debt_to_equity": 23.33
+          "debt_to_equity": 16.52
         },
         {
           "name": "카카오뱅크",
@@ -491,7 +1206,6 @@
           "profit_margin": 30.03,
           "beta": 1.38,
           "week52_high": 29500.0,
-          "week52_low": 19110.0,
           "forward_per": 15.59,
           "revenue_growth": 24.4,
           "target_price_high": 33000.0,
@@ -514,7 +1228,6 @@
           "profit_margin": 7.67,
           "beta": 1.92,
           "week52_high": 79200.0,
-          "week52_low": 36550.0,
           "forward_per": 40.22,
           "revenue_growth": 40.6,
           "target_price_high": 82000.0,
@@ -544,7 +1257,6 @@
           "profit_margin": 4.32,
           "beta": 1.72,
           "week52_high": 783000.0,
-          "week52_low": 213000.0,
           "forward_per": 8.3,
           "revenue_growth": 1.9,
           "target_price_high": 900000.0,
@@ -569,7 +1281,6 @@
           "profit_margin": 5.92,
           "beta": 1.02,
           "week52_high": 212500.0,
-          "week52_low": 100000.0,
           "forward_per": 5.51,
           "revenue_growth": 12.6,
           "target_price_high": 290000.0,
@@ -594,7 +1305,6 @@
           "profit_margin": 5.83,
           "beta": 1.37,
           "week52_high": 822000.0,
-          "week52_low": 283000.0,
           "forward_per": 8.38,
           "revenue_growth": 2.4,
           "target_price_high": 920000.0,
@@ -619,7 +1329,6 @@
           "profit_margin": -0.05,
           "beta": 1.26,
           "week52_high": 5940.0,
-          "week52_low": 2755.0,
           "forward_per": 12.63,
           "revenue_growth": 0.6,
           "target_price_high": 6100.0,
@@ -643,7 +1352,6 @@
           "profit_margin": 5.39,
           "beta": 0.89,
           "week52_high": 79700.0,
-          "week52_low": 51900.0,
           "forward_per": 9.37,
           "revenue_growth": 4.1,
           "target_price_high": 98000.0,
@@ -658,24 +1366,25 @@
         {
           "name": "LG에너지솔루션",
           "ticker": "373220",
-          "regime": "약한상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+15.2",
+          "regime": "약한하락",
+          "sentiment_label": "약간긍정",
+          "sentiment_score": "+10.4",
           "price": 367000.0,
           "market_cap": 85.878,
-          "change_pct": -2.91,
           "per": 47.0,
+          "forward_per": 47.0,
           "roe": -5.15,
+          "revenue_growth": 28.3,
+          "high_52w": 527000.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
-          "target_price_mean": 487466.66,
+          "target_price_mean": 492466.66,
           "recommendation_mean": 1.7,
           "analyst_count": 30,
           "profit_margin": -6.67,
           "beta": 1.0,
           "week52_high": 527000.0,
-          "week52_low": 290500.0,
-          "forward_per": 47.0,
-          "revenue_growth": 28.3,
+          "change_pct": -2.91,
           "target_price_high": 600000.0,
           "target_price_low": 295000.0,
           "debt_to_equity": 96.27
@@ -683,24 +1392,25 @@
         {
           "name": "삼성SDI",
           "ticker": "006400",
-          "regime": "강한상승",
+          "regime": "하락",
           "sentiment_label": "긍정",
-          "sentiment_score": "+45.3",
+          "sentiment_score": "+44.8",
           "price": 569000.0,
           "market_cap": 44.777,
-          "change_pct": -1.39,
-          "per": 30.99,
+          "per": 30.82,
+          "forward_per": 30.82,
           "roe": 0.2,
+          "revenue_growth": 18.5,
+          "high_52w": 723000.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
-          "target_price_mean": 711677.44,
+          "target_price_mean": 716838.7,
           "recommendation_mean": 1.74,
           "analyst_count": 31,
           "profit_margin": 0.26,
           "beta": 1.69,
           "week52_high": 723000.0,
-          "week52_low": 196800.0,
-          "forward_per": 30.99,
-          "revenue_growth": 18.5,
+          "change_pct": -1.39,
           "target_price_high": 1000000.0,
           "target_price_low": 190000.0,
           "debt_to_equity": 45.77
@@ -709,17 +1419,22 @@
           "name": "에코프로비엠",
           "ticker": "247540",
           "regime": "약한상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+16.7",
+          "sentiment_label": "중립",
+          "sentiment_score": "-1.9",
           "price": 194000.0,
           "market_cap": 11.367,
-          "change_pct": 6.48,
           "per": 143.97,
+          "forward_per": null,
           "roe": null,
+          "revenue_growth": null,
+          "high_52w": 260000.0,
+          "low_52w": 88300.0,
           "week52_high": 260000.0,
           "week52_low": 88300.0,
-          "recommendation": "none",
-          "target_price_mean": 166562.5,
+          "change_pct": 6.48,
+          "recommendation": "hold",
+          "target_price_mean": 167229.17,
+          "recommendation_mean": 2.96,
           "analyst_count": 24,
           "profit_margin": 1.9,
           "beta": 1.2
@@ -753,17 +1468,16 @@
           "per": 181.32,
           "roe": 1.36,
           "recommendation": "hold",
-          "target_price_mean": 186777.78,
+          "target_price_mean": 184962.97,
           "recommendation_mean": 3.22,
           "analyst_count": 27,
           "profit_margin": 1.55,
           "beta": 1.71,
           "week52_high": 299500.0,
-          "week52_low": 114700.0,
           "forward_per": 181.32,
           "revenue_growth": 2.8,
           "target_price_high": 320000.0,
-          "target_price_low": 96000.0,
+          "target_price_low": 90000.0,
           "debt_to_equity": 88.08
         },
         {
@@ -784,7 +1498,6 @@
           "profit_margin": 94.32,
           "beta": 2.47,
           "week52_high": 2189000.0,
-          "week52_low": 141500.0,
           "forward_per": 2.52,
           "revenue_growth": 9.67,
           "target_price_high": 2280000.0,
@@ -814,7 +1527,6 @@
           "profit_margin": 36.53,
           "beta": 0.64,
           "week52_high": 194500.0,
-          "week52_low": 105800.0,
           "forward_per": 8.59,
           "revenue_growth": 18.5,
           "target_price_high": 235000.0,
@@ -838,7 +1550,6 @@
           "profit_margin": 32.47,
           "beta": 0.64,
           "week52_high": 113300.0,
-          "week52_low": 63700.0,
           "forward_per": 8.08,
           "revenue_growth": 14.1,
           "target_price_high": 145000.0,
@@ -862,7 +1573,6 @@
           "profit_margin": 31.68,
           "beta": 0.7,
           "week52_high": 142500.0,
-          "week52_low": 80500.0,
           "forward_per": 7.64,
           "revenue_growth": 6.8,
           "target_price_high": 180000.0,
@@ -885,7 +1595,6 @@
           "profit_margin": 29.29,
           "beta": 0.52,
           "week52_high": 41500.0,
-          "week52_low": 23750.0,
           "forward_per": 6.99,
           "revenue_growth": 33.7,
           "target_price_high": 48000.0,
@@ -909,7 +1618,6 @@
           "profit_margin": 11.79,
           "beta": 1.06,
           "week52_high": 516500.0,
-          "week52_low": 142600.0,
           "forward_per": 11.44,
           "revenue_growth": 59.3,
           "target_price_high": 590000.0,
@@ -933,7 +1641,6 @@
           "analyst_count": 13,
           "profit_margin": 0.0,
           "week52_high": 7560.0,
-          "week52_low": 2930.0,
           "forward_per": 4.93,
           "target_price_high": 7000.0,
           "target_price_low": 2300.0,
@@ -957,7 +1664,6 @@
           "profit_margin": 7.63,
           "beta": 0.25,
           "week52_high": 214000.0,
-          "week52_low": 118100.0,
           "forward_per": 6.38,
           "revenue_growth": 10.6,
           "target_price_high": 260000.0,
@@ -981,7 +1687,6 @@
           "profit_margin": 11.91,
           "beta": 1.0,
           "week52_high": 149800.0,
-          "week52_low": 98000.0,
           "forward_per": 6.96,
           "revenue_growth": 51.3,
           "target_price_high": 161000.0,
@@ -1003,7 +1708,6 @@
           "analyst_count": 12,
           "profit_margin": 0.0,
           "week52_high": 87800.0,
-          "week52_low": 18236.5,
           "forward_per": 9.26,
           "revenue_growth": 275.9,
           "target_price_high": 75000.0,
@@ -1019,23 +1723,24 @@
           "name": "삼성바이오로직스",
           "ticker": "207940",
           "regime": "횡보",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+2.2",
+          "sentiment_label": "중립",
+          "sentiment_score": "-1.7",
           "price": 1520000.0,
           "market_cap": 70.362,
-          "change_pct": 0.13,
-          "per": 30.88,
+          "per": 30.97,
+          "forward_per": 30.97,
           "roe": 18.53,
+          "revenue_growth": 30.2,
+          "high_52w": 1987000.0,
+          "low_52w": 0.0,
           "recommendation": "strong_buy",
-          "target_price_mean": 1975520.0,
-          "recommendation_mean": 1.44,
+          "target_price_mean": 1967520.0,
+          "recommendation_mean": 1.48,
           "analyst_count": 25,
           "profit_margin": 38.75,
           "beta": 0.21,
           "week52_high": 1987000.0,
-          "week52_low": 1228000.0,
-          "forward_per": 30.88,
-          "revenue_growth": 30.2,
+          "change_pct": 0.13,
           "target_price_high": 2200000.0,
           "target_price_low": 1600000.0,
           "debt_to_equity": 14.84
@@ -1044,13 +1749,16 @@
           "name": "셀트리온",
           "ticker": "068270",
           "regime": "횡보",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+1.2",
+          "sentiment_label": "중립",
+          "sentiment_score": "-6.7",
           "price": 188000.0,
           "market_cap": 43.114,
-          "change_pct": -0.48,
           "per": 24.92,
+          "forward_per": 24.92,
           "roe": 9.11,
+          "revenue_growth": 45.0,
+          "high_52w": 239047.62,
+          "low_52w": 0.0,
           "recommendation": "buy",
           "target_price_mean": 266031.66,
           "recommendation_mean": 1.52,
@@ -1058,9 +1766,7 @@
           "profit_margin": 32.18,
           "beta": 0.32,
           "week52_high": 239047.62,
-          "week52_low": 158500.0,
-          "forward_per": 24.92,
-          "revenue_growth": 45.0,
+          "change_pct": -0.48,
           "target_price_high": 330000.0,
           "target_price_low": 200000.0,
           "debt_to_equity": 21.43
@@ -1068,14 +1774,17 @@
         {
           "name": "한미약품",
           "ticker": "128940",
-          "regime": "상승",
+          "regime": "횡보",
           "sentiment_label": "긍정",
-          "sentiment_score": "+47.7",
+          "sentiment_score": "+36.5",
           "price": 492000.0,
           "market_cap": 6.239,
-          "change_pct": -0.1,
           "per": 27.74,
+          "forward_per": 27.74,
           "roe": 16.36,
+          "revenue_growth": 29.3,
+          "high_52w": 647000.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
           "target_price_mean": 641666.7,
           "recommendation_mean": 1.58,
@@ -1083,9 +1792,7 @@
           "profit_margin": 13.11,
           "beta": 0.49,
           "week52_high": 647000.0,
-          "week52_low": 288000.0,
-          "forward_per": 27.74,
-          "revenue_growth": 29.3,
+          "change_pct": -0.1,
           "target_price_high": 760000.0,
           "target_price_low": 550000.0,
           "debt_to_equity": 26.3
@@ -1107,7 +1814,6 @@
           "profit_margin": 10.39,
           "beta": 0.4,
           "week52_high": 129200.0,
-          "week52_low": 65000.0,
           "forward_per": 29.62,
           "revenue_growth": 10.4,
           "target_price_high": 170000.0,
@@ -1142,14 +1848,17 @@
         {
           "name": "한화에어로스페이스",
           "ticker": "012450",
-          "regime": "약한상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+20.2",
+          "regime": "하락",
+          "sentiment_label": "약간긍정",
+          "sentiment_score": "+14.8",
           "price": 1058000.0,
           "market_cap": 54.433,
-          "change_pct": -3.99,
-          "per": 18.05,
+          "per": 17.83,
+          "forward_per": 17.83,
           "roe": 20.81,
+          "revenue_growth": 47.3,
+          "high_52w": 1655000.0,
+          "low_52w": 0.0,
           "recommendation": "strong_buy",
           "target_price_mean": 1664545.5,
           "recommendation_mean": 1.39,
@@ -1157,9 +1866,7 @@
           "profit_margin": 6.89,
           "beta": 0.8,
           "week52_high": 1655000.0,
-          "week52_low": 783000.0,
-          "forward_per": 18.05,
-          "revenue_growth": 47.3,
+          "change_pct": -3.99,
           "target_price_high": 2460000.0,
           "target_price_low": 1360000.0,
           "debt_to_equity": 78.7
@@ -1167,23 +1874,24 @@
         {
           "name": "LIG넥스원",
           "ticker": "079550",
-          "regime": "하락",
+          "regime": "상승",
           "sentiment_label": "약세",
-          "sentiment_score": "-0.7",
+          "sentiment_score": "-20.9",
           "price": 685000.0,
           "market_cap": 14.964,
-          "change_pct": -1.3,
           "per": 28.4,
+          "forward_per": 28.4,
           "roe": 17.64,
+          "revenue_growth": 17.4,
+          "high_52w": 1118000.0,
+          "low_52w": 0.0,
           "recommendation": "strong_buy",
           "target_price_mean": 1056052.6,
           "recommendation_mean": 1.47,
           "analyst_count": 19,
           "profit_margin": 6.05,
           "week52_high": 1118000.0,
-          "week52_low": 360000.0,
-          "forward_per": 28.4,
-          "revenue_growth": 17.4,
+          "change_pct": -1.3,
           "target_price_high": 1360000.0,
           "target_price_low": 640000.0,
           "debt_to_equity": 106.36
@@ -1191,23 +1899,25 @@
         {
           "name": "현대로템",
           "ticker": "064350",
-          "regime": "하락",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+1.9",
+          "regime": "횡보",
+          "sentiment_label": "약세",
+          "sentiment_score": "-26.9",
           "price": 130300.0,
           "market_cap": 14.221,
-          "change_pct": -4.33,
           "per": 11.2,
+          "forward_per": 11.2,
           "roe": 26.95,
-          "recommendation": "none",
+          "revenue_growth": 13.3,
+          "high_52w": 282000.0,
+          "low_52w": 0.0,
+          "recommendation": "buy",
           "target_price_mean": 286842.1,
+          "recommendation_mean": 1.53,
           "analyst_count": 19,
           "profit_margin": 12.8,
           "beta": 1.68,
           "week52_high": 282000.0,
-          "week52_low": 113100.0,
-          "forward_per": 11.2,
-          "revenue_growth": 13.3,
+          "change_pct": -4.33,
           "target_price_high": 380000.0,
           "target_price_low": 180000.0,
           "debt_to_equity": 4.65
@@ -1223,13 +1933,13 @@
           "change_pct": -2.9,
           "per": 27.92,
           "roe": 9.57,
-          "recommendation": "none",
+          "recommendation": "buy",
           "target_price_mean": 180045.45,
+          "recommendation_mean": 1.86,
           "analyst_count": 22,
           "profit_margin": 4.0,
           "beta": 0.64,
           "week52_high": 215500.0,
-          "week52_low": 93400.0,
           "forward_per": 27.92,
           "revenue_growth": 41.0,
           "target_price_high": 236000.0,
@@ -1254,7 +1964,6 @@
           "profit_margin": 4.5,
           "beta": 1.47,
           "week52_high": 184000.0,
-          "week52_low": 44750.0,
           "forward_per": 30.31,
           "revenue_growth": 45.5,
           "target_price_high": 160000.0,
@@ -1284,7 +1993,6 @@
           "profit_margin": 4.38,
           "beta": 0.69,
           "week52_high": 139500.0,
-          "week52_low": 51400.0,
           "forward_per": 14.91,
           "revenue_growth": 0.5,
           "target_price_high": 150000.0,
@@ -1309,7 +2017,6 @@
           "profit_margin": 4.72,
           "beta": 0.09,
           "week52_high": 69400.0,
-          "week52_low": 48100.0,
           "forward_per": 8.41,
           "revenue_growth": -10.1,
           "target_price_high": 120000.0,
@@ -1334,7 +2041,6 @@
           "profit_margin": 3.49,
           "beta": 0.25,
           "week52_high": 18800.0,
-          "week52_low": 13600.0,
           "forward_per": 7.82,
           "revenue_growth": -3.9,
           "target_price_high": 26000.0,
@@ -1349,14 +2055,17 @@
         {
           "name": "한국전력",
           "ticker": "015760",
-          "regime": "하락",
-          "sentiment_label": "약세",
-          "sentiment_score": "-8.3",
+          "regime": "횡보",
+          "sentiment_label": "공포",
+          "sentiment_score": "-35.2",
           "price": 32350.0,
           "market_cap": 20.768,
-          "change_pct": 1.41,
           "per": 2.57,
+          "forward_per": 2.57,
           "roe": 16.59,
+          "revenue_growth": -0.1,
+          "high_52w": 69500.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
           "target_price_mean": 49600.0,
           "recommendation_mean": 2.1,
@@ -1364,9 +2073,7 @@
           "profit_margin": 8.04,
           "beta": 0.82,
           "week52_high": 69500.0,
-          "week52_low": 30400.0,
-          "forward_per": 2.57,
-          "revenue_growth": -0.1,
+          "change_pct": 1.41,
           "target_price_high": 83000.0,
           "target_price_low": 28000.0,
           "debt_to_equity": 263.19
@@ -1374,38 +2081,42 @@
         {
           "name": "SK이노베이션",
           "ticker": "096770",
-          "regime": "상승",
+          "regime": "횡보",
           "sentiment_label": "긍정",
-          "sentiment_score": "+13.6",
+          "sentiment_score": "+36.4",
           "price": 135300.0,
           "market_cap": 22.912,
-          "change_pct": 7.81,
-          "per": 16.53,
+          "per": 16.23,
+          "forward_per": 16.23,
           "roe": -8.0,
+          "revenue_growth": 49.9,
+          "high_52w": 155400.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
-          "target_price_mean": 142105.27,
+          "target_price_mean": 148210.53,
           "recommendation_mean": 2.42,
           "analyst_count": 19,
           "profit_margin": -1.25,
           "week52_high": 155400.0,
-          "week52_low": 87700.0,
-          "forward_per": 16.53,
-          "revenue_growth": 49.9,
-          "target_price_high": 190000.0,
+          "change_pct": 7.81,
+          "target_price_high": 220000.0,
           "target_price_low": 70000.0,
           "debt_to_equity": 105.03
         },
         {
           "name": "S-Oil",
           "ticker": "010950",
-          "regime": "강한상승",
+          "regime": "약한하락",
           "sentiment_label": "긍정",
-          "sentiment_score": "+18.6",
+          "sentiment_score": "+57.3",
           "price": 151700.0,
           "market_cap": 17.661,
-          "change_pct": 1.07,
           "per": 9.38,
+          "forward_per": 9.38,
           "roe": 16.33,
+          "revenue_growth": 40.9,
+          "high_52w": 177100.0,
+          "low_52w": 0.0,
           "recommendation": "buy",
           "target_price_mean": 159000.0,
           "recommendation_mean": 1.72,
@@ -1413,9 +2124,7 @@
           "profit_margin": 4.06,
           "beta": 0.72,
           "week52_high": 177100.0,
-          "week52_low": 57800.0,
-          "forward_per": 9.38,
-          "revenue_growth": 40.9,
+          "change_pct": 1.07,
           "target_price_high": 190000.0,
           "target_price_low": 84000.0,
           "debt_to_equity": 90.05
@@ -1438,7 +2147,6 @@
           "profit_margin": -3.16,
           "beta": 1.44,
           "week52_high": 437500.0,
-          "week52_low": 224000.0,
           "forward_per": 12.95,
           "revenue_growth": 19.0,
           "target_price_high": 540000.0,
@@ -1461,7 +2169,6 @@
           "analyst_count": 17,
           "profit_margin": -5.82,
           "week52_high": 119500.0,
-          "week52_low": 52500.0,
           "revenue_growth": 35.5,
           "target_price_high": 134000.0,
           "target_price_low": 50000.0,
@@ -1476,18 +2183,18 @@
           "price": 33100.0,
           "market_cap": 7.447,
           "change_pct": -2.22,
-          "per": 9.86,
+          "per": 9.91,
           "roe": -3.27,
-          "recommendation": "none",
-          "target_price_mean": 46877.78,
+          "recommendation": "buy",
+          "target_price_mean": 45933.33,
+          "recommendation_mean": 2.0,
           "analyst_count": 18,
           "profit_margin": -2.53,
           "beta": 1.46,
           "week52_high": 59300.0,
-          "week52_low": 22000.0,
-          "forward_per": 9.86,
+          "forward_per": 9.91,
           "revenue_growth": 47.0,
-          "target_price_high": 67000.0,
+          "target_price_high": 61000.0,
           "target_price_low": 18400.0,
           "debt_to_equity": 126.14
         }
@@ -1514,7 +2221,6 @@
           "profit_margin": 1.89,
           "beta": 1.64,
           "week52_high": 542000.0,
-          "week52_low": 258500.0,
           "forward_per": 11.69,
           "revenue_growth": 9.7,
           "target_price_high": 610000.0,
@@ -1538,7 +2244,6 @@
           "profit_margin": -0.08,
           "beta": 1.43,
           "week52_high": 50400.0,
-          "week52_low": 23650.0,
           "forward_per": 12.2,
           "revenue_growth": 2.7,
           "target_price_high": 55000.0,
@@ -1556,14 +2261,12 @@
           "change_pct": -2.04,
           "per": 22.16,
           "roe": 10.12,
-          "recommendation": "strong_buy",
+          "recommendation": "none",
           "target_price_mean": 1633000.0,
-          "recommendation_mean": 1.2,
           "analyst_count": 5,
           "profit_margin": 4.61,
           "beta": 0.66,
           "week52_high": 2188000.0,
-          "week52_low": 816000.0,
           "forward_per": 22.16,
           "revenue_growth": 66.6,
           "target_price_high": 1865000.0,
@@ -1587,7 +2290,6 @@
           "profit_margin": 3.78,
           "beta": 1.17,
           "week52_high": 159200.0,
-          "week52_low": 55200.0,
           "forward_per": 8.99,
           "revenue_growth": 13.6,
           "target_price_high": 160000.0,
@@ -1616,7 +2318,6 @@
           "profit_margin": 3.46,
           "beta": 1.07,
           "week52_high": 333000.0,
-          "week52_low": 134700.0,
           "forward_per": 7.72,
           "revenue_growth": 30.2,
           "target_price_high": 415000.0,
@@ -1641,7 +2342,6 @@
           "profit_margin": 13.83,
           "beta": 0.91,
           "week52_high": 154800.0,
-          "week52_low": 71300.0,
           "forward_per": 13.72,
           "revenue_growth": 65.2,
           "target_price_high": 179000.0,
@@ -1657,16 +2357,15 @@
           "price": 21000.0,
           "market_cap": 17.937,
           "change_pct": 0.48,
-          "per": 12.28,
+          "per": 12.33,
           "roe": 13.37,
           "recommendation": "buy",
-          "target_price_mean": 35130.43,
+          "target_price_mean": 35043.48,
           "recommendation_mean": 1.57,
           "analyst_count": 23,
           "profit_margin": 4.87,
           "week52_high": 35350.0,
-          "week52_low": 18440.0,
-          "forward_per": 12.28,
+          "forward_per": 12.33,
           "revenue_growth": 20.4,
           "target_price_high": 42000.0,
           "target_price_low": 24000.0,
@@ -1690,7 +2389,6 @@
           "profit_margin": 10.51,
           "beta": 1.21,
           "week52_high": 494500.0,
-          "week52_low": 314000.0,
           "forward_per": 5.88,
           "revenue_growth": 20.2,
           "target_price_high": 680000.0,
@@ -1720,7 +2418,6 @@
           "profit_margin": 0.07,
           "beta": 0.42,
           "week52_high": 136400.0,
-          "week52_low": 70300.0,
           "forward_per": 9.3,
           "revenue_growth": -1.8,
           "target_price_high": 160000.0,
@@ -1744,7 +2441,6 @@
           "profit_margin": 1.29,
           "beta": 0.56,
           "week52_high": 211000.0,
-          "week52_low": 62700.0,
           "forward_per": 8.02,
           "revenue_growth": 4.0,
           "target_price_high": 260000.0,
@@ -1769,7 +2465,6 @@
           "profit_margin": 2.35,
           "beta": 1.15,
           "week52_high": 792000.0,
-          "week52_low": 160800.0,
           "forward_per": 8.75,
           "revenue_growth": 5.1,
           "target_price_high": 1000000.0,
@@ -1794,7 +2489,6 @@
           "profit_margin": 5.69,
           "beta": 1.06,
           "week52_high": 222000.0,
-          "week52_low": 69050.0,
           "forward_per": 6.17,
           "revenue_growth": -1.1,
           "target_price_high": 263000.0,
@@ -1818,7 +2512,6 @@
           "profit_margin": 12.89,
           "beta": 0.62,
           "week52_high": 108800.0,
-          "week52_low": 68800.0,
           "forward_per": 8.82,
           "revenue_growth": 14.6,
           "target_price_high": 160000.0,
@@ -1833,14 +2526,17 @@
         {
           "name": "애플",
           "ticker": "AAPL",
-          "regime": "강한상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+5.2",
+          "regime": "약한하락",
+          "sentiment_label": "약간긍정",
+          "sentiment_score": "+20.8",
           "price": 324.99,
           "market_cap": 4.743,
-          "change_pct": 2.57,
-          "per": 37.31,
+          "per": 37.23,
+          "forward_per": 34.07,
           "roe": 148.75,
+          "revenue_growth": 16.4,
+          "high_52w": 344.57,
+          "low_52w": 225.95,
           "recommendation": "buy",
           "target_price_mean": 324.45,
           "recommendation_mean": 2.18,
@@ -1849,8 +2545,7 @@
           "beta": 1.09,
           "week52_high": 344.57,
           "week52_low": 225.95,
-          "forward_per": 34.07,
-          "revenue_growth": 16.4,
+          "change_pct": 2.57,
           "target_price_high": 400.0,
           "target_price_low": 215.0,
           "debt_to_equity": 78.44
@@ -1858,14 +2553,17 @@
         {
           "name": "마이크로소프트",
           "ticker": "MSFT",
-          "regime": "상승",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+1.7",
-          "price": 500.43,
-          "market_cap": 3.716,
-          "change_pct": -1.35,
-          "per": 27.86,
+          "regime": "약한하락",
+          "sentiment_label": "긍정",
+          "sentiment_score": "+32.1",
+          "price": 501.28,
+          "market_cap": 3.722,
+          "per": 27.91,
+          "forward_per": 21.26,
           "roe": 34.04,
+          "revenue_growth": 17.7,
+          "high_52w": 553.72,
+          "low_52w": 349.2,
           "recommendation": "strong_buy",
           "target_price_mean": 569.45,
           "recommendation_mean": 1.36,
@@ -1874,8 +2572,7 @@
           "beta": 1.1,
           "week52_high": 553.72,
           "week52_low": 349.2,
-          "forward_per": 21.23,
-          "revenue_growth": 17.7,
+          "change_pct": -1.18,
           "target_price_high": 870.0,
           "target_price_low": 400.0,
           "debt_to_equity": 29.12
@@ -1883,14 +2580,17 @@
         {
           "name": "엔비디아",
           "ticker": "NVDA",
-          "regime": "약한상승",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+3.1",
-          "price": 218.46,
-          "market_cap": 5.276,
-          "change_pct": -0.92,
-          "per": 27.66,
+          "regime": "횡보",
+          "sentiment_label": "중립",
+          "sentiment_score": "+0.7",
+          "price": 217.85,
+          "market_cap": 5.26,
+          "per": 27.58,
+          "forward_per": 14.14,
           "roe": 117.21,
+          "revenue_growth": 105.9,
+          "high_52w": 236.54,
+          "low_52w": 164.07,
           "recommendation": "strong_buy",
           "target_price_mean": 323.42,
           "recommendation_mean": 1.28,
@@ -1899,8 +2599,7 @@
           "beta": 2.21,
           "week52_high": 236.54,
           "week52_low": 164.07,
-          "forward_per": 14.18,
-          "revenue_growth": 105.9,
+          "change_pct": -1.2,
           "target_price_high": 515.0,
           "target_price_low": 180.0,
           "debt_to_equity": 16.97
@@ -1910,11 +2609,11 @@
           "ticker": "AVGO",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-11.7",
-          "price": 369.26,
-          "market_cap": 1.757,
-          "change_pct": -0.29,
-          "per": 61.54,
+          "sentiment_score": "-11.8",
+          "price": 369.0,
+          "market_cap": 1.756,
+          "change_pct": -0.36,
+          "per": 61.5,
           "roe": 37.28,
           "recommendation": "strong_buy",
           "target_price_mean": 525.97,
@@ -1924,7 +2623,7 @@
           "beta": 1.47,
           "week52_high": 495.0,
           "week52_low": 287.17,
-          "forward_per": 18.87,
+          "forward_per": 18.85,
           "revenue_growth": 47.9,
           "target_price_high": 675.0,
           "target_price_low": 215.88,
@@ -1935,11 +2634,11 @@
           "ticker": "AMD",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-11.8",
-          "price": 457.56,
-          "market_cap": 0.747,
-          "change_pct": -2.8,
-          "per": 117.02,
+          "sentiment_score": "-12.3",
+          "price": 455.22,
+          "market_cap": 0.743,
+          "change_pct": -3.29,
+          "per": 116.42,
           "roe": 10.2,
           "recommendation": "strong_buy",
           "target_price_mean": 613.84,
@@ -1949,7 +2648,7 @@
           "beta": 2.49,
           "week52_high": 584.73,
           "week52_low": 149.22,
-          "forward_per": 29.61,
+          "forward_per": 29.46,
           "revenue_growth": 50.1,
           "target_price_high": 1250.0,
           "target_price_low": 365.0,
@@ -1959,12 +2658,12 @@
           "name": "퀄컴",
           "ticker": "QCOM",
           "regime": "약한상승",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+2.0",
-          "price": 165.87,
+          "sentiment_label": "긍정",
+          "sentiment_score": "+9.3",
+          "price": 165.67,
           "market_cap": 0.177,
-          "change_pct": -2.7,
-          "per": 18.96,
+          "change_pct": -2.82,
+          "per": 18.93,
           "roe": 33.75,
           "recommendation": "none",
           "target_price_mean": 193.1,
@@ -1973,7 +2672,7 @@
           "beta": 1.66,
           "week52_high": 259.92,
           "week52_low": 121.99,
-          "forward_per": 16.26,
+          "forward_per": 16.24,
           "revenue_growth": -4.0,
           "target_price_high": 400.0,
           "target_price_low": 100.0,
@@ -1984,11 +2683,11 @@
           "ticker": "INTC",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-12.0",
-          "price": 88.8,
-          "market_cap": 0.469,
-          "change_pct": -0.79,
-          "per": 43.53,
+          "sentiment_score": "-12.3",
+          "price": 88.5,
+          "market_cap": 0.468,
+          "change_pct": -1.14,
+          "per": 43.37,
           "roe": -10.71,
           "recommendation": "none",
           "target_price_mean": 114.88,
@@ -1997,7 +2696,7 @@
           "beta": 2.24,
           "week52_high": 142.35,
           "week52_low": 23.68,
-          "forward_per": 43.53,
+          "forward_per": 43.37,
           "revenue_growth": 25.4,
           "target_price_high": 200.0,
           "target_price_low": 75.0,
@@ -2008,11 +2707,11 @@
           "ticker": "TSM",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-0.6",
-          "price": 414.53,
-          "market_cap": 2.15,
-          "change_pct": -0.19,
-          "per": 30.71,
+          "sentiment_score": "-1.0",
+          "price": 413.12,
+          "market_cap": 2.143,
+          "change_pct": -0.53,
+          "per": 30.74,
           "roe": 39.97,
           "recommendation": "none",
           "target_price_mean": 554.45,
@@ -2021,7 +2720,7 @@
           "beta": 1.26,
           "week52_high": 479.0,
           "week52_low": 225.63,
-          "forward_per": 19.03,
+          "forward_per": 18.97,
           "revenue_growth": 36.0,
           "target_price_high": 700.0,
           "target_price_low": 440.0,
@@ -2031,12 +2730,12 @@
           "name": "마이크론",
           "ticker": "MU",
           "regime": "약한상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+5.6",
-          "price": 942.16,
-          "market_cap": 1.064,
-          "change_pct": -1.73,
-          "per": 21.32,
+          "sentiment_label": "약한긍정",
+          "sentiment_score": "+4.0",
+          "price": 929.46,
+          "market_cap": 1.05,
+          "change_pct": -3.05,
+          "per": 21.03,
           "roe": 66.64,
           "recommendation": "strong_buy",
           "target_price_mean": 1513.41,
@@ -2046,7 +2745,7 @@
           "beta": 2.21,
           "week52_high": 1255.0,
           "week52_low": 114.25,
-          "forward_per": 6.08,
+          "forward_per": 6.0,
           "revenue_growth": 345.7,
           "target_price_high": 2200.0,
           "target_price_low": 361.0,
@@ -2057,11 +2756,11 @@
           "ticker": "CBRS",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-23.3",
-          "price": 174.1,
-          "market_cap": 0.041,
-          "change_pct": -5.5,
-          "per": 136.69,
+          "sentiment_score": "-22.9",
+          "price": 175.18,
+          "market_cap": 0.042,
+          "change_pct": -4.92,
+          "per": 137.54,
           "roe": null,
           "recommendation": "strong_buy",
           "target_price_mean": 291.64,
@@ -2070,7 +2769,7 @@
           "profit_margin": -75.27,
           "week52_high": 386.34,
           "week52_low": 160.81,
-          "forward_per": 136.69,
+          "forward_per": 137.54,
           "revenue_growth": 74.3,
           "target_price_high": 330.0,
           "target_price_low": 209.0,
@@ -2084,14 +2783,17 @@
         {
           "name": "구글",
           "ticker": "GOOGL",
-          "regime": "하락",
+          "regime": "횡보",
           "sentiment_label": "약세",
-          "sentiment_score": "-11.2",
-          "price": 335.54,
-          "market_cap": 4.104,
-          "change_pct": -1.12,
-          "per": 16.84,
+          "sentiment_score": "-18.5",
+          "price": 334.79,
+          "market_cap": 4.094,
+          "per": 16.81,
+          "forward_per": 22.58,
           "roe": 48.68,
+          "revenue_growth": 24.2,
+          "high_52w": 408.61,
+          "low_52w": 206.2,
           "recommendation": "strong_buy",
           "target_price_mean": 428.07,
           "recommendation_mean": 1.36,
@@ -2100,8 +2802,7 @@
           "beta": 1.24,
           "week52_high": 408.61,
           "week52_low": 206.2,
-          "forward_per": 22.63,
-          "revenue_growth": 24.2,
+          "change_pct": -1.35,
           "target_price_high": 515.0,
           "target_price_low": 340.0,
           "debt_to_equity": 18.86
@@ -2111,11 +2812,11 @@
           "ticker": "META",
           "regime": "약한상승",
           "sentiment_label": "약세",
-          "sentiment_score": "-1.3",
-          "price": 580.71,
-          "market_cap": 1.479,
-          "change_pct": 1.46,
-          "per": 21.86,
+          "sentiment_score": "-1.0",
+          "price": 582.75,
+          "market_cap": 1.485,
+          "change_pct": 1.82,
+          "per": 21.94,
           "roe": 29.85,
           "recommendation": "strong_buy",
           "target_price_mean": 754.77,
@@ -2125,7 +2826,7 @@
           "beta": 1.24,
           "week52_high": 790.8,
           "week52_low": 520.26,
-          "forward_per": 16.61,
+          "forward_per": 16.67,
           "revenue_growth": 28.0,
           "target_price_high": 1000.0,
           "target_price_low": 580.0,
@@ -2136,11 +2837,11 @@
           "ticker": "AMZN",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-8.3",
-          "price": 254.53,
-          "market_cap": 2.745,
-          "change_pct": -2.02,
-          "per": 20.46,
+          "sentiment_score": "-8.0",
+          "price": 255.19,
+          "market_cap": 2.753,
+          "change_pct": -1.77,
+          "per": 20.51,
           "roe": 30.56,
           "recommendation": "strong_buy",
           "target_price_mean": 327.67,
@@ -2150,7 +2851,7 @@
           "beta": 1.45,
           "week52_high": 287.2,
           "week52_low": 196.0,
-          "forward_per": 24.49,
+          "forward_per": 24.55,
           "revenue_growth": 19.6,
           "target_price_high": 405.0,
           "target_price_low": 230.0,
@@ -2161,11 +2862,11 @@
           "ticker": "NFLX",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+10.1",
-          "price": 81.01,
+          "sentiment_score": "+9.9",
+          "price": 80.88,
           "market_cap": 0.337,
-          "change_pct": -0.05,
-          "per": 25.47,
+          "change_pct": -0.21,
+          "per": 25.43,
           "roe": 49.54,
           "recommendation": "buy",
           "target_price_mean": 93.66,
@@ -2175,7 +2876,7 @@
           "beta": 1.51,
           "week52_high": 126.71,
           "week52_low": 65.08,
-          "forward_per": 21.2,
+          "forward_per": 21.17,
           "revenue_growth": 13.4,
           "target_price_high": 135.0,
           "target_price_low": 70.0,
@@ -2184,13 +2885,13 @@
         {
           "name": "우버",
           "ticker": "UBER",
-          "regime": "횡보",
-          "sentiment_label": "약한긍정",
-          "sentiment_score": "+4.8",
-          "price": 75.53,
+          "regime": "약한상승",
+          "sentiment_label": "긍정",
+          "sentiment_score": "+5.2",
+          "price": 75.31,
           "market_cap": 0.154,
-          "change_pct": -0.16,
-          "per": 16.56,
+          "change_pct": -0.45,
+          "per": 16.52,
           "roe": 37.16,
           "recommendation": "buy",
           "target_price_mean": 101.85,
@@ -2200,7 +2901,7 @@
           "beta": 1.15,
           "week52_high": 101.99,
           "week52_low": 65.41,
-          "forward_per": 17.2,
+          "forward_per": 17.15,
           "revenue_growth": 12.2,
           "target_price_high": 150.0,
           "target_price_low": 70.0,
@@ -2216,11 +2917,11 @@
           "ticker": "TSLA",
           "regime": "약한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+8.9",
-          "price": 356.67,
-          "market_cap": 1.409,
-          "change_pct": -3.07,
-          "per": 333.33,
+          "sentiment_score": "+8.5",
+          "price": 355.05,
+          "market_cap": 1.402,
+          "change_pct": -3.51,
+          "per": 331.82,
           "roe": 4.67,
           "recommendation": "buy",
           "target_price_mean": 390.09,
@@ -2230,7 +2931,7 @@
           "beta": 1.83,
           "week52_high": 498.83,
           "week52_low": 297.38,
-          "forward_per": 165.23,
+          "forward_per": 164.48,
           "revenue_growth": 25.5,
           "target_price_high": 600.0,
           "target_price_low": 125.0,
@@ -2241,11 +2942,11 @@
           "ticker": "GM",
           "regime": "횡보",
           "sentiment_label": "약세",
-          "sentiment_score": "-3.0",
-          "price": 85.69,
+          "sentiment_score": "-2.2",
+          "price": 85.7,
           "market_cap": 0.078,
-          "change_pct": -0.73,
-          "per": 38.25,
+          "change_pct": -0.72,
+          "per": 38.26,
           "roe": 3.16,
           "recommendation": "buy",
           "target_price_mean": 101.19,
@@ -2266,11 +2967,11 @@
           "ticker": "F",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-2.1",
-          "price": 13.79,
+          "sentiment_score": "-2.3",
+          "price": 13.78,
           "market_cap": 0.055,
-          "change_pct": -1.01,
-          "per": 7.21,
+          "change_pct": -1.18,
+          "per": 7.2,
           "roe": -18.25,
           "recommendation": "buy",
           "target_price_mean": 15.73,
@@ -2280,7 +2981,7 @@
           "beta": 1.85,
           "week52_high": 17.78,
           "week52_low": 11.11,
-          "forward_per": 7.21,
+          "forward_per": 7.2,
           "revenue_growth": -3.8,
           "target_price_high": 20.0,
           "target_price_low": 11.0,
@@ -2295,12 +2996,12 @@
           "name": "JP모건",
           "ticker": "JPM",
           "regime": "약한상승",
-          "sentiment_label": "약세",
-          "sentiment_score": "-0.4",
-          "price": 356.12,
-          "market_cap": 0.947,
-          "change_pct": 0.03,
-          "per": 15.25,
+          "sentiment_label": "약한긍정",
+          "sentiment_score": "+0.9",
+          "price": 355.7,
+          "market_cap": 0.946,
+          "change_pct": -0.09,
+          "per": 15.23,
           "roe": 17.79,
           "recommendation": "none",
           "target_price_mean": 374.57,
@@ -2309,7 +3010,7 @@
           "beta": 0.98,
           "week52_high": 366.5,
           "week52_low": 279.1,
-          "forward_per": 14.24,
+          "forward_per": 14.22,
           "revenue_growth": 30.4,
           "target_price_high": 420.0,
           "target_price_low": 305.0
@@ -2319,11 +3020,11 @@
           "ticker": "BAC",
           "regime": "횡보",
           "sentiment_label": "약세",
-          "sentiment_score": "-1.5",
-          "price": 61.98,
+          "sentiment_score": "-0.8",
+          "price": 61.95,
           "market_cap": 0.433,
-          "change_pct": 0.07,
-          "per": 14.32,
+          "change_pct": 0.01,
+          "per": 14.31,
           "roe": 11.2,
           "recommendation": "none",
           "target_price_mean": 68.77,
@@ -2332,7 +3033,7 @@
           "beta": 1.17,
           "week52_high": 65.23,
           "week52_low": 46.12,
-          "forward_per": 11.71,
+          "forward_per": 11.7,
           "revenue_growth": 16.8,
           "target_price_high": 75.0,
           "target_price_low": 62.0
@@ -2342,11 +3043,11 @@
           "ticker": "GS",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-3.8",
-          "price": 1012.84,
-          "market_cap": 0.295,
-          "change_pct": -0.79,
-          "per": 15.65,
+          "sentiment_score": "-2.3",
+          "price": 1003.79,
+          "market_cap": 0.292,
+          "change_pct": -1.68,
+          "per": 15.51,
           "roe": 16.9,
           "recommendation": "hold",
           "target_price_mean": 1141.65,
@@ -2356,7 +3057,7 @@
           "beta": 1.29,
           "week52_high": 1153.99,
           "week52_low": 721.16,
-          "forward_per": 13.68,
+          "forward_per": 13.56,
           "revenue_growth": 42.5,
           "target_price_high": 1325.0,
           "target_price_low": 730.0,
@@ -2367,23 +3068,23 @@
           "ticker": "V",
           "regime": "상승",
           "sentiment_label": "약한긍정",
-          "sentiment_score": "+1.8",
-          "price": 375.75,
-          "market_cap": 0.702,
-          "change_pct": -0.95,
-          "per": 31.95,
+          "sentiment_score": "+2.8",
+          "price": 375.22,
+          "market_cap": 0.701,
+          "change_pct": -1.09,
+          "per": 31.91,
           "roe": 61.19,
           "recommendation": "strong_buy",
-          "target_price_mean": 417.9,
+          "target_price_mean": 419.36,
           "recommendation_mean": 1.45,
           "analyst_count": 37,
           "profit_margin": 50.78,
           "beta": 0.76,
           "week52_high": 385.57,
           "week52_low": 293.89,
-          "forward_per": 25.04,
+          "forward_per": 25.01,
           "revenue_growth": 14.4,
-          "target_price_high": 460.0,
+          "target_price_high": 466.0,
           "target_price_low": 330.0,
           "debt_to_equity": 67.82
         },
@@ -2393,13 +3094,13 @@
           "regime": "상승",
           "sentiment_label": "약한긍정",
           "sentiment_score": "+2.5",
-          "price": 585.62,
+          "price": 585.59,
           "market_cap": 0.513,
           "change_pct": -0.63,
-          "per": 32.27,
+          "per": 32.26,
           "roe": 241.2,
           "recommendation": "strong_buy",
-          "target_price_mean": 669.46,
+          "target_price_mean": 670.92,
           "recommendation_mean": 1.38,
           "analyst_count": 37,
           "profit_margin": 46.34,
@@ -2422,11 +3123,11 @@
           "ticker": "LLY",
           "regime": "약한하락",
           "sentiment_label": "약한긍정",
-          "sentiment_score": "+4.4",
-          "price": 1163.05,
+          "sentiment_score": "+3.9",
+          "price": 1162.96,
           "market_cap": 1.037,
-          "change_pct": 0.55,
-          "per": 38.98,
+          "change_pct": 0.54,
+          "per": 38.97,
           "roe": 102.29,
           "recommendation": "buy",
           "target_price_mean": 1315.04,
@@ -2447,11 +3148,11 @@
           "ticker": "UNH",
           "regime": "약한상승",
           "sentiment_label": "약세",
-          "sentiment_score": "-3.1",
-          "price": 394.77,
-          "market_cap": 0.354,
-          "change_pct": 1.38,
-          "per": 25.34,
+          "sentiment_score": "-4.7",
+          "price": 395.41,
+          "market_cap": 0.355,
+          "change_pct": 1.54,
+          "per": 25.38,
           "roe": 14.15,
           "recommendation": "buy",
           "target_price_mean": 475.23,
@@ -2461,7 +3162,7 @@
           "beta": 0.63,
           "week52_high": 461.62,
           "week52_low": 255.97,
-          "forward_per": 17.6,
+          "forward_per": 17.62,
           "revenue_growth": 0.4,
           "target_price_high": 529.0,
           "target_price_low": 313.0,
@@ -2472,11 +3173,11 @@
           "ticker": "JNJ",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+6.2",
-          "price": 269.38,
-          "market_cap": 0.649,
-          "change_pct": 1.33,
-          "per": 31.29,
+          "sentiment_score": "+6.8",
+          "price": 270.57,
+          "market_cap": 0.652,
+          "change_pct": 1.78,
+          "per": 31.43,
           "roe": 25.74,
           "recommendation": "buy",
           "target_price_mean": 272.5,
@@ -2486,7 +3187,7 @@
           "beta": 0.23,
           "week52_high": 276.47,
           "week52_low": 173.33,
-          "forward_per": 21.89,
+          "forward_per": 21.98,
           "revenue_growth": 6.6,
           "target_price_high": 305.0,
           "target_price_low": 190.0,
@@ -2497,11 +3198,11 @@
           "ticker": "ABBV",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+6.4",
-          "price": 259.42,
-          "market_cap": 0.458,
-          "change_pct": 1.17,
-          "per": 73.28,
+          "sentiment_score": "+6.5",
+          "price": 261.24,
+          "market_cap": 0.462,
+          "change_pct": 1.88,
+          "per": 73.8,
           "roe": null,
           "recommendation": "buy",
           "target_price_mean": 276.59,
@@ -2511,7 +3212,7 @@
           "beta": 0.28,
           "week52_high": 267.47,
           "week52_low": 190.75,
-          "forward_per": 15.93,
+          "forward_per": 16.04,
           "revenue_growth": 10.2,
           "target_price_high": 328.0,
           "target_price_low": 200.0
@@ -2521,11 +3222,11 @@
           "ticker": "MRK",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+16.5",
-          "price": 149.09,
+          "sentiment_score": "+16.9",
+          "price": 149.32,
           "market_cap": 0.368,
-          "change_pct": 0.9,
-          "per": 119.27,
+          "change_pct": 1.06,
+          "per": 120.42,
           "roe": 6.96,
           "recommendation": "buy",
           "target_price_mean": 148.73,
@@ -2535,7 +3236,7 @@
           "beta": 0.21,
           "week52_high": 156.92,
           "week52_low": 77.58,
-          "forward_per": 15.62,
+          "forward_per": 15.65,
           "revenue_growth": 5.1,
           "target_price_high": 186.0,
           "target_price_low": 105.0,
@@ -2552,10 +3253,10 @@
           "regime": "하락",
           "sentiment_label": "약세",
           "sentiment_score": "-4.6",
-          "price": 106.11,
-          "market_cap": 0.842,
-          "change_pct": 1.18,
-          "per": 38.45,
+          "price": 106.03,
+          "market_cap": 0.844,
+          "change_pct": 1.11,
+          "per": 38.42,
           "roe": 22.31,
           "recommendation": "buy",
           "target_price_mean": 127.72,
@@ -2565,7 +3266,7 @@
           "beta": 0.6,
           "week52_high": 135.16,
           "week52_low": 96.51,
-          "forward_per": 32.84,
+          "forward_per": 32.82,
           "revenue_growth": 5.9,
           "target_price_high": 155.0,
           "target_price_low": 81.0,
@@ -2574,13 +3275,13 @@
         {
           "name": "코스트코",
           "ticker": "COST",
-          "regime": "약한상승",
+          "regime": "횡보",
           "sentiment_label": "약세",
-          "sentiment_score": "-0.3",
-          "price": 944.97,
-          "market_cap": 0.419,
-          "change_pct": 0.11,
-          "per": 47.44,
+          "sentiment_score": "-1.4",
+          "price": 939.93,
+          "market_cap": 0.417,
+          "change_pct": -0.42,
+          "per": 47.19,
           "roe": 29.15,
           "recommendation": "buy",
           "target_price_mean": 1077.31,
@@ -2590,7 +3291,7 @@
           "beta": 0.86,
           "week52_high": 1096.5,
           "week52_low": 844.06,
-          "forward_per": 41.7,
+          "forward_per": 41.48,
           "revenue_growth": 21.5,
           "target_price_high": 1315.0,
           "target_price_low": 740.0,
@@ -2601,11 +3302,11 @@
           "ticker": "MCD",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-2.6",
-          "price": 261.33,
+          "sentiment_score": "-1.2",
+          "price": 262.12,
           "market_cap": 0.185,
-          "change_pct": -0.13,
-          "per": 21.23,
+          "change_pct": 0.17,
+          "per": 21.28,
           "roe": null,
           "recommendation": "buy",
           "target_price_mean": 315.39,
@@ -2615,7 +3316,7 @@
           "beta": 0.42,
           "week52_high": 341.75,
           "week52_low": 259.85,
-          "forward_per": 18.69,
+          "forward_per": 18.75,
           "revenue_growth": 3.7,
           "target_price_high": 407.0,
           "target_price_low": 250.0
@@ -2625,11 +3326,11 @@
           "ticker": "SBUX",
           "regime": "약한상승",
           "sentiment_label": "약한긍정",
-          "sentiment_score": "+1.1",
-          "price": 105.58,
-          "market_cap": 0.12,
-          "change_pct": -0.63,
-          "per": 61.03,
+          "sentiment_score": "+3.0",
+          "price": 105.86,
+          "market_cap": 0.121,
+          "change_pct": -0.37,
+          "per": 61.19,
           "roe": null,
           "recommendation": "buy",
           "target_price_mean": 112.23,
@@ -2639,7 +3340,7 @@
           "beta": 0.97,
           "week52_high": 110.51,
           "week52_low": 77.99,
-          "forward_per": 33.89,
+          "forward_per": 33.98,
           "revenue_growth": -1.4,
           "target_price_high": 143.0,
           "target_price_low": 81.0
@@ -2652,40 +3353,48 @@
         {
           "name": "비트코인",
           "ticker": "BTC-USD",
-          "regime": "상승",
+          "regime": "약한하락",
           "sentiment_label": "긍정",
-          "sentiment_score": "+22.3",
-          "price": 77520.67,
-          "market_cap": 1.557,
-          "change_pct": -1.74,
-          "per": null,
+          "sentiment_score": "+36.5",
+          "price": 77079.38,
+          "market_cap": 1.549,
+          "per": "N/A",
+          "forward_per": null,
           "roe": null,
+          "revenue_growth": null,
+          "high_52w": 126198.07,
+          "low_52w": 57747.766,
           "week52_high": 126198.07,
-          "week52_low": 57747.77
+          "week52_low": 57747.77,
+          "change_pct": -2.44
         },
         {
           "name": "이더리움",
           "ticker": "ETH-USD",
-          "regime": "상승",
+          "regime": "횡보",
           "sentiment_label": "긍정",
-          "sentiment_score": "+29.5",
-          "price": 2433.82,
-          "market_cap": 0.293,
-          "change_pct": -1.66,
-          "per": null,
+          "sentiment_score": "+32.3",
+          "price": 2412.73,
+          "market_cap": 0.291,
+          "per": "N/A",
+          "forward_per": null,
           "roe": null,
+          "revenue_growth": null,
+          "high_52w": 4763.3613,
+          "low_52w": 1506.5057,
           "week52_high": 4763.36,
-          "week52_low": 1506.51
+          "week52_low": 1506.51,
+          "change_pct": -2.61
         },
         {
           "name": "바이낸스코인",
           "ticker": "BNB-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+12.1",
-          "price": 683.62,
+          "sentiment_score": "+11.6",
+          "price": 680.49,
           "market_cap": 0.091,
-          "change_pct": -1.3,
+          "change_pct": -1.81,
           "per": null,
           "roe": null,
           "week52_high": 1370.55,
@@ -2696,10 +3405,10 @@
           "ticker": "SOL-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+33.5",
-          "price": 100.91,
+          "sentiment_score": "+32.0",
+          "price": 99.75,
           "market_cap": 0.059,
-          "change_pct": -2.62,
+          "change_pct": -4.5,
           "per": null,
           "roe": null,
           "week52_high": 253.21,
@@ -2708,26 +3417,30 @@
         {
           "name": "리플",
           "ticker": "XRP-USD",
-          "regime": "상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+36.0",
-          "price": 1.37,
-          "market_cap": 0.086,
-          "change_pct": -1.38,
-          "per": null,
+          "regime": "횡보",
+          "sentiment_label": "약간긍정",
+          "sentiment_score": "+28.1",
+          "price": 1.35,
+          "market_cap": 0.085,
+          "per": "N/A",
+          "forward_per": null,
           "roe": null,
+          "revenue_growth": null,
+          "high_52w": 3.183452,
+          "low_52w": 0.988422,
           "week52_high": 3.18,
-          "week52_low": 0.99
+          "week52_low": 0.99,
+          "change_pct": -2.29
         },
         {
           "name": "도지코인",
           "ticker": "DOGE-USD",
-          "regime": "상승",
+          "regime": "약한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+17.9",
+          "sentiment_score": "+17.3",
           "price": 0.08,
           "market_cap": 0.013,
-          "change_pct": -1.4,
+          "change_pct": -2.26,
           "per": null,
           "roe": null,
           "week52_high": 0.31,
@@ -2736,12 +3449,12 @@
         {
           "name": "카르다노",
           "ticker": "ADA-USD",
-          "regime": "약한상승",
-          "sentiment_label": "긍정",
-          "sentiment_score": "+8.2",
+          "regime": "횡보",
+          "sentiment_label": "약한긍정",
+          "sentiment_score": "+4.6",
           "price": 0.2,
           "market_cap": 0.007,
-          "change_pct": -0.01,
+          "change_pct": -2.34,
           "per": null,
           "roe": null,
           "week52_high": 0.95,
@@ -2752,10 +3465,10 @@
           "ticker": "TRX-USD",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-3.7",
+          "sentiment_score": "-4.0",
           "price": 0.32,
           "market_cap": 0.031,
-          "change_pct": -2.96,
+          "change_pct": -3.3,
           "per": null,
           "roe": null,
           "week52_high": 0.38,
@@ -2766,10 +3479,10 @@
           "ticker": "AVAX-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+14.8",
-          "price": 7.26,
+          "sentiment_score": "+14.4",
+          "price": 7.22,
           "market_cap": 0.003,
-          "change_pct": 0.39,
+          "change_pct": -0.11,
           "per": null,
           "roe": null,
           "week52_high": 35.91,
@@ -2780,10 +3493,10 @@
           "ticker": "SHIB-USD",
           "regime": "강한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+29.0",
+          "sentiment_score": "+28.8",
           "price": 0.0,
           "market_cap": 0.003,
-          "change_pct": 1.98,
+          "change_pct": 1.58,
           "per": null,
           "roe": null,
           "week52_high": 0.0,
@@ -2795,9 +3508,9 @@
           "regime": "N/A",
           "sentiment_label": "N/A",
           "sentiment_score": "N/A",
-          "price": 1.33,
-          "market_cap": 0.005,
-          "change_pct": -3.87,
+          "price": 1.32,
+          "market_cap": 0.004,
+          "change_pct": -5.1,
           "per": null,
           "roe": null,
           "week52_high": 3.74,
@@ -2808,10 +3521,10 @@
           "ticker": "DOT-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+11.5",
-          "price": 0.86,
+          "sentiment_score": "+12.3",
+          "price": 0.87,
           "market_cap": 0.001,
-          "change_pct": 3.07,
+          "change_pct": 3.36,
           "per": null,
           "roe": null,
           "week52_high": 4.87,
@@ -2822,10 +3535,10 @@
           "ticker": "LINK-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+30.8",
-          "price": 11.36,
-          "market_cap": 0.009,
-          "change_pct": -0.26,
+          "sentiment_score": "+29.4",
+          "price": 11.21,
+          "market_cap": 0.008,
+          "change_pct": -2.05,
           "per": null,
           "roe": null,
           "week52_high": 25.58,
@@ -2836,10 +3549,10 @@
           "ticker": "LTC-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+10.6",
-          "price": 49.63,
+          "sentiment_score": "+10.1",
+          "price": 49.38,
           "market_cap": 0.004,
-          "change_pct": 2.19,
+          "change_pct": 0.96,
           "per": null,
           "roe": null,
           "week52_high": 135.56,
@@ -2850,10 +3563,10 @@
           "ticker": "BCH-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+16.1",
-          "price": 246.54,
+          "sentiment_score": "+15.4",
+          "price": 245.0,
           "market_cap": 0.005,
-          "change_pct": -0.56,
+          "change_pct": -1.36,
           "per": null,
           "roe": null,
           "week52_high": 668.06,
@@ -2864,10 +3577,10 @@
           "ticker": "NEAR-USD",
           "regime": "약한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+18.6",
-          "price": 1.95,
+          "sentiment_score": "+16.7",
+          "price": 1.92,
           "market_cap": 0.003,
-          "change_pct": 4.66,
+          "change_pct": 2.37,
           "per": null,
           "roe": null,
           "week52_high": 3.33,
@@ -2878,10 +3591,10 @@
           "ticker": "SUI20947-USD",
           "regime": "횡보",
           "sentiment_label": "긍정",
-          "sentiment_score": "+6.7",
-          "price": 0.73,
+          "sentiment_score": "+6.3",
+          "price": 0.72,
           "market_cap": 0.003,
-          "change_pct": -0.19,
+          "change_pct": -0.85,
           "per": null,
           "roe": null,
           "week52_high": 3.98,
@@ -2892,10 +3605,10 @@
           "ticker": "HBAR-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+12.7",
+          "sentiment_score": "+12.3",
           "price": 0.07,
           "market_cap": 0.003,
-          "change_pct": 1.27,
+          "change_pct": 0.69,
           "per": null,
           "roe": null,
           "week52_high": 0.25,
@@ -2906,10 +3619,10 @@
           "ticker": "UNI7083-USD",
           "regime": "강한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+58.9",
+          "sentiment_score": "+59.3",
           "price": 5.69,
           "market_cap": 0.004,
-          "change_pct": 9.29,
+          "change_pct": 8.98,
           "per": null,
           "roe": null,
           "week52_high": 10.34,
@@ -2920,10 +3633,10 @@
           "ticker": "ATOM-USD",
           "regime": "횡보",
           "sentiment_label": "긍정",
-          "sentiment_score": "+6.0",
-          "price": 1.48,
+          "sentiment_score": "+5.3",
+          "price": 1.47,
           "market_cap": 0.001,
-          "change_pct": 0.91,
+          "change_pct": -0.41,
           "per": null,
           "roe": null,
           "week52_high": 4.89,
@@ -2934,10 +3647,10 @@
           "ticker": "XLM-USD",
           "regime": "약한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+10.3",
+          "sentiment_score": "+10.1",
           "price": 0.18,
           "market_cap": 0.006,
-          "change_pct": -1.53,
+          "change_pct": -1.86,
           "per": null,
           "roe": null,
           "week52_high": 0.41,
@@ -2948,17 +3661,17 @@
           "ticker": "ICP-USD",
           "regime": "상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+14.4",
-          "price": 2.47,
+          "sentiment_score": "+14.0",
+          "price": 2.46,
           "market_cap": 0.001,
-          "change_pct": 2.93,
+          "change_pct": 2.13,
           "per": null,
           "roe": null,
           "week52_high": 9.74,
           "week52_low": 1.98
         }
       ],
-      "crypto_global_cap": 2.633
+      "crypto_global_cap": 2.619
     },
     {
       "name": "미국_우주/항공",
@@ -2968,20 +3681,20 @@
           "ticker": "SPCX",
           "regime": "약한상승",
           "sentiment_label": "긍정",
-          "sentiment_score": "+14.1",
-          "price": 142.89,
-          "market_cap": 1.883,
-          "change_pct": -0.55,
-          "per": 89.23,
+          "sentiment_score": "+14.3",
+          "price": 143.33,
+          "market_cap": 1.889,
+          "change_pct": -0.25,
+          "per": 89.5,
           "roe": null,
           "recommendation": "buy",
-          "target_price_mean": 219.22,
+          "target_price_mean": 220.74,
           "recommendation_mean": 1.69,
-          "analyst_count": 18,
+          "analyst_count": 19,
           "profit_margin": -35.66,
           "week52_high": 225.64,
           "week52_low": 104.83,
-          "forward_per": 89.23,
+          "forward_per": 89.5,
           "revenue_growth": 91.9,
           "target_price_high": 450.0,
           "target_price_low": 117.0,
@@ -2992,21 +3705,21 @@
           "ticker": "RKLB",
           "regime": "하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-16.5",
-          "price": 62.18,
+          "sentiment_score": "-16.1",
+          "price": 62.45,
           "market_cap": 0.04,
-          "change_pct": -2.72,
-          "per": 1243.6,
+          "change_pct": -2.31,
+          "per": 1248.9,
           "roe": -7.92,
           "recommendation": "buy",
-          "target_price_mean": 112.94,
+          "target_price_mean": 112.65,
           "recommendation_mean": 1.61,
           "analyst_count": 17,
           "profit_margin": -21.51,
           "beta": 2.63,
           "week52_high": 151.0,
           "week52_low": 37.57,
-          "forward_per": 1243.6,
+          "forward_per": 1248.9,
           "revenue_growth": 62.0,
           "target_price_high": 150.0,
           "target_price_low": 64.0,
@@ -3017,11 +3730,11 @@
           "ticker": "BA",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-13.2",
-          "price": 205.87,
+          "sentiment_score": "-11.6",
+          "price": 206.25,
           "market_cap": 0.163,
-          "change_pct": -0.92,
-          "per": 74.05,
+          "change_pct": -0.74,
+          "per": 74.19,
           "roe": 173.54,
           "recommendation": "buy",
           "target_price_mean": 274.85,
@@ -3031,7 +3744,7 @@
           "beta": 1.22,
           "week52_high": 254.35,
           "week52_low": 176.77,
-          "forward_per": 49.96,
+          "forward_per": 50.05,
           "revenue_growth": 8.0,
           "target_price_high": 305.0,
           "target_price_low": 246.0,
@@ -3042,11 +3755,11 @@
           "ticker": "LMT",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-7.6",
-          "price": 544.82,
+          "sentiment_score": "-7.0",
+          "price": 545.34,
           "market_cap": 0.126,
-          "change_pct": -2.32,
-          "per": 20.1,
+          "change_pct": -2.23,
+          "per": 20.12,
           "roe": 89.17,
           "recommendation": "hold",
           "target_price_mean": 632.95,
@@ -3056,7 +3769,7 @@
           "beta": 0.11,
           "week52_high": 692.0,
           "week52_low": 437.25,
-          "forward_per": 16.65,
+          "forward_per": 16.67,
           "revenue_growth": 10.5,
           "target_price_high": 756.0,
           "target_price_low": 503.0,
@@ -3067,11 +3780,11 @@
           "ticker": "RTX",
           "regime": "약한하락",
           "sentiment_label": "약세",
-          "sentiment_score": "-5.7",
-          "price": 204.96,
-          "market_cap": 0.276,
-          "change_pct": -1.33,
-          "per": 36.15,
+          "sentiment_score": "-4.8",
+          "price": 205.5,
+          "market_cap": 0.277,
+          "change_pct": -1.07,
+          "per": 36.24,
           "roe": 12.27,
           "recommendation": "buy",
           "target_price_mean": 234.82,
@@ -3081,7 +3794,7 @@
           "beta": 0.29,
           "week52_high": 226.88,
           "week52_low": 150.61,
-          "forward_per": 26.09,
+          "forward_per": 26.16,
           "revenue_growth": 14.5,
           "target_price_high": 265.0,
           "target_price_low": 200.0,
@@ -3143,7 +3856,6 @@
           "profit_margin": 2.28,
           "beta": 1.0,
           "week52_high": 92500.0,
-          "week52_low": 23050.0,
           "forward_per": 11.44,
           "revenue_growth": 17.8,
           "target_price_high": 89000.0,
@@ -3194,7 +3906,7 @@
       {
         "sector": "전기전자/반도체",
         "signal": "긍정",
-        "comment": "상승 레짐 우세로 모멘텀 유리.",
+        "comment": "상승 레짐 우세로 모멘텀 유리. Sharpe 1.68로 위험 대비 수익 우수.",
         "top_picks": [
           "LG전자",
           "삼성전기"
@@ -3202,10 +3914,9 @@
       },
       {
         "sector": "IT서비스/플랫폼",
-        "signal": "중립",
-        "comment": "횡보 국면으로 방향성 탐색 중.",
+        "signal": "부정",
+        "comment": "하락 레짐 우세로 신중한 접근 필요.",
         "top_picks": [
-          "네이버",
           "카카오페이"
         ]
       },
@@ -3219,11 +3930,11 @@
       },
       {
         "sector": "배터리/2차전지",
-        "signal": "긍정",
-        "comment": "상승 레짐 우세로 모멘텀 유리. 시장 심리 낙관적.",
+        "signal": "중립",
+        "comment": "횡보 국면으로 방향성 탐색 중. Sharpe -0.01로 위험 대비 수익 열악.",
         "top_picks": [
-          "LG에너지솔루션",
-          "삼성SDI"
+          "에코프로",
+          "포스코퓨처엠"
         ]
       },
       {
@@ -3240,16 +3951,14 @@
         "signal": "긍정",
         "comment": "상승 레짐 우세로 모멘텀 유리.",
         "top_picks": [
-          "한미약품",
           "유한양행"
         ]
       },
       {
         "sector": "방산/항공우주",
-        "signal": "부정",
-        "comment": "하락 레짐 우세로 신중한 접근 필요.",
+        "signal": "중립",
+        "comment": "횡보 국면으로 방향성 탐색 중. Sharpe 1.53로 위험 대비 수익 우수.",
         "top_picks": [
-          "한화에어로스페이스",
           "한화시스템"
         ]
       },
@@ -3267,8 +3976,8 @@
         "signal": "긍정",
         "comment": "상승 레짐 우세로 모멘텀 유리.",
         "top_picks": [
-          "SK이노베이션",
-          "S-Oil"
+          "LG화학",
+          "롯데케미칼"
         ]
       },
       {
@@ -3299,19 +4008,20 @@
       },
       {
         "sector": "미국_기술/반도체",
-        "signal": "중립",
-        "comment": "횡보 국면으로 방향성 탐색 중.",
+        "signal": "부정",
+        "comment": "하락 레짐 우세로 신중한 접근 필요. Sharpe 1.68로 위험 대비 수익 우수.",
         "top_picks": [
-          "애플",
-          "마이크로소프트"
+          "퀄컴",
+          "마이크론"
         ]
       },
       {
         "sector": "미국_플랫폼/커뮤니케이션",
-        "signal": "중립",
-        "comment": "횡보 국면으로 방향성 탐색 중.",
+        "signal": "긍정",
+        "comment": "상승 레짐 우세로 모멘텀 유리.",
         "top_picks": [
-          "넷플릭스"
+          "넷플릭스",
+          "우버"
         ]
       },
       {
@@ -3327,8 +4037,8 @@
         "signal": "긍정",
         "comment": "상승 레짐 우세로 모멘텀 유리.",
         "top_picks": [
-          "비자",
-          "마스터카드"
+          "JP모건",
+          "비자"
         ]
       },
       {
@@ -3342,8 +4052,8 @@
       },
       {
         "sector": "미국_소비재/유통",
-        "signal": "중립",
-        "comment": "횡보 국면으로 방향성 탐색 중.",
+        "signal": "부정",
+        "comment": "하락 레짐 우세로 신중한 접근 필요.",
         "top_picks": [
           "스타벅스"
         ]
@@ -3353,8 +4063,8 @@
         "signal": "긍정",
         "comment": "상승 레짐 우세로 모멘텀 유리.",
         "top_picks": [
-          "비트코인",
-          "이더리움"
+          "바이낸스코인",
+          "솔라나"
         ]
       },
       {
@@ -3374,12 +4084,24 @@
         ]
       }
     ],
-    "risk_assessment": [],
-    "action_items": [],
-    "generated_at": "2026-09-02 02:10"
+    "risk_assessment": [
+      {
+        "type": "지정학",
+        "severity": "중간",
+        "description": "전쟁/군사충돌 리스크 점수 42.0으로 관련 섹터 영향 주의"
+      }
+    ],
+    "action_items": [
+      {
+        "priority": "낮음",
+        "action": "섹터 리밸런싱 검토",
+        "detail": "최고 Sharpe: IT_반도체(1.68), 최저: 배터리_2차전지(-0.01). 저성과 섹터에서 고성과 섹터로 비중 이동을 고려하세요."
+      }
+    ],
+    "generated_at": "2026-09-02 03:18"
   },
   "value_screener": {
-    "generated_at": "2026-09-02 00:23:17",
+    "generated_at": "2026-09-02 03:16:18",
     "total_analyzed": 47,
     "filter_passed": 47,
     "filter_rejected": 0,
@@ -3400,17 +4122,17 @@
           "roe_pct": 26.91,
           "operating_margin_pct": 18.43,
           "debt_to_equity": 18.0,
-          "dividend_yield_pct": 4.4,
+          "dividend_yield_pct": 4.48,
           "revenue_growth_pct": 20.2
         },
         "irr": {
-          "gordon_irr_pct": 12.4,
+          "gordon_irr_pct": 12.48,
           "earnings_yield_pct": 17.01,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 12.4,
+          "primary_irr_pct": 12.48,
           "irr_method": "gordon",
-          "risk_premium_pct": 8.9,
+          "risk_premium_pct": 8.98,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -3471,17 +4193,17 @@
           "roe_pct": 11.6,
           "operating_margin_pct": 7.96,
           "debt_to_equity": 3.0,
-          "dividend_yield_pct": 5.31,
+          "dividend_yield_pct": 5.19,
           "revenue_growth_pct": 12.6
         },
         "irr": {
-          "gordon_irr_pct": 13.21,
+          "gordon_irr_pct": 13.09,
           "earnings_yield_pct": 18.15,
           "implied_growth_pct": 7.9,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 13.21,
+          "primary_irr_pct": 13.09,
           "irr_method": "gordon",
-          "risk_premium_pct": 9.71,
+          "risk_premium_pct": 9.59,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -3598,77 +4320,6 @@
         "filter_reason": "통과"
       },
       {
-        "ticker": "259960",
-        "name": "크래프톤",
-        "sector": "게임",
-        "market": "KOSPI",
-        "current_price": 231000.0,
-        "market_cap_billion": 104174.0,
-        "metrics": {
-          "per": 9.27,
-          "forward_per": 9.27,
-          "per_basis": "forward",
-          "pbr": 1.48,
-          "psr": 2.34,
-          "roe_pct": 11.71,
-          "operating_margin_pct": 31.85,
-          "debt_to_equity": 7.0,
-          "dividend_yield_pct": 1.01,
-          "revenue_growth_pct": 94.9
-        },
-        "irr": {
-          "gordon_irr_pct": 9.01,
-          "earnings_yield_pct": 10.78,
-          "implied_growth_pct": 8.0,
-          "growth_source": "sustainable growth (ROE × retention)",
-          "primary_irr_pct": 9.01,
-          "irr_method": "gordon",
-          "risk_premium_pct": 5.51,
-          "risk_free_rate_pct": 3.5
-        },
-        "scores": {
-          "total_score": 80.2,
-          "valuation_score": 77.5,
-          "quality_score": 85.0,
-          "growth_score": 100,
-          "shareholder_score": 50,
-          "breakdown": {
-            "per_score": 90,
-            "pbr_score": 65,
-            "roe_score": 75,
-            "debt_score": 100,
-            "growth_score": 100,
-            "dividend_score": 50
-          },
-          "scoring_mode": "relative",
-          "raw_total_score": 81.9,
-          "trap_penalty": 0,
-          "neglect_bonus": -1.7
-        },
-        "quality": {
-          "consecutive_loss_years": 0,
-          "revenue_cagr_pct": 21.51,
-          "revenue_years": 4,
-          "inventory_receivable_ratio_pct": 14.2,
-          "intangible_to_equity_pct": 25.6,
-          "data_ok": true
-        },
-        "trap_flags": [],
-        "neglect": {
-          "available": true,
-          "score": 32.8,
-          "analyst_count": 23,
-          "turnover_pct": 0.265,
-          "components": {
-            "coverage": 10,
-            "turnover": 75
-          },
-          "partial": false
-        },
-        "filter_passed": true,
-        "filter_reason": "통과"
-      },
-      {
         "ticker": "316140",
         "name": "우리금융지주",
         "sector": "금융",
@@ -3684,17 +4335,17 @@
           "roe_pct": 8.61,
           "operating_margin_pct": 45.35,
           "debt_to_equity": null,
-          "dividend_yield_pct": 4.13,
+          "dividend_yield_pct": 4.14,
           "revenue_growth_pct": 33.7
         },
         "irr": {
-          "gordon_irr_pct": 12.13,
+          "gordon_irr_pct": 12.14,
           "earnings_yield_pct": 14.3,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 12.13,
+          "primary_irr_pct": 12.14,
           "irr_method": "gordon",
-          "risk_premium_pct": 8.63,
+          "risk_premium_pct": 8.64,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -3733,6 +4384,77 @@
           "components": {
             "coverage": 20,
             "turnover": 55
+          },
+          "partial": false
+        },
+        "filter_passed": true,
+        "filter_reason": "통과"
+      },
+      {
+        "ticker": "259960",
+        "name": "크래프톤",
+        "sector": "게임",
+        "market": "KOSPI",
+        "current_price": 231000.0,
+        "market_cap_billion": 104174.0,
+        "metrics": {
+          "per": 9.27,
+          "forward_per": 9.27,
+          "per_basis": "forward",
+          "pbr": 1.48,
+          "psr": 2.34,
+          "roe_pct": 11.71,
+          "operating_margin_pct": 31.85,
+          "debt_to_equity": 7.0,
+          "dividend_yield_pct": 0.99,
+          "revenue_growth_pct": 94.9
+        },
+        "irr": {
+          "gordon_irr_pct": 8.99,
+          "earnings_yield_pct": 10.78,
+          "implied_growth_pct": 8.0,
+          "growth_source": "sustainable growth (ROE × retention)",
+          "primary_irr_pct": 8.99,
+          "irr_method": "gordon",
+          "risk_premium_pct": 5.49,
+          "risk_free_rate_pct": 3.5
+        },
+        "scores": {
+          "total_score": 77.2,
+          "valuation_score": 77.5,
+          "quality_score": 85.0,
+          "growth_score": 100,
+          "shareholder_score": 20,
+          "breakdown": {
+            "per_score": 90,
+            "pbr_score": 65,
+            "roe_score": 75,
+            "debt_score": 100,
+            "growth_score": 100,
+            "dividend_score": 20
+          },
+          "scoring_mode": "relative",
+          "raw_total_score": 78.9,
+          "trap_penalty": 0,
+          "neglect_bonus": -1.7
+        },
+        "quality": {
+          "consecutive_loss_years": 0,
+          "revenue_cagr_pct": 21.51,
+          "revenue_years": 4,
+          "inventory_receivable_ratio_pct": 14.2,
+          "intangible_to_equity_pct": 25.6,
+          "data_ok": true
+        },
+        "trap_flags": [],
+        "neglect": {
+          "available": true,
+          "score": 32.8,
+          "analyst_count": 23,
+          "turnover_pct": 0.265,
+          "components": {
+            "coverage": 10,
+            "turnover": 75
           },
           "partial": false
         },
@@ -4039,17 +4761,17 @@
           "roe_pct": 8.94,
           "operating_margin_pct": 52.98,
           "debt_to_equity": null,
-          "dividend_yield_pct": 2.7,
+          "dividend_yield_pct": 2.72,
           "revenue_growth_pct": 14.1
         },
         "irr": {
-          "gordon_irr_pct": 10.7,
+          "gordon_irr_pct": 10.72,
           "earnings_yield_pct": 12.38,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 10.7,
+          "primary_irr_pct": 10.72,
           "irr_method": "gordon",
-          "risk_premium_pct": 7.2,
+          "risk_premium_pct": 7.22,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -4267,17 +4989,17 @@
           "roe_pct": 26.91,
           "operating_margin_pct": 18.43,
           "debt_to_equity": 18.0,
-          "dividend_yield_pct": 4.4,
+          "dividend_yield_pct": 4.48,
           "revenue_growth_pct": 20.2
         },
         "irr": {
-          "gordon_irr_pct": 12.4,
+          "gordon_irr_pct": 12.48,
           "earnings_yield_pct": 17.01,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 12.4,
+          "primary_irr_pct": 12.48,
           "irr_method": "gordon",
-          "risk_premium_pct": 8.9,
+          "risk_premium_pct": 8.98,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -4338,17 +5060,17 @@
           "roe_pct": 11.6,
           "operating_margin_pct": 7.96,
           "debt_to_equity": 3.0,
-          "dividend_yield_pct": 5.31,
+          "dividend_yield_pct": 5.19,
           "revenue_growth_pct": 12.6
         },
         "irr": {
-          "gordon_irr_pct": 13.21,
+          "gordon_irr_pct": 13.09,
           "earnings_yield_pct": 18.15,
           "implied_growth_pct": 7.9,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 13.21,
+          "primary_irr_pct": 13.09,
           "irr_method": "gordon",
-          "risk_premium_pct": 9.71,
+          "risk_premium_pct": 9.59,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -4465,77 +5187,6 @@
         "filter_reason": "통과"
       },
       {
-        "ticker": "259960",
-        "name": "크래프톤",
-        "sector": "게임",
-        "market": "KOSPI",
-        "current_price": 231000.0,
-        "market_cap_billion": 104174.0,
-        "metrics": {
-          "per": 9.27,
-          "forward_per": 9.27,
-          "per_basis": "forward",
-          "pbr": 1.48,
-          "psr": 2.34,
-          "roe_pct": 11.71,
-          "operating_margin_pct": 31.85,
-          "debt_to_equity": 7.0,
-          "dividend_yield_pct": 1.01,
-          "revenue_growth_pct": 94.9
-        },
-        "irr": {
-          "gordon_irr_pct": 9.01,
-          "earnings_yield_pct": 10.78,
-          "implied_growth_pct": 8.0,
-          "growth_source": "sustainable growth (ROE × retention)",
-          "primary_irr_pct": 9.01,
-          "irr_method": "gordon",
-          "risk_premium_pct": 5.51,
-          "risk_free_rate_pct": 3.5
-        },
-        "scores": {
-          "total_score": 80.2,
-          "valuation_score": 77.5,
-          "quality_score": 85.0,
-          "growth_score": 100,
-          "shareholder_score": 50,
-          "breakdown": {
-            "per_score": 90,
-            "pbr_score": 65,
-            "roe_score": 75,
-            "debt_score": 100,
-            "growth_score": 100,
-            "dividend_score": 50
-          },
-          "scoring_mode": "relative",
-          "raw_total_score": 81.9,
-          "trap_penalty": 0,
-          "neglect_bonus": -1.7
-        },
-        "quality": {
-          "consecutive_loss_years": 0,
-          "revenue_cagr_pct": 21.51,
-          "revenue_years": 4,
-          "inventory_receivable_ratio_pct": 14.2,
-          "intangible_to_equity_pct": 25.6,
-          "data_ok": true
-        },
-        "trap_flags": [],
-        "neglect": {
-          "available": true,
-          "score": 32.8,
-          "analyst_count": 23,
-          "turnover_pct": 0.265,
-          "components": {
-            "coverage": 10,
-            "turnover": 75
-          },
-          "partial": false
-        },
-        "filter_passed": true,
-        "filter_reason": "통과"
-      },
-      {
         "ticker": "316140",
         "name": "우리금융지주",
         "sector": "금융",
@@ -4551,17 +5202,17 @@
           "roe_pct": 8.61,
           "operating_margin_pct": 45.35,
           "debt_to_equity": null,
-          "dividend_yield_pct": 4.13,
+          "dividend_yield_pct": 4.14,
           "revenue_growth_pct": 33.7
         },
         "irr": {
-          "gordon_irr_pct": 12.13,
+          "gordon_irr_pct": 12.14,
           "earnings_yield_pct": 14.3,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 12.13,
+          "primary_irr_pct": 12.14,
           "irr_method": "gordon",
-          "risk_premium_pct": 8.63,
+          "risk_premium_pct": 8.64,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -4600,6 +5251,77 @@
           "components": {
             "coverage": 20,
             "turnover": 55
+          },
+          "partial": false
+        },
+        "filter_passed": true,
+        "filter_reason": "통과"
+      },
+      {
+        "ticker": "259960",
+        "name": "크래프톤",
+        "sector": "게임",
+        "market": "KOSPI",
+        "current_price": 231000.0,
+        "market_cap_billion": 104174.0,
+        "metrics": {
+          "per": 9.27,
+          "forward_per": 9.27,
+          "per_basis": "forward",
+          "pbr": 1.48,
+          "psr": 2.34,
+          "roe_pct": 11.71,
+          "operating_margin_pct": 31.85,
+          "debt_to_equity": 7.0,
+          "dividend_yield_pct": 0.99,
+          "revenue_growth_pct": 94.9
+        },
+        "irr": {
+          "gordon_irr_pct": 8.99,
+          "earnings_yield_pct": 10.78,
+          "implied_growth_pct": 8.0,
+          "growth_source": "sustainable growth (ROE × retention)",
+          "primary_irr_pct": 8.99,
+          "irr_method": "gordon",
+          "risk_premium_pct": 5.49,
+          "risk_free_rate_pct": 3.5
+        },
+        "scores": {
+          "total_score": 77.2,
+          "valuation_score": 77.5,
+          "quality_score": 85.0,
+          "growth_score": 100,
+          "shareholder_score": 20,
+          "breakdown": {
+            "per_score": 90,
+            "pbr_score": 65,
+            "roe_score": 75,
+            "debt_score": 100,
+            "growth_score": 100,
+            "dividend_score": 20
+          },
+          "scoring_mode": "relative",
+          "raw_total_score": 78.9,
+          "trap_penalty": 0,
+          "neglect_bonus": -1.7
+        },
+        "quality": {
+          "consecutive_loss_years": 0,
+          "revenue_cagr_pct": 21.51,
+          "revenue_years": 4,
+          "inventory_receivable_ratio_pct": 14.2,
+          "intangible_to_equity_pct": 25.6,
+          "data_ok": true
+        },
+        "trap_flags": [],
+        "neglect": {
+          "available": true,
+          "score": 32.8,
+          "analyst_count": 23,
+          "turnover_pct": 0.265,
+          "components": {
+            "coverage": 10,
+            "turnover": 75
           },
           "partial": false
         },
@@ -4906,17 +5628,17 @@
           "roe_pct": 8.94,
           "operating_margin_pct": 52.98,
           "debt_to_equity": null,
-          "dividend_yield_pct": 2.7,
+          "dividend_yield_pct": 2.72,
           "revenue_growth_pct": 14.1
         },
         "irr": {
-          "gordon_irr_pct": 10.7,
+          "gordon_irr_pct": 10.72,
           "earnings_yield_pct": 12.38,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 10.7,
+          "primary_irr_pct": 10.72,
           "irr_method": "gordon",
-          "risk_premium_pct": 7.2,
+          "risk_premium_pct": 7.22,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -4977,17 +5699,17 @@
           "roe_pct": 26.95,
           "operating_margin_pct": 14.47,
           "debt_to_equity": 5.0,
-          "dividend_yield_pct": 0.43,
+          "dividend_yield_pct": 0.44,
           "revenue_growth_pct": 13.3
         },
         "irr": {
-          "gordon_irr_pct": 5.68,
+          "gordon_irr_pct": 5.69,
           "earnings_yield_pct": 8.93,
           "implied_growth_pct": 5.25,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 5.68,
+          "primary_irr_pct": 5.69,
           "irr_method": "gordon",
-          "risk_premium_pct": 2.18,
+          "risk_premium_pct": 2.19,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5048,17 +5770,17 @@
           "roe_pct": 8.97,
           "operating_margin_pct": 48.56,
           "debt_to_equity": null,
-          "dividend_yield_pct": 3.4,
+          "dividend_yield_pct": 3.39,
           "revenue_growth_pct": 6.8
         },
         "irr": {
-          "gordon_irr_pct": 9.2,
+          "gordon_irr_pct": 9.19,
           "earnings_yield_pct": 13.09,
           "implied_growth_pct": 5.8,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 9.2,
+          "primary_irr_pct": 9.19,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.7,
+          "risk_premium_pct": 5.69,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5267,17 +5989,17 @@
           "roe_pct": 6.42,
           "operating_margin_pct": 15.35,
           "debt_to_equity": 18.0,
-          "dividend_yield_pct": 1.19,
+          "dividend_yield_pct": 1.21,
           "revenue_growth_pct": 16.2
         },
         "irr": {
-          "gordon_irr_pct": 9.19,
+          "gordon_irr_pct": 9.21,
           "earnings_yield_pct": 6.86,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 9.19,
+          "primary_irr_pct": 9.21,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.69,
+          "risk_premium_pct": 5.71,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5415,17 +6137,17 @@
           "roe_pct": 5.28,
           "operating_margin_pct": 6.63,
           "debt_to_equity": 44.0,
-          "dividend_yield_pct": 0.67,
+          "dividend_yield_pct": 0.62,
           "revenue_growth_pct": 14.9
         },
         "irr": {
-          "gordon_irr_pct": 8.67,
+          "gordon_irr_pct": 8.62,
           "earnings_yield_pct": 7.9,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.67,
+          "primary_irr_pct": 8.62,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.17,
+          "risk_premium_pct": 5.12,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5557,17 +6279,17 @@
           "roe_pct": 7.15,
           "operating_margin_pct": 9.59,
           "debt_to_equity": 62.0,
-          "dividend_yield_pct": 4.4,
+          "dividend_yield_pct": 4.49,
           "revenue_growth_pct": -10.1
         },
         "irr": {
-          "gordon_irr_pct": -0.6,
+          "gordon_irr_pct": -0.51,
           "earnings_yield_pct": 11.89,
           "implied_growth_pct": -5.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": -0.6,
+          "primary_irr_pct": -0.51,
           "irr_method": "gordon",
-          "risk_premium_pct": -4.1,
+          "risk_premium_pct": -4.01,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5613,83 +6335,6 @@
         "filter_reason": "통과"
       },
       {
-        "ticker": "023530",
-        "name": "롯데쇼핑",
-        "sector": "유통",
-        "market": "KOSPI",
-        "current_price": 113300.0,
-        "market_cap_billion": 32031.0,
-        "metrics": {
-          "per": 8.02,
-          "forward_per": 8.02,
-          "per_basis": "forward",
-          "pbr": 0.21,
-          "psr": 0.23,
-          "roe_pct": 1.33,
-          "operating_margin_pct": 2.29,
-          "debt_to_equity": 83.0,
-          "dividend_yield_pct": 4.02,
-          "revenue_growth_pct": 4.0
-        },
-        "irr": {
-          "gordon_irr_pct": 8.02,
-          "earnings_yield_pct": 12.47,
-          "implied_growth_pct": 4.0,
-          "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.02,
-          "irr_method": "gordon",
-          "risk_premium_pct": 4.52,
-          "risk_free_rate_pct": 3.5
-        },
-        "scores": {
-          "total_score": 61.0,
-          "valuation_score": 100.0,
-          "quality_score": 40.0,
-          "growth_score": 50,
-          "shareholder_score": 95,
-          "breakdown": {
-            "per_score": 100,
-            "pbr_score": 100,
-            "roe_score": 20,
-            "debt_score": 70,
-            "growth_score": 50,
-            "dividend_score": 95
-          },
-          "scoring_mode": "relative",
-          "raw_total_score": 68.5,
-          "trap_penalty": 5,
-          "neglect_bonus": -2.5
-        },
-        "quality": {
-          "consecutive_loss_years": 0,
-          "revenue_cagr_pct": -3.89,
-          "revenue_years": 4,
-          "inventory_receivable_ratio_pct": 5.0,
-          "intangible_to_equity_pct": 5.2,
-          "data_ok": true
-        },
-        "trap_flags": [
-          {
-            "type": "매출역성장",
-            "detail": "매출 CAGR -3.9%",
-            "penalty": 5
-          }
-        ],
-        "neglect": {
-          "available": true,
-          "score": 25.2,
-          "analyst_count": 15,
-          "turnover_pct": 0.621,
-          "components": {
-            "coverage": 20,
-            "turnover": 35
-          },
-          "partial": false
-        },
-        "filter_passed": true,
-        "filter_reason": "통과 (경고: 매출역성장)"
-      },
-      {
         "ticker": "035900",
         "name": "JYP엔터테인먼트",
         "sector": "엔터",
@@ -5705,17 +6350,17 @@
           "roe_pct": 17.75,
           "operating_margin_pct": 16.93,
           "debt_to_equity": 1.0,
-          "dividend_yield_pct": 2.19,
+          "dividend_yield_pct": 2.2,
           "revenue_growth_pct": -15.1
         },
         "irr": {
-          "gordon_irr_pct": -2.81,
+          "gordon_irr_pct": -2.8,
           "earnings_yield_pct": 9.66,
           "implied_growth_pct": -5.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": -2.81,
+          "primary_irr_pct": -2.8,
           "irr_method": "gordon",
-          "risk_premium_pct": -6.31,
+          "risk_premium_pct": -6.3,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5776,17 +6421,17 @@
           "roe_pct": 16.33,
           "operating_margin_pct": 8.51,
           "debt_to_equity": 90.0,
-          "dividend_yield_pct": 0.54,
+          "dividend_yield_pct": 0.53,
           "revenue_growth_pct": 40.9
         },
         "irr": {
-          "gordon_irr_pct": 8.54,
+          "gordon_irr_pct": 8.53,
           "earnings_yield_pct": 10.66,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.54,
+          "primary_irr_pct": 8.53,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.04,
+          "risk_premium_pct": 5.03,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -5909,6 +6554,83 @@
         "filter_reason": "통과"
       },
       {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "sector": "유통",
+        "market": "KOSPI",
+        "current_price": 113300.0,
+        "market_cap_billion": 32031.0,
+        "metrics": {
+          "per": 8.02,
+          "forward_per": 8.02,
+          "per_basis": "forward",
+          "pbr": 0.21,
+          "psr": 0.23,
+          "roe_pct": 1.33,
+          "operating_margin_pct": 2.29,
+          "debt_to_equity": 83.0,
+          "dividend_yield_pct": 3.85,
+          "revenue_growth_pct": 4.0
+        },
+        "irr": {
+          "gordon_irr_pct": 7.85,
+          "earnings_yield_pct": 12.47,
+          "implied_growth_pct": 4.0,
+          "growth_source": "revenue/earnings growth (capped 8%)",
+          "primary_irr_pct": 7.85,
+          "irr_method": "gordon",
+          "risk_premium_pct": 4.35,
+          "risk_free_rate_pct": 3.5
+        },
+        "scores": {
+          "total_score": 59.5,
+          "valuation_score": 100.0,
+          "quality_score": 40.0,
+          "growth_score": 50,
+          "shareholder_score": 80,
+          "breakdown": {
+            "per_score": 100,
+            "pbr_score": 100,
+            "roe_score": 20,
+            "debt_score": 70,
+            "growth_score": 50,
+            "dividend_score": 80
+          },
+          "scoring_mode": "relative",
+          "raw_total_score": 67.0,
+          "trap_penalty": 5,
+          "neglect_bonus": -2.5
+        },
+        "quality": {
+          "consecutive_loss_years": 0,
+          "revenue_cagr_pct": -3.89,
+          "revenue_years": 4,
+          "inventory_receivable_ratio_pct": 5.0,
+          "intangible_to_equity_pct": 5.2,
+          "data_ok": true
+        },
+        "trap_flags": [
+          {
+            "type": "매출역성장",
+            "detail": "매출 CAGR -3.9%",
+            "penalty": 5
+          }
+        ],
+        "neglect": {
+          "available": true,
+          "score": 25.2,
+          "analyst_count": 15,
+          "turnover_pct": 0.621,
+          "components": {
+            "coverage": 20,
+            "turnover": 35
+          },
+          "partial": false
+        },
+        "filter_passed": true,
+        "filter_reason": "통과 (경고: 매출역성장)"
+      },
+      {
         "ticker": "207940",
         "name": "삼성바이오로직스",
         "sector": "바이오",
@@ -5995,17 +6717,17 @@
           "roe_pct": 2.21,
           "operating_margin_pct": 4.26,
           "debt_to_equity": 50.0,
-          "dividend_yield_pct": 2.37,
+          "dividend_yield_pct": 2.36,
           "revenue_growth_pct": 9.7
         },
         "irr": {
-          "gordon_irr_pct": 10.37,
+          "gordon_irr_pct": 10.36,
           "earnings_yield_pct": 8.56,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 10.37,
+          "primary_irr_pct": 10.36,
           "irr_method": "gordon",
-          "risk_premium_pct": 6.87,
+          "risk_premium_pct": 6.86,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6072,17 +6794,17 @@
           "roe_pct": 16.36,
           "operating_margin_pct": 26.43,
           "debt_to_equity": 26.0,
-          "dividend_yield_pct": 0.39,
+          "dividend_yield_pct": 0.41,
           "revenue_growth_pct": 29.3
         },
         "irr": {
-          "gordon_irr_pct": 8.39,
+          "gordon_irr_pct": 8.41,
           "earnings_yield_pct": 3.6,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.39,
+          "primary_irr_pct": 8.41,
           "irr_method": "gordon",
-          "risk_premium_pct": 4.89,
+          "risk_premium_pct": 4.91,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6143,17 +6865,17 @@
           "roe_pct": -7.41,
           "operating_margin_pct": -2.86,
           "debt_to_equity": 229.0,
-          "dividend_yield_pct": 2.61,
+          "dividend_yield_pct": 2.67,
           "revenue_growth_pct": 16.4
         },
         "irr": {
-          "gordon_irr_pct": 10.61,
+          "gordon_irr_pct": 10.67,
           "earnings_yield_pct": 10.55,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 10.61,
+          "primary_irr_pct": 10.67,
           "irr_method": "gordon",
-          "risk_premium_pct": 7.11,
+          "risk_premium_pct": 7.17,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6214,17 +6936,17 @@
           "roe_pct": 3.72,
           "operating_margin_pct": 13.2,
           "debt_to_equity": 21.0,
-          "dividend_yield_pct": 0.2,
+          "dividend_yield_pct": 0.21,
           "revenue_growth_pct": 9.4
         },
         "irr": {
-          "gordon_irr_pct": 8.2,
+          "gordon_irr_pct": 8.21,
           "earnings_yield_pct": 5.22,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.2,
+          "primary_irr_pct": 8.21,
           "irr_method": "gordon",
-          "risk_premium_pct": 4.7,
+          "risk_premium_pct": 4.71,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6285,17 +7007,17 @@
           "roe_pct": 5.19,
           "operating_margin_pct": 13.03,
           "debt_to_equity": 66.0,
-          "dividend_yield_pct": 3.37,
+          "dividend_yield_pct": 3.52,
           "revenue_growth_pct": 0.5
         },
         "irr": {
-          "gordon_irr_pct": 3.87,
+          "gordon_irr_pct": 4.02,
           "earnings_yield_pct": 6.71,
           "implied_growth_pct": 0.5,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 3.87,
+          "primary_irr_pct": 4.02,
           "irr_method": "gordon",
-          "risk_premium_pct": 0.37,
+          "risk_premium_pct": 0.52,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6362,17 +7084,17 @@
           "roe_pct": 0.94,
           "operating_margin_pct": -0.63,
           "debt_to_equity": 81.0,
-          "dividend_yield_pct": 3.33,
+          "dividend_yield_pct": 3.36,
           "revenue_growth_pct": -1.8
         },
         "irr": {
-          "gordon_irr_pct": 1.53,
+          "gordon_irr_pct": 1.56,
           "earnings_yield_pct": 10.75,
           "implied_growth_pct": -1.8,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 1.53,
+          "primary_irr_pct": 1.56,
           "irr_method": "gordon",
-          "risk_premium_pct": -1.97,
+          "risk_premium_pct": -1.94,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6439,17 +7161,17 @@
           "roe_pct": 20.81,
           "operating_margin_pct": 14.69,
           "debt_to_equity": 79.0,
-          "dividend_yield_pct": 0.61,
+          "dividend_yield_pct": 0.64,
           "revenue_growth_pct": 47.3
         },
         "irr": {
-          "gordon_irr_pct": 8.61,
+          "gordon_irr_pct": 8.64,
           "earnings_yield_pct": 5.61,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.61,
+          "primary_irr_pct": 8.64,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.11,
+          "risk_premium_pct": 5.14,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6516,17 +7238,17 @@
           "roe_pct": 16.59,
           "operating_margin_pct": 4.73,
           "debt_to_equity": 263.0,
-          "dividend_yield_pct": 4.74,
+          "dividend_yield_pct": 4.83,
           "revenue_growth_pct": -0.1
         },
         "irr": {
-          "gordon_irr_pct": 4.64,
+          "gordon_irr_pct": 4.73,
           "earnings_yield_pct": 38.91,
           "implied_growth_pct": -0.1,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 4.64,
+          "primary_irr_pct": 4.73,
           "irr_method": "gordon",
-          "risk_premium_pct": 1.14,
+          "risk_premium_pct": 1.23,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6586,17 +7308,17 @@
           "roe_pct": 9.51,
           "operating_margin_pct": 10.48,
           "debt_to_equity": 14.0,
-          "dividend_yield_pct": 0.71,
+          "dividend_yield_pct": 0.72,
           "revenue_growth_pct": 10.4
         },
         "irr": {
-          "gordon_irr_pct": 8.71,
+          "gordon_irr_pct": 8.72,
           "earnings_yield_pct": 3.38,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.71,
+          "primary_irr_pct": 8.72,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.21,
+          "risk_premium_pct": 5.22,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6657,17 +7379,17 @@
           "roe_pct": 9.11,
           "operating_margin_pct": 32.42,
           "debt_to_equity": 21.0,
-          "dividend_yield_pct": 0.37,
+          "dividend_yield_pct": 0.38,
           "revenue_growth_pct": 45.0
         },
         "irr": {
-          "gordon_irr_pct": 8.37,
+          "gordon_irr_pct": 8.38,
           "earnings_yield_pct": 4.01,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.37,
+          "primary_irr_pct": 8.38,
           "irr_method": "gordon",
-          "risk_premium_pct": 4.87,
+          "risk_premium_pct": 4.88,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6734,17 +7456,17 @@
           "roe_pct": 17.64,
           "operating_margin_pct": 9.52,
           "debt_to_equity": 106.0,
-          "dividend_yield_pct": 0.4,
+          "dividend_yield_pct": 0.43,
           "revenue_growth_pct": 17.4
         },
         "irr": {
-          "gordon_irr_pct": -2.3,
+          "gordon_irr_pct": -2.27,
           "earnings_yield_pct": 3.52,
           "implied_growth_pct": -2.7,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": -2.3,
+          "primary_irr_pct": -2.27,
           "irr_method": "gordon",
-          "risk_premium_pct": -5.8,
+          "risk_premium_pct": -5.77,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6805,17 +7527,17 @@
           "roe_pct": 5.71,
           "operating_margin_pct": 3.78,
           "debt_to_equity": 40.0,
-          "dividend_yield_pct": 0.62,
+          "dividend_yield_pct": 0.65,
           "revenue_growth_pct": -11.4
         },
         "irr": {
-          "gordon_irr_pct": 6.97,
+          "gordon_irr_pct": 7.0,
           "earnings_yield_pct": 5.3,
           "implied_growth_pct": 6.35,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 6.97,
+          "primary_irr_pct": 7.0,
           "irr_method": "gordon",
-          "risk_premium_pct": 3.47,
+          "risk_premium_pct": 3.5,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -6876,17 +7598,17 @@
           "roe_pct": 6.54,
           "operating_margin_pct": 6.24,
           "debt_to_equity": 18.0,
-          "dividend_yield_pct": 1.31,
+          "dividend_yield_pct": 1.33,
           "revenue_growth_pct": 5.9
         },
         "irr": {
-          "gordon_irr_pct": 5.26,
+          "gordon_irr_pct": 5.28,
           "earnings_yield_pct": 4.66,
           "implied_growth_pct": 3.95,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 5.26,
+          "primary_irr_pct": 5.28,
           "irr_method": "gordon",
-          "risk_premium_pct": 1.76,
+          "risk_premium_pct": 1.78,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -7024,17 +7746,17 @@
           "roe_pct": -2.57,
           "operating_margin_pct": 3.5,
           "debt_to_equity": 106.0,
-          "dividend_yield_pct": 3.17,
+          "dividend_yield_pct": 3.22,
           "revenue_growth_pct": 9.5
         },
         "irr": {
-          "gordon_irr_pct": 11.17,
+          "gordon_irr_pct": 11.22,
           "earnings_yield_pct": 14.45,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 11.17,
+          "primary_irr_pct": 11.22,
           "irr_method": "gordon",
-          "risk_premium_pct": 7.67,
+          "risk_premium_pct": 7.72,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -7188,17 +7910,17 @@
           "roe_pct": -5.71,
           "operating_margin_pct": 4.23,
           "debt_to_equity": 83.0,
-          "dividend_yield_pct": 0.72,
+          "dividend_yield_pct": 0.71,
           "revenue_growth_pct": 19.0
         },
         "irr": {
-          "gordon_irr_pct": 8.72,
+          "gordon_irr_pct": 8.71,
           "earnings_yield_pct": 7.72,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.72,
+          "primary_irr_pct": 8.71,
           "irr_method": "gordon",
-          "risk_premium_pct": 5.22,
+          "risk_premium_pct": 5.21,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -7266,21 +7988,21 @@
           "forward_per": 19.07,
           "per_basis": "forward",
           "pbr": 2.33,
-          "psr": 2.66,
-          "roe_pct": -12.96,
-          "operating_margin_pct": -28.15,
-          "debt_to_equity": 27.0,
+          "psr": 2.11,
+          "roe_pct": -10.29,
+          "operating_margin_pct": 11.57,
+          "debt_to_equity": 26.0,
           "dividend_yield_pct": 0.28,
-          "revenue_growth_pct": 39.5
+          "revenue_growth_pct": 105.5
         },
         "irr": {
-          "gordon_irr_pct": 8.28,
+          "gordon_irr_pct": 1.28,
           "earnings_yield_pct": 5.24,
-          "implied_growth_pct": 8.0,
-          "growth_source": "revenue/earnings growth (capped 8%)",
-          "primary_irr_pct": 8.28,
+          "implied_growth_pct": 1.0,
+          "growth_source": "sustainable growth (ROE × retention)",
+          "primary_irr_pct": 1.28,
           "irr_method": "gordon",
-          "risk_premium_pct": 4.78,
+          "risk_premium_pct": -2.22,
           "risk_free_rate_pct": 3.5
         },
         "scores": {
@@ -7789,18 +8511,6 @@
         ]
       },
       {
-        "ticker": "023530",
-        "name": "롯데쇼핑",
-        "penalty": 5,
-        "flags": [
-          {
-            "type": "매출역성장",
-            "detail": "매출 CAGR -3.9%",
-            "penalty": 5
-          }
-        ]
-      },
-      {
         "ticker": "010950",
         "name": "S-Oil",
         "penalty": 12,
@@ -7809,6 +8519,18 @@
             "type": "사양산업",
             "detail": "4년 매출 CAGR -6.9%",
             "penalty": 12
+          }
+        ]
+      },
+      {
+        "ticker": "023530",
+        "name": "롯데쇼핑",
+        "penalty": 5,
+        "flags": [
+          {
+            "type": "매출역성장",
+            "detail": "매출 CAGR -3.9%",
+            "penalty": 5
           }
         ]
       },
@@ -10217,39 +10939,39 @@
     ]
   },
   "japan_crisis": {
-    "generated_at": "2026-09-01 14:26:06 KST",
+    "generated_at": "2026-09-02 02:05:58 KST",
     "market": {
       "usd_jpy": {
         "label": "USD/JPY",
         "ticker": "JPY=X",
-        "current": 159.88,
-        "change_1d": -0.15,
-        "change_1w": 0.46,
-        "change_1m": 1.46
+        "current": 160.16,
+        "change_1d": 0.03,
+        "change_1w": 0.64,
+        "change_1m": 1.64
       },
       "nikkei": {
         "label": "Nikkei 225",
         "ticker": "^N225",
-        "current": 66234.64,
-        "change_1d": -0.12,
-        "change_1w": 1.08,
-        "change_1m": 7.06
+        "current": 66311.93,
+        "change_1d": 0.27,
+        "change_1w": 0.45,
+        "change_1m": 7.94
       },
       "topix": {
         "label": "TOPIX (ETF)",
         "ticker": "1306.T",
-        "current": 436.3,
-        "change_1d": 0.65,
-        "change_1w": 2.25,
-        "change_1m": 4.58
+        "current": null,
+        "change_1d": null,
+        "change_1w": null,
+        "change_1m": null
       },
       "wti": {
         "label": "WTI 유가",
         "ticker": "CL=F",
-        "current": 86.92,
-        "change_1d": 1.35,
-        "change_1w": 5.54,
-        "change_1m": 8.19
+        "current": 89.5,
+        "change_1d": 4.36,
+        "change_1w": 8.67,
+        "change_1m": 11.4
       }
     },
     "macro": {
@@ -10309,26 +11031,35 @@
       }
     },
     "carry_pressure": {
-      "score": 35,
+      "score": 45,
       "level": "주의",
       "severity": "amber",
       "spread_us_jp": 2.06,
       "factors": [
         "일미 금리차 2.06%p (캐리 매력 약화)",
-        "일본 10Y 3개월 +0.33%p (BOJ 압박 가속)"
+        "일본 10Y 3개월 +0.33%p (BOJ 압박 가속)",
+        "USD/JPY 160.16 (160 돌파, BOJ 개입 압력)"
       ]
     },
     "crisis": {
-      "score": 24.0,
-      "level": "안정",
-      "severity": "green",
-      "factors": []
+      "score": 38.0,
+      "level": "주의",
+      "severity": "amber",
+      "factors": [
+        "USD/JPY 160.16 엔화 약세 지속"
+      ]
     },
     "global_impacts": [],
-    "alerts": []
+    "alerts": [
+      {
+        "severity": "긴급",
+        "title": "USD/JPY 160 돌파",
+        "message": "🔴 USD/JPY 160.16 - 엔화 심각한 약세. BOJ 개입/금리 인상 압력 극대화."
+      }
+    ]
   },
   "auto_research_value": {
-    "generated_at": "2026-09-02 00:23:28 KST",
+    "generated_at": "2026-09-02 03:16:29 KST",
     "evaluation_period": "6개월 (현재→과거)",
     "baseline_weights": {
       "valuation": 0.35,
@@ -10337,87 +11068,87 @@
       "shareholder": 0.1
     },
     "evolved_weights": {
-      "valuation": 0.2604821984694529,
-      "quality": 0.3188402051085929,
-      "growth": 0.37067759642195414,
-      "shareholder": 0.05
+      "valuation": 0.25,
+      "quality": 0.37918823662690754,
+      "growth": 0.12081176337309248,
+      "shareholder": 0.24999999999999997
     },
-    "baseline_alpha_pct": null,
-    "evolved_alpha_pct": null,
-    "improvement_pp": null,
-    "baseline_hit_rate": 0.0,
-    "evolved_hit_rate": 0.0,
-    "cv_mean": null,
-    "cv_std": null,
+    "baseline_alpha_pct": -14.72,
+    "evolved_alpha_pct": -6.29,
+    "improvement_pp": 8.43,
+    "baseline_hit_rate": 20.0,
+    "evolved_hit_rate": 20.0,
+    "cv_mean": -13.57,
+    "cv_std": 5.59,
     "evolved_top_picks": [
       {
         "ticker": "009540",
         "name": "HD한국조선해양",
-        "score": 90.0,
-        "return_6m": null
-      },
-      {
-        "ticker": "036570",
-        "name": "엔씨소프트",
-        "score": 86.9,
-        "return_6m": null
-      },
-      {
-        "ticker": "259960",
-        "name": "크래프톤",
-        "score": 85.6,
-        "return_6m": null
+        "score": 89.4,
+        "return_6m": -19.75
       },
       {
         "ticker": "000270",
         "name": "기아",
-        "score": 84.8,
-        "return_6m": null
-      },
-      {
-        "ticker": "000660",
-        "name": "SK하이닉스",
-        "score": 84.3,
-        "return_6m": null
-      },
-      {
-        "ticker": "005930",
-        "name": "삼성전자",
-        "score": 84.3,
-        "return_6m": null
+        "score": 86.9,
+        "return_6m": -24.99
       },
       {
         "ticker": "271560",
         "name": "오리온",
-        "score": 82.2,
-        "return_6m": null
-      },
-      {
-        "ticker": "000990",
-        "name": "DB하이텍",
-        "score": 81.7,
-        "return_6m": null
-      },
-      {
-        "ticker": "010950",
-        "name": "S-Oil",
-        "score": 80.5,
-        "return_6m": null
+        "score": 84.4,
+        "return_6m": 3.14
       },
       {
         "ticker": "316140",
         "name": "우리금융지주",
-        "score": 79.2,
-        "return_6m": null
+        "score": 75.4,
+        "return_6m": -2.97
+      },
+      {
+        "ticker": "105560",
+        "name": "KB금융",
+        "score": 73.0,
+        "return_6m": 14.49
+      },
+      {
+        "ticker": "036570",
+        "name": "엔씨소프트",
+        "score": 70.8,
+        "return_6m": 2.79
+      },
+      {
+        "ticker": "055550",
+        "name": "신한지주",
+        "score": 69.9,
+        "return_6m": 14.3
+      },
+      {
+        "ticker": "005930",
+        "name": "삼성전자",
+        "score": 68.8,
+        "return_6m": 33.69
+      },
+      {
+        "ticker": "000660",
+        "name": "SK하이닉스",
+        "score": 68.8,
+        "return_6m": 78.34
+      },
+      {
+        "ticker": "086790",
+        "name": "하나금융지주",
+        "score": 68.0,
+        "return_6m": 15.51
       }
     ],
     "iterations": 200,
-    "accepted": 200,
-    "rejected_cv": 0,
+    "accepted": 2,
+    "rejected_cv": 8,
     "warning": "🚨 시뮬레이션 전용. 자동 매매 금지. 사용자 직접 검토 필수."
   },
   "bitcoin_standard": {
-    "generated_at": "2026-09-01 11:48:51 KST",
+    "generated_at": "2026-09-02 02:07:42 KST",
     "bts_score": {
       "score": 41,
       "level": "관찰 필요",
@@ -10430,15 +11161,15 @@
     },
     "btc": {
       "ticker": "BTC-USD",
-      "current": 78383.35,
-      "change_1d": 0.92,
-      "change_1w": -0.81,
-      "change_1m": 22.65,
-      "change_3m": 30.77,
-      "change_1y": -28.25,
-      "ma200": 69424.56,
+      "current": 77510.7,
+      "change_1d": -1.32,
+      "change_1w": -3.42,
+      "change_1m": 21.96,
+      "change_3m": 30.2,
+      "change_1y": -29.05,
+      "ma200": 69468.65,
       "above_ma200": true,
-      "volatility_30d_pct": 35.97,
+      "volatility_30d_pct": 36.47,
       "name": "Bitcoin",
       "key": "btc"
     },
@@ -10446,29 +11177,29 @@
       "암호화폐": [
         {
           "ticker": "BTC-USD",
-          "current": 78383.35,
-          "change_1d": 0.92,
-          "change_1w": -0.81,
-          "change_1m": 22.65,
-          "change_3m": 30.77,
-          "change_1y": -28.25,
-          "ma200": 69424.56,
+          "current": 77510.7,
+          "change_1d": -1.32,
+          "change_1w": -3.42,
+          "change_1m": 21.96,
+          "change_3m": 30.2,
+          "change_1y": -29.05,
+          "ma200": 69468.65,
           "above_ma200": true,
-          "volatility_30d_pct": 35.97,
+          "volatility_30d_pct": 36.47,
           "name": "Bitcoin",
           "key": "btc"
         },
         {
           "ticker": "ETH-USD",
-          "current": 2461.95,
-          "change_1d": 1.82,
-          "change_1w": -1.77,
-          "change_1m": 31.57,
-          "change_3m": 56.65,
-          "change_1y": -42.94,
-          "ma200": 2025.23,
+          "current": 2430.87,
+          "change_1d": -1.46,
+          "change_1w": -3.17,
+          "change_1m": 29.21,
+          "change_3m": 54.8,
+          "change_1y": -43.66,
+          "ma200": 2027.17,
           "above_ma200": true,
-          "volatility_30d_pct": 59.65,
+          "volatility_30d_pct": 60.01,
           "name": "Ethereum",
           "key": "eth"
         }
@@ -10476,85 +11207,85 @@
       "BTC_ETF_기관": [
         {
           "ticker": "IBIT",
-          "current": 44.67,
-          "change_1d": 1.75,
-          "change_1w": 0.07,
-          "change_1m": 25.34,
-          "change_3m": 7.48,
-          "change_1y": -29.06,
-          "ma200": 42.58,
+          "current": 43.87,
+          "change_1d": -1.79,
+          "change_1w": -1.9,
+          "change_1m": 21.32,
+          "change_3m": 5.38,
+          "change_1y": -30.33,
+          "ma200": 42.51,
           "above_ma200": true,
-          "volatility_30d_pct": 37.02,
+          "volatility_30d_pct": 37.42,
           "name": "BlackRock IBIT",
           "key": "ibit"
         },
         {
           "ticker": "FBTC",
-          "current": 68.61,
-          "change_1d": 1.73,
-          "change_1w": 0.07,
-          "change_1m": 25.41,
-          "change_3m": 7.47,
-          "change_1y": -29.03,
-          "ma200": 65.41,
+          "current": 67.41,
+          "change_1d": -1.75,
+          "change_1w": -1.91,
+          "change_1m": 21.26,
+          "change_3m": 5.49,
+          "change_1y": -30.27,
+          "ma200": 65.31,
           "above_ma200": true,
-          "volatility_30d_pct": 36.83,
+          "volatility_30d_pct": 37.24,
           "name": "Fidelity FBTC",
           "key": "fbtc"
         },
         {
           "ticker": "GBTC",
-          "current": 61.02,
-          "change_1d": -1.36,
-          "change_1w": 2.33,
-          "change_1m": 21.65,
-          "change_3m": 4.94,
-          "change_1y": -29.88,
-          "ma200": 58.57,
+          "current": 59.94,
+          "change_1d": -1.77,
+          "change_1w": -1.67,
+          "change_1m": 23.0,
+          "change_3m": 5.27,
+          "change_1y": -31.12,
+          "ma200": 58.47,
           "above_ma200": true,
-          "volatility_30d_pct": 35.56,
+          "volatility_30d_pct": 36.19,
           "name": "Grayscale GBTC",
           "key": "gbtc"
         },
         {
           "ticker": "BITB",
-          "current": 42.81,
-          "change_1d": -1.34,
-          "change_1w": 2.37,
-          "change_1m": 21.83,
-          "change_3m": 5.29,
-          "change_1y": -28.96,
-          "ma200": 40.86,
+          "current": 42.1,
+          "change_1d": -1.67,
+          "change_1w": -1.51,
+          "change_1m": 23.34,
+          "change_3m": 5.71,
+          "change_1y": -30.14,
+          "ma200": 40.79,
           "above_ma200": true,
-          "volatility_30d_pct": 35.56,
+          "volatility_30d_pct": 36.13,
           "name": "Bitwise BITB",
           "key": "bitb"
         },
         {
           "ticker": "MSTR",
-          "current": 132.94,
-          "change_1d": 4.42,
-          "change_1w": 8.41,
-          "change_1m": 42.52,
-          "change_3m": -12.33,
-          "change_1y": -61.09,
-          "ma200": 140.55,
+          "current": 126.27,
+          "change_1d": -5.02,
+          "change_1w": -0.44,
+          "change_1m": 33.11,
+          "change_3m": -20.63,
+          "change_1y": -63.04,
+          "ma200": 140.06,
           "above_ma200": false,
-          "volatility_30d_pct": 80.63,
+          "volatility_30d_pct": 82.01,
           "name": "MicroStrategy",
           "key": "mstr"
         },
         {
           "ticker": "COIN",
-          "current": 188.12,
-          "change_1d": 5.31,
-          "change_1w": 4.81,
-          "change_1m": 28.62,
-          "change_3m": 3.22,
-          "change_1y": -38.03,
-          "ma200": 194.79,
+          "current": 178.26,
+          "change_1d": -5.24,
+          "change_1w": -4.76,
+          "change_1m": 21.68,
+          "change_3m": -5.7,
+          "change_1y": -41.28,
+          "ma200": 194.16,
           "above_ma200": false,
-          "volatility_30d_pct": 80.02,
+          "volatility_30d_pct": 77.1,
           "name": "Coinbase",
           "key": "coin"
         }
@@ -10562,57 +11293,57 @@
       "BTC_채굴": [
         {
           "ticker": "MARA",
-          "current": 10.77,
-          "change_1d": 0.94,
-          "change_1w": -3.67,
-          "change_1m": -4.86,
-          "change_3m": -23.45,
-          "change_1y": -32.94,
-          "ma200": 10.95,
+          "current": 10.26,
+          "change_1d": -4.78,
+          "change_1w": -13.31,
+          "change_1m": -12.72,
+          "change_3m": -28.69,
+          "change_1y": -36.15,
+          "ma200": 10.93,
           "above_ma200": false,
-          "volatility_30d_pct": 105.25,
+          "volatility_30d_pct": 105.0,
           "name": "Marathon Digital",
           "key": "mara"
         },
         {
           "ticker": "RIOT",
-          "current": 19.0,
-          "change_1d": 0.03,
-          "change_1w": -5.02,
-          "change_1m": -5.83,
-          "change_3m": -31.52,
-          "change_1y": 34.81,
-          "ma200": 18.55,
-          "above_ma200": true,
-          "volatility_30d_pct": 108.57,
+          "current": 17.98,
+          "change_1d": -5.34,
+          "change_1w": -15.59,
+          "change_1m": -16.06,
+          "change_3m": -33.68,
+          "change_1y": 27.61,
+          "ma200": 18.56,
+          "above_ma200": false,
+          "volatility_30d_pct": 106.98,
           "name": "Riot Platforms",
           "key": "riot"
         },
         {
           "ticker": "CLSK",
-          "current": 11.62,
-          "change_1d": -0.34,
-          "change_1w": -2.6,
-          "change_1m": -15.55,
-          "change_3m": -35.94,
-          "change_1y": 20.54,
-          "ma200": 12.52,
+          "current": 11.18,
+          "change_1d": -3.83,
+          "change_1w": -12.35,
+          "change_1m": -23.72,
+          "change_3m": -38.9,
+          "change_1y": 15.92,
+          "ma200": 12.51,
           "above_ma200": false,
-          "volatility_30d_pct": 105.3,
+          "volatility_30d_pct": 103.47,
           "name": "CleanSpark",
           "key": "clsk"
         },
         {
           "ticker": "HUT",
-          "current": 78.64,
-          "change_1d": -9.74,
-          "change_1w": -2.75,
-          "change_1m": -27.37,
-          "change_3m": -33.15,
-          "change_1y": 187.01,
-          "ma200": 74.01,
+          "current": 78.04,
+          "change_1d": -0.76,
+          "change_1w": -1.91,
+          "change_1m": -27.49,
+          "change_3m": -37.19,
+          "change_1y": 184.82,
+          "ma200": 74.18,
           "above_ma200": true,
-          "volatility_30d_pct": 120.34,
+          "volatility_30d_pct": 116.07,
           "name": "Hut 8",
           "key": "hut"
         }
@@ -10620,57 +11351,57 @@
       "AI_컴퓨트": [
         {
           "ticker": "NVDA",
-          "current": 220.78,
-          "change_1d": 1.48,
-          "change_1w": 5.9,
-          "change_1m": 9.98,
-          "change_3m": 3.17,
-          "change_1y": 29.45,
-          "ma200": 195.8,
+          "current": 218.66,
+          "change_1d": -0.96,
+          "change_1w": 2.64,
+          "change_1m": 5.82,
+          "change_3m": 3.68,
+          "change_1y": 28.21,
+          "ma200": 195.93,
           "above_ma200": true,
-          "volatility_30d_pct": 45.22,
+          "volatility_30d_pct": 45.08,
           "name": "NVIDIA",
           "key": "nvda"
         },
         {
           "ticker": "AVGO",
-          "current": 370.34,
-          "change_1d": 0.42,
-          "change_1w": 3.23,
-          "change_1m": -4.87,
-          "change_3m": -13.05,
-          "change_1y": 25.09,
-          "ma200": 368.63,
+          "current": 369.5,
+          "change_1d": -0.23,
+          "change_1w": 3.58,
+          "change_1m": -5.8,
+          "change_3m": -17.16,
+          "change_1y": 24.8,
+          "ma200": 368.71,
           "above_ma200": true,
-          "volatility_30d_pct": 41.59,
+          "volatility_30d_pct": 41.04,
           "name": "Broadcom",
           "key": "avgo"
         },
         {
           "ticker": "AMD",
-          "current": 470.72,
-          "change_1d": 1.1,
-          "change_1w": 3.06,
-          "change_1m": -1.14,
-          "change_3m": -9.14,
-          "change_1y": 190.0,
-          "ma200": 336.72,
+          "current": 457.85,
+          "change_1d": -2.74,
+          "change_1w": -4.45,
+          "change_1m": -5.53,
+          "change_3m": -11.29,
+          "change_1y": 182.06,
+          "ma200": 337.71,
           "above_ma200": true,
-          "volatility_30d_pct": 73.37,
+          "volatility_30d_pct": 69.41,
           "name": "AMD",
           "key": "amd"
         },
         {
           "ticker": "SOXX",
-          "current": 511.04,
-          "change_1d": 0.48,
-          "change_1w": 0.96,
-          "change_1m": 1.22,
-          "change_3m": -10.22,
-          "change_1y": 111.43,
-          "ma200": 426.95,
+          "current": 500.01,
+          "change_1d": -2.16,
+          "change_1w": -2.73,
+          "change_1m": -1.51,
+          "change_3m": -12.1,
+          "change_1y": 106.87,
+          "ma200": 427.96,
           "above_ma200": true,
-          "volatility_30d_pct": 51.32,
+          "volatility_30d_pct": 48.94,
           "name": "반도체 ETF",
           "key": "soxx"
         }
@@ -10678,43 +11409,43 @@
       "한국_컴퓨트": [
         {
           "ticker": "005930.KS",
-          "current": 258500.0,
-          "change_1d": -0.58,
-          "change_1w": 0.58,
-          "change_1m": -1.52,
-          "change_3m": -13.59,
-          "change_1y": 287.2,
-          "ma200": 209076.43,
-          "above_ma200": true,
-          "volatility_30d_pct": 114.67,
+          "current": null,
+          "change_1d": null,
+          "change_1w": null,
+          "change_1m": null,
+          "change_3m": null,
+          "change_1y": null,
+          "ma200": null,
+          "above_ma200": false,
+          "volatility_30d_pct": 116.66,
           "name": "삼성전자",
           "key": "samsung"
         },
         {
           "ticker": "000660.KS",
-          "current": 1682000.0,
-          "change_1d": 0.48,
-          "change_1w": 0.26,
-          "change_1m": -2.07,
-          "change_3m": -26.5,
-          "change_1y": 558.97,
-          "ma200": 1290211.3,
-          "above_ma200": true,
-          "volatility_30d_pct": 131.1,
+          "current": null,
+          "change_1d": null,
+          "change_1w": null,
+          "change_1m": null,
+          "change_3m": null,
+          "change_1y": null,
+          "ma200": null,
+          "above_ma200": false,
+          "volatility_30d_pct": 133.42,
           "name": "SK하이닉스",
           "key": "skhynix"
         },
         {
           "ticker": "042700.KS",
-          "current": 214250.0,
-          "change_1d": -2.83,
-          "change_1w": -1.49,
-          "change_1m": -0.12,
-          "change_3m": -26.75,
-          "change_1y": 163.7,
-          "ma200": 231006.61,
+          "current": null,
+          "change_1d": null,
+          "change_1w": null,
+          "change_1m": null,
+          "change_3m": null,
+          "change_1y": null,
+          "ma200": null,
           "above_ma200": false,
-          "volatility_30d_pct": 105.71,
+          "volatility_30d_pct": 107.21,
           "name": "한미반도체",
           "key": "hanmiSemi"
         }
@@ -10722,43 +11453,43 @@
       "매크로": [
         {
           "ticker": "GC=F",
-          "current": 4482.4,
-          "change_1d": 0.1,
-          "change_1w": -3.41,
-          "change_1m": 10.7,
-          "change_3m": -0.38,
-          "change_1y": 26.29,
-          "ma200": 4515.28,
+          "current": 4402.9,
+          "change_1d": -0.64,
+          "change_1w": -5.07,
+          "change_1m": 9.15,
+          "change_3m": -3.46,
+          "change_1y": 24.05,
+          "ma200": 4516.01,
           "above_ma200": false,
-          "volatility_30d_pct": 23.07,
+          "volatility_30d_pct": 23.33,
           "name": "금",
           "key": "gold"
         },
         {
           "ticker": "DX-Y.NYB",
-          "current": 99.49,
-          "change_1d": 0.33,
-          "change_1w": 0.7,
-          "change_1m": -0.52,
-          "change_3m": 0.28,
-          "change_1y": 1.11,
+          "current": 99.7,
+          "change_1d": 0.27,
+          "change_1w": 0.71,
+          "change_1m": -0.1,
+          "change_3m": 0.69,
+          "change_1y": 1.32,
           "ma200": 99.17,
           "above_ma200": true,
-          "volatility_30d_pct": 4.66,
+          "volatility_30d_pct": 4.64,
           "name": "달러 인덱스",
           "key": "dxy"
         },
         {
           "ticker": "^TNX",
-          "current": 4.76,
-          "change_1d": 1.84,
-          "change_1w": 0.42,
-          "change_1m": 2.04,
-          "change_3m": 6.18,
-          "change_1y": 11.25,
-          "ma200": 4.34,
+          "current": 4.79,
+          "change_1d": 0.63,
+          "change_1w": 1.79,
+          "change_1m": 0.91,
+          "change_3m": 7.47,
+          "change_1y": 11.95,
+          "ma200": 4.35,
           "above_ma200": true,
-          "volatility_30d_pct": 14.82,
+          "volatility_30d_pct": 14.52,
           "name": "미 10Y 국채",
           "key": "us10y"
         }
@@ -10767,44 +11498,44 @@
     "stablecoins": {
       "tether": {
         "name": "USDT (Tether)",
-        "market_cap_usd": 183332805936,
-        "market_cap_billion": 183.33,
-        "change_24h_pct": -0.0
+        "market_cap_usd": 183324537963,
+        "market_cap_billion": 183.32,
+        "change_24h_pct": -0.01
       },
       "usd-coin": {
         "name": "USDC (Circle)",
-        "market_cap_usd": 73430093249,
-        "market_cap_billion": 73.43,
-        "change_24h_pct": 0.01
+        "market_cap_usd": 73383777279,
+        "market_cap_billion": 73.38,
+        "change_24h_pct": -0.01
       },
       "dai": {
         "name": "DAI",
-        "market_cap_usd": 4590071067,
-        "market_cap_billion": 4.59,
-        "change_24h_pct": 0.03
+        "market_cap_usd": 4561969119,
+        "market_cap_billion": 4.56,
+        "change_24h_pct": 0.0
       },
       "first-digital-usd": {
         "name": "FDUSD",
-        "market_cap_usd": 335070895,
-        "market_cap_billion": 0.34,
+        "market_cap_usd": 333092816,
+        "market_cap_billion": 0.33,
         "change_24h_pct": 0.01
       },
       "paypal-usd": {
         "name": "PYUSD",
-        "market_cap_usd": 2905160714,
-        "market_cap_billion": 2.91,
-        "change_24h_pct": -0.0
+        "market_cap_usd": 2792281488,
+        "market_cap_billion": 2.79,
+        "change_24h_pct": -0.02
       },
       "__total__": {
         "name": "총 스테이블코인 시총",
-        "market_cap_usd": 264593201863,
-        "market_cap_billion": 264.59
+        "market_cap_usd": 264395658667,
+        "market_cap_billion": 264.4
       }
     },
     "dominance": {
-      "btc_dominance_pct": 59.15,
-      "eth_dominance_pct": 11.17,
-      "total_market_cap_billion": 2652.61
+      "btc_dominance_pct": 59.09,
+      "eth_dominance_pct": 11.13,
+      "total_market_cap_billion": 2632.99
     },
     "korea_impacts": [
       {
@@ -10818,16 +11549,16 @@
       "score": 15,
       "level": "🟢 약함",
       "signals": [
-        "ETF 평균 1M +23.6% (전반적 강세)"
+        "ETF 평균 1M +22.2% (전반적 강세)"
       ]
     },
     "miner_strength": {
-      "score": 15,
+      "score": 0,
       "level": "🟢 약세",
       "signals": [],
-      "above_ma200_ratio": "2/4",
-      "avg_change_1m_pct": -13.4,
-      "avg_change_3m_pct": -31.02
+      "above_ma200_ratio": "1/4",
+      "avg_change_1m_pct": -20.0,
+      "avg_change_3m_pct": -34.62
     },
     "us_govt_holdings": {
       "current": 207189,
@@ -48871,6 +49602,6 @@
     },
     "warning": "시뮬레이션/참고용. 정확도 검증 필요."
   },
-  "analysis_basis_at": "2026-09-02 02:09:26",
-  "data_refreshed_at": "2026-09-02 02:10:36"
+  "analysis_basis_at": "2026-09-02 03:12:00",
+  "data_refreshed_at": "2026-09-02 03:19:29"
 }
