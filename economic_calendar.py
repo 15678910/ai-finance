@@ -30,7 +30,10 @@ CENTRAL_BANK_EVENTS = [
     {"date": "2026-07-29", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸",
      "tags": ["FOMC", "Fed", "금리"],
      "impact_analysis": "Warsh 의장 체제 첫 하반기 회의. 9월 인하 여부 시그널 주목. 점도표(SEP) 미발표 회의."},
-    {"date": "2026-09-16", "title": "FOMC 금리 결정 + SEP", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리", "SEP"]},
+    {"date": "2026-09-16", "title": "FOMC 금리 결정 + SEP · 워시 의장 기자회견", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸",
+     "tags": ["FOMC", "Fed", "금리", "SEP", "점도표"],
+     "impact_analysis": "회의는 9/15~16(현지). 결정·기자회견은 한국시간 9/17(목) 새벽 3시 — 목요일 국내 시초가에 직접 반영. "
+                        "점도표(SEP) 발표 회의라 연말·내년 금리 경로가 함께 나온다. 달러·원화·美10Y 방향과 반도체 밸류에이션에 동시 영향."},
     {"date": "2026-10-28", "title": "FOMC 금리 결정", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리"]},
     {"date": "2026-12-09", "title": "FOMC 금리 결정 + SEP", "category": "중앙은행", "impact": "HIGH", "region": "🇺🇸", "tags": ["FOMC", "Fed", "금리", "SEP"]},
     # ECB (유럽)
@@ -51,7 +54,10 @@ CENTRAL_BANK_EVENTS = [
     {"date": "2026-07-30", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵",
      "tags": ["BOJ", "엔화"],
      "impact_analysis": "6월 인상 이후 연속 인상 여부. 1.25% 도달 시 엔캐리 청산 2차 파고 가능성."},
-    {"date": "2026-09-18", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵", "tags": ["BOJ", "엔화"]},
+    {"date": "2026-09-18", "title": "BOJ 금융정책결정회의", "category": "중앙은행", "impact": "HIGH", "region": "🇯🇵",
+     "tags": ["BOJ", "엔화", "엔캐리"],
+     "impact_analysis": "FOMC 이틀 뒤. 미·일 금리차가 엔캐리 유인을 결정하므로 두 회의를 묶어 봐야 한다. "
+                        "BOJ 매파 시그널 → 엔 강세 → 캐리 청산 압력(대시보드 '일본 위기' 게이지 참조). 금요일이라 국내 반영은 다음 주 월요일."},
     # 한국은행
     {"date": "2026-01-16", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행", "기준금리"]},
     {"date": "2026-02-27", "title": "한국은행 금통위 기준금리 결정", "category": "중앙은행", "impact": "MEDIUM", "region": "🇰🇷", "tags": ["BOK", "한국은행"]},
@@ -298,6 +304,53 @@ CURATED_EVENTS = [
      "impact_analysis": "글로벌 반도체 수요 선행지표. 월매출 호조 시 AI·파운드리 수요 확인 → 삼성·SK하이닉스·소부장 동반 강세 신호."},
     {"date": "2026-07-10", "title": "델타항공 실적발표", "category": "실적", "impact": "LOW", "region": "🇺🇸", "tags": ["델타항공", "실적", "여행"]},
     # APEC 정상회담(경주)은 2025년 종료 — 과거 이벤트라 제거(미래 'TBD'로 잘못 잔류했음).
+    # ── 2026년 9월 3주차 (9/14~9/18) — 방송 일정표 기준으로 보강 (2026-09-14) ──
+    # 날짜는 현지 기준. 한국시간으로 날짜가 넘어가는 것은 impact_analysis 에 명시.
+    {"date": "2026-09-14", "title": "한국거래소 애프터마켓 개설", "category": "시장제도", "impact": "HIGH", "region": "🇰🇷",
+     "tags": ["KRX", "거래시간", "애프터마켓", "시장구조"],
+     "impact_analysis": "정규장 이후 거래 시간이 생긴다. 미국장 개장 직후 흐름이 당일 국내 가격에 반영되기 시작하므로 "
+                        "'밤사이 해외 → 다음날 시초가' 갭 구조가 달라질 수 있다. 시초가 예측 모델의 전제(야간 정보가 시초가에 몰림)를 재점검할 필요."},
+    {"date": "2026-09-14", "title": "일본 7월 산업생산", "category": "경제지표", "impact": "LOW", "region": "🇯🇵", "tags": ["산업생산", "일본"]},
+    {"date": "2026-09-14", "title": "이란–걸프국 첫 장관급 회동 → 연기 (호르무즈 통항 논의)", "category": "지정학", "impact": "MEDIUM", "region": "🌍",
+     "tags": ["이란", "걸프", "호르무즈", "유가", "연기"],
+     "impact_analysis": "일정 연기 자체가 신호. 호르무즈 통항 문제가 미결이면 유가 프리미엄이 유지된다. WTI·브렌트와 함께 볼 것."},
+    {"date": "2026-09-15", "title": "미국 상원 클래리티(CLARITY) 법안 표결", "category": "정책", "impact": "HIGH", "region": "🇺🇸",
+     "tags": ["CLARITY", "암호화폐", "규제", "상원", "입법"],
+     "impact_analysis": "암호화폐 시장구조 법안. 통과 시 규제 불확실성 해소로 비트코인·거래소·관련주 재료. 부결·지연 시 반대. "
+                        "대시보드 'CLARITY Act 모니터'가 표결 상황을 추적한다."},
+    {"date": "2026-09-15", "title": "FOMC 회의 시작 (1일차)", "category": "중앙은행", "impact": "MEDIUM", "region": "🇺🇸",
+     "tags": ["FOMC", "Fed"],
+     "impact_analysis": "결정은 이튿날. 회의 첫날은 관망 국면 — 포지션 축소·변동성 저하가 일반적."},
+    {"date": "2026-09-15", "title": "중국 8월 실업률·산업생산", "category": "경제지표", "impact": "MEDIUM", "region": "🇨🇳",
+     "tags": ["중국", "산업생산", "실업률"],
+     "impact_analysis": "중국 경기 회복 속도 확인. 부진 시 소재·화학·중국 소비 관련주 부담, 부양책 기대엔 반등 재료."},
+    {"date": "2026-09-15", "title": "유로존 7월 무역수지", "category": "경제지표", "impact": "LOW", "region": "🇪🇺", "tags": ["유로존", "무역수지"]},
+    {"date": "2026-09-15", "title": "AI Infra Summit 2026 — 립부탄 인텔 CEO 기조연설", "category": "산업", "impact": "MEDIUM", "region": "🇺🇸",
+     "tags": ["AI", "인텔", "반도체", "인프라", "산타클라라"],
+     "impact_analysis": "9/15~17 미국 산타클라라. 인텔 파운드리·AI 인프라 로드맵 발언은 삼성전자·SK하이닉스·한미반도체 등 국내 반도체 체인에 파급."},
+    {"date": "2026-09-16", "title": "한–중앙아시아 정상회의", "category": "정책", "impact": "LOW", "region": "🇰🇷",
+     "tags": ["정상회의", "중앙아시아", "자원", "외교"]},
+    {"date": "2026-09-16", "title": "미국 MBA 모기지 신청건수", "category": "경제지표", "impact": "LOW", "region": "🇺🇸", "tags": ["모기지", "주택"]},
+    {"date": "2026-09-16", "title": "일본 8월 무역수지", "category": "경제지표", "impact": "LOW", "region": "🇯🇵", "tags": ["일본", "무역수지"]},
+    {"date": "2026-09-16", "title": "카카오 소액주주 대상 인적분할 설명회", "category": "기업", "impact": "MEDIUM", "region": "🇰🇷",
+     "tags": ["카카오", "인적분할", "지배구조", "소액주주"],
+     "impact_analysis": "분할 비율·신설법인 구조가 주주가치에 직결. 설명회 내용에 따라 카카오 계열 전반 변동 가능."},
+    {"date": "2026-09-17", "title": "미국 8월 주택착공건수 · 신규실업수당 청구건수", "category": "경제지표", "impact": "MEDIUM", "region": "🇺🇸",
+     "tags": ["주택착공", "실업수당", "고용"],
+     "impact_analysis": "FOMC 직후 나오는 고용·주택 지표. 결정 이후 시장이 금리 경로를 재해석하는 재료."},
+    {"date": "2026-09-17", "title": "영란은행(BOE) 통화정책회의", "category": "중앙은행", "impact": "HIGH", "region": "🇬🇧",
+     "tags": ["BOE", "금리", "파운드"],
+     "impact_analysis": "FOMC 다음날. 주요 중앙은행 3곳(Fed·BOE·BOJ)이 사흘 연속 — 이번 주는 글로벌 금리 방향이 한꺼번에 정해지는 주간."},
+    {"date": "2026-09-17", "title": "유로존 8월 CPI (확정치)", "category": "경제지표", "impact": "MEDIUM", "region": "🇪🇺",
+     "tags": ["CPI", "물가", "유로존", "ECB"]},
+    {"date": "2026-09-18", "title": "한국 8월 생산자물가지수(PPI)", "category": "경제지표", "impact": "MEDIUM", "region": "🇰🇷",
+     "tags": ["PPI", "물가", "한국"],
+     "impact_analysis": "소비자물가의 선행지표. 원화 약세 국면에서 수입물가 전가 여부 확인."},
+    {"date": "2026-09-18", "title": "한–미 대미투자 MOU 최종 서명", "category": "정책", "impact": "HIGH", "region": "🇰🇷",
+     "tags": ["대미투자", "MOU", "관세", "한미"],
+     "impact_analysis": "관세 협상과 연계된 투자 약정의 확정. 세부 조건(규모·업종·이행 일정)은 서명 후 공개분으로 확인해야 한다. "
+                        "참여 기업·업종에 따라 개별 종목 재료."},
+    {"date": "2026-09-18", "title": "미국 8월 산업생산", "category": "경제지표", "impact": "LOW", "region": "🇺🇸", "tags": ["산업생산", "미국"]},
 ]
 
 # ── 3. FRED 릴리스 캘린더에서 경제지표 발표일 자동 수집 ──────────────
@@ -876,6 +929,57 @@ def main():
             if poorer.get("source") == "FRED" and "source" not in richer:
                 richer = {**richer, "source": "FRED"}
             deduped[existing_idx] = richer
+
+    # 중앙은행 결정은 '현지 날짜'와 '한국시간 날짜'가 하루 어긋나 같은 회의가 두 번 잡힌다.
+    # (예: FOMC 9/16 현지 큐레이션 + 9/17 Nasdaq 자동). 같은 은행 태그가 하루 차이로 있으면
+    # 더 풍부한 쪽 하나만 남긴다. 위의 (날짜+제목) 키로는 날짜가 달라 걸러지지 않는다.
+    _CB_TAGS = ("FOMC", "BOJ", "ECB", "BOE")
+    from datetime import datetime as _dt, timedelta as _td
+
+    def _cb_tag(ev):
+        # Nasdaq 자동 항목은 category 가 '경제지표'로 들어오므로 category 로 거르지 않고
+        # 태그·제목의 은행 식별자로만 판정한다. '회의 시작(1일차)' 같은 예고 항목은 제외.
+        if "시작" in (ev.get("title") or ""):
+            return None
+        return next((t for t in _CB_TAGS if t in (ev.get("tags") or []) or t in (ev.get("title") or "")), None)
+
+    kept, drop = [], set()
+    for i, ev in enumerate(deduped):
+        tag = _cb_tag(ev)
+        if not tag or i in drop:
+            continue
+        try:
+            d0 = _dt.strptime(ev["date"], "%Y-%m-%d")
+        except Exception:
+            continue
+        for j in range(i + 1, len(deduped)):
+            other = deduped[j]
+            if j in drop or _cb_tag(other) != tag:
+                continue
+            try:
+                d1 = _dt.strptime(other["date"], "%Y-%m-%d")
+            except Exception:
+                continue
+            if abs((d1 - d0).days) == 1:
+                # 큐레이션(source 없음)이 날짜의 기준이다 — 현지 날짜로 관리한다.
+                # 자동 항목(Nasdaq 등)은 한국시간 날짜라 하루 밀린다. 큐레이션을 남기되,
+                # 큐레이션에 해설이 없고 자동 항목에 있으면 그 해설만 가져와 붙인다.
+                # (둘 다 큐레이션이거나 둘 다 자동이면 해설 있는 쪽 > 제목 긴 쪽)
+                ev_cur, ot_cur = not ev.get("source"), not other.get("source")
+                if ev_cur != ot_cur:
+                    keep, lose = (ev, other) if ev_cur else (other, ev)
+                else:
+                    def _rich(e):
+                        return (1 if e.get("impact_analysis") else 0, len(e.get("title") or ""), len(e))
+                    keep, lose = (ev, other) if _rich(ev) >= _rich(other) else (other, ev)
+                if not keep.get("impact_analysis") and lose.get("impact_analysis"):
+                    keep["impact_analysis"] = lose["impact_analysis"]
+                drop.add(j if keep is ev else i)
+                if keep is not ev:
+                    break
+    if drop:
+        deduped = [ev for i, ev in enumerate(deduped) if i not in drop]
+        print(f"[중복] 중앙은행 인접일 중복 {len(drop)}건 제거")
 
     # 발표완료 경제지표에 실제값 부여 (FRED)
     print("\n[발표완료 결과 수집]")
