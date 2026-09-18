@@ -1,44 +1,9 @@
 {
-  "generated_at": "2026-09-18 11:14:19 KST",
+  "generated_at": "2026-09-18 20:59:59 KST",
   "models": "개장 전(07:00 KST) 고정 예측 — 회귀(미국 1일 시차) · 선물(NQ 야간) · 앙상블. 장중 보정 없음.",
   "window": 20,
   "fut_window": 20,
   "entries": [
-    {
-      "date": "2026-08-28",
-      "base": 6912.37,
-      "actual": 6788.88,
-      "actual_pct": -1.79,
-      "reg": {
-        "pred": 7105.0,
-        "pct": 2.79,
-        "err": -4.45,
-        "abs_err": 4.45,
-        "dir": false,
-        "beta": {
-          "sox": 0.82,
-          "ndx": 0.61
-        }
-      },
-      "fut": {
-        "pred": 7004.0,
-        "pct": 1.33,
-        "err": -3.07,
-        "abs_err": 3.07,
-        "dir": false,
-        "beta_f": 2.89
-      },
-      "ens": {
-        "pred": 7054.0,
-        "pct": 2.06,
-        "err": -3.77,
-        "abs_err": 3.77,
-        "dir": false
-      },
-      "sox_ret": 2.33,
-      "ndx_ret": 1.43,
-      "fut_overnight": 0.46
-    },
     {
       "date": "2026-08-31",
       "base": 6788.88,
@@ -512,51 +477,86 @@
       "sox_ret": 0.63,
       "ndx_ret": 0.02,
       "fut_overnight": -0.05
+    },
+    {
+      "date": "2026-09-18",
+      "base": 6715.41,
+      "actual": 6894.23,
+      "actual_pct": 2.66,
+      "reg": {
+        "pred": 6720.0,
+        "pct": 0.07,
+        "err": 2.59,
+        "abs_err": 2.59,
+        "dir": true,
+        "beta": {
+          "sox": 0.24,
+          "ndx": -0.39
+        }
+      },
+      "fut": {
+        "pred": 6753.0,
+        "pct": 0.56,
+        "err": 2.09,
+        "abs_err": 2.09,
+        "dir": true,
+        "beta_f": 0.76
+      },
+      "ens": {
+        "pred": 6736.0,
+        "pct": 0.31,
+        "err": 2.34,
+        "abs_err": 2.34,
+        "dir": true
+      },
+      "sox_ret": 3.14,
+      "ndx_ret": 1.73,
+      "fut_overnight": 0.74
     }
   ],
   "accuracy": {
     "reg": {
-      "mae_pct": 1.78,
-      "dir_hit_rate": 64,
+      "mae_pct": 1.64,
+      "dir_hit_rate": 71,
       "n": 14,
       "dir_hit_strong": null,
       "n_strong": 4
     },
     "fut": {
-      "mae_pct": 1.67,
-      "dir_hit_rate": 47,
+      "mae_pct": 1.6,
+      "dir_hit_rate": 53,
       "n": 15,
       "dir_hit_strong": null,
       "n_strong": 4
     },
     "ens": {
-      "mae_pct": 1.61,
-      "dir_hit_rate": 57,
+      "mae_pct": 1.51,
+      "dir_hit_rate": 64,
       "n": 14,
       "dir_hit_strong": null,
       "n_strong": 4
     }
   },
   "today": {
-    "base": 6715.41,
-    "locked_at": "2026-09-18 07:51 KST",
+    "base": 6894.23,
+    "locked_at": "2026-09-18 20:59 KST",
     "reg": {
-      "pred": 6720.0,
-      "pct": 0.07,
+      "pred": 6947.0,
+      "pct": 0.76,
       "sox_ret": 3.14,
       "ndx_ret": 1.73
     },
     "fut": {
-      "pred": 6752.0,
-      "pct": 0.55,
-      "overnight": 0.72
+      "pred": 6874.0,
+      "pct": -0.3,
+      "overnight": -0.27
     },
     "ens": {
-      "pred": 6736.0,
-      "pct": 0.31
+      "pred": 6910.0,
+      "pct": 0.24
     },
-    "status": "locked",
-    "target_date": "2026-09-18",
+    "status": "provisional",
+    "target_date": "다음 거래일",
     "event_risk": {
       "flag": true,
       "events": [
@@ -573,12 +573,12 @@
       ],
       "note": "FOMC·BOJ 등 HIGH 이벤트 ±1거래일 — 개장 전 선물 선행신호의 신뢰도가 낮습니다(디커플링·안도/실망 랠리로 방향까지 빗나갈 수 있음). 변동 확대 주의."
     },
-    "dir_confidence": "low",
-    "dir_conf_reason": "美 신호 약함 · SOX·선물 일치",
     "semi_regime": {
-      "key": "mid",
-      "text": "🟡 반도체 디커플링 진행 — 한국 반도체가 미국과 다소 따로 움직이는 국면. 예측 신뢰도 주의."
-    }
+      "key": "high",
+      "text": "🔴 반도체 디커플링 큼 — 개장 전 선물·미 반도체 신호 신뢰도 낮음(한국 고유 수급 지배). 예측 빗나갈 위험."
+    },
+    "dir_confidence": "low",
+    "dir_conf_reason": "美 신호 약함 · SOX·선물 불일치"
   },
   "last_notified": "2026-09-17",
   "note": "개장 전 확정 정보(미국 마감·나스닥선물 07:00)만으로 당일 종가 예측 → 마감 후 실제로 채점. 장중 시가갭 보정 같은 정보 누출은 제외. 워크포워드(해당일 제외)라 과적합 없음. 통계 추정."
