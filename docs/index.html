@@ -2032,11 +2032,12 @@ body {
   }
 
   function fmtMcap(v) {
-    // market_cap은 조원 단위로 저장됨 (yfinance marketCap / 1e12)
-    // 삼성전자 2337.7조, LG전자 66.3조, 소형주 0.5조 등
+    // market_cap은 '조 달러' 단위 — 국내 종목도 생성 단계에서 USD로 환산된다.
+    // (예전엔 한국주만 조원, 미국주는 조달러로 섞여 트리맵 면적이 1000배 틀렸다)
+    // 삼성전자 1.18조$, 엔비디아 5.5조$, 중소형주 0.01조$=100억$
     if (v == null) return 'N/A';
-    if (v >= 1)   return v.toFixed(1) + '조';
-    if (v > 0)    return (v * 10000).toFixed(0) + '억';
+    if (v >= 1)   return v.toFixed(2) + '조$';
+    if (v > 0)    return (v * 10000).toFixed(0) + '억$';
     return 'N/A';
   }
 
@@ -6152,10 +6153,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const US       = { has: (n) => isUS(n) };
 
     // market_cap null → 0.001 (거의 보이지 않음), 실제 값 우선
-    const normCap = (raw) => {
-      if (raw == null || raw <= 0) return 0.001;
-      return raw > 5000 ? raw / 10000 : raw;
-    };
+    // 시총은 생성 단계에서 이미 USD(조 달러)로 통일된다.
+    // 예전에는 여기서 `raw > 5000 ? raw/10000 : raw` 로 원화를 보정하려 했으나,
+    // 임계값 5000도 제수 10000도 환율과 무관한 임의값이라 실제로는 발동조차
+    // 안 했다(삼성전자 1641.6 < 5000). 통화 환산은 데이터 쪽 책임으로 옮겼다.
+    const normCap = (raw) => (raw == null || raw <= 0) ? 0.001 : raw;
     const scaleVal = (c) => Math.sqrt(Math.max(c, 0.1)) * 1e4;
 
     const makeLeaf = (s) => ({
@@ -6324,7 +6326,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           return `${cryptoSym(d.data.ticker)} (${d.data.name})\n가격: ${priceKrw}\n등락: ${(d.data.change_pct||0).toFixed(2)}%\n도미넌스: ${dom}%`;
         }
         const sp = pct(d.data.market_cap || 0).toFixed(2);
-        return `${d.data.name} (${d.data.ticker || ''})\n시총: ${(d.data.market_cap||0).toFixed(1)}조  점유율: ${sp}%\n등락: ${(d.data.change_pct||0).toFixed(2)}%\nPER: ${d.data.per||'—'}`;
+        return `${d.data.name} (${d.data.ticker || ''})\n시총: ${(d.data.market_cap||0).toFixed(2)}조$  점유율: ${sp}%\n등락: ${(d.data.change_pct||0).toFixed(2)}%\nPER: ${d.data.per||'—'}`;
       });
 
     if (filter === 'crypto') {
@@ -7101,7 +7103,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ['PER',    st.per,           '배'],
       ['베타',    st.beta,          ''],
       ['D/E',    st.debt_to_equity,''],
-      ['시가총액', st.market_cap,    '조'],
+      ['시가총액', st.market_cap,    '조$'],
     ].filter(([,v]) => v != null && v !== 'N/A');
 
     const extrasHtml = extras.length ? `

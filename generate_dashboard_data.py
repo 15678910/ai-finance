@@ -1304,6 +1304,35 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
 
     # 10.0) treemap_sectors.json 기반 확장 종목 수집
     _treemap_config = os.path.join(SCRIPT_DIR, "treemap_sectors.json")
+
+    # 환율 조회 실패 시 폴백. 환산을 아예 안 하면 1,000배 틀리지만,
+    # 몇 % 낡은 환율로 환산하면 트리맵 면적은 사실상 차이가 없다 —
+    # 폴백을 두는 쪽이 항상 낫다. 값은 출력에 fx_source로 함께 남긴다.
+    USD_KRW_FALLBACK = 1390.0
+
+    def _fetch_usd_krw(_yf) -> tuple:
+        """USD/KRW 환율. (rate, source) — 실패 시 폴백 상수."""
+        for sym in ("KRW=X", "USDKRW=X"):
+            try:
+                t = _yf.Ticker(sym)
+                for getter in (
+                    lambda: float(getattr(t.fast_info, "last_price", 0) or 0),
+                    lambda: float((t.info or {}).get("regularMarketPrice") or 0),
+                    lambda: float(t.history(period="5d")["Close"].dropna().iloc[-1]),
+                ):
+                    try:
+                        r = getter()
+                    except Exception:
+                        continue
+                    # 원/달러가 500~3000 밖이면 잘못 받은 값 (역수·다른 통화 등)
+                    if 500 < r < 3000:
+                        print(f"  [treemap] USD/KRW {r:,.1f} ({sym})")
+                        return r, sym
+            except Exception:
+                continue
+        print(f"  [WARN] USD/KRW 조회 실패 — 폴백 {USD_KRW_FALLBACK:,.0f} 사용")
+        return USD_KRW_FALLBACK, "fallback"
+
     def build_treemap_sectors(config_path: str, existing_sectors: list) -> list:
         """treemap_sectors.json에서 종목을 읽어 yfinance로 시가총액/등락률을 수집합니다.
         기존 sectors의 regime/sentiment 데이터는 유지합니다."""
@@ -1318,6 +1347,13 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
         except Exception as e:
             print(f"[WARN] treemap_sectors.json 로드 실패: {e}")
             return existing_sectors
+
+        # ── 환율 (시가총액 통화 통일) ────────────────────────────
+        # yfinance의 marketCap은 상장 시장 통화로 온다 — 한국주는 원, 미국주·코인은 달러.
+        # 이걸 구분 없이 /1e12 하면 삼성전자(1,641조원)가 엔비디아($5.5T)보다
+        # 298배 큰 것으로 잡혀 트리맵 면적이 완전히 무너진다(국내 99.4% : 국외 0.6%).
+        # 국내 종목만 USD로 환산해 같은 단위(조 달러)로 맞춘다.
+        fx_rate, fx_source = _fetch_usd_krw(_yf)
 
         # 기존 데이터 인덱스: {ticker: stock_dict}
         existing_index: dict = {}
@@ -1365,7 +1401,7 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                             if fi.previous_close and float(fi.previous_close) > 0:
                                 prev_close = float(fi.previous_close)
                             if hasattr(fi, "market_cap") and fi.market_cap:
-                                mc = round(float(fi.market_cap) / 1e12, 3)  # 3자리: 소형코인 0.0 방지
+                                mc = float(fi.market_cap)   # 상장 통화 그대로 — 환산은 아래에서 한 번만
                         except Exception:
                             pass
 
@@ -1377,7 +1413,7 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                             if not prev_close:
                                 prev_close = float(info.get("regularMarketPreviousClose") or info.get("previousClose") or 0) or None
                             if not mc and info.get("marketCap"):
-                                mc = round(float(info["marketCap"]) / 1e12, 3)
+                                mc = float(info["marketCap"])
                             # PER
                             pe = info.get("trailingPE") or info.get("forwardPE")
                             if pe and float(pe) > 0:
@@ -1417,13 +1453,18 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                             pass
 
                         # 3) history 폴백 (최후 수단)
-                        if not cp:
+                        #    가격뿐 아니라 prev_close 도 보완한다. 예전에는 이 블록이
+                        #    `if not cp:` 안에만 있어서, 가격은 잡히고 prev_close 만 없는
+                        #    흔한 경우에 등락률이 통째로 비었다(화면에 전 종목 +0.0%).
+                        if not cp or not prev_close:
                             try:
                                 hist = t.history(period="5d")
-                                if not hist.empty:
-                                    cp = float(hist["Close"].iloc[-1])
-                                    if len(hist) >= 2:
-                                        prev_close = float(hist["Close"].iloc[-2])
+                                closes = hist["Close"].dropna() if not hist.empty else None
+                                if closes is not None and len(closes):
+                                    if not cp:
+                                        cp = float(closes.iloc[-1])
+                                    if not prev_close and len(closes) >= 2:
+                                        prev_close = float(closes.iloc[-2])
                             except Exception:
                                 pass
 
@@ -1433,9 +1474,11 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         _krw = ticker.isdigit() and len(ticker) == 6  # 한국 6자리=원(정수), 그 외=달러·코인(소수2)
                         base["price"] = round(cp, 0 if _krw else 2)
                         if mc:
-                            base["market_cap"] = mc
-                        # 등락률 계산
-                        if prev_close and prev_close > 0 and abs(cp - prev_close) > 1e-6:
+                            # 국내 종목만 원 → 달러 환산 후 '조 달러' 단위로 통일
+                            mc_usd = (mc / fx_rate) if _krw else mc
+                            base["market_cap"] = round(mc_usd / 1e12, 3)  # 3자리: 소형코인 0.0 방지
+                        # 등락률 계산 — 진짜 보합(0.00%)과 '데이터 없음'을 구분해 기록한다
+                        if prev_close and prev_close > 0:
                             base["change_pct"] = round((cp - prev_close) / prev_close * 100, 2)
                         # 기술적 레짐·센티멘트 계산 (레짐 미산출 종목 — 외국/SpaceX/공급망 등)
                         if base.get("regime") in (None, "", "N/A"):
@@ -1499,7 +1542,35 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                 sectors_out.append(sec_entry)
                 print(f"  [treemap] {sector_name}: {len(stocks)}개")
 
-        return sectors_out if sectors_out else existing_sectors
+        # ── 부분 실패 가드 ───────────────────────────────────────
+        # yfinance가 대량 실패(레이트리밋 등)하면 건진 몇 종목만으로 sectors_out이
+        # 채워지는데, 예전 코드는 `sectors_out or existing_sectors` 로 전면 실패만
+        # 막았다. 2026-09-03 23:49 실행에서 130종목 데이터가 23종목으로 통째
+        # 교체돼 대시보드 대부분이 사라졌다 — 부분 실패가 더 위험하다.
+        # 수집률이 기준 미만이면 직전 정상 데이터를 그대로 유지한다.
+        expected = sum(len(sd.get("tickers", {})) for sd in cfg.get("sectors", {}).values())
+        collected = sum(len(s.get("stocks", [])) for s in sectors_out)
+        existing_count = sum(len(s.get("stocks", [])) for s in existing_sectors)
+        MIN_COVERAGE = 0.70
+
+        if not sectors_out:
+            print("[WARN] treemap 수집 전면 실패 — 기존 데이터 유지")
+            return existing_sectors
+
+        if expected and collected < expected * MIN_COVERAGE and collected < existing_count:
+            print(f"[WARN] treemap 수집률 {collected}/{expected} "
+                  f"({collected / expected:.0%}) — 기준 {MIN_COVERAGE:.0%} 미달. "
+                  f"기존 {existing_count}종목 데이터 유지 (부분 실패로 판단)")
+            return existing_sectors
+
+        print(f"  [treemap] 수집 {collected}/{expected}종목 ({collected / expected:.0%})"
+              if expected else f"  [treemap] 수집 {collected}종목")
+
+        # 어떤 환율로 환산했는지 남긴다 — 시총이 이상할 때 원인 추적용
+        if sectors_out:
+            sectors_out[0]["fx_usd_krw"] = round(fx_rate, 2)
+            sectors_out[0]["fx_source"] = fx_source
+        return sectors_out
 
     if os.path.exists(_treemap_config):
         print(f"[INFO] treemap_sectors.json 기반 종목 확장 중...")
