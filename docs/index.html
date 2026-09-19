@@ -2690,6 +2690,17 @@ body {
             <div><span style="color:var(--text-muted);">Beta</span> <b style="color:var(--text);">${v.beta != null ? v.beta : 'N/A'}</b></div>
             <div><span style="color:var(--text-muted);">매출 CAGR</span> <b style="color:var(--text);">${v.revenue_cagr_pct != null ? v.revenue_cagr_pct.toFixed(1) + '%' : 'N/A'}</b></div>
           </div>
+          ${v.fair_price_exit != null ? (() => {
+            // 터미널 가치 이원화 — 영구성장법(적정가)과 출구배수법의 괴리가 크면 터미널 가정이 취약한 것
+            const gap = v.terminal_method_gap_pct;
+            const gapColor = gap == null ? 'var(--text-muted)' : Math.abs(gap) <= 15 ? 'var(--green,#4ade80)' : Math.abs(gap) <= 30 ? 'var(--amber,#fbbf24)' : 'var(--red,#f87171)';
+            return `<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:6px;font-size:0.68rem;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+              <div><span style="color:var(--text-muted);">출구배수 적정가</span> <b style="color:var(--text);">${v.fair_price_exit.toLocaleString()}원</b> <span style="color:var(--text-muted);font-size:0.6rem;">(EV/EBITDA ${v.exit_multiple}x${v.exit_multiple_source === 'default' ? '·기본' : ''})</span></div>
+              <div><span style="color:var(--text-muted);">두 방법 괴리</span> <b style="color:${gapColor};">${gap != null ? (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%' : 'N/A'}</b></div>
+              <div><span style="color:var(--text-muted);">터미널 비중</span> <b style="color:var(--text);">${v.terminal_share_pct != null ? v.terminal_share_pct.toFixed(0) + '%' : 'N/A'}</b></div>
+              <div><span style="color:var(--text-muted);">주식수</span> <b style="color:var(--text);font-size:0.6rem;">${v.shares_basis === 'implied_diluted' ? '희석' : '기본'}</b></div>
+            </div>`;
+          })() : ''}
         </div>`;
       });
 
