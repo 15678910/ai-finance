@@ -2671,7 +2671,24 @@ body {
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">`;
 
       dcf.valuations.forEach(v => {
-        const upColor = v.upside_pct > 30 ? 'var(--green,#4ade80)' :
+        // DCF 부적합 — 정규화 FCF가 음수(투자 사이클·금융자회사 연결)라 현금흐름 평가가 성립하지 않는 종목.
+        // 예전엔 음수 적정가로 -250% '심각 고평가'가 찍혀 오독을 불렀다.
+        if (v.dcf_applicable === false) {
+          html += `<div class="glass-card anim-item" style="padding:14px;border-left:3px solid rgba(148,163,184,0.5);opacity:0.85;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+              <div style="font-size:1.0rem;font-weight:700;color:var(--text-bright);">${h(v.name)}</div>
+              <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);">DCF 부적합</div>
+            </div>
+            <div style="font-size:0.68rem;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">${h(v.dcf_reason || '')}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:0.78rem;">
+              <div><span style="color:var(--text-muted);">현재가</span> <b style="color:var(--text);">${v.current_price ? v.current_price.toLocaleString() : 'N/A'}원</b></div>
+              <div><span style="color:var(--text-muted);">기준 FCF</span> <b style="color:var(--red,#f87171);">${v.fcf_base != null ? (v.fcf_base / 1e12).toFixed(1) + '조' : 'N/A'}</b> <span style="color:var(--text-muted);font-size:0.6rem;">(${h(v.fcf_basis || '')})</span></div>
+            </div>
+          </div>`;
+          return;
+        }
+        const upColor = v.low_confidence ? 'rgba(148,163,184,0.7)' :   // |괴리|>100% — 시그널이 아니라 모델 경고
+                        v.upside_pct > 30 ? 'var(--green,#4ade80)' :
                         v.upside_pct > 15 ? 'var(--green,#4ade80)' :
                         v.upside_pct > -15 ? 'var(--amber,#fbbf24)' :
                         'var(--red,#f87171)';
