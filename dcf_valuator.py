@@ -19,6 +19,9 @@ Anthropic Claude for Financial Services의 'Model Builder Agent'에서 영감을
   · 연중 할인 — 연말 할인은 모든 흐름을 반년 늦게 받는 셈이라 WACC 9%에서 약 4.4% 저평가
   · 터미널 이원화 — EV의 70%+가 영구성장률 가정 하나에 매달리므로 시장 배수로 교차검증
   · 희석주식수 — 기본주식수로 나누면 스톡옵션·RSU 희석분만큼 적정주가가 과대 산출
+  · FCF 정규화 — 최근 한 해 대신 5년 중앙값을 기준점으로. 음수면 'DCF 부적합'으로 표시
+    (음수를 성장시켜 -250% 같은 값을 내던 결함 제거)
+  · 베타 Blume 보정 — yfinance 한국 종목 베타 노이즈로 WACC가 4.6~10.2%로 갈리던 것 완화
 
 알려진 한계: 리스부채를 순부채에 넣지 않는다. 현재 대상(제조·바이오·IT)에는 영향이
 작지만 유통·항공(이마트·대한항공 등)을 추가하면 반드시 함께 처리해야 한다.
@@ -102,6 +105,50 @@ def calculate_wacc(beta: float, tax_rate: float = DEFAULT_TAX_RATE,
     return wacc
 
 
+# 베타 보정 (Blume adjustment) — 관측 베타는 장기적으로 1로 회귀하는 경향이 있고,
+# yfinance가 주는 한국 종목 베타는 표본이 짧아 노이즈가 크다 (실측: 삼성전자 1.54,
+# 삼성바이오로직스 0.21 → WACC가 10.2%와 4.6%로 갈려 적정가가 2배 넘게 벌어졌다).
+# 0.67×β + 0.33 으로 1 쪽으로 당기고, 그래도 극단이면 클램프한다.
+BETA_BLUME_WEIGHT = 0.67
+BETA_RANGE = (0.5, 1.8)
+
+
+def adjust_beta(raw_beta) -> float:
+    """관측 베타 → Blume 보정 + 범위 제한."""
+    try:
+        b = float(raw_beta)
+    except (TypeError, ValueError):
+        b = 1.0
+    if b <= 0:
+        b = 1.0
+    adj = BETA_BLUME_WEIGHT * b + (1 - BETA_BLUME_WEIGHT)
+    lo, hi = BETA_RANGE
+    return max(lo, min(hi, adj))
+
+
+# FCF 정규화 — 기준 FCF를 '가장 최근 한 해'로 잡으면 두 가지가 무너진다.
+#  · 설비투자 사이클(LG엔솔·삼성SDI·POSCO)이나 금융자회사 연결(현대차)로 최근 FCF가
+#    음수인 회사는 그 음수를 5년간 '성장'시켜 EV가 마이너스 → 적정가 음수 → -250%.
+#  · 삼성전자(-16조→19조→33조)처럼 한 해 변동이 크면 평가가 통째로 흔들린다.
+# 중앙값은 한두 해의 극단값에 끌려가지 않아 자동 스크리너 기준점으로 적합하다.
+FCF_NORMALIZE_YEARS = 5
+
+# 이 값을 넘는 |괴리|는 매수/매도 시그널이 아니라 '모델 부적합' 경고로 표시하고
+# 텔레그램 강한매수 목록에서 제외한다. (실측: 기아 +271%, SK하이닉스 -89%)
+EXTREME_UPSIDE_PCT = 100.0
+
+
+def normalize_fcf(history: list) -> tuple:
+    """(기준 FCF, 기준 설명). 최근 N년 중앙값. 데이터 없으면 (0, 'none')."""
+    vals = [float(v) for v in (history or [])[-FCF_NORMALIZE_YEARS:]]
+    if not vals:
+        return 0.0, "none"
+    s = sorted(vals)
+    n = len(s)
+    med = s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+    return med, f"{n}년 중앙값"
+
+
 def growth_path(growth_rate: float, years: int = PROJECTION_YEARS) -> list:
     """연도별 성장률 경로 — 초기 성장률에서 영구성장률로 선형 수렴.
 
@@ -115,11 +162,17 @@ def growth_path(growth_rate: float, years: int = PROJECTION_YEARS) -> list:
     return path
 
 
-def project_fcf(historical_fcf: list, growth_rate: float, years: int = PROJECTION_YEARS) -> list:
-    """과거 FCF + 추정 성장률로 미래 FCF 추정."""
-    if not historical_fcf:
-        return []
-    current = historical_fcf[-1]  # 가장 최근 FCF
+def project_fcf(historical_fcf: list, growth_rate: float, years: int = PROJECTION_YEARS,
+                base_fcf: float = None) -> list:
+    """기준 FCF + 추정 성장률로 미래 FCF 추정.
+
+    base_fcf 를 주면 그 값에서 출발(정규화 FCF), 없으면 가장 최근 FCF (하위 호환).
+    """
+    if base_fcf is None:
+        if not historical_fcf:
+            return []
+        base_fcf = historical_fcf[-1]
+    current = base_fcf
     projected = []
     for g in growth_path(growth_rate, years):
         current = current * (1 + g)
@@ -318,9 +371,7 @@ def evaluate_stock(name: str, ticker: str) -> dict:
     fcf_history = fin.get("fcf_history", [])
     revenue_history = fin.get("revenue_history", [])
 
-    if len(fcf_history) < 2:
-        print(f"    [건너뜀] FCF 데이터 부족 ({len(fcf_history)}년)")
-        return None
+    # (FCF 연수 부족 판정은 아래 _inapplicable 정의 뒤에서 — 카드가 사라지지 않도록)
 
     # 매출 CAGR (성장률 추정)
     if len(revenue_history) >= 2:
@@ -332,11 +383,45 @@ def evaluate_stock(name: str, ticker: str) -> dict:
     growth_rate = max(0.02, min(0.30, rev_cagr))
 
     # WACC 계산
-    beta = fin.get("beta", 1.0)
+    beta_raw = fin.get("beta", 1.0)
+    beta = adjust_beta(beta_raw)          # Blume 보정 + 클램프
     wacc = calculate_wacc(beta)
 
-    # 미래 FCF 추정
-    projected_fcf = project_fcf(fcf_history, growth_rate)
+    # 기준 FCF — 최근 한 해가 아니라 중앙값 (극단값·음수 사이클 방어)
+    fcf_base, fcf_basis = normalize_fcf(fcf_history)
+    current_price = fin.get("current_price", 0)
+
+    def _inapplicable(reason: str) -> dict:
+        """DCF를 적용할 수 없는 종목 — 적정가 대신 사유를 남긴다.
+
+        음수 적정가나 -250% 같은 값을 내보내면 '심각 고평가'로 오독된다.
+        None 을 돌려주면 카드가 사라져 '왜 없지?'가 되므로 부적합 카드로 남긴다.
+        """
+        return {
+            "name": name, "ticker": ticker,
+            "current_price": round(current_price, 0) if current_price else None,
+            "dcf_applicable": False, "dcf_reason": reason,
+            "fair_price_dcf": None, "upside_pct": None, "signal": "⚪ DCF 부적합",
+            "wacc_pct": round(wacc * 100, 2), "growth_rate_pct": round(growth_rate * 100, 2),
+            "beta": round(beta, 2), "beta_raw": round(float(beta_raw), 2) if beta_raw else None,
+            "fcf_latest": fcf_history[-1] if fcf_history else 0,
+            "fcf_base": round(fcf_base, 0), "fcf_basis": fcf_basis,
+            "fcf_history": fcf_history,
+            "revenue_cagr_pct": round(rev_cagr * 100, 2) if len(revenue_history) >= 2 else None,
+            "market_cap": fin.get("market_cap", 0),
+            "mid_year_convention": MID_YEAR_CONVENTION,
+        }
+
+    if len(fcf_history) < 2:
+        return _inapplicable(f"FCF 이력 부족 ({len(fcf_history)}년) — 최소 2년 필요")
+
+    if fcf_base <= 0:
+        neg = sum(1 for v in fcf_history if v < 0)
+        return _inapplicable(f"정규화 FCF 음수 ({fcf_basis}, 최근 {len(fcf_history)}년 중 {neg}년 음수) "
+                             f"— 투자 사이클 또는 금융자회사 연결 왜곡. 현금흐름 기반 평가 불가")
+
+    # 미래 FCF 추정 (정규화 기준점에서 출발)
+    projected_fcf = project_fcf(fcf_history, growth_rate, base_fcf=fcf_base)
 
     # 출구배수법 입력 — 최근 EBITDA를 FCF와 같은 성장 경로로 N년차까지 키운다
     exit_multiple, exit_source = select_exit_multiple(fin)
@@ -360,8 +445,11 @@ def evaluate_stock(name: str, ticker: str) -> dict:
     # 적정 주가 — 희석주식수 우선
     shares, shares_basis = select_share_count(fin)
     if shares <= 0:
-        return None
+        return _inapplicable("주식수 데이터 없음")
     fair_price = equity_value / shares
+    if fair_price <= 0:
+        return _inapplicable(f"순부채({net_debt/1e12:,.1f}조)가 기업가치({enterprise_value/1e12:,.1f}조)를 "
+                             f"초과 — 주주 몫이 음수")
 
     # 출구배수법 적정주가 — 교차검증. 두 방법의 괴리가 크면 터미널 가정이 취약한 것
     fair_price_exit = None
@@ -383,7 +471,7 @@ def evaluate_stock(name: str, ticker: str) -> dict:
         for d_growth in [-0.02, 0, 0.02]:
             adj_wacc = wacc + d_wacc
             adj_growth = max(0.02, growth_rate + d_growth)
-            adj_fcf = project_fcf(fcf_history, adj_growth)
+            adj_fcf = project_fcf(fcf_history, adj_growth, base_fcf=fcf_base)
             adj_dcf = calculate_dcf(adj_fcf, adj_wacc)
             adj_equity = adj_dcf["enterprise_value"] - net_debt
             adj_fair = adj_equity / shares if shares > 0 else 0
@@ -394,7 +482,12 @@ def evaluate_stock(name: str, ticker: str) -> dict:
             }
 
     # 평가 시그널
-    if upside_pct > 30:
+    # |괴리| > 100% 는 회사가 아니라 모델 가정(추세 FCF·성장률·WACC)이 회사 특성과
+    # 안 맞는 신호다. 자동 스크리너가 +270%를 '강한 매수'로 텔레그램에 보내면 안 된다.
+    low_confidence = abs(upside_pct) > EXTREME_UPSIDE_PCT
+    if low_confidence:
+        signal = "⚠️ 모델 신뢰도 낮음"
+    elif upside_pct > 30:
         signal = "🟢 강한 매수 시그널"
     elif upside_pct > 15:
         signal = "🟢 저평가"
@@ -415,6 +508,12 @@ def evaluate_stock(name: str, ticker: str) -> dict:
         "wacc_pct": round(wacc * 100, 2),
         "growth_rate_pct": round(growth_rate * 100, 2),
         "beta": round(beta, 2),
+        "dcf_applicable": True,
+        "dcf_reason": None,
+        "low_confidence": low_confidence,
+        "beta_raw": round(float(beta_raw), 2) if beta_raw else None,
+        "fcf_base": round(fcf_base, 0),
+        "fcf_basis": fcf_basis,
         "fcf_latest": fcf_history[-1] if fcf_history else 0,
         "fcf_history": fcf_history,
         "revenue_cagr_pct": round(rev_cagr * 100, 2) if len(revenue_history) >= 2 else None,
@@ -463,7 +562,10 @@ def send_telegram_summary(valuations: list):
         return
 
     # 강한 매수 시그널만 전송
-    strong_buys = [v for v in valuations if v and v.get("upside_pct", 0) > 30][:5]
+    strong_buys = [v for v in valuations
+                   if v and v.get("dcf_applicable", True)
+                   and not v.get("low_confidence")
+                   and (v.get("upside_pct") or 0) > 30][:5]
     if not strong_buys:
         return
 
@@ -508,12 +610,17 @@ def main():
             v = evaluate_stock(stock["name"], stock["ticker"])
             if v:
                 valuations.append(v)
-                print(f"    적정가 {v['fair_price_dcf']:,.0f}원 / 현재가 {v['current_price']:,.0f}원 → {v['upside_pct']:+.1f}% {v['signal']}")
+                if v.get("dcf_applicable", True):
+                    print(f"    적정가 {v['fair_price_dcf']:,.0f}원 / 현재가 {v['current_price']:,.0f}원 → {v['upside_pct']:+.1f}% {v['signal']}")
+                else:
+                    print(f"    {v['signal']} — {v['dcf_reason']}")
         except Exception as e:
             print(f"    [오류] {stock['name']}: {e}")
 
     # 정렬: upside_pct 내림차순
-    valuations.sort(key=lambda x: x.get("upside_pct", 0), reverse=True)
+    # 정렬: 적용 가능 종목을 upside 내림차순, 부적합 종목은 맨 뒤
+    valuations.sort(key=lambda x: (x.get("dcf_applicable", True), x.get("upside_pct") or -1e9),
+                    reverse=True)
 
     # 결과 저장
     output = {
