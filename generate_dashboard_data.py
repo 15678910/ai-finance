@@ -35,6 +35,32 @@ except ImportError:
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def _mcap_trillion_usd(raw_mcap, is_krw: bool, fx):
+    """yfinance marketCap(상장 통화 그대로) → '조 달러'.
+
+    한국 종목은 USD/KRW 로 나눈다. 시총을 쓰는 곳이 두 군데(트리맵 수집·10.14 가격
+    최신화)라 규칙을 한 함수로 모은다 — 2026-09-20 실측에서 트리맵이 환산한 값을
+    최신화 단계가 원화로 다시 덮어써 삼성전자가 1713.87조$ 로 찍혔다.
+    환율이 없으면 원화 값을 그대로 내보내는 대신 None 을 돌려 호출부가 덮어쓰기를
+    건너뛰게 한다 — 단위가 섞이는 것보다 예전 값이 남는 쪽이 낫다.
+    """
+    try:
+        m = float(raw_mcap)
+    except (TypeError, ValueError):
+        return None
+    if m <= 0:
+        return None
+    if is_krw:
+        try:
+            fx = float(fx)
+        except (TypeError, ValueError):
+            return None
+        if fx <= 0:
+            return None
+        m = m / fx
+    return round(m / 1e12, 3)   # 3자리: 소형코인 0.0 방지
+
 FALLBACK_NAME_TO_TICKER = {
     "삼성전자": "005930",
     "SK하이닉스": "000660",
@@ -1474,9 +1500,10 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                         _krw = ticker.isdigit() and len(ticker) == 6  # 한국 6자리=원(정수), 그 외=달러·코인(소수2)
                         base["price"] = round(cp, 0 if _krw else 2)
                         if mc:
-                            # 국내 종목만 원 → 달러 환산 후 '조 달러' 단위로 통일
-                            mc_usd = (mc / fx_rate) if _krw else mc
-                            base["market_cap"] = round(mc_usd / 1e12, 3)  # 3자리: 소형코인 0.0 방지
+                            # 국내 종목만 원 → 달러 환산 후 '조 달러' 단위로 통일 (10.14 와 같은 헬퍼)
+                            _v = _mcap_trillion_usd(mc, _krw, fx_rate)
+                            if _v is not None:
+                                base["market_cap"] = _v
                         # 등락률 계산 — 진짜 보합(0.00%)과 '데이터 없음'을 구분해 기록한다
                         if prev_close and prev_close > 0:
                             base["change_pct"] = round((cp - prev_close) / prev_close * 100, 2)
@@ -1875,6 +1902,11 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
     try:
         import yfinance as yf
         refreshed = 0
+        # 트리맵 단계가 기록한 USD/KRW — 여기서 시총을 다시 쓸 때 같은 환율로 환산해야 한다.
+        # 없으면(트리맵 미실행) 한국 종목 시총은 건드리지 않는다(원화로 덮어쓰면 1,000배 오차).
+        _fx = next((s.get("fx_usd_krw") for s in output_data.get("sectors", []) if s.get("fx_usd_krw")), None)
+        if _fx is None:
+            print("[WARN] 10.14: fx_usd_krw 없음 — 한국 종목 시총 최신화 생략")
         for sector in output_data.get("sectors", []):
             for stock in sector.get("stocks", []):
                 ticker = stock.get("ticker", "")
@@ -1905,9 +1937,11 @@ def generate(date_str: str, daily_dir: str, output_path: str) -> bool:
                                 # regularMarketChangePercent·폴백 모두 이미 '퍼센트' 단위(-0.85 = -0.85%, 7.41 = 7.41%).
                                 # 과거 'abs(v)<1이면 ×100' 휴리스틱은 ±1%미만 종목을 100배 부풀림(MSFT -0.85%→-85%) → 제거.
                                 stock["change_pct"] = round(float(chg_pct), 2)
-                            # 시총
-                            if info.get("marketCap"):
-                                stock["market_cap"] = round(info["marketCap"] / 1e12, 3)
+                            # 시총 — 트리맵과 같은 환산 규칙. 예전엔 여기서 원화 그대로 /1e12 해
+                            # 트리맵이 환산해 둔 값을 덮어썼다(삼성전자 1713.87조$).
+                            _v = _mcap_trillion_usd(info.get("marketCap"), _krw, _fx)
+                            if _v is not None:
+                                stock["market_cap"] = _v
                             # PER (trailing 우선, forward fallback)
                             trailing_pe = info.get("trailingPE")
                             forward_pe = info.get("forwardPE")
