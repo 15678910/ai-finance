@@ -42,6 +42,16 @@ jobs:
         run: |
           python dcf_valuator.py
 
+      # 출력 sanity check — 의도적으로 `|| echo` 를 붙이지 않는다.
+      # 음수 적정가·-100% 미만 괴리·NaN 같은 회귀가 나오면 이 스텝이 실패해 실행이
+      # 빨갛게 표시된다(2026-09-19 사고는 이 단계가 없어 초록색으로 지나갔다).
+      # 커밋 스텝은 if: always() 라 데이터는 그대로 올라간다 — 알림만 켜진다.
+      - name: Validate DCF output
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python validate_dcf_output.py
+
       - name: Commit results
         if: always()
         run: |

@@ -22,6 +22,10 @@ Anthropic Claude for Financial Services의 'Model Builder Agent'에서 영감을
   · FCF 정규화 — 최근 한 해 대신 5년 중앙값을 기준점으로. 음수면 'DCF 부적합'으로 표시
     (음수를 성장시켜 -250% 같은 값을 내던 결함 제거)
   · 베타 Blume 보정 — yfinance 한국 종목 베타 노이즈로 WACC가 4.6~10.2%로 갈리던 것 완화
+  · 터미널 비중 >75% 경고, 두 방법 괴리 >30% 는 '방법 간 불일치'로 시그널 강등
+  · EV→Equity 브리지에 리스부채·소수주주지분·연금 반영 (리스 이중계산 가드 포함)
+  · 출력은 validate_dcf_output.py 가 워크플로에서 sanity check (음수 적정가 등 회귀 차단)
+  (anthropics/financial-services dcf-model 스킬 Step 8·9 와 대조해 정렬, 2026-09-25)
 
 알려진 한계: 리스부채를 순부채에 넣지 않는다. 현재 대상(제조·바이오·IT)에는 영향이
 작지만 유통·항공(이마트·대한항공 등)을 추가하면 반드시 함께 처리해야 한다.
@@ -136,6 +140,16 @@ FCF_NORMALIZE_YEARS = 5
 # 이 값을 넘는 |괴리|는 매수/매도 시그널이 아니라 '모델 부적합' 경고로 표시하고
 # 텔레그램 강한매수 목록에서 제외한다. (실측: 기아 +271%, SK하이닉스 -89%)
 EXTREME_UPSIDE_PCT = 100.0
+
+# anthropics/financial-services dcf-model 스킬 Step 8: "터미널이 EV의 50~70%가 정상,
+# >75%면 터미널 가정 과의존". 2026-09-20 실측 평균 76%·최대 84% — 대부분 경고 대상이고,
+# 그게 정확한 진단이다(5년 추정 + 영구성장 2%).
+TERMINAL_SHARE_WARN_PCT = 75.0
+
+# 영구성장법과 출구배수법 적정가가 이 이상 갈리면 어느 한쪽을 헤드라인 시그널에 걸지 않고
+# '⚪ 방법 간 불일치'로 표시한다. 실측: 11종목 중 8종목이 ±30% 초과(SK하이닉스 +878%).
+# 두 방법이 3배 갈리는데 한쪽만 보여주는 것이 곧 과신이다 — 판단은 사람이 한다.
+METHOD_GAP_SIGNAL_PCT = 30.0
 
 
 def normalize_fcf(history: list) -> tuple:
@@ -273,6 +287,71 @@ def select_exit_multiple(fin: dict) -> tuple:
     return DEFAULT_EXIT_MULTIPLE, "default"
 
 
+def _num(v, default=0.0) -> float:
+    try:
+        f = float(v)
+        return default if f != f else f      # NaN 방어
+    except (TypeError, ValueError):
+        return default
+
+
+def _bs_latest(bs, *names):
+    """재무상태표 DataFrame 에서 후보 계정명 중 첫 매칭 행의 최신 값. 없으면 None.
+
+    yfinance 계정명은 회사·버전마다 달라(예: 'Capital Lease Obligations' vs
+    'Long Term Capital Lease Obligation') 후보를 순서대로 시도한다.
+    """
+    if bs is None or getattr(bs, "empty", True):
+        return None
+    for name in names:
+        if name in bs.index:
+            try:
+                row = bs.loc[name]
+                if hasattr(row, "ndim") and row.ndim > 1:
+                    row = row.iloc[0]
+                for v in row.tolist():
+                    if v is not None and pd.notna(v):
+                        return float(v)
+            except Exception:
+                continue
+    return None
+
+
+def build_equity_bridge(fin: dict) -> dict:
+    """EV → Equity 브리지. 순부채에 리스부채·소수주주지분·연금부채를 반영한다.
+
+    dcf-model 스킬 Step 9 'Critical Adjustments': Net Debt 외에 Minority interests /
+    Pension liabilities / Operating lease obligations. 예전 코드는 totalDebt − cash 만
+    빼서, 리스가 큰 유통·항공(이마트·대한항공)은 주주 몫이 과대평가됐다.
+
+    리스 이중계산 가드: yfinance info.totalDebt 는 회사·시점에 따라 리스를 이미 포함하기도
+    한다. BS 의 순수 차입금(장기+단기, 리스 제외)과 비교해 totalDebt ≥ 차입금 + 리스×0.9 면
+    '이미 포함'으로 보고 더하지 않는다. 비교할 BS 차입금이 없으면 보수적으로 더한다 —
+    빼먹어서 주주 몫을 부풀리는 쪽보다 낫다.
+    """
+    debt = _num(fin.get("total_debt"))
+    cash = _num(fin.get("cash"))
+    lease = _num(fin.get("lease"))
+    minority = _num(fin.get("minority_interest"))
+    pension = _num(fin.get("pension"))
+    debt_ex_lease_bs = fin.get("debt_ex_lease_bs")
+
+    if lease <= 0:
+        lease_added, treatment = 0.0, "n/a"
+    elif debt_ex_lease_bs is not None and debt >= _num(debt_ex_lease_bs) + lease * 0.9:
+        lease_added, treatment = 0.0, "included_in_debt"
+    else:
+        lease_added, treatment = lease, "added"
+
+    net_debt = debt + lease_added + max(minority, 0.0) + max(pension, 0.0) - cash
+    return {
+        "total_debt": debt, "cash": cash,
+        "lease": lease, "lease_added": lease_added, "lease_treatment": treatment,
+        "minority_interest": max(minority, 0.0), "pension": max(pension, 0.0),
+        "net_debt": net_debt,
+    }
+
+
 def calculate_cagr(values: list, years: int) -> float:
     """연복합성장률 (CAGR)."""
     if not values or len(values) < 2 or years <= 0:
@@ -309,7 +388,29 @@ def fetch_financials(ticker: str) -> dict:
             # 출구배수법용 — 최근 EBITDA와 시장이 매기는 EV/EBITDA
             "ebitda": info.get("ebitda"),
             "ev_to_ebitda": info.get("enterpriseToEbitda"),
+            # EV→Equity 브리지 확장용 (재무상태표) — 아래에서 채움
+            "lease": None, "debt_ex_lease_bs": None, "minority_interest": None, "pension": None,
         }
+
+        # 재무상태표 — 리스·소수주주지분·연금 (build_equity_bridge 입력)
+        try:
+            bs = t.balance_sheet
+            lt_lease = _bs_latest(bs, "Long Term Capital Lease Obligation", "Capital Lease Obligations")
+            cur_lease = _bs_latest(bs, "Current Capital Lease Obligation")
+            if lt_lease is not None or cur_lease is not None:
+                result["lease"] = (lt_lease or 0.0) + (cur_lease or 0.0)
+            lt_debt = _bs_latest(bs, "Long Term Debt")
+            cur_debt = _bs_latest(bs, "Current Debt")
+            if lt_debt is not None or cur_debt is not None:
+                result["debt_ex_lease_bs"] = (lt_debt or 0.0) + (cur_debt or 0.0)
+            result["minority_interest"] = _bs_latest(bs, "Minority Interest")
+            pen_nc = _bs_latest(bs, "Non Current Pension And Other Postretirement Benefit Plans")
+            pen_c = _bs_latest(bs, "Pensionand Other Post Retirement Benefit Plans Current",
+                               "Pension And Other Post Retirement Benefit Plans Current")
+            if pen_nc is not None or pen_c is not None:
+                result["pension"] = (pen_nc or 0.0) + (pen_c or 0.0)
+        except Exception as e:
+            print(f"    [WARN] 재무상태표 수집 실패 (브리지 항목 생략): {e}")
 
         # 잉여현금흐름 (FCF) = 영업현금흐름 - 자본적지출
         fcf_history = []
@@ -410,6 +511,8 @@ def evaluate_stock(name: str, ticker: str) -> dict:
             "revenue_cagr_pct": round(rev_cagr * 100, 2) if len(revenue_history) >= 2 else None,
             "market_cap": fin.get("market_cap", 0),
             "mid_year_convention": MID_YEAR_CONVENTION,
+            "method_mismatch": False, "terminal_heavy": False, "warnings": [],
+            "equity_bridge": None,
         }
 
     if len(fcf_history) < 2:
@@ -439,7 +542,9 @@ def evaluate_stock(name: str, ticker: str) -> dict:
     enterprise_value = dcf["enterprise_value"]
 
     # Equity Value = EV - 순부채
-    net_debt = (fin.get("total_debt") or 0) - (fin.get("cash") or 0)
+    # Equity Value = EV − 순부채(리스·소수주주지분·연금 반영)
+    bridge = build_equity_bridge(fin)
+    net_debt = bridge["net_debt"]
     equity_value = enterprise_value - net_debt
 
     # 적정 주가 — 희석주식수 우선
@@ -485,8 +590,26 @@ def evaluate_stock(name: str, ticker: str) -> dict:
     # |괴리| > 100% 는 회사가 아니라 모델 가정(추세 FCF·성장률·WACC)이 회사 특성과
     # 안 맞는 신호다. 자동 스크리너가 +270%를 '강한 매수'로 텔레그램에 보내면 안 된다.
     low_confidence = abs(upside_pct) > EXTREME_UPSIDE_PCT
+    # 두 터미널 방법이 갈리면 어느 한쪽도 헤드라인에 걸지 않는다
+    method_mismatch = (terminal_method_gap_pct is not None
+                       and abs(terminal_method_gap_pct) > METHOD_GAP_SIGNAL_PCT)
+    ts_pct = dcf.get("terminal_share_pct")
+    terminal_heavy = ts_pct is not None and ts_pct > TERMINAL_SHARE_WARN_PCT
+
+    warnings = []
+    if terminal_heavy:
+        warnings.append(f"터미널 비중 {ts_pct:.0f}% — 영구성장률 가정 과의존 (>{TERMINAL_SHARE_WARN_PCT:.0f}%)")
+    if method_mismatch:
+        warnings.append(f"영구성장법 vs 출구배수법 적정가 괴리 {terminal_method_gap_pct:+.0f}%")
+    if low_confidence:
+        warnings.append(f"|괴리| {abs(upside_pct):.0f}% — 모델 가정이 회사 특성과 불일치")
+    if bridge["lease_treatment"] == "added":
+        warnings.append(f"리스부채 {bridge['lease_added']/1e12:,.1f}조 순부채에 가산")
+
     if low_confidence:
         signal = "⚠️ 모델 신뢰도 낮음"
+    elif method_mismatch:
+        signal = "⚪ 방법 간 불일치"
     elif upside_pct > 30:
         signal = "🟢 강한 매수 시그널"
     elif upside_pct > 15:
@@ -511,6 +634,10 @@ def evaluate_stock(name: str, ticker: str) -> dict:
         "dcf_applicable": True,
         "dcf_reason": None,
         "low_confidence": low_confidence,
+        "method_mismatch": method_mismatch,
+        "terminal_heavy": terminal_heavy,
+        "warnings": warnings,
+        "equity_bridge": {k: (round(v, 0) if isinstance(v, float) else v) for k, v in bridge.items()},
         "beta_raw": round(float(beta_raw), 2) if beta_raw else None,
         "fcf_base": round(fcf_base, 0),
         "fcf_basis": fcf_basis,
@@ -565,6 +692,7 @@ def send_telegram_summary(valuations: list):
     strong_buys = [v for v in valuations
                    if v and v.get("dcf_applicable", True)
                    and not v.get("low_confidence")
+                   and not v.get("method_mismatch")
                    and (v.get("upside_pct") or 0) > 30][:5]
     if not strong_buys:
         return
