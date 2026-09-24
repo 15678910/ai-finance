@@ -2687,7 +2687,7 @@ body {
           </div>`;
           return;
         }
-        const upColor = v.low_confidence ? 'rgba(148,163,184,0.7)' :   // |괴리|>100% — 시그널이 아니라 모델 경고
+        const upColor = (v.low_confidence || v.method_mismatch) ? 'rgba(148,163,184,0.7)' :   // 모델 경고·방법 불일치 — 시그널 아님
                         v.upside_pct > 30 ? 'var(--green,#4ade80)' :
                         v.upside_pct > 15 ? 'var(--green,#4ade80)' :
                         v.upside_pct > -15 ? 'var(--amber,#fbbf24)' :
@@ -2699,6 +2699,7 @@ body {
             <div style="font-size:1.1rem;font-weight:700;color:${upColor};">${v.upside_pct >= 0 ? '+' : ''}${v.upside_pct.toFixed(1)}%</div>
           </div>
           <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">${h(v.signal || '')}</div>
+          ${(v.warnings && v.warnings.length) ? `<div style="font-size:0.62rem;color:var(--amber,#fbbf24);line-height:1.5;margin:-4px 0 8px;">${v.warnings.map(w => '⚠ ' + h(w)).join('<br>')}</div>` : ''}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:0.78rem;margin-bottom:8px;">
             <div><span style="color:var(--text-muted);">현재가</span> <b style="color:var(--text);">${v.current_price ? v.current_price.toLocaleString() : 'N/A'}원</b></div>
             <div><span style="color:var(--text-muted);">적정가</span> <b style="color:${upColor};">${v.fair_price_dcf ? v.fair_price_dcf.toLocaleString() : 'N/A'}원</b></div>
@@ -2716,6 +2717,7 @@ body {
               <div><span style="color:var(--text-muted);">두 방법 괴리</span> <b style="color:${gapColor};">${gap != null ? (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%' : 'N/A'}</b></div>
               <div><span style="color:var(--text-muted);">터미널 비중</span> <b style="color:var(--text);">${v.terminal_share_pct != null ? v.terminal_share_pct.toFixed(0) + '%' : 'N/A'}</b></div>
               <div><span style="color:var(--text-muted);">주식수</span> <b style="color:var(--text);font-size:0.6rem;">${v.shares_basis === 'implied_diluted' ? '희석' : '기본'}</b></div>
+              ${v.equity_bridge ? `<div style="grid-column:1/-1;color:var(--text-muted);font-size:0.6rem;">순부채 ${(v.equity_bridge.net_debt / 1e12).toFixed(1)}조 = 차입 ${(v.equity_bridge.total_debt / 1e12).toFixed(1)}${v.equity_bridge.lease_added ? ` + 리스 ${(v.equity_bridge.lease_added / 1e12).toFixed(1)}` : ''}${v.equity_bridge.minority_interest ? ` + 소수지분 ${(v.equity_bridge.minority_interest / 1e12).toFixed(1)}` : ''}${v.equity_bridge.pension ? ` + 연금 ${(v.equity_bridge.pension / 1e12).toFixed(1)}` : ''} − 현금 ${(v.equity_bridge.cash / 1e12).toFixed(1)}${v.equity_bridge.lease_treatment === 'included_in_debt' ? ' (리스는 차입에 포함)' : ''}</div>` : ''}
             </div>`;
           })() : ''}
         </div>`;
