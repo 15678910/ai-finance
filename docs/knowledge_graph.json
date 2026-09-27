@@ -1,23 +1,23 @@
 {
-  "generated_at": "2026-09-26 10:51:49 KST",
+  "generated_at": "2026-09-27 10:40:33 KST",
   "methodology": "ai-finance 모듈 JSON 통합 → 노드(엔티티) + 엣지(관계) 그래프. vis.js network 형식 호환. 클릭 가능한 객체 중심 탐색.",
   "entity_types": [
-    "MacroEvent",
     "Index",
+    "MacroEvent",
+    "Currency",
+    "Sector",
     "Bill",
     "Stock",
-    "Sector",
-    "Currency",
     "NewsItem"
   ],
   "relation_types": [
-    "CORRELATES_WITH",
-    "SUPPLIES",
+    "SENSITIVE_TO",
     "MENTIONS",
-    "AFFECTED_BY",
     "IN_SECTOR",
     "COMPETES_WITH",
-    "SENSITIVE_TO"
+    "AFFECTED_BY",
+    "CORRELATES_WITH",
+    "SUPPLIES"
   ],
   "nodes": [
     {
@@ -203,8 +203,8 @@
         "current_price": 110100.0,
         "market_cap_billion": 43521.0,
         "metrics": {
-          "per": 8.24,
-          "forward_per": 8.24,
+          "per": 8.19,
+          "forward_per": 8.19,
           "per_basis": "forward",
           "pbr": 1.14,
           "psr": 1.22,
@@ -217,7 +217,7 @@
         "value_score": 84.0,
         "irr_basic": {
           "gordon_irr_pct": 12.77,
-          "earnings_yield_pct": 12.14,
+          "earnings_yield_pct": 12.21,
           "implied_growth_pct": 8.0,
           "growth_source": "revenue/earnings growth (capped 8%)",
           "primary_irr_pct": 12.77,
@@ -228,9 +228,9 @@
         "filter_passed": true,
         "irr_full": {
           "gordon_pct": 14.77,
-          "earnings_yield_pct": 12.14,
-          "roic_retention_pct": 11.43,
-          "primary_irr_pct": 12.14,
+          "earnings_yield_pct": 12.21,
+          "roic_retention_pct": 11.45,
+          "primary_irr_pct": 12.21,
           "implied_growth_pct": 10.0,
           "growth_source": "min(매출, 이익) 성장률",
           "method": "median of available methods"
@@ -244,7 +244,7 @@
           "beta_used": 0.273,
           "beta_source": "yfinance (0.27)"
         },
-        "margin_of_safety_pct": 5.5,
+        "margin_of_safety_pct": 5.57,
         "rating": "강력 매수 후보",
         "rating_color": "green",
         "is_strong_buy": true,
@@ -265,8 +265,8 @@
       "emoji": "🏢",
       "data": {
         "name": "소비재",
-        "mean_irr_pct": 12.53,
-        "median_irr_pct": 12.53,
+        "mean_irr_pct": 12.56,
+        "median_irr_pct": 12.56,
         "count": 2
       }
     },
@@ -503,32 +503,32 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.2856,
-            "alpha": 0.004416,
-            "r_squared": 0.1166,
-            "correlation": 0.3415,
-            "n_samples": 234,
+            "beta": 1.2852,
+            "alpha": 0.004391,
+            "r_squared": 0.1165,
+            "correlation": 0.3414,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.286,
-              "up_3pct": 3.857,
-              "down_1pct": -1.286,
-              "down_3pct": -3.857
+              "up_1pct": 1.285,
+              "up_3pct": 3.856,
+              "down_1pct": -1.285,
+              "down_3pct": -3.856
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.6303,
-            "alpha": 0.004608,
-            "r_squared": 0.0802,
-            "correlation": 0.2832,
-            "n_samples": 234,
+            "beta": 1.6298,
+            "alpha": 0.004601,
+            "r_squared": 0.0801,
+            "correlation": 0.2829,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
@@ -536,9 +536,9 @@
             },
             "impact": {
               "up_1pct": 1.63,
-              "up_3pct": 4.891,
+              "up_3pct": 4.889,
               "down_1pct": -1.63,
-              "down_3pct": -4.891
+              "down_3pct": -4.889
             }
           },
           "sox": {
@@ -719,42 +719,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.6462,
-            "alpha": 0.005907,
-            "r_squared": 0.1327,
-            "correlation": 0.3643,
-            "n_samples": 234,
+            "beta": 1.6444,
+            "alpha": 0.005803,
+            "r_squared": 0.1325,
+            "correlation": 0.364,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.646,
-              "up_3pct": 4.939,
-              "down_1pct": -1.646,
-              "down_3pct": -4.939
+              "up_1pct": 1.644,
+              "up_3pct": 4.933,
+              "down_1pct": -1.644,
+              "down_3pct": -4.933
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.958,
-            "alpha": 0.006247,
-            "r_squared": 0.0803,
-            "correlation": 0.2834,
-            "n_samples": 234,
+            "beta": 1.9521,
+            "alpha": 0.006164,
+            "r_squared": 0.0798,
+            "correlation": 0.2825,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.958,
-              "up_3pct": 5.874,
-              "down_1pct": -1.958,
-              "down_3pct": -5.874
+              "up_1pct": 1.952,
+              "up_3pct": 5.856,
+              "down_1pct": -1.952,
+              "down_3pct": -5.856
             }
           },
           "sox": {
@@ -1139,42 +1139,42 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.5136,
-            "alpha": 0.004719,
-            "r_squared": 0.0846,
-            "correlation": 0.2908,
-            "n_samples": 234,
+            "beta": 1.5129,
+            "alpha": 0.004684,
+            "r_squared": 0.0845,
+            "correlation": 0.2907,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.514,
-              "up_3pct": 4.541,
-              "down_1pct": -1.514,
-              "down_3pct": -4.541
+              "up_1pct": 1.513,
+              "up_3pct": 4.539,
+              "down_1pct": -1.513,
+              "down_3pct": -4.539
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.7565,
-            "alpha": 0.005063,
-            "r_squared": 0.0487,
-            "correlation": 0.2207,
-            "n_samples": 234,
+            "beta": 1.7553,
+            "alpha": 0.005045,
+            "r_squared": 0.0486,
+            "correlation": 0.2204,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.756,
-              "up_3pct": 5.269,
-              "down_1pct": -1.756,
-              "down_3pct": -5.269
+              "up_1pct": 1.755,
+              "up_3pct": 5.266,
+              "down_1pct": -1.755,
+              "down_3pct": -5.266
             }
           },
           "sox": {
@@ -1355,11 +1355,11 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.0784,
-            "alpha": 0.003558,
-            "r_squared": 0.0834,
-            "correlation": 0.2888,
-            "n_samples": 234,
+            "beta": 1.0777,
+            "alpha": 0.003518,
+            "r_squared": 0.0833,
+            "correlation": 0.2886,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
@@ -1367,30 +1367,30 @@
             },
             "impact": {
               "up_1pct": 1.078,
-              "up_3pct": 3.235,
+              "up_3pct": 3.233,
               "down_1pct": -1.078,
-              "down_3pct": -3.235
+              "down_3pct": -3.233
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.6155,
-            "alpha": 0.003541,
-            "r_squared": 0.0801,
-            "correlation": 0.2829,
-            "n_samples": 234,
+            "beta": 1.6141,
+            "alpha": 0.003522,
+            "r_squared": 0.0798,
+            "correlation": 0.2825,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 매우 민감",
               "confidence": "낮음",
               "color": "red"
             },
             "impact": {
-              "up_1pct": 1.615,
-              "up_3pct": 4.846,
-              "down_1pct": -1.615,
-              "down_3pct": -4.846
+              "up_1pct": 1.614,
+              "up_3pct": 4.842,
+              "down_1pct": -1.614,
+              "down_3pct": -4.842
             }
           },
           "sox": {
@@ -1656,7 +1656,7 @@
         "current_price": 30250.0,
         "irr_full": {
           "gordon_pct": 5.0,
-          "earnings_yield_pct": 40.02,
+          "earnings_yield_pct": 39.34,
           "roic_retention_pct": 15.1,
           "primary_irr_pct": 15.1,
           "implied_growth_pct": -0.1,
@@ -1755,7 +1755,7 @@
         "current_price": 52700.0,
         "irr_full": {
           "gordon_pct": -0.45,
-          "earnings_yield_pct": 12.2,
+          "earnings_yield_pct": 12.18,
           "roic_retention_pct": 9.03,
           "primary_irr_pct": 9.03,
           "implied_growth_pct": -5.0,
@@ -3563,32 +3563,32 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 1.2938,
-            "alpha": 0.002701,
-            "r_squared": 0.0862,
-            "correlation": 0.2936,
-            "n_samples": 234,
+            "beta": 1.2934,
+            "alpha": 0.002682,
+            "r_squared": 0.0861,
+            "correlation": 0.2935,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
               "color": "amber"
             },
             "impact": {
-              "up_1pct": 1.294,
-              "up_3pct": 3.881,
-              "down_1pct": -1.294,
-              "down_3pct": -3.881
+              "up_1pct": 1.293,
+              "up_3pct": 3.88,
+              "down_1pct": -1.293,
+              "down_3pct": -3.88
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.4939,
-            "alpha": 0.003,
-            "r_squared": 0.0492,
-            "correlation": 0.2217,
-            "n_samples": 234,
+            "beta": 1.4936,
+            "alpha": 0.002995,
+            "r_squared": 0.0491,
+            "correlation": 0.2215,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
@@ -3596,9 +3596,9 @@
             },
             "impact": {
               "up_1pct": 1.494,
-              "up_3pct": 4.482,
+              "up_3pct": 4.481,
               "down_1pct": -1.494,
-              "down_3pct": -4.482
+              "down_3pct": -4.481
             }
           },
           "sox": {
@@ -3846,11 +3846,11 @@
             "benchmark_name": "Nasdaq 100 선물",
             "benchmark_ticker": "NQ=F",
             "primary": true,
-            "beta": 0.5823,
-            "alpha": -1e-05,
-            "r_squared": 0.0334,
-            "correlation": 0.1827,
-            "n_samples": 234,
+            "beta": 0.5819,
+            "alpha": -3e-05,
+            "r_squared": 0.0333,
+            "correlation": 0.1826,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 보통",
               "confidence": "낮음",
@@ -3858,20 +3858,20 @@
             },
             "impact": {
               "up_1pct": 0.582,
-              "up_3pct": 1.747,
+              "up_3pct": 1.746,
               "down_1pct": -0.582,
-              "down_3pct": -1.747
+              "down_3pct": -1.746
             }
           },
           "es": {
             "benchmark_name": "S&P 500 선물",
             "benchmark_ticker": "ES=F",
             "primary": false,
-            "beta": 1.0961,
-            "alpha": -0.00018,
-            "r_squared": 0.0506,
-            "correlation": 0.2249,
-            "n_samples": 234,
+            "beta": 1.0957,
+            "alpha": -0.000185,
+            "r_squared": 0.0505,
+            "correlation": 0.2247,
+            "n_samples": 233,
             "interpretation": {
               "level": "동조 민감",
               "confidence": "낮음",
@@ -3879,9 +3879,9 @@
             },
             "impact": {
               "up_1pct": 1.096,
-              "up_3pct": 3.288,
+              "up_3pct": 3.287,
               "down_1pct": -1.096,
-              "down_3pct": -3.288
+              "down_3pct": -3.287
             }
           },
           "sox": {
@@ -4091,9 +4091,9 @@
         "current_price": 209000.0,
         "irr_full": {
           "gordon_pct": 0.95,
-          "earnings_yield_pct": 8.0,
-          "roic_retention_pct": 5.5,
-          "primary_irr_pct": 5.5,
+          "earnings_yield_pct": 8.03,
+          "roic_retention_pct": 5.51,
+          "primary_irr_pct": 5.51,
           "implied_growth_pct": 0.3,
           "growth_source": "min(매출, 이익) 성장률",
           "method": "median of available methods"
@@ -4107,7 +4107,7 @@
           "beta_used": 2.08,
           "beta_source": "yfinance (2.08)"
         },
-        "margin_of_safety_pct": -11.98,
+        "margin_of_safety_pct": -11.97,
         "rating": "고평가",
         "rating_color": "red",
         "is_strong_buy": false,
@@ -4128,8 +4128,8 @@
       "emoji": "🏢",
       "data": {
         "name": "전자",
-        "mean_irr_pct": 5.5,
-        "median_irr_pct": 5.5,
+        "mean_irr_pct": 5.51,
+        "median_irr_pct": 5.51,
         "count": 1
       }
     },
@@ -4380,7 +4380,7 @@
       }
     },
     {
-      "id": "news:498309104119",
+      "id": "news:24110001885",
       "label": "블록체인 협회, 암호화폐 명확성법(Crypto Clarity Act)이 어지러워진 직후 리",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4395,7 +4395,7 @@
       }
     },
     {
-      "id": "news:156919015576",
+      "id": "news:690851071474",
       "label": "미국 연방준비제도(Fed), 스테이블코인에 대한 GENIUS 법 시행 제안 진행",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4410,7 +4410,7 @@
       }
     },
     {
-      "id": "news:547615033674",
+      "id": "news:605997653612",
       "label": "연준은 GENIUS 법에 따라 스테이블코인 발행자에 대한 준비금 한도, 자본 기준을 제안합",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4425,7 +4425,37 @@
       }
     },
     {
-      "id": "news:422063643015",
+      "id": "news:513597727604",
+      "label": "2026년 흐름이 녹색으로 변하면서 비트코인 ​​ETF가 7일 연속 연속 우승을 기록했습니",
+      "type": "NewsItem",
+      "color": "#9ca3af",
+      "emoji": "📰",
+      "data": {
+        "title": "Bitcoin ETFs Notch Seven-Day Winning Streak as 2026 Flows Turn Green",
+        "title_ko": "2026년 흐름이 녹색으로 변하면서 비트코인 ​​ETF가 7일 연속 연속 우승을 기록했습니다.",
+        "summary_ko": "비트코인 ETF는 7회 연속 세션에 걸쳐 약 30억 달러를 유치하여 Clarity Act 이후 손실을 없애고 2026년 흐름을 다시 플러스 영역으로 끌어올렸습니다.",
+        "source": "Decrypt",
+        "link": "https://decrypt.co/379391/bitcoin-etfs-notch-seven-day-winning-streak-as-2026-flows-turn-green",
+        "matched_keyword": "CLARITY Act"
+      }
+    },
+    {
+      "id": "news:623436430948",
+      "label": "암호화폐가 의회를 기다리지 않고 규제 기관을 사랑하는 법을 배운 방법",
+      "type": "NewsItem",
+      "color": "#9ca3af",
+      "emoji": "📰",
+      "data": {
+        "title": "How Crypto Stopped Waiting for Congress and Learned to Love the Regulators",
+        "title_ko": "암호화폐가 의회를 기다리지 않고 규제 기관을 사랑하는 법을 배운 방법",
+        "summary_ko": "상원에서 명확성법(Clarity Act)이 실패한 후 SEC, CFTC 및 연준은 며칠 내에 암호화폐 규칙을 직접 작성했습니다. 충분할까요?",
+        "source": "Decrypt",
+        "link": "https://decrypt.co/379383/how-crypto-stopped-waiting-congress-learned-love-regulators",
+        "matched_keyword": "CLARITY Act"
+      }
+    },
+    {
+      "id": "news:604453907221",
       "label": "연준, 준비금과 자본에 대한 스테이블코인 규칙 공개",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4440,7 +4470,7 @@
       }
     },
     {
-      "id": "news:643607732894",
+      "id": "news:153564935723",
       "label": "오전 시간: Selig는 CFTC 암호화폐 규칙에 대해 '이제 시작 시간'이라고 말합니다.",
       "type": "NewsItem",
       "color": "#9ca3af",
@@ -4452,21 +4482,6 @@
         "source": "Decrypt",
         "link": "https://decrypt.co/379169/morning-minute-selig-says-its-go-time-for-cftc-crypto-rules",
         "matched_keyword": "CLARITY Act"
-      }
-    },
-    {
-      "id": "news:819843060218",
-      "label": "우리가 돌아왔나요? 암호화폐는 녹색입니다! 솔라나 인턴이 악당이 되었습니다! 13% 펌프업",
-      "type": "NewsItem",
-      "color": "#9ca3af",
-      "emoji": "📰",
-      "data": {
-        "title": "Are we back? Crypto is Green! Solana Intern goes rogue! Pump up 13%! Monero hits another ATH!",
-        "title_ko": "우리가 돌아왔나요? 암호화폐는 녹색입니다! 솔라나 인턴이 악당이 되었습니다! 13% 펌프업! 모네로가 또 다른 ATH를 기록했습니다!",
-        "summary_ko": "BTC: 95,000 (+3%) | BTC.D: 59.2%(-0.1%). ETH: 3313 (+6%) | BNB: 936 (+3%) | 솔: 145(+2%). 상위 상승자: IP, ICP, PUMP, PEPE, ENA. BTC ETF: +$754m | ETH ETF: +1억 3천만 달러. 암호화폐는 3개월 만에 최대 규모의 ETF 유입으로 랠리를 펼쳤습니다. 1월 27일 암호화폐 법안에 대한 상원 위원회 투표. Stablecoin은 법안에 여전히 문제가 있음",
-        "source": "Decrypt",
-        "link": "https://decrypt.co/videos/interviews/Iv1NIhI4/are-we-back-crypto-is-green-solana-intern-goes-rogue-pump-up-13-monero-hits-another-ath",
-        "matched_keyword": "crypto bill"
       }
     },
     {
@@ -4934,7 +4949,7 @@
         "score": 49,
         "level": "관찰 필요",
         "severity": "amber",
-        "btc_current": 83805.04
+        "btc_current": 84118.08
       }
     }
   ],
@@ -5370,10 +5385,10 @@
       "from": "stock:005930",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.2856,
+      "weight": 1.2852,
       "data": {
-        "beta": 1.2856,
-        "r_squared": 0.1166,
+        "beta": 1.2852,
+        "r_squared": 0.1165,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5381,10 +5396,10 @@
       "from": "stock:005930",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.6303,
+      "weight": 1.6298,
       "data": {
-        "beta": 1.6303,
-        "r_squared": 0.0802,
+        "beta": 1.6298,
+        "r_squared": 0.0801,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5425,10 +5440,10 @@
       "from": "stock:000660",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.6462,
+      "weight": 1.6444,
       "data": {
-        "beta": 1.6462,
-        "r_squared": 0.1327,
+        "beta": 1.6444,
+        "r_squared": 0.1325,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5436,10 +5451,10 @@
       "from": "stock:000660",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.958,
+      "weight": 1.9521,
       "data": {
-        "beta": 1.958,
-        "r_squared": 0.0803,
+        "beta": 1.9521,
+        "r_squared": 0.0798,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5480,10 +5495,10 @@
       "from": "stock:042700",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.5136,
+      "weight": 1.5129,
       "data": {
-        "beta": 1.5136,
-        "r_squared": 0.0846,
+        "beta": 1.5129,
+        "r_squared": 0.0845,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5491,10 +5506,10 @@
       "from": "stock:042700",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.7565,
+      "weight": 1.7553,
       "data": {
-        "beta": 1.7565,
-        "r_squared": 0.0487,
+        "beta": 1.7553,
+        "r_squared": 0.0486,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5535,10 +5550,10 @@
       "from": "stock:000990",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.2938,
+      "weight": 1.2934,
       "data": {
-        "beta": 1.2938,
-        "r_squared": 0.0862,
+        "beta": 1.2934,
+        "r_squared": 0.0861,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5546,10 +5561,10 @@
       "from": "stock:000990",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.4939,
+      "weight": 1.4936,
       "data": {
-        "beta": 1.4939,
-        "r_squared": 0.0492,
+        "beta": 1.4936,
+        "r_squared": 0.0491,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5590,10 +5605,10 @@
       "from": "stock:373220",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 0.5823,
+      "weight": 0.5819,
       "data": {
-        "beta": 0.5823,
-        "r_squared": 0.0334,
+        "beta": 0.5819,
+        "r_squared": 0.0333,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5601,10 +5616,10 @@
       "from": "stock:373220",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.0961,
+      "weight": 1.0957,
       "data": {
-        "beta": 1.0961,
-        "r_squared": 0.0506,
+        "beta": 1.0957,
+        "r_squared": 0.0505,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5634,10 +5649,10 @@
       "from": "stock:006400",
       "to": "index:NQ=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.0784,
+      "weight": 1.0777,
       "data": {
-        "beta": 1.0784,
-        "r_squared": 0.0834,
+        "beta": 1.0777,
+        "r_squared": 0.0833,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5645,10 +5660,10 @@
       "from": "stock:006400",
       "to": "index:ES=F",
       "type": "CORRELATES_WITH",
-      "weight": 1.6155,
+      "weight": 1.6141,
       "data": {
-        "beta": 1.6155,
-        "r_squared": 0.0801,
+        "beta": 1.6141,
+        "r_squared": 0.0798,
         "method": "단변량 OLS (v1, T-1 lag)"
       }
     },
@@ -5822,35 +5837,49 @@
       }
     },
     {
-      "from": "news:498309104119",
+      "from": "news:24110001885",
       "to": "bill:CLARITYAct",
       "type": "MENTIONS",
       "weight": 1.0,
       "data": {}
     },
     {
-      "from": "news:156919015576",
+      "from": "news:690851071474",
       "to": "bill:GENIUSAct",
       "type": "MENTIONS",
       "weight": 1.0,
       "data": {}
     },
     {
-      "from": "news:547615033674",
+      "from": "news:605997653612",
       "to": "bill:GENIUSAct",
       "type": "MENTIONS",
       "weight": 1.0,
       "data": {}
     },
     {
-      "from": "news:422063643015",
+      "from": "news:513597727604",
+      "to": "bill:CLARITYAct",
+      "type": "MENTIONS",
+      "weight": 1.0,
+      "data": {}
+    },
+    {
+      "from": "news:623436430948",
+      "to": "bill:CLARITYAct",
+      "type": "MENTIONS",
+      "weight": 1.0,
+      "data": {}
+    },
+    {
+      "from": "news:604453907221",
       "to": "bill:GENIUSAct",
       "type": "MENTIONS",
       "weight": 1.0,
       "data": {}
     },
     {
-      "from": "news:643607732894",
+      "from": "news:153564935723",
       "to": "bill:CLARITYAct",
       "type": "MENTIONS",
       "weight": 1.0,
@@ -6353,8 +6382,8 @@
     }
   ],
   "stats": {
-    "node_count": 135,
-    "edge_count": 154,
+    "node_count": 136,
+    "edge_count": 156,
     "node_types": {
       "Stock": 77,
       "Sector": 32,
@@ -6362,14 +6391,14 @@
       "Bill": 3,
       "Currency": 1,
       "MacroEvent": 10,
-      "NewsItem": 6
+      "NewsItem": 7
     },
     "edge_types": {
       "IN_SECTOR": 61,
       "CORRELATES_WITH": 34,
       "SENSITIVE_TO": 6,
       "AFFECTED_BY": 11,
-      "MENTIONS": 5,
+      "MENTIONS": 7,
       "COMPETES_WITH": 23,
       "SUPPLIES": 14
     }
