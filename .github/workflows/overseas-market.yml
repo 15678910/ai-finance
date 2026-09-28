@@ -169,6 +169,14 @@ jobs:
         run: |
           python ai_value_gap.py || echo "AI value gap had errors, continuing..."
 
+      # 기계 네이티브 경제 (BlackRock AI×디지털자산 논지 검증 — 스테이블코인·GPU 임대료·x402)
+      # 실패 시 모듈이 직전 값을 유지하고 [DIAG] 로 응답을 남긴다.
+      - name: Run machine economy monitor
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python machine_economy_monitor.py || echo "Machine economy monitor had errors, continuing..."
+
       # 외환위기 조기경보 (FX 스왑 그림자부채 6대 지표 — credit_spread·semi_decoupling 읽음 → 이후 실행)
       - name: Run FX swap monitor
         env:
