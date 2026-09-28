@@ -9477,6 +9477,69 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     scheduleNavRebuild();
   }
 
+  // ── 🤖 기계 네이티브 경제 — BlackRock 논지(AI×디지털자산) 라이브 검증 ──
+  //    '사실'(CoinGecko·vast.ai 수집)과 '논지'(논문 인용)를 분리. 주장별 측정/대리/미확보 배지.
+  function renderMachineEconomy(d) {
+    if (!d || !Array.isArray(d.claims) || !d.claims.length) return;
+    const f = d.facts || {}, st = f.stablecoins || {}, cp = f.compute || {}, tr = d.trend || {};
+    const stale = (f.stale || []);
+    const badge = s => s === 'measured' ? ['측정', '#22c55e'] : s === 'proxy' ? ['대리', '#fbbf24'] : ['미확보', '#94a3b8'];
+    const pct = v => v == null ? '—' : `<span style="color:${v >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+    const tCap = tr.stable_cap_b || {}, tH = tr.h100_usd_hr || {};
+    const gpuRow = (k, lab) => cp[k] ? `<div style="display:flex;justify-content:space-between;font-size:0.66rem;"><span style="color:var(--text-muted);">${lab}</span><b style="font-family:var(--font-mono);color:var(--text-bright);">$${cp[k].median_usd_hr.toFixed(2)}/h</b> <span style="color:var(--text-muted);font-size:0.56rem;">${cp[k].n_offers ? cp[k].n_offers + '건' : ''}</span></div>` : '';
+    const coins = (st.coins || []).slice(0, 5).map(c => `<span style="font-size:0.56rem;color:var(--text-muted);">${h(c.name)} $${c.cap_b}B</span>`).join(' · ');
+    const factCard = (title, body, isStale) => `<div style="flex:1;min-width:200px;background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 11px;${isStale ? 'opacity:0.6;' : ''}">
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:4px;">${title}${isStale ? ' <span style="color:#fbbf24;">(직전값)</span>' : ''}</div>${body}</div>`;
+    const claimRows = d.claims.map(c => { const [bl, bc] = badge(c.status); return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);vertical-align:top;">
+        <td style="padding:6px 7px;font-size:0.66rem;color:var(--text);">${h(c.claim)}<div style="font-size:0.54rem;color:var(--text-muted);margin-top:2px;">논문: ${h(c.paper)}</div></td>
+        <td style="padding:6px 7px;text-align:center;white-space:nowrap;"><span style="font-size:0.56rem;font-weight:700;color:${bc};background:${bc}22;padding:2px 7px;border-radius:9px;">${bl}</span></td>
+        <td style="padding:6px 7px;font-size:0.64rem;color:var(--text-bright);">${h(c.verdict)}<div style="font-size:0.56rem;color:var(--text-muted);margin-top:2px;">${h(c.detail)}${c.note ? ' — ' + h(c.note) : ''}</div></td>
+      </tr>`; }).join('');
+    const th = d.thesis || {};
+    const html = `<section class="section-wrap" id="machine-economy-section">
+      <div class="section-label" style="color:#a78bfa;">🤖 기계 네이티브 경제 <span style="font-size:0.62rem;color:var(--text-muted);">(AI × 디지털자산 — BlackRock 논지 라이브 검증)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(d.generated_at || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          ${factCard('💵 스테이블코인 시총', `<div style="font-size:1.05rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">$${st.total_cap_b != null ? st.total_cap_b.toLocaleString(undefined, {maximumFractionDigits: 0}) : '—'}B</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">30일 ${pct(tCap.chg_30d_pct)} · 90일 ${pct(tCap.chg_90d_pct)}${tCap.annualized_growth_pct != null ? ` · 연환산 ${pct(tCap.annualized_growth_pct)}` : ''}</div>
+            <div style="font-size:0.58rem;color:var(--text-muted);">24h 거래량(거래소) $${st.total_vol24h_b != null ? st.total_vol24h_b.toFixed(0) : '—'}B</div><div style="margin-top:3px;">${coins}</div>`, stale.includes('stablecoins'))}
+          ${factCard('🖥 GPU 임대료 (vast.ai 중앙값)', `${gpuRow('h100', 'H100 SXM')}${gpuRow('a100', 'A100 80GB')}${gpuRow('rtx4090', 'RTX 4090')}
+            <div style="font-size:0.58rem;color:var(--text-muted);margin-top:3px;">H100 30일 ${pct(tH.chg_30d_pct)} · 90일 ${pct(tH.chg_90d_pct)}</div>` + (!cp.h100 ? '<div style="font-size:0.6rem;color:#94a3b8;">수집 실패 — Actions [DIAG] 확인</div>' : ''), stale.includes('compute'))}
+          ${factCard('🔗 x402 기계 결제', (f.x402 && (f.x402.total_tx || f.x402.total_volume_usd))
+            ? `<div style="font-size:0.9rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${f.x402.total_tx ? f.x402.total_tx.toLocaleString() + '건' : ''} ${f.x402.total_volume_usd ? '$' + (f.x402.total_volume_usd / 1e6).toFixed(1) + 'M' : ''}</div><div style="font-size:0.56rem;color:var(--text-muted);">${h(f.x402.source || '')}</div>`
+            : `<div style="font-size:0.7rem;color:#94a3b8;">공개 통계 소스 미확보</div><div style="font-size:0.56rem;color:var(--text-muted);">논문도 'nascent' 인정 — Dune/CDP 키 등록 시 측정 가능</div>`, false)}
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">논문 주장</th>
+            <th style="padding:5px 7px;text-align:center;font-size:0.56rem;color:var(--text-muted);font-weight:500;">검증</th>
+            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">현재 판정 (라이브)</th>
+          </tr></thead><tbody>${claimRows}</tbody></table></div>
+        <details style="margin-top:11px;">
+          <summary style="cursor:pointer;font-size:0.66rem;color:#a78bfa;font-weight:700;">📑 논지 · 논문 수치 · 유의점 (BlackRock) ▾</summary>
+          <div style="font-size:0.62rem;color:var(--text);line-height:1.6;margin-top:7px;background:rgba(167,139,250,0.06);border-left:2px solid #a78bfa;padding:8px 11px;border-radius:5px;">
+            ${h(th.summary || '')}
+            <ul style="margin:7px 0 0;padding-left:16px;color:var(--text-muted);">${(th.pillars || []).map(p => `<li style="margin:2px 0;">${h(p)}</li>`).join('')}</ul>
+            <div style="margin-top:7px;font-size:0.58rem;color:var(--text-muted);">논문 제시 수치(라이브 아님): ${(th.paper_figures || []).map(x => `${h(x.label)} <b style="color:var(--text);">${h(x.value)}</b>`).join(' · ')}</div>
+            <div style="margin-top:7px;color:#fbbf24;font-size:0.6rem;">⚠ 유의: ${(th.caveats || []).map(h).join(' · ')}</div>
+          </div>
+        </details>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')} (논지 출처: ${h(th.source || '')})</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('machine-economy-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('ai-valuegap-section') || document.getElementById('earnings-section') || document.getElementById('sk-cycle-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
   function renderAnalystReports(d) {
     if (!d || !Array.isArray(d.stocks) || !d.stocks.length) return;
     window.__arData = d;
@@ -14172,6 +14235,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./ai_value_gap.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { window.__avgData = d; renderAiValueGap(d); try { renderRetire(); } catch (e) { } } });
+      // 기계 네이티브 경제 — BlackRock AI×디지털자산 논지 라이브 검증 (ai_value_gap 섹션 뒤에 배치)
+      fetch('./machine_economy.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderMachineEconomy(d); } catch (e) { } } });
       // 노후 준비 설계 — BTC 시세(비트코인 스탠다드)를 받아 수량 목표 계산
       fetch('./bitcoin_standard.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
