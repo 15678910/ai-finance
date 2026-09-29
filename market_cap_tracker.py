@@ -107,11 +107,33 @@ def _in_range(key, v):
 # ====================================================================
 # 파서 — 순수 함수 (테스트 대상)
 # ====================================================================
+# ETF 브랜드는 반드시 '브랜드 + 공백'(KODEX 200, 파워 K200) — '파워로직스'·'삼성바이오로직스' 같은 일반 종목을 잡지 않도록.
+ETF_NAME_RE = re.compile(
+    r"^(KODEX|TIGER|KBSTAR|RISE|ACE|SOL|PLUS|HANARO|KOSEF|ARIRANG|KINDEX|TIMEFOLIO|WOORI|BNK|히어로즈|마이티|"
+    r"파워|FOCUS|KIWOOM|UNICORN|1Q|DAISHIN343|VITA|ITF|에셋플러스|TRUSTON|KCGI|KoAct|마이다스)\s"
+    r"|\bETN\b|ETN\(|\bETF\b"
+)
+STOCK_TYPE_KEYS = ("stockEndType", "stockType", "endType", "securityType", "itemType", "category")
+FUND_TYPES = {"etf", "etn", "elw", "fund", "etfetn", "index_fund"}
+
+
+def is_etf_like(item):
+    """ETF·ETN·ELW 등 펀드성 종목이면 True — 지수 시총에 넣으면 기초자산과 이중 계산된다.
+    타입 필드가 명시적으로 펀드류이면 True. 그 외(값이 없거나 모르는 값)는 이름의 운용사 브랜드·ETN 표기로 판별."""
+    for k in STOCK_TYPE_KEYS:
+        v = item.get(k)
+        if v is not None and str(v).strip().lower() in FUND_TYPES:
+            return True
+    name = str(item.get("stockName") or item.get("nm") or item.get("name") or "")
+    return bool(ETF_NAME_RE.search(name))
+
+
 def parse_naver_mv_page(payload):
     """네이버 모바일 marketValue 페이지 → [(code, 시총 억원)] .
 
     응답은 {"stocks":[{itemCode, stockName, marketValue:"4,954,163", ...}]} 형태이거나
     최상위 리스트. marketValue 는 억원 단위 문자열. 변종 키(marketCap, mktValue)도 받는다.
+    ETF·ETN 등 펀드성 종목은 제외한다(2026-09-29 첫 실행: KOSPI 2,138 '종목'은 ETF·ETN 포함 수치였다).
     """
     items = None
     if isinstance(payload, list):
@@ -140,9 +162,23 @@ def parse_naver_mv_page(payload):
                 mv = _num(it.get(k))
                 if mv is not None:
                     break
-        if re.fullmatch(r"\d{6}", code) and mv and mv > 0:
+        if re.fullmatch(r"\d{6}", code) and mv and mv > 0 and not is_etf_like(it):
             out.append((code, mv))
     return out
+
+
+def describe_types(payload):
+    """[DIAG] 용: 페이지 안 종목들의 타입 필드 분포 {필드: {값: 개수}} — 실제 필드명을 로그에서 확인하기 위함."""
+    items = payload.get("stocks") if isinstance(payload, dict) else payload
+    dist = {}
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        for k in STOCK_TYPE_KEYS:
+            if k in it:
+                dist.setdefault(k, {})
+                dist[k][str(it[k])] = dist[k].get(str(it[k]), 0) + 1
+    return dist
 
 
 def sum_market_pages(pages):
@@ -240,12 +276,16 @@ def change_1d(series, now_iso):
     return round((cur["v"] / ref["v"] - 1) * 100, 2)
 
 
-def backfill_from_index(cap_now, closes, level_now):
-    """지수 일봉 closes=[(date, close)] 과 현재 시총·지수로 과거 시총을 비례 역산 (추정)."""
+def backfill_from_index(cap_now, closes, level_now, before_date=None):
+    """지수 일봉 closes=[(date, close)] 과 현재 시총·지수로 과거 시총을 비례 역산 (추정).
+    before_date(YYYY-MM-DD) 이상의 날짜는 제외 — 오늘의 미완성 봉이 '15:30' 미래 시각으로 들어가
+    실측 점을 덮어쓰는 문제(2026-09-29) 방지."""
     if not cap_now or not level_now or level_now <= 0:
         return []
     out = []
     for d, c in closes:
+        if before_date and d >= before_date:
+            continue
         if c and c > 0:
             out.append({"t": f"{d}T15:30", "v": round(cap_now * c / level_now, 4), "est": True})
     return out
@@ -269,7 +309,10 @@ def fetch_naver_total(market):
         text = ""
         try:
             text = _get(url, headers={"Referer": "https://m.stock.naver.com/", "Accept": "application/json"})
-            rows = parse_naver_mv_page(json.loads(text))
+            payload = json.loads(text)
+            rows = parse_naver_mv_page(payload)
+            if page == 1:
+                print(f"  [DIAG] naver {market} 타입 필드 분포: {describe_types(payload) or '없음(이름으로 ETF 판별)'}")
         except Exception as e:
             print(f"  [WARN] naver {market} p{page}: {type(e).__name__}: {e}")
             if page == 1:
@@ -527,11 +570,15 @@ def main(argv=None):
     state = load_state(STATE_NAME, {"series": {}, "calib": {}, "lists": {}})
     series_all = state.setdefault("series", {})
     # 스키마 2: 첫 실행(2026-09-29)의 국내 이력은 99종목만 합산된 값과 그 값으로 역산한 백필이라 틀렸다 → 한 번 버리고 다시 쌓는다
-    if int(state.get("schema") or 1) < 2:
+    # 스키마 3: 두 번째 실행은 ETF·ETN 이 포함된 합계(KOSPI 2,138 '종목')였다 → 다시 초기화
+    if int(state.get("schema") or 1) < 3:
         for k in ("kospi", "kosdaq", "domestic"):
             if series_all.pop(k, None) is not None:
-                print(f"  [MIGRATE] {k} 이력 초기화 (99종목 합산 오류분 제거)")
-        state["schema"] = 2
+                print(f"  [MIGRATE] {k} 이력 초기화 (ETF·ETN 포함 합산분 제거)")
+        state["schema"] = 3
+    # 미래 시각 점 제거(오늘 미완성 봉으로 만든 백필) — 실측 점이 마지막이 되도록
+    for k in list(series_all):
+        series_all[k] = [p for p in series_all[k] if p.get("t", "") <= now_iso]
     fresh = set()
     quality_override = {}
 
@@ -590,7 +637,7 @@ def main(argv=None):
             lv = levels.get(sym) or (closes[-1][1] if closes else None)
             if sym in ("^KS11", "^KQ11") and not levels.get(sym):
                 lv = fetch_index_levels([sym]).get(sym) or lv
-            bf = backfill_from_index(ser[-1]["v"], closes, lv)
+            bf = backfill_from_index(ser[-1]["v"], closes, lv, before_date=today)
             have = {p["t"][:10] for p in ser}
             merged = [p for p in bf if p["t"][:10] not in have] + ser
             series_all[key] = sorted(merged, key=lambda p: p["t"])
@@ -611,7 +658,7 @@ def main(argv=None):
                 add = []
                 for ts, cap in chart.get("market_caps", []):
                     d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-                    if d not in have and cap:
+                    if d not in have and cap and d < today:
                         add.append({"t": f"{d}T09:00", "v": round(cap / dom / 1e12, 4), "est": True}); have.add(d)
                 series_all["crypto"] = sorted(add + series_all["crypto"], key=lambda p: p["t"])
                 print(f"  백필 crypto: {len(add)}점 (BTC 시총/도미넌스 · 추정)")

@@ -79,6 +79,34 @@ def test_fetch_naver_total_walks_all_pages_even_if_first_page_is_short(monkeypat
     assert calls == [1, 2, 3, 4]
 
 
+def test_is_etf_like_excludes_funds_but_keeps_lookalike_stocks():
+    etf = ["KODEX 200", "TIGER 미국S&P500", "파워 K200", "삼성 인버스 2X WTI원유 선물 ETN", "신한 레버리지 천연가스 선물 ETN(H)",
+           "KoAct 바이오헬스케어액티브", "RISE 200"]
+    stock = ["삼성바이오로직스", "파워로직스", "삼성전자", "SK하이닉스", "솔브레인", "메리츠금융지주", "대신증권", "삼성SDI", "에이스테크"]
+    assert all(M.is_etf_like({"stockName": n}) for n in etf)
+    assert not any(M.is_etf_like({"stockName": n}) for n in stock)
+    assert M.is_etf_like({"stockName": "이상한이름", "stockEndType": "etf"})           # 타입 필드 우선
+    assert not M.is_etf_like({"stockName": "삼성전자", "stockEndType": "stock"})
+    assert not M.is_etf_like({"stockName": "삼성전자", "stockEndType": "KOSPI"})       # 모르는 값 → 이름으로 판별 → 주식
+    rows = M.parse_naver_mv_page({"stocks": [{"itemCode": "005930", "stockName": "삼성전자", "marketValue": "100"},
+                                              {"itemCode": "069500", "stockName": "KODEX 200", "marketValue": "50"}]})
+    assert rows == [("005930", 100.0)]
+    assert M.describe_types({"stocks": [{"stockEndType": "stock"}, {"stockEndType": "etf"}, {"x": 1}]}) == {"stockEndType": {"stock": 1, "etf": 1}}
+
+
+def test_backfill_skips_today_and_future_points_are_dropped(monkeypatch, tmp_path):
+    bf = M.backfill_from_index(60.0, [("2026-09-26", 6000.0), ("2026-09-29", 6100.0)], 6000.0, before_date="2026-09-29")
+    assert [p["t"][:10] for p in bf] == ["2026-09-26"]
+    # main(): 미래 시각(오늘 15:30) 백필 점이 저장돼 있으면 제거돼야 실측 점이 마지막이 된다
+    from datetime import datetime, timedelta
+    future = (datetime.now(M.KST) + timedelta(hours=3)).isoformat(timespec="minutes")
+    state = {"schema": 3, "series": {"crypto": [{"t": "2026-09-28T09:00", "v": 2.8, "est": True}, {"t": future, "v": 9.9, "est": True}]}, "calib": {}}
+    saved = _wire(monkeypatch, tmp_path, state, crypto={"cap_t": 2.85, "chg_24h_pct": -1.0, "btc_dominance": 58.0})
+    assert M.main([]) == 0
+    assert all(p["t"] <= datetime.now(M.KST).isoformat(timespec="minutes") for p in saved["series"]["crypto"])
+    assert saved["series"]["crypto"][-1]["v"] == 2.85 and not saved["series"]["crypto"][-1].get("est")
+
+
 def test_fast_reads_camel_key_then_snake_attr():
     class FI:                       # yfinance FastInfo 흉내: 키는 camelCase, 속성은 snake_case
         def __getitem__(self, k):
@@ -195,7 +223,7 @@ def test_main_light_run_appends_and_scales(monkeypatch, tmp_path):
 
 
 def test_main_marks_stale_when_sources_fail(monkeypatch, tmp_path):
-    state = {"schema": 2, "series": {"kospi": [{"t": "2026-09-28T15:30", "v": 3100.0}], "crypto": [{"t": "2026-09-28T15:30", "v": 3.8}]}, "calib": {}}
+    state = {"schema": 3, "series": {"kospi": [{"t": "2026-09-28T15:30", "v": 3100.0}], "crypto": [{"t": "2026-09-28T15:30", "v": 3.8}]}, "calib": {}}
     saved = _wire(monkeypatch, tmp_path, state, kospi=(None, 0), kosdaq=(None, 0), crypto={}, levels={})
     assert M.main([]) == 0
     out = json.load(open(tmp_path / "mc.json", encoding="utf-8"))
