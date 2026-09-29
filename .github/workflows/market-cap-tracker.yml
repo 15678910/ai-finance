@@ -1,0 +1,63 @@
+name: Market Cap Tracker (calibrate)
+
+# S&P 500 · 나스닥100 구성종목 시총을 yfinance 로 전부 합산해 보정값을 저장한다 (약 500~600 종목, 수 분).
+# 시간별 가벼운 갱신(지수 비례 추정)은 overseas-market.yml 의 "Run market cap tracker" 스텝이 담당.
+on:
+  schedule:
+    - cron: '10 21 * * *'   # UTC 21:10 = KST 06:10 (미국 장 마감 후 확정 시총)
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas numpy requests
+
+      - name: Run market cap tracker (calibrate)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python market_cap_tracker.py --calibrate || echo "Market cap calibrate had errors, continuing..."
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add docs/ 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update market cap tracker calibration [automated]"
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+          exit 1
