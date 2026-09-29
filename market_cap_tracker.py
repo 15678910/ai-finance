@@ -263,31 +263,33 @@ def scale_calibrated(calib, level_now):
 # ====================================================================
 def fetch_naver_total(market):
     """KOSPI/KOSDAQ 전 종목 시총 합계(조원). 실패 시 None."""
-    pages = []
+    pages, seen = [], set()
     for page in range(1, NAVER_MAX_PAGES + 1):
         url = NAVER_MV_URL.format(market=market, page=page)
+        text = ""
         try:
             text = _get(url, headers={"Referer": "https://m.stock.naver.com/", "Accept": "application/json"})
             rows = parse_naver_mv_page(json.loads(text))
         except Exception as e:
             print(f"  [WARN] naver {market} p{page}: {type(e).__name__}: {e}")
             if page == 1:
-                try:
-                    _diag(f"naver {market}", text)
-                except NameError:
-                    pass
+                _diag(f"naver {market}", text)
             break
-        if not rows:
+        # 첫 실행(2026-09-29)에서 pageSize=100 요청에 99행이 와 '마지막 페이지'로 오판, 99종목만 합산했다.
+        # → 행 수가 아니라 '새 종목이 더 없을 때'만 멈춘다.
+        new = [r for r in rows if r[0] not in seen]
+        if not new:
             if page == 1:
                 _diag(f"naver {market} p1 (0건)", text)
             break
-        pages.append(rows)
-        if len(rows) < 100:
-            break
+        seen.update(r[0] for r in new)
+        pages.append(new)
         time.sleep(0.15)
     if not pages:
         return None, 0
     total, n = sum_market_pages(pages)
+    if n < 300:
+        print(f"  [WARN] naver {market}: {n}종목만 수집 — 페이지네이션 확인 필요")
     key = "kospi" if market.upper() == "KOSPI" else "kosdaq"
     if not _in_range(key, total):
         print(f"  [WARN] naver {market}: 합계 {total}조 sanity 범위 밖 → 버림")
@@ -308,6 +310,20 @@ def _yf():
     return yf
 
 
+def _fast(fi, camel, snake):
+    """yfinance FastInfo 값 읽기. 키는 camelCase('lastPrice')이고 속성은 snake_case(last_price)다 —
+    2026-09-29 첫 실행에서 fi.get('last_price') 가 항상 None 을 돌려줘 미국 보정이 통째로 빠졌다.
+    키 → 속성 순으로 시도하고, 0·NaN·None 은 실패로 본다."""
+    for getter in (lambda: fi[camel], lambda: getattr(fi, snake)):
+        try:
+            v = getter()
+            if v is not None and v == v and float(v) > 0:
+                return float(v)
+        except Exception:
+            continue
+    return None
+
+
 def fetch_index_levels(symbols):
     """{심볼: 현재 지수} — yfinance fast_info. 실패한 심볼은 빠진다."""
     out = {}
@@ -318,10 +334,11 @@ def fetch_index_levels(symbols):
         return out
     for s in symbols:
         try:
-            fi = yf.Ticker(s).fast_info
-            v = fi.get("last_price") if hasattr(fi, "get") else getattr(fi, "last_price", None)
-            if v and v > 0:
-                out[s] = float(v)
+            v = _fast(yf.Ticker(s).fast_info, "lastPrice", "last_price")
+            if v:
+                out[s] = v
+            else:
+                print(f"  [WARN] index {s}: fast_info 에 lastPrice 없음")
         except Exception as e:
             print(f"  [WARN] index {s}: {type(e).__name__}: {e}")
     return out
@@ -383,17 +400,19 @@ def fetch_market_caps(tickers, workers=8):
 
     def one(t):
         try:
-            fi = yf.Ticker(t).fast_info
-            v = fi.get("market_cap") if hasattr(fi, "get") else getattr(fi, "market_cap", None)
-            return t, (float(v) if v and v > 0 else None)
-        except Exception:
-            return t, None
+            return t, _fast(yf.Ticker(t).fast_info, "marketCap", "market_cap"), None
+        except Exception as e:
+            return t, None, f"{type(e).__name__}: {e}"
 
-    out = {}
+    out, first_err = {}, None
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        for t, v in ex.map(one, tickers):
+        for t, v, err in ex.map(one, tickers):
             if v:
                 out[t] = v
+            elif err and first_err is None:
+                first_err = f"{t}: {err}"
+    if len(out) < len(tickers) * 0.5:
+        print(f"  [DIAG] 시총 수집 {len(out)}/{len(tickers)} — 첫 오류: {first_err or '오류 없음(값이 None)'}")
     return out
 
 
@@ -478,10 +497,12 @@ def build_output(state, fx, fx_source, now, fresh, quality_override):
         cards.append({
             "key": key, "label": label, "group": group, "unit": unit,
             "value": val, "value_krw_t": krw_t, "value_usd_t": usd_t,
-            "chg_1d_pct": (state.get("crypto_chg_24h") if key == "crypto" and key in fresh else change_1d(ser, now_iso)),
+            "chg_1d_pct": (round(state["crypto_chg_24h"], 2) if key == "crypto" and key in fresh and state.get("crypto_chg_24h") is not None
+                           else change_1d(ser, now_iso)),
             "quality": q, "note": CARD_NOTES[key],
             "updated": cur["t"] if cur else None,
             "calib": (state.get("calib") or {}).get(key),
+            "n_stocks": (state.get("counts") or {}).get(key),
             "series": [[p["t"], p["v"], 1 if p.get("est") else 0] for p in ser],
         })
     return {
@@ -505,6 +526,12 @@ def main(argv=None):
 
     state = load_state(STATE_NAME, {"series": {}, "calib": {}, "lists": {}})
     series_all = state.setdefault("series", {})
+    # 스키마 2: 첫 실행(2026-09-29)의 국내 이력은 99종목만 합산된 값과 그 값으로 역산한 백필이라 틀렸다 → 한 번 버리고 다시 쌓는다
+    if int(state.get("schema") or 1) < 2:
+        for k in ("kospi", "kosdaq", "domestic"):
+            if series_all.pop(k, None) is not None:
+                print(f"  [MIGRATE] {k} 이력 초기화 (99종목 합산 오류분 제거)")
+        state["schema"] = 2
     fresh = set()
     quality_override = {}
 
@@ -516,12 +543,14 @@ def main(argv=None):
     # ── 국내
     kospi, n1 = fetch_naver_total("KOSPI")
     kosdaq, n2 = fetch_naver_total("KOSDAQ")
+    counts = dict(state.get("counts") or {})
     if kospi:
-        series_all["kospi"] = append_point(series_all.get("kospi", []), now_iso, kospi); fresh.add("kospi")
+        series_all["kospi"] = append_point(series_all.get("kospi", []), now_iso, kospi); fresh.add("kospi"); counts["kospi"] = n1
     if kosdaq:
-        series_all["kosdaq"] = append_point(series_all.get("kosdaq", []), now_iso, kosdaq); fresh.add("kosdaq")
+        series_all["kosdaq"] = append_point(series_all.get("kosdaq", []), now_iso, kosdaq); fresh.add("kosdaq"); counts["kosdaq"] = n2
     if kospi and kosdaq:
-        series_all["domestic"] = append_point(series_all.get("domestic", []), now_iso, round(kospi + kosdaq, 2)); fresh.add("domestic")
+        series_all["domestic"] = append_point(series_all.get("domestic", []), now_iso, round(kospi + kosdaq, 2)); fresh.add("domestic"); counts["domestic"] = n1 + n2
+    state["counts"] = counts
     print(f"  코스피 {kospi if kospi else '실패'}조 ({n1}종목) · 코스닥 {kosdaq if kosdaq else '실패'}조 ({n2}종목)")
 
     # ── 암호화폐
