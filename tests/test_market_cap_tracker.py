@@ -60,6 +60,36 @@ def test_parse_wiki_tickers():
     assert M.parse_wiki_tickers("", (1, 10)) == []
 
 
+def test_fetch_naver_total_walks_all_pages_even_if_first_page_is_short(monkeypatch):
+    """2026-09-29 첫 실행: pageSize=100 에 99행이 와서 1페이지에서 멈춰 99종목만 합산됐다.
+    행 수가 아니라 '새 종목이 없을 때' 멈춰야 한다."""
+    pages = {1: [{"itemCode": f"{i:06d}", "marketValue": "10,000"} for i in range(1, 100)],       # 99행
+             2: [{"itemCode": f"{i:06d}", "marketValue": "10,000"} for i in range(100, 200)],     # 100행
+             3: [{"itemCode": f"{i:06d}", "marketValue": "10,000"} for i in range(200, 250)],     # 50행
+             4: [{"itemCode": f"{i:06d}", "marketValue": "10,000"} for i in range(200, 250)]}     # 중복만 → 종료
+    calls = []
+    def fake_get(url, **kw):
+        page = int(url.split("page=")[1].split("&")[0]); calls.append(page)
+        return json.dumps({"stocks": pages.get(page, [])})
+    monkeypatch.setattr(M, "_get", fake_get)
+    monkeypatch.setattr(M.time, "sleep", lambda s: None)
+    monkeypatch.setitem(M.SANITY, "kospi", (0, 10 ** 9))
+    total, n = M.fetch_naver_total("KOSPI")
+    assert n == 249 and total == pytest.approx(249 * 10000 / 10000)
+    assert calls == [1, 2, 3, 4]
+
+
+def test_fast_reads_camel_key_then_snake_attr():
+    class FI:                       # yfinance FastInfo 흉내: 키는 camelCase, 속성은 snake_case
+        def __getitem__(self, k):
+            if k == "lastPrice": return 6500.0
+            raise KeyError(k)
+        market_cap = 3.5e12
+    assert M._fast(FI(), "lastPrice", "last_price") == 6500.0
+    assert M._fast(FI(), "marketCap", "market_cap") == 3.5e12
+    assert M._fast(FI(), "nope", "nope") is None
+
+
 # ====================================================================
 # 이력
 # ====================================================================
@@ -165,7 +195,7 @@ def test_main_light_run_appends_and_scales(monkeypatch, tmp_path):
 
 
 def test_main_marks_stale_when_sources_fail(monkeypatch, tmp_path):
-    state = {"series": {"kospi": [{"t": "2026-09-28T15:30", "v": 3100.0}], "crypto": [{"t": "2026-09-28T15:30", "v": 3.8}]}, "calib": {}}
+    state = {"schema": 2, "series": {"kospi": [{"t": "2026-09-28T15:30", "v": 3100.0}], "crypto": [{"t": "2026-09-28T15:30", "v": 3.8}]}, "calib": {}}
     saved = _wire(monkeypatch, tmp_path, state, kospi=(None, 0), kosdaq=(None, 0), crypto={}, levels={})
     assert M.main([]) == 0
     out = json.load(open(tmp_path / "mc.json", encoding="utf-8"))

@@ -9531,7 +9531,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const [ql, qc] = Q[c.quality] || Q.unavailable;
       const color = COLOR[c.group] || '#60a5fa';
       const ch = __mcSvg(c.series, days, color);
-      const calib = c.calib ? `보정 ${h(c.calib.date || '')} · ${c.calib.n}/${c.calib.n_total}종목` : '';
+      const calib = c.calib ? `보정 ${h(c.calib.date || '')} · ${c.calib.n}/${c.calib.n_total}종목` : (c.n_stocks ? `${c.n_stocks.toLocaleString()}종목 합산` : '');
       const upd = c.updated ? c.updated.replace('T', ' ') : '—';
       return `<div class="mc-card" data-key="${c.key}" style="flex:1 1 300px;min-width:260px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;${c.quality === 'stale' ? 'opacity:0.7;' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
