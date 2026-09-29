@@ -7817,7 +7817,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
 
     // 카테고리별 그룹화 — 상단 헤더 내비용 (우선순위 순서 매칭: 위 카테고리가 먼저 가져감)
     const CATS = [
-      ['시장 개요', /모닝 브리핑|AI 인사이트|AI 투자 코멘트|매크로 환경/],
+      ['시장 개요', /모닝 브리핑|AI 인사이트|AI 투자 코멘트|매크로 환경|글로벌 시가총액/],
       ['해외 시장', /해외 시장 동향|코스피 밸류에이션|성장 대비 부채|일본 경제 위기|섹터별 종목 분석|차트 분석|AI 생태계 밸류에이션|Tactical Capital Map/],
       ['내 포트폴리오', /내 포트폴리오/],
       ['노후준비', /노후 준비/],
@@ -9475,6 +9475,126 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       else (document.getElementById('app') || document.body).appendChild(node);
     }
     scheduleNavRebuild();
+  }
+
+  // ── 🌐 글로벌 시가총액 추세 — 카드 7개(국내 합계·코스피·코스닥·암호화폐·S&P500·나스닥100·미국 합계) + SVG 차트 ──
+  //    quality: measured(정확) / estimated(지수 비례 추정) / stale(직전값) / unavailable. est 점은 점선(지수 일봉 역산 백필).
+  //    암호화폐 카드는 CoinGecko 를 브라우저에서 직접 60초마다 갱신(CORS 허용) — 나머지는 Actions 주기.
+  window.__mcRange = window.__mcRange || 30;
+  function __mcSetRange(days) { window.__mcRange = days; if (window.__mcData) { try { renderMarketCapTracker(window.__mcData); } catch (e) { } } }
+  function __mcSvg(series, days, color) {
+    const now = Date.now(), from = now - days * 86400000;
+    let pts = (series || []).map(p => [Date.parse(p[0]), p[1], p[2]]).filter(p => isFinite(p[0]) && p[1] != null && p[0] >= from);
+    if (pts.length < 2) return { svg: `<div style="height:64px;display:flex;align-items:center;justify-content:center;font-size:0.58rem;color:var(--text-muted);">이력 축적 중 (${(series || []).length}점)</div>`, min: null, max: null, t0: null, t1: null, estShare: 0 };
+    const W = 300, H = 64, PAD = 3;
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
+    const span = (yMax - yMin) || (yMax * 0.02) || 1;
+    const X = t => PAD + (W - 2 * PAD) * (x1 > x0 ? (t - x0) / (x1 - x0) : 0.5);
+    const Y = v => H - PAD - (H - 2 * PAD) * ((v - (yMin - span * 0.08)) / (span * 1.16));
+    // est(점선) / 실측(실선) 구간을 나눠 그린다 — 경계점은 양쪽에 포함해 끊김 없이 연결
+    let solid = [], dashed = [], cur = [], curEst = pts[0][2] === 1;
+    pts.forEach((p, i) => {
+      const isEst = p[2] === 1;
+      if (isEst !== curEst && cur.length) { (curEst ? dashed : solid).push(cur); cur = [pts[i - 1]]; curEst = isEst; }
+      cur.push(p);
+    });
+    if (cur.length) (curEst ? dashed : solid).push(cur);
+    const path = seg => seg.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+    const last = pts[pts.length - 1];
+    const areaPts = pts.map(p => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+    const svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:64px;display:block;overflow:visible;">
+      <polygon points="${X(pts[0][0]).toFixed(1)},${H} ${areaPts} ${X(last[0]).toFixed(1)},${H}" fill="${color}" opacity="0.08"/>
+      ${dashed.map(s => `<path d="${path(s)}" fill="none" stroke="${color}" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.7" vector-effect="non-scaling-stroke"/>`).join('')}
+      ${solid.map(s => `<path d="${path(s)}" fill="none" stroke="${color}" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`).join('')}
+      <circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.6" fill="${color}" vector-effect="non-scaling-stroke"/>
+    </svg>`;
+    const estN = pts.filter(p => p[2] === 1).length;
+    return { svg, min: yMin, max: yMax, t0: x0, t1: x1, estShare: estN / pts.length };
+  }
+  function renderMarketCapTracker(d) {
+    if (!d || !Array.isArray(d.cards) || !d.cards.length) return;
+    window.__mcData = d;
+    const days = window.__mcRange || 30;
+    const fx = (d.fx && d.fx.usd_krw) || 1390;
+    const fmtKrw = v => v == null ? '—' : v >= 10000 ? (v / 10000).toFixed(2) + '경원' : Math.round(v).toLocaleString() + '조원';
+    const fmtUsd = v => v == null ? '—' : '$' + (v < 1 ? v.toFixed(3) : v.toFixed(2)) + 'T';
+    const fmtMain = (c, v) => c.unit === 'krw_t' ? fmtKrw(v) : fmtUsd(v);
+    const fmtSub = c => c.unit === 'krw_t' ? '≈ ' + fmtUsd(c.value_usd_t) : '≈ ' + fmtKrw(c.value_krw_t);
+    const Q = { measured: ['정확', '#22c55e'], estimated: ['추정', '#fbbf24'], stale: ['직전값', '#94a3b8'], unavailable: ['없음', '#f87171'] };
+    const COLOR = { 국내: '#60a5fa', 암호화폐: '#f59e0b', 해외: '#a78bfa' };
+    const chg = v => v == null ? '<span style="color:var(--text-muted);font-size:0.6rem;">전일 —</span>'
+      : `<span style="color:${v >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);font-size:0.66rem;font-weight:700;">${v >= 0 ? '▲' : '▼'} ${Math.abs(v).toFixed(2)}%</span><span style="font-size:0.54rem;color:var(--text-muted);"> 전일</span>`;
+    const dstr = t => t ? new Date(t).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '';
+    const rangeBtn = n => `<button onclick="__mcSetRange(${n})" style="font-size:0.56rem;padding:2px 8px;border-radius:9px;border:1px solid ${days === n ? '#60a5fa' : 'rgba(255,255,255,0.15)'};background:${days === n ? 'rgba(96,165,250,0.18)' : 'transparent'};color:${days === n ? '#60a5fa' : 'var(--text-muted)'};cursor:pointer;">${n >= 365 ? '1년' : n + '일'}</button>`;
+    const cards = d.cards.map(c => {
+      const [ql, qc] = Q[c.quality] || Q.unavailable;
+      const color = COLOR[c.group] || '#60a5fa';
+      const ch = __mcSvg(c.series, days, color);
+      const calib = c.calib ? `보정 ${h(c.calib.date || '')} · ${c.calib.n}/${c.calib.n_total}종목` : '';
+      const upd = c.updated ? c.updated.replace('T', ' ') : '—';
+      return `<div class="mc-card" data-key="${c.key}" style="flex:1 1 300px;min-width:260px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;${c.quality === 'stale' ? 'opacity:0.7;' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+          <div style="font-size:0.66rem;font-weight:700;color:var(--text-bright);">${h(c.label)}</div>
+          <span style="font-size:0.54rem;font-weight:700;color:${qc};background:${qc}22;padding:1px 7px;border-radius:9px;white-space:nowrap;">${ql}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px;flex-wrap:wrap;">
+          <span class="mc-val" style="font-size:1.15rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${fmtMain(c, c.value)}</span>
+          <span class="mc-sub" style="font-size:0.6rem;color:var(--text-muted);">${c.value != null ? fmtSub(c) : ''}</span>
+          <span class="mc-chg" style="margin-left:auto;">${chg(c.chg_1d_pct)}</span>
+        </div>
+        <div style="margin-top:6px;">${ch.svg}</div>
+        <div style="display:flex;justify-content:space-between;font-size:0.52rem;color:var(--text-muted);font-family:var(--font-mono);">
+          <span>${ch.t0 ? dstr(ch.t0) : ''}</span>
+          <span>${ch.min != null ? '저 ' + fmtMain(c, ch.min) + ' · 고 ' + fmtMain(c, ch.max) : ''}</span>
+          <span>${ch.t1 ? dstr(ch.t1) : ''}</span>
+        </div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:5px;line-height:1.45;">${h(c.note)}${calib ? ' · ' + calib : ''}${ch.estShare > 0 ? ' · 점선=지수 역산 추정' : ''}<br>갱신 ${h(upd)}<span class="mc-live" style="color:#22c55e;"></span></div>
+      </div>`;
+    }).join('');
+    const html = `<section class="section-wrap" id="market-cap-tracker-section">
+      <div class="section-label" style="color:#60a5fa;">🌐 글로벌 시가총액 추세 <span style="font-size:0.62rem;color:var(--text-muted);">(국내 · 코스피 · 코스닥 · 암호화폐 · S&amp;P 500 · 나스닥100 · 미국 합계)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h(d.generated_at || '')} · USD/KRW ${fx.toFixed(0)}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-size:0.58rem;color:var(--text-muted);">기간</span>${[7, 30, 90, 365].map(rangeBtn).join('')}
+          <span style="font-size:0.54rem;color:var(--text-muted);margin-left:auto;">배지: <b style="color:#22c55e;">정확</b>=전 종목 합산 · <b style="color:#fbbf24;">추정</b>=구성종목 합산 후 지수 비례 · <b style="color:#94a3b8;">직전값</b>=이번 수집 실패</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">${cards}</div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">※ ${h(d.note || '')}</div>
+      </div>
+    </section>`;
+    const existing = document.getElementById('market-cap-tracker-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      const anchor = document.getElementById('ai-valuegap-section') || document.getElementById('earnings-section') || document.getElementById('sk-cycle-section');
+      if (anchor) anchor.insertAdjacentElement('beforebegin', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+    __mcStartCryptoLive();
+  }
+  // 암호화폐 카드만 브라우저에서 60초마다 실시간 갱신 (CoinGecko 는 CORS 허용). 실패는 조용히 무시.
+  function __mcStartCryptoLive() {
+    if (window.__mcLiveTimer) return;
+    const tick = () => {
+      if (document.hidden) return;
+      fetch('https://api.coingecko.com/api/v3/global', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
+        const dd = j && j.data; if (!dd || !dd.total_market_cap || !dd.total_market_cap.usd) return;
+        const card = document.querySelector('#market-cap-tracker-section .mc-card[data-key="crypto"]'); if (!card) return;
+        const t = dd.total_market_cap.usd / 1e12, ch = dd.market_cap_change_percentage_24h_usd;
+        const fx = (window.__mcData && window.__mcData.fx && window.__mcData.fx.usd_krw) || 1390;
+        const v = card.querySelector('.mc-val'), s = card.querySelector('.mc-sub'), c = card.querySelector('.mc-chg'), l = card.querySelector('.mc-live');
+        if (v) v.textContent = '$' + t.toFixed(2) + 'T';
+        if (s) { const k = t * fx; s.textContent = '≈ ' + (k >= 10000 ? (k / 10000).toFixed(2) + '경원' : Math.round(k).toLocaleString() + '조원'); }
+        if (c && ch != null) c.innerHTML = `<span style="color:${ch >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);font-size:0.66rem;font-weight:700;">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(2)}%</span><span style="font-size:0.54rem;color:var(--text-muted);"> 24h</span>`;
+        if (l) l.textContent = ' · 실시간 ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      }).catch(() => { });
+    };
+    tick();
+    window.__mcLiveTimer = setInterval(tick, 60000);
   }
 
   // ── 🤖 기계 네이티브 경제 — BlackRock 논지(AI×디지털자산) 라이브 검증 ──
@@ -14239,6 +14359,10 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./machine_economy.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderMachineEconomy(d); } catch (e) { } } });
+      // 글로벌 시가총액 추세 — 국내·코스피·코스닥·암호화폐·S&P500·나스닥100·미국 합계 카드 7개 + 차트
+      fetch('./market_cap_tracker.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (d) { try { renderMarketCapTracker(d); } catch (e) { } } });
       // 노후 준비 설계 — BTC 시세(비트코인 스탠다드)를 받아 수량 목표 계산
       fetch('./bitcoin_standard.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
