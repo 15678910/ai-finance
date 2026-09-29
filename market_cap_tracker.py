@@ -562,6 +562,7 @@ def main(argv=None):
     do_calib = "--calibrate" in argv
     now = datetime.now(KST)
     now_iso = now.isoformat(timespec="minutes")
+    today = now.strftime("%Y-%m-%d")
     print("=" * 60)
     print(f"  글로벌 시가총액 추적기 {'(보정 모드)' if do_calib else ''}")
     print(f"  KST: {now:%Y-%m-%d %H:%M:%S}")
