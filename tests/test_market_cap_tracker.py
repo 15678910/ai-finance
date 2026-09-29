@@ -222,6 +222,28 @@ def test_main_light_run_appends_and_scales(monkeypatch, tmp_path):
     assert [c["key"] for c in out["cards"]] == ["domestic", "kospi", "kosdaq", "crypto", "sp500", "ndx", "us_union"]
 
 
+def test_main_calibrate_mode_backfills_from_index_history(monkeypatch, tmp_path):
+    """--calibrate 경로(보정 + 백필)를 끝까지 실행 — 세 번째 실행(2026-09-29)에서 NameError('today')로 죽었던 구간."""
+    from datetime import datetime, timedelta
+    state = {"schema": 3, "series": {}, "calib": {}}
+    saved = _wire(monkeypatch, tmp_path, state)
+    monkeypatch.setattr(M, "calibrate", lambda st, levels: dict(st, calib={
+        "sp500": {"cap_t": 74.0, "index": 6500.0, "date": "2026-09-29", "n": 503, "n_total": 503}}))
+    today = datetime.now(M.KST).strftime("%Y-%m-%d")
+    closes = [((datetime.now(M.KST) - timedelta(days=i)).strftime("%Y-%m-%d"), 6000.0 + i) for i in range(40, -1, -1)]
+    monkeypatch.setattr(M, "fetch_index_history", lambda sym, period="1y": closes)
+    monkeypatch.setattr(M, "_get_json", lambda url, **kw: {"market_caps": [[(datetime.now(M.KST) - timedelta(days=d)).timestamp() * 1000, 1.6e12] for d in range(30, -1, -1)]})
+    assert M.main(["--calibrate"]) == 0
+    for key in ("kospi", "kosdaq", "domestic", "sp500", "crypto"):
+        ser = saved["series"][key]
+        assert not ser[-1].get("est") and ser[-1]["t"][:10] == today, key           # 마지막 점은 실측
+        assert all(p["t"][:10] < today for p in ser if p.get("est")), key             # 백필은 오늘 이전만
+        assert sum(1 for p in ser if p.get("est")) >= 29, key
+    out = json.load(open(tmp_path / "mc.json", encoding="utf-8"))
+    cards = {c["key"]: c for c in out["cards"]}
+    assert cards["sp500"]["quality"] == "estimated" and cards["kospi"]["quality"] == "measured"
+
+
 def test_main_marks_stale_when_sources_fail(monkeypatch, tmp_path):
     state = {"schema": 3, "series": {"kospi": [{"t": "2026-09-28T15:30", "v": 3100.0}], "crypto": [{"t": "2026-09-28T15:30", "v": 3.8}]}, "calib": {}}
     saved = _wire(monkeypatch, tmp_path, state, kospi=(None, 0), kosdaq=(None, 0), crypto={}, levels={})

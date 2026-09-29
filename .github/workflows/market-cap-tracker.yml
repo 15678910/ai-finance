@@ -35,11 +35,13 @@ jobs:
           pip install --upgrade pip
           pip install yfinance pandas numpy requests
 
+      # 의도적으로 `|| echo` 를 붙이지 않는다 — 2026-09-29 세 번째 실행이 NameError 로 죽었는데도 초록색으로 지나갔다.
+      # 커밋 스텝은 if: always() 라 부분 결과는 그대로 올라가고, 실패는 빨갛게 보인다.
       - name: Run market cap tracker (calibrate)
         env:
           PYTHONIOENCODING: utf-8
         run: |
-          python market_cap_tracker.py --calibrate || echo "Market cap calibrate had errors, continuing..."
+          python market_cap_tracker.py --calibrate
 
       - name: Commit results
         if: always()
