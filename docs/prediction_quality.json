@@ -1,18 +1,64 @@
 {
-  "generated_at": "2026-10-01 12:14:47 KST",
+  "generated_at": "2026-10-01 23:07:25 KST",
   "model_version": "v1.3",
-  "pqi_overall": 76.0,
+  "pqi_overall": 77.8,
   "grade": "🟢 우수",
   "grade_color": "green",
-  "trend": 3.9,
+  "trend": -1.5,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 67,
-      "mae": 1.36,
+      "dir": 73,
+      "mae": 1.41,
       "range": null,
       "n": 15,
-      "pqi": 77.5,
+      "pqi": 80.6,
+      "significance": {
+        "n": 15,
+        "k": 11,
+        "p_value": 0.0592,
+        "null_pctile": 96.3,
+        "boot_ci": [
+          53.3,
+          93.3
+        ],
+        "verdict": "약한 신호 (관찰 지속) · n=15",
+        "verdict_color": "yellow"
+      },
+      "pqi_recent": 71.5,
+      "pqi_prev": 62.6,
+      "big_miss_frac": 7
+    },
+    {
+      "name": "SK하이닉스",
+      "dir": 60,
+      "mae": 2.35,
+      "range": 100,
+      "n": 15,
+      "pqi": 74.0,
+      "significance": {
+        "n": 15,
+        "k": 9,
+        "p_value": 0.3036,
+        "null_pctile": 77.9,
+        "boot_ci": [
+          40.0,
+          80.0
+        ],
+        "verdict": "우연과 구분 불가 · n=15",
+        "verdict_color": "red"
+      },
+      "pqi_recent": 73.0,
+      "pqi_prev": 79.5,
+      "big_miss_frac": 33
+    },
+    {
+      "name": "삼성전자",
+      "dir": 67,
+      "mae": 2.03,
+      "range": 100,
+      "n": 15,
+      "pqi": 78.7,
       "significance": {
         "n": 15,
         "k": 10,
@@ -25,60 +71,14 @@
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 70.9,
-      "pqi_prev": 56.6,
-      "big_miss_frac": 7
-    },
-    {
-      "name": "SK하이닉스",
-      "dir": 60,
-      "mae": 2.24,
-      "range": 100,
-      "n": 15,
-      "pqi": 74.5,
-      "significance": {
-        "n": 15,
-        "k": 9,
-        "p_value": 0.3036,
-        "null_pctile": 77.9,
-        "boot_ci": [
-          40.0,
-          80.0
-        ],
-        "verdict": "우연과 구분 불가 · n=15",
-        "verdict_color": "red"
-      },
-      "pqi_recent": 71.8,
-      "pqi_prev": 73.4,
-      "big_miss_frac": 33
-    },
-    {
-      "name": "삼성전자",
-      "dir": 60,
-      "mae": 1.95,
-      "range": 100,
-      "n": 15,
-      "pqi": 75.9,
-      "significance": {
-        "n": 15,
-        "k": 9,
-        "p_value": 0.3036,
-        "null_pctile": 77.9,
-        "boot_ci": [
-          40.0,
-          80.0
-        ],
-        "verdict": "우연과 구분 불가 · n=15",
-        "verdict_color": "red"
-      },
-      "pqi_recent": 76.7,
-      "pqi_prev": 77.6,
+      "pqi_recent": 76.4,
+      "pqi_prev": 83.2,
       "big_miss_frac": 20
     }
   ],
   "diagnosis": {
-    "dir_avg": 62.3,
-    "mae_avg": 1.85,
+    "dir_avg": 66.7,
+    "mae_avg": 1.93,
     "range_avg": 100.0,
     "big_miss_avg": 20.0
   },
@@ -119,12 +119,12 @@
     {
       "version": "v1.3",
       "note": "밴드에 잔차σ·디커플링 반영 — 반폭 = 꼬리×1.5 + 1.0σ×(1+0.6·(1−r²)). 범위적중 13~27%·급오차 80% 권고 대응. 채점·예측 동일 공식",
-      "avg_pqi": 73.9,
+      "avg_pqi": 74.0,
       "start_date": "2026-08-04",
       "last_date": "2026-10-01",
       "n_days": 90
     }
   ],
-  "delta_vs_prev_version": 24.4,
+  "delta_vs_prev_version": 24.5,
   "note": "PQI=0.45·방향+0.35·크기(MAE역)+0.20·범위 (모델 평균). 지수 하락 시 규칙기반 자동 진단·권고. auto_safe=밴드확대 등 기계적 보정만 자동 후보, 모델 로직 변경은 검토 후 적용. 통계 자기평가."
 }
