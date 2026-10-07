@@ -1,64 +1,18 @@
 {
-  "generated_at": "2026-10-07 12:27:36 KST",
+  "generated_at": "2026-10-07 23:10:17 KST",
   "model_version": "v1.3",
-  "pqi_overall": 74.1,
+  "pqi_overall": 70.4,
   "grade": "🟢 우수",
   "grade_color": "green",
-  "trend": -6.8,
+  "trend": -16.1,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 67,
-      "mae": 1.45,
+      "dir": 60,
+      "mae": 1.55,
       "range": null,
       "n": 15,
-      "pqi": 77.0,
-      "significance": {
-        "n": 15,
-        "k": 10,
-        "p_value": 0.1509,
-        "null_pctile": 89.8,
-        "boot_ci": [
-          46.7,
-          86.7
-        ],
-        "verdict": "우연과 구분 불가 · n=15",
-        "verdict_color": "red"
-      },
-      "pqi_recent": 58.8,
-      "pqi_prev": 61.0,
-      "big_miss_frac": 7
-    },
-    {
-      "name": "SK하이닉스",
-      "dir": 53,
-      "mae": 2.4,
-      "range": 100,
-      "n": 15,
-      "pqi": 70.6,
-      "significance": {
-        "n": 15,
-        "k": 8,
-        "p_value": 0.5,
-        "null_pctile": 60.0,
-        "boot_ci": [
-          33.3,
-          73.3
-        ],
-        "verdict": "우연과 구분 불가 · n=15",
-        "verdict_color": "red"
-      },
-      "pqi_recent": 67.1,
-      "pqi_prev": 70.3,
-      "big_miss_frac": 33
-    },
-    {
-      "name": "삼성전자",
-      "dir": 60,
-      "mae": 2.22,
-      "range": 100,
-      "n": 15,
-      "pqi": 74.6,
+      "pqi": 72.5,
       "significance": {
         "n": 15,
         "k": 9,
@@ -71,21 +25,74 @@
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 66.0,
-      "pqi_prev": 80.9,
+      "pqi_recent": 51.1,
+      "pqi_prev": 62.4,
+      "big_miss_frac": 7
+    },
+    {
+      "name": "SK하이닉스",
+      "dir": 47,
+      "mae": 2.6,
+      "range": 100,
+      "n": 15,
+      "pqi": 66.9,
+      "significance": {
+        "n": 15,
+        "k": 7,
+        "p_value": 0.6964,
+        "null_pctile": 39.8,
+        "boot_ci": [
+          26.7,
+          66.7
+        ],
+        "verdict": "우연과 구분 불가 · n=15",
+        "verdict_color": "red"
+      },
+      "pqi_recent": 58.6,
+      "pqi_prev": 74.5,
+      "big_miss_frac": 40
+    },
+    {
+      "name": "삼성전자",
+      "dir": 53,
+      "mae": 2.13,
+      "range": 100,
+      "n": 15,
+      "pqi": 71.9,
+      "significance": {
+        "n": 15,
+        "k": 8,
+        "p_value": 0.5,
+        "null_pctile": 60.0,
+        "boot_ci": [
+          33.3,
+          73.3
+        ],
+        "verdict": "우연과 구분 불가 · n=15",
+        "verdict_color": "red"
+      },
+      "pqi_recent": 60.6,
+      "pqi_prev": 81.8,
       "big_miss_frac": 20
     }
   ],
   "diagnosis": {
-    "dir_avg": 60.0,
-    "mae_avg": 2.02,
+    "dir_avg": 53.3,
+    "mae_avg": 2.09,
     "range_avg": 100.0,
-    "big_miss_avg": 20.0
+    "big_miss_avg": 22.3
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "PQI 하락 추세 (-6.8)",
+      "issue": "방향 적중 낮음 (53% · 동전 수준)",
+      "cause": "선물 편중 → 디커플링·차익실현 날 방향 오류",
+      "fix": "디커플링 경고일은 종합신호(composite)로 방향 보정",
+      "auto_safe": false
+    },
+    {
+      "priority": 1,
+      "issue": "PQI 하락 추세 (-16.1)",
       "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
       "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
       "auto_safe": false
