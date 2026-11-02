@@ -105,6 +105,10 @@ def test_breadth_main_end_to_end(monkeypatch, tmp_path):
     assert out["breadth"]["n"] == 2 and out["score"] == 50.0 and out["gate"]["open"] is True
     assert out["by_market"]["KOSPI"]["pct_above_50"] == 100.0 and "KOSPI" in out["index"] and "KOSDAQ" not in out["index"]
     assert len(saved["history"]) == 2 and out["history"][-1][0] == dates[-1]
+    st = {x["code"]: x for x in out["stocks"]}
+    assert st["005930"]["d20"] > 0 and st["005930"]["d200"] > 0 and st["035720"]["d50"] < 0 and st["035720"]["low52"] is True
+    assert out["stocks"][0]["code"] == "005930"                                                 # 시총 내림차순
+    assert B.ma_distances([1, 2, 3]) == {"d20": None, "d50": None, "d200": None}
 
 
 def test_breadth_main_fails_loudly_on_low_coverage(monkeypatch, tmp_path):

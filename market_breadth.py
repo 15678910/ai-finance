@@ -68,6 +68,18 @@ def stock_metrics(closes):
     return m
 
 
+def ma_distances(closes):
+    """종가의 20/50/200일 이동평균 대비 거리(%). 이력 부족이면 None."""
+    out = {}
+    if not closes:
+        return {"d20": None, "d50": None, "d200": None}
+    c = closes[-1]
+    for n in (20, 50, 200):
+        s = sma(closes, n)
+        out[f"d{n}"] = round((c / s - 1) * 100, 2) if s else None
+    return out
+
+
 def compute_breadth(hist):
     """{심볼: closes} → 집계. 비율은 해당 지표를 계산할 수 있었던 종목만 분모로 쓴다."""
     keys = ("above20", "above50", "above200", "high52", "low52", "adv", "dec")
@@ -202,6 +214,18 @@ def main():
     breadth = compute_breadth(closes_all)
     by_market = {m: compute_breadth({s: c for s, c in closes_all.items() if market_of.get(s) == m}) for m in ("KOSPI", "KOSDAQ")}
     sc = score_breadth(breadth)
+    # 종목별 이동평균 거리 — 화면의 '20/50/200일선 아래 종목' 버튼용
+    info_of = {yf_symbol(u["code"], u["market"]): u for u in universe}
+    stocks = []
+    for sym, closes in closes_all.items():
+        u = info_of.get(sym)
+        if not u:
+            continue
+        m = stock_metrics(closes)
+        stocks.append({"code": u["code"], "name": u["name"], "market": u["market"], "mcap_b": u.get("mcap_b"),
+                       "close": round(closes[-1], 2), **ma_distances(closes),
+                       "high52": m.get("high52"), "low52": m.get("low52")})
+    stocks.sort(key=lambda x: -(x["mcap_b"] or 0))
     print(f"  20/50/200일선 위: {breadth['pct_above_20']}% / {breadth['pct_above_50']}% / {breadth['pct_above_200']}%"
           f" · 신고가 {breadth['new_highs']} vs 신저가 {breadth['new_lows']} · 종합 {sc['score']}점 {sc['grade']} · 게이트 {'열림' if sc['gate_open'] else '차단'}")
 
@@ -237,6 +261,7 @@ def main():
         "gate": {"open": sc["gate_open"], "reason": sc["reason"],
                  "rule": "종합 30점 미만 또는 50일선 위 25% 미만이면 차단"},
         "index": idx,
+        "stocks": stocks,
         "history": [[p["date"], p["score"]] for p in state["history"] if p.get("score") is not None],
         "note": ("시장폭은 '종목을 고를 만한 장인지'를 보는 지표다. 게이트가 차단이면 아래 수급 스크리너 결과는 참고용으로만 본다. "
                  "FTD·분배일 거래량은 KODEX 200 / KOSDAQ 150 ETF 거래량을 대용으로 쓴다(지수 자체 거래량은 야후에 없음)."),
