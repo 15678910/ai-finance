@@ -108,6 +108,7 @@ def test_breadth_main_end_to_end(monkeypatch, tmp_path):
     st = {x["code"]: x for x in out["stocks"]}
     assert st["005930"]["d20"] > 0 and st["005930"]["d200"] > 0 and st["035720"]["d50"] < 0 and st["035720"]["low52"] is True
     assert out["stocks"][0]["code"] == "005930"                                                 # 시총 내림차순
+    assert len(out["stocks"][0]["c90"]) == 90 and out["stocks"][0]["d_end"] == dates[-1]        # 클릭 차트용 가격 이력
     assert B.ma_distances([1, 2, 3]) == {"d20": None, "d50": None, "d200": None}
 
 
@@ -134,6 +135,7 @@ def test_compute_streaks():
     s = F.compute_streaks(_rows([100, 200, 300, -50, 10], [50, 60, -5, 70, 80], close=1_000_000))
     assert s["f_streak"] == 3 and s["i_streak"] == 2 and s["joint"] == 2 and s["joint_sell"] == 0
     assert s["f5_eok"] == pytest.approx(5.6, abs=0.01) and s["as_of"] == "2026-10-20"          # 560주 × 100만원 = 5.6억
+    assert s["flow20"][0] == ["2026-10-20", 100, 50, 1_000_000] and len(s["flow20"]) == 5        # 클릭 막대 차트용
     assert F.compute_streaks([]) == {}
     # 날짜가 섞여 들어와도 최신순으로 정렬해 계산
     shuffled = list(reversed(_rows([1, 1, -1], [1, 1, -1])))
