@@ -89,6 +89,7 @@ def test_index_context_ftd_and_distribution_days():
 
 def test_breadth_main_end_to_end(monkeypatch, tmp_path):
     monkeypatch.setattr(B, "OUTPUT_FILE", str(tmp_path / "mb.json"))
+    monkeypatch.setattr(B, "CHART_FILE", str(tmp_path / "charts.json"))
     monkeypatch.setattr(B, "fetch_universe", lambda a, b: [{"code": "005930", "name": "삼성전자", "market": "KOSPI", "mcap_b": 400},
                                                             {"code": "035720", "name": "카카오", "market": "KOSDAQ", "mcap_b": 20}])
     dates = [(date(2025, 10, 1) + timedelta(days=i)).isoformat() for i in range(260)]
@@ -108,7 +109,10 @@ def test_breadth_main_end_to_end(monkeypatch, tmp_path):
     st = {x["code"]: x for x in out["stocks"]}
     assert st["005930"]["d20"] > 0 and st["005930"]["d200"] > 0 and st["035720"]["d50"] < 0 and st["035720"]["low52"] is True
     assert out["stocks"][0]["code"] == "005930"                                                 # 시총 내림차순
-    assert len(out["stocks"][0]["c90"]) == 90 and out["stocks"][0]["d_end"] == dates[-1]        # 클릭 차트용 가격 이력
+    assert out["stocks"][0]["d_end"] == dates[-1] and "c90" not in out["stocks"][0]
+    charts = json.load(open(tmp_path / "charts.json", encoding="utf-8"))
+    assert set(charts) == {"005930", "035720"} and len(charts["005930"]["c"]) == 60 and len(charts["005930"]["cpre"]) == 200
+    assert charts["005930"]["o"] == charts["005930"]["c"] and charts["005930"]["d"][-1] == dates[-1]   # OHL 없으면 종가로 채움
     assert B.ma_distances([1, 2, 3]) == {"d20": None, "d50": None, "d200": None}
 
 

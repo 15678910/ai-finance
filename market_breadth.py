@@ -31,6 +31,8 @@ from core.kr_universe import fetch_universe, yf_symbol
 
 KST = timezone(timedelta(hours=9))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "market_breadth.json")
+CHART_FILE = os.path.join(BASE_DIR, "docs", "stock_charts.json")
+CHART_WINDOW, CHART_PRE = 60, 200       # 차트 창 60거래일 + 200일선·RSI·볼린저 계산용 이전 종가 200개
 STATE_NAME = "market_breadth"
 TOP_KOSPI, TOP_KOSDAQ = 400, 400
 MIN_COVERAGE = 0.5
@@ -185,9 +187,37 @@ def fetch_price_history(symbols, period="1y", chunk=150):
                     continue
                 out[sym] = {"dates": [d.strftime("%Y-%m-%d") for d in sub.index],
                             "close": [float(x) for x in sub["Close"]],
+                            "open": [float(x) if x == x else None for x in sub["Open"]] if "Open" in sub else None,
+                            "high": [float(x) if x == x else None for x in sub["High"]] if "High" in sub else None,
+                            "low": [float(x) if x == x else None for x in sub["Low"]] if "Low" in sub else None,
                             "volume": [float(x) if x == x else 0.0 for x in sub["Volume"]]}
             except Exception:
                 continue
+    return out
+
+
+def build_chart_payload(hist, universe, window=CHART_WINDOW, pre=CHART_PRE):
+    """{code: {d, o, h, l, c, v, cpre}} — 창 안은 OHLCV(정수), cpre 는 창 이전 종가(지표 계산용).
+    시가·고가·저가가 없으면 종가로 채운다(캔들은 몸통만)."""
+    out = {}
+    sym_of = {yf_symbol(u["code"], u["market"]): u["code"] for u in universe}
+    for sym, h in hist.items():
+        code = sym_of.get(sym)
+        if not code or len(h["close"]) < 5:
+            continue
+        n = len(h["close"])
+        w = min(window, n)
+        s = n - w
+        pick = lambda arr, i, fb: (arr[i] if arr and arr[i] is not None else fb)
+        out[code] = {
+            "d": h["dates"][s:],
+            "o": [round(pick(h.get("open"), i, h["close"][i])) for i in range(s, n)],
+            "h": [round(pick(h.get("high"), i, h["close"][i])) for i in range(s, n)],
+            "l": [round(pick(h.get("low"), i, h["close"][i])) for i in range(s, n)],
+            "c": [round(x) for x in h["close"][s:]],
+            "v": [int(x) for x in h["volume"][s:]],
+            "cpre": [round(x) for x in h["close"][max(0, s - pre):s]],
+        }
     return out
 
 
@@ -224,9 +254,7 @@ def main():
         m = stock_metrics(closes)
         stocks.append({"code": u["code"], "name": u["name"], "market": u["market"], "mcap_b": u.get("mcap_b"),
                        "close": round(closes[-1], 2), **ma_distances(closes),
-                       "high52": m.get("high52"), "low52": m.get("low52"),
-                       # 클릭 시 차트용: 최근 90거래일 종가(60일 차트 + 20/50일선 계산분) 와 마지막 날짜
-                       "c90": [round(c) for c in closes[-90:]], "d_end": hist[sym]["dates"][-1]})
+                       "high52": m.get("high52"), "low52": m.get("low52"), "d_end": hist[sym]["dates"][-1]})
     stocks.sort(key=lambda x: -(x["mcap_b"] or 0))
     print(f"  20/50/200일선 위: {breadth['pct_above_20']}% / {breadth['pct_above_50']}% / {breadth['pct_above_200']}%"
           f" · 신고가 {breadth['new_highs']} vs 신저가 {breadth['new_lows']} · 종합 {sc['score']}점 {sc['grade']} · 게이트 {'열림' if sc['gate_open'] else '차단'}")
@@ -269,6 +297,11 @@ def main():
                  "FTD·분배일 거래량은 KODEX 200 / KOSDAQ 150 ETF 거래량을 대용으로 쓴다(지수 자체 거래량은 야후에 없음)."),
     }
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+    # 종목 클릭 차트(캔들·볼린저·20/50/200일선·거래량·스토캐스틱·RSI)용 — 클릭할 때만 내려받는 별도 파일
+    charts = build_chart_payload(hist, universe)
+    with open(CHART_FILE, "w", encoding="utf-8") as f:
+        json.dump(charts, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"  차트 데이터 {len(charts)}종목 → {os.path.basename(CHART_FILE)} ({os.path.getsize(CHART_FILE) // 1024}KB)")
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
     print(f"[OK] {OUTPUT_FILE}  기준일 {as_of} · 이력 {len(state['history'])}점")
