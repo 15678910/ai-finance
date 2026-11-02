@@ -24,6 +24,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 from core.kr_universe import fetch_universe
 from core.naver_flow import DIAG_ONCE as _DIAG_ONCE, fetch_trend_rows, parse_trend_json  # noqa: F401 (parse_trend_json: 테스트·호환)
+from core.state_store import save_state
 from investor_flow_monitor import fetch_naver_flow_html
 from market_cap_tracker import _get
 
@@ -159,6 +160,16 @@ def main():
         print(f"  [FAIL] 수집률 {cov:.0%} < {MIN_COVERAGE:.0%} → 기존 결과 유지, 실패 처리")
         return 1
     res = screen(universe, flows)
+    # 종목별 20일 수급 원본을 상태로 저장 — market_investor_breakdown 이 KRX·네이버 PC 차단 시 '시총 상위 800 합산'으로 쓴다
+    try:
+        save_state("flow_streak", {
+            "as_of": res["as_of"], "saved_at": now.isoformat(timespec="minutes"),
+            "market": {u["code"]: u["market"] for u in universe},
+            "flows": {code: [[r.get("date"), r.get("foreign_net_shares", 0), r.get("institutional_net_shares", 0), r.get("close", 0)]
+                             for r in sorted(rows, key=lambda r: r.get("date", ""), reverse=True)[:20]] for code, rows in flows.items()},
+        })
+    except Exception as e:
+        print(f"  [WARN] flow_streak 상태 저장 실패: {type(e).__name__}: {e}")
     gate = load_gate()
     blocked = bool(gate and gate.get("open") is False)
     c = res["counts"]

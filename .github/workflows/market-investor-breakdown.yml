@@ -2,9 +2,9 @@ name: Market Investor Breakdown (8-class daily)
 
 on:
   schedule:
-    # KST 17:00 평일 — 장 마감(15:30) + Naver 데이터 안정화 1.5h 후
-    # UTC 08:00 = KST 17:00
-    - cron: '0 8 * * 1-5'
+    # KST 19:20 평일 — KR Market Gate(18:40)가 저장한 시총 상위 800 수급 합산을 대체 소스로 쓰기 위해 그 뒤에 실행
+    # UTC 10:20 = KST 19:20
+    - cron: '20 10 * * 1-5'
   workflow_dispatch:
 
 concurrency:
