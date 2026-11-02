@@ -9652,7 +9652,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const gc = open === true ? '#22c55e' : open === false ? '#f87171' : '#94a3b8';
       const gl = open === true ? '열림' : open === false ? '차단' : '판단 불가';
       const maKey = window.__mgMa || null, maSide = window.__mgMaSide || 'below';
-      const bar = (lab, v, key) => `<div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;"><button onclick="__mgSetMa('${key}')" title="클릭: 이 이동평균선 ${maSide === 'below' ? '아래' : '위'} 종목 보기" style="width:84px;flex:none;white-space:nowrap;text-align:left;font-size:0.6rem;padding:1px 6px;border-radius:7px;cursor:pointer;border:1px solid ${maKey === key ? '#22d3ee' : 'rgba(255,255,255,0.15)'};background:${maKey === key ? 'rgba(34,211,238,0.15)' : 'transparent'};color:${maKey === key ? '#22d3ee' : 'var(--text-muted)'};">${lab} ▾</button>
+      const bar = (lab, v, key) => `<div onclick="__mgSetMa('${key}')" title="클릭: 이 이동평균선 ${maSide === 'below' ? '아래' : '위'} 종목 목록 열기/닫기" style="display:flex;align-items:center;gap:6px;font-size:0.6rem;cursor:pointer;border-radius:6px;padding:1px 2px;${maKey === key ? 'background:rgba(34,211,238,0.08);' : ''}"><span style="width:84px;flex:none;white-space:nowrap;text-align:left;font-size:0.6rem;padding:1px 6px;border-radius:7px;border:1px solid ${maKey === key ? '#22d3ee' : 'rgba(255,255,255,0.15)'};background:${maKey === key ? 'rgba(34,211,238,0.15)' : 'transparent'};color:${maKey === key ? '#22d3ee' : 'var(--text-muted)'};">${lab} ▾</span>
         <div style="flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="width:${Math.max(0, Math.min(100, v || 0))}%;height:100%;background:${(v || 0) >= 50 ? '#22c55e' : (v || 0) >= 25 ? '#fbbf24' : '#f87171'};"></div></div>
         <b style="width:44px;text-align:right;font-family:var(--font-mono);color:var(--text-bright);">${pc(v)}</b></div>`;
       const idxRow = (name, x) => !x ? '' : `<div style="font-size:0.58rem;color:var(--text-muted);margin-top:4px;line-height:1.5;"><b style="color:var(--text);">${name}</b>
@@ -9669,6 +9669,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <div style="margin-left:auto;font-size:0.54rem;color:var(--text-muted);text-align:right;">기준일 ${h(b.as_of || '')}<br>${h((b.universe || {}).basis || '')} · ${(b.universe || {}).fetched || 0}종목</div>
         </div>
         <div style="margin-top:8px;display:grid;grid-template-columns:1fr;gap:5px;">
+          <div style="font-size:0.52rem;color:var(--text-muted);">막대 줄을 클릭하면 그 이동평균선 ${maSide === 'below' ? '아래' : '위'} 종목 목록이 아래에 열립니다</div>
           ${bar('20일선 위', br.pct_above_20, 'd20')}${bar('50일선 위', br.pct_above_50, 'd50')}${bar('200일선 위', br.pct_above_200, 'd200')}
           <div style="font-size:0.6rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:2px;"><span style="color:var(--text-muted);width:88px;flex:none;white-space:nowrap;">신고가/신저가</span><b style="color:#22c55e;">${num(br.new_highs)}</b> vs <b style="color:#f87171;">${num(br.new_lows)}</b>
             <span style="color:var(--text-muted);margin-left:8px;white-space:nowrap;">상승/하락</span><b style="color:#22c55e;">${num(br.advancers)}</b> vs <b style="color:#f87171;">${num(br.decliners)}</b></div>
