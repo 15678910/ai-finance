@@ -17,9 +17,15 @@ MIB = pytest.importorskip("market_investor_breakdown")
 
 def test_naver_flow_parse_holding_fields():
     rows = NF.parse_trend_json([{"bizdate": "20261102", "closePrice": "71,500", "foreignerPureBuyQuant": "+1,000", "organPureBuyQuant": "-500",
-                                 "foreignerHoldRatio": "52.13", "foreignerHoldQuant": "3,111,000,000"},
+                                 "foreignerHoldRatio": "52.13%", "foreignerHoldQuant": "3,111,000,000"},
                                 {"bizdate": "20261030", "closePrice": "70,000", "foreignerPureBuyQuant": "1", "organPureBuyQuant": "1"}])
-    assert rows[0]["foreign_holding_pct"] == 52.13 and rows[0]["foreign_holding_shares"] == 3_111_000_000
+    assert rows[0]["foreign_holding_pct"] == 52.13 and rows[0]["foreign_holding_shares"] == 3_111_000_000   # '52.13%' 도 읽어야 한다
+    # 2026-11-02 실제 응답 키 그대로
+    real = [{"accumulatedTradingVolume": "12,345,678", "bizdate": "20261102", "closePrice": "71,500", "compareToPreviousClosePrice": "1,500",
+             "compareToPreviousPrice": {"code": "2", "text": "상승"}, "foreignerHoldRatio": "52.13%", "foreignerPureBuyQuant": "+123,456",
+             "individualPureBuyQuant": "-100,000", "itemCode": "005930", "organPureBuyQuant": "-23,456"}]
+    r = NF.parse_trend_json(real)[0]
+    assert r["foreign_holding_pct"] == 52.13 and r["foreign_net_shares"] == 123456 and r["institutional_net_shares"] == -23456 and r["volume"] == 12345678
     assert rows[0]["change_pct"] == pytest.approx(2.14, abs=0.01)
     assert set(rows[0]) >= {"date", "close", "change_pct", "volume", "institutional_net_shares", "foreign_net_shares", "foreign_holding_shares", "foreign_holding_pct"}
 
@@ -62,7 +68,32 @@ def test_validate_breakdown_rejects_wrong_mapping():
     assert MIB.validate_breakdown(good) and not MIB.validate_breakdown(bad) and not MIB.validate_breakdown([])
 
 
+def test_parse_naver_3class_scales_and_marks_detail_unavailable():
+    # 억원 단위 응답 (외국인 중앙값 ~ 수백) → ×100 으로 백만원
+    payload = {"result": [{"bizdate": "20261102", "individualPureBuyAmount": "-1,234", "foreignerPureBuyAmount": "+800", "organPureBuyAmount": "400"},
+                          {"bizdate": "20261030", "individualPureBuyAmount": "500", "foreignerPureBuyAmount": "-900", "organPureBuyAmount": "350"}]}
+    rows = MIB.parse_naver_3class(payload)
+    assert rows[0]["date"] == "2026-11-02" and rows[0]["foreign"] == 80_000 and rows[0]["personal"] == -123_400
+    assert rows[0]["other_corp"] == 3_400 and rows[0]["detail_available"] is False and rows[0]["pension"] == 0
+    assert MIB.validate_breakdown(rows)
+    # 백만원 단위 응답 (중앙값 > 50,000) → 그대로
+    big = {"result": [{"bizdate": "20261102", "individualNetBuy": "-120,000,000", "foreignNetBuy": "80,000,000", "institutionNetBuy": "35,000,000"}]}
+    assert MIB.parse_naver_3class(big)[0]["foreign"] == 80_000_000
+    assert MIB.parse_naver_3class({"result": [{"bizdate": "20261102", "closePrice": 1}]}) == []     # 키 없음
+    assert MIB.parse_naver_3class("<html>") == []
+
+
+def test_collect_market_order_krx_mobile_pc(monkeypatch):
+    monkeypatch.setattr(MIB, "fetch_krx_breakdown", lambda code, days=30: [])
+    monkeypatch.setattr(MIB, "fetch_naver_mobile_3class", lambda code, days=30: [{"date": "2026-11-01", "detail_available": False}])
+    assert MIB.collect_market("01")[0]["detail_available"] is False
+    monkeypatch.setattr(MIB, "fetch_naver_mobile_3class", lambda code, days=30: [])
+    monkeypatch.setattr(MIB, "fetch_breakdown_for_date", lambda code, d: {"2026-10-30": {"date": "2026-10-30"}})
+    assert MIB.collect_market("01")[0]["date"] == "2026-10-30"
+
+
 def test_collect_market_prefers_krx_then_naver(monkeypatch):
+    monkeypatch.setattr(MIB, "fetch_naver_mobile_3class", lambda code, days=30: [])
     monkeypatch.setattr(MIB, "fetch_krx_breakdown", lambda code, days=30: [{"date": "2026-11-02", "personal": 1}])
     assert MIB.collect_market("01")[0]["date"] == "2026-11-02"
     monkeypatch.setattr(MIB, "fetch_krx_breakdown", lambda code, days=30: [])

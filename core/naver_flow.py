@@ -27,8 +27,9 @@ DIAG_ONCE = {"fail": False, "keys": False}
 
 
 def _num(v):
+    """'52.13%' / '+1,234' / 71500 → float. 2026-11-02 첫 실행: 보유율이 '52.13%' 형태라 0 으로 읽혔다."""
     try:
-        return float(str(v).replace(",", "").replace("+", "").strip())
+        return float(str(v).replace(",", "").replace("+", "").replace("%", "").strip())
     except (TypeError, ValueError):
         return 0.0
 
