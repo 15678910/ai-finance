@@ -194,6 +194,8 @@ def test_fetch_naver_flow_falls_back_to_html(monkeypatch):
 
 def test_screener_main_end_to_end(monkeypatch, tmp_path):
     monkeypatch.setattr(F, "OUTPUT_FILE", str(tmp_path / "fs.json"))
+    saved = {}
+    monkeypatch.setattr(F, "save_state", lambda name, data: saved.update({name: data}) or True)   # docs/ 에 상태 파일을 남기지 않는다
     bfile = tmp_path / "mb.json"
     bfile.write_text(json.dumps({"gate": {"open": False, "reason": "종합 16점"}, "score": 16.6, "grade": "극약세", "as_of": "2026-10-20"}), encoding="utf-8")
     monkeypatch.setattr(F, "BREADTH_FILE", str(bfile))
