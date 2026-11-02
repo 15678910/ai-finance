@@ -7,14 +7,13 @@
   • 별도 목록: 동반 순매수 2일 이상(데이트레이더 노드), 동반 연속 순매도 3일 이상(경고)
   • 시장폭 게이트(docs/market_breadth.json)가 '차단'이면 결과에 gate_blocked 표시 — 화면에서 회색 처리
 
-데이터: 네이버 종목별 외국인·기관 매매 페이지(investor_flow_monitor.fetch_naver_flow 재사용, 최근 20거래일).
+데이터: 네이버 모바일 투자자 동향 API(core.naver_flow, 최근 20거래일) → 실패 시 PC 페이지 파서.
 유니버스: 코스피·코스닥 시총 상위 각 400 (core.kr_universe). 수집률 50% 미만이면 덮어쓰지 않고 실패(exit 1).
 출력: docs/flow_streak.json
 """
 
 import json
 import os
-import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -24,8 +23,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 from core.kr_universe import fetch_universe
-from investor_flow_monitor import fetch_naver_flow as fetch_naver_flow_html
-from market_cap_tracker import _diag, _get
+from core.naver_flow import DIAG_ONCE as _DIAG_ONCE, fetch_trend_rows, parse_trend_json  # noqa: F401 (parse_trend_json: 테스트·호환)
+from investor_flow_monitor import fetch_naver_flow_html
+from market_cap_tracker import _get
 
 KST = timezone(timedelta(hours=9))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "flow_streak.json")
@@ -36,75 +36,11 @@ JOINT_MIN = 2            # 동반 순매수 목록 최소 일수
 WORKERS = 8
 MIN_COVERAGE = 0.5
 TOP_N = 80
-# 첫 실행(2026-11-02): finance.naver.com PC 페이지가 Actions 에서 0건 → 모바일 JSON API 를 먼저 쓰고 PC 페이지는 최후 수단
-TREND_URLS = ("https://m.stock.naver.com/api/stock/{code}/trend?pageSize=20&page=1",
-              "https://api.stock.naver.com/stock/{code}/trend?pageSize=20&page=1")
-_DIAG_ONCE = {"done": False}
-
-
-def _num(v):
-    try:
-        return float(str(v).replace(",", "").replace("+", "").strip())
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def parse_trend_json(payload):
-    """모바일 투자자 동향 API → fetch_naver_flow 와 같은 행 형식 (날짜 내림차순).
-    필드명 변종을 모두 받는다: bizdate/date, closePrice, foreignerPureBuyQuant/foreignNetBuy..., organPureBuyQuant/institution..."""
-    items = payload
-    if isinstance(payload, dict):
-        for k in ("result", "datas", "items", "list", "trend", "trends"):
-            if isinstance(payload.get(k), list):
-                items = payload[k]
-                break
-    if not isinstance(items, list):
-        return []
-    rows = []
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        d = str(it.get("bizdate") or it.get("date") or it.get("localTradedAt") or it.get("tradeDate") or "")
-        d = re.sub(r"[^0-9]", "", d)
-        if len(d) < 8:
-            continue
-        d = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
-        fk = next((k for k in it if re.match(r"(foreigner|foreign|frgn)[A-Za-z]*(PureBuy|NetBuy|netBuy|Net)", k)), None)
-        ik = next((k for k in it if re.match(r"(organ|institution|inst)[A-Za-z]*(PureBuy|NetBuy|netBuy|Net)", k)), None)
-        if not fk or not ik:
-            continue
-        chg = it.get("fluctuationsRatio") or it.get("changeRate") or it.get("change_pct") or 0
-        rows.append({"date": d, "close": int(_num(it.get("closePrice") or it.get("close") or 0)),
-                     "change_pct": _num(chg), "volume": int(_num(it.get("accumulatedTradingVolume") or it.get("volume") or 0)),
-                     "institutional_net_shares": int(_num(it.get(ik))), "foreign_net_shares": int(_num(it.get(fk))),
-                     "foreign_holding_pct": _num(it.get("foreignerHoldRatio") or it.get("foreignHoldRatio") or 0)})
-    rows.sort(key=lambda r: r["date"], reverse=True)
-    # 등락률 필드명을 못 맞춘 경우(첫 실행: 전부 0.0%) 전일 종가로 직접 계산
-    for a, b in zip(rows, rows[1:]):
-        if not a["change_pct"] and a["close"] and b["close"]:
-            a["change_pct"] = round((a["close"] / b["close"] - 1) * 100, 2)
-    return rows
 
 
 def fetch_naver_flow(code):
-    """모바일 JSON API(2종) → 실패 시 PC HTML 페이지. 첫 실패 응답은 [DIAG] 로 한 번 남긴다."""
-    for url in TREND_URLS:
-        text = ""
-        try:
-            text = _get(url.format(code=code), headers={"Referer": "https://m.stock.naver.com/", "Accept": "application/json"})
-            rows = parse_trend_json(json.loads(text))
-            if rows:
-                return rows
-        except Exception as e:
-            rows = []
-            err = f"{type(e).__name__}: {e}"
-        else:
-            err = "0행"
-        if not _DIAG_ONCE["done"]:
-            _DIAG_ONCE["done"] = True
-            print(f"  [WARN] trend {code} @ {url.split('/')[2]}: {err}")
-            _diag(f"trend {code}", text)
-    return fetch_naver_flow_html(code)
+    """모바일 JSON API → 실패 시 PC HTML 페이지. (모듈 속성 _get/fetch_naver_flow_html 은 테스트에서 바꿔 끼운다)"""
+    return fetch_trend_rows(code, get=_get) or fetch_naver_flow_html(code)
 
 
 # ====================================================================

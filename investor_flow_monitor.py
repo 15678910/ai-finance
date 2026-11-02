@@ -36,6 +36,7 @@ import urllib.error
 from datetime import datetime, timezone, timedelta
 
 from core import send_message, load_state, save_state
+from core.naver_flow import fetch_trend_rows
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(BASE_DIR, "docs", "investor_flow.json")
@@ -113,6 +114,16 @@ TARGET_STOCKS = [
 # ====================================================================
 def fetch_naver_flow(ticker: str) -> list:
     """종목별 외국인·기관 매매 동향 (최근 ~20일).
+    2026-11-02: 모바일 JSON API 를 먼저 쓴다 — PC 페이지(frgn.naver)는 Actions 에서 0건이 되어
+    2026-10-30 이후 이 모니터가 '분석 0종목'으로 비어 있었다. PC 페이지는 최후 수단."""
+    rows = fetch_trend_rows(ticker)
+    if rows:
+        return rows
+    return fetch_naver_flow_html(ticker)
+
+
+def fetch_naver_flow_html(ticker: str) -> list:
+    """(구) finance.naver.com PC 페이지 파서 — 모바일 API 실패 시에만.
 
     Returns: [{date, close, change_pct, volume,
                institutional_net_shares, foreign_net_shares,

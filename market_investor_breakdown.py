@@ -139,13 +139,109 @@ def fetch_breakdown_for_date(market_code: str, bizdate: str) -> dict | None:
 
 
 def collect_market(market_code: str, days_target: int = 30) -> list:
-    """단일 시장의 최근 N 거래일 데이터 수집 (페이지 1개로 충분 — 30일 표시됨)."""
+    """단일 시장의 최근 N 거래일. KRX 정보데이터시스템(JSON) → 실패 시 네이버 PC 페이지.
+    2026-10-30 이후 네이버 PC 페이지가 Actions 에서 데이터를 돌려주지 않아 이 섹션이 비어 있었다."""
+    rows = fetch_krx_breakdown(market_code, days_target)
+    if rows:
+        return rows[:days_target]
     today_str = datetime.now().strftime("%Y%m%d")
     by_date = fetch_breakdown_for_date(market_code, today_str)
     if not by_date:
         return []
     sorted_rows = sorted(by_date.values(), key=lambda r: r["date"], reverse=True)
     return sorted_rows[:days_target]
+
+
+# ====================================================================
+# KRX 정보데이터시스템 — 투자자별 거래실적 일별추이 (MDCSTAT02203)
+# ====================================================================
+KRX_URL = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd"
+KRX_BLD = "dbms/MDC/STAT/standard/MDCSTAT02203"
+KRX_MKT = {"01": "STK", "02": "KSQ"}          # 네이버 sosok 코드 → KRX mktId
+# KRX 응답 TRDVAL1..12 의 순서 (투자자별 거래실적 화면 열 순서와 동일)
+KRX_ORDER = ["financial_inv", "insurance", "trust", "private_fund", "bank", "other_financial", "pension",
+             "institutional_total", "other_corp", "personal", "foreign", "other_foreign"]
+KRX_HEADERS = {"User-Agent": HEADERS["User-Agent"],
+               "Referer": "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020203",
+               "X-Requested-With": "XMLHttpRequest"}
+_KRX_DIAG = {"done": False}
+
+
+def parse_krx_output(payload) -> list:
+    """KRX JSON → 네이버 파서와 같은 행 형식(백만원, 날짜 내림차순). 열 이름이 바뀌면 [] 를 돌려준다."""
+    out_rows = (payload or {}).get("output") if isinstance(payload, dict) else None
+    if not isinstance(out_rows, list):
+        return []
+    rows = []
+    for it in out_rows:
+        if not isinstance(it, dict):
+            continue
+        d = str(it.get("TRD_DD") or it.get("trdDd") or "").replace("/", "-").replace(".", "-").strip()
+        if len(d) != 10:
+            continue
+        vals = {}
+        for idx, key in enumerate(KRX_ORDER, start=1):
+            v = it.get(f"TRDVAL{idx}")
+            if v is None:
+                break
+            vals[key] = _parse_int(str(v).replace("원", ""))
+        if len(vals) < 11:
+            continue
+        # 원 단위 → 백만원 (KRX 는 '원' 단위를 쓴다; 값이 작으면 이미 백만원일 수 있어 자릿수로 판단)
+        scale = 1_000_000 if max(abs(x) for x in vals.values()) > 10_000_000_000 else 1
+        row = {"date": d, "unit": "백만원"}
+        for key in KRX_ORDER:
+            if key == "other_foreign":
+                continue
+            row[key] = int(round(vals[key] / scale))
+        # 네이버 화면의 '외국인'은 등록외국인+기타외국인 합계
+        row["foreign"] = int(round((vals["foreign"] + vals.get("other_foreign", 0)) / scale))
+        rows.append(row)
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    return rows
+
+
+def validate_breakdown(rows: list) -> bool:
+    """순매수는 투자자 전체 합이 0 에 가까워야 한다(누군가 사면 누군가 판다). 열 매핑이 틀리면 크게 어긋난다."""
+    if not rows:
+        return False
+    bad = 0
+    for r in rows[:10]:
+        parts = [r.get("personal", 0), r.get("foreign", 0), r.get("institutional_total", 0), r.get("other_corp", 0)]
+        tot = sum(abs(x) for x in parts)
+        if tot and abs(sum(parts)) / tot > 0.05:
+            bad += 1
+    return bad <= 2
+
+
+def fetch_krx_breakdown(market_code: str, days: int = 30) -> list:
+    """KRX 투자자별 거래실적(순매수·거래대금) 최근 N 거래일. 실패·검증 실패 시 []."""
+    end = datetime.now()
+    start = end - timedelta(days=int(days * 1.8) + 7)
+    params = {"bld": KRX_BLD, "locale": "ko_KR", "inqTpCd": "2", "trdVolVal": "2", "askBid": "3",
+              "mktId": KRX_MKT.get(market_code, "STK"), "strtDd": start.strftime("%Y%m%d"), "endDd": end.strftime("%Y%m%d"),
+              "share": "1", "money": "1", "csvxls_isNo": "false"}
+    text = ""
+    try:
+        r = requests.post(KRX_URL, data=params, headers=KRX_HEADERS, timeout=20)
+        text = r.text
+        payload = r.json()
+        rows = parse_krx_output(payload)
+        if rows and validate_breakdown(rows):
+            print(f"    KRX {KRX_MKT.get(market_code)}: {len(rows)}일 (최근 {rows[0]['date']})")
+            return rows
+        reason = "0행 또는 열 매핑 검증 실패"
+        if not _KRX_DIAG["done"]:
+            _KRX_DIAG["done"] = True
+            first = (payload.get("output") or [{}])[0] if isinstance(payload, dict) and isinstance(payload.get("output"), list) else payload
+            print(f"  [DIAG] KRX 응답 첫 행: {str(first)[:400]}")
+    except Exception as e:
+        reason = f"{type(e).__name__}: {e}"
+        if not _KRX_DIAG["done"]:
+            _KRX_DIAG["done"] = True
+            print(f"  [DIAG] KRX 응답 앞부분: {text[:300]!r}")
+    print(f"  [WARN] KRX {KRX_MKT.get(market_code)}: {reason} → 네이버 PC 페이지 시도")
+    return []
 
 
 def summarize_recent(rows: list, n: int = 5) -> dict:
@@ -204,14 +300,29 @@ def main():
             print(f"    [FAIL] 수집 실패")
         time.sleep(0.3)
 
-    # JSON 저장
+    # JSON 저장 — 전부 실패했으면 직전 파일을 덮어쓰지 않고(stale 표시만) 실패 코드로 끝낸다
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "market_investor_breakdown.json")
+    ok_markets = [m for m, v in output["markets"].items() if v.get("rows")]
+    if not ok_markets:
+        try:
+            with open(out_path, encoding="utf-8") as f:
+                prev = json.load(f)
+            prev["stale"] = True
+            prev["stale_note"] = f"{output['generated_at']} 수집 실패 — 직전 데이터 유지"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(prev, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        print(">>> [FAIL] 두 시장 모두 수집 실패 — 직전 데이터 유지")
+        return 1
+    output["data_source"] = "KRX 정보데이터시스템 (투자자별 거래실적) · 대체: Naver 금융 investorDealTrendDay"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
     print(f">>> 저장 완료: {out_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
