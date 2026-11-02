@@ -79,6 +79,10 @@ def parse_trend_json(payload):
                      "institutional_net_shares": int(_num(it.get(ik))), "foreign_net_shares": int(_num(it.get(fk))),
                      "foreign_holding_pct": _num(it.get("foreignerHoldRatio") or it.get("foreignHoldRatio") or 0)})
     rows.sort(key=lambda r: r["date"], reverse=True)
+    # 등락률 필드명을 못 맞춘 경우(첫 실행: 전부 0.0%) 전일 종가로 직접 계산
+    for a, b in zip(rows, rows[1:]):
+        if not a["change_pct"] and a["close"] and b["close"]:
+            a["change_pct"] = round((a["close"] / b["close"] - 1) * 100, 2)
     return rows
 
 

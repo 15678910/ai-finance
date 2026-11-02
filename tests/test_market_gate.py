@@ -159,6 +159,10 @@ def test_parse_trend_json_variants():
     rows = F.parse_trend_json(payload)
     assert rows[0]["date"] == "2026-11-02" and rows[0]["close"] == 71500 and rows[0]["foreign_net_shares"] == 123456 and rows[0]["institutional_net_shares"] == -2000
     assert rows[0]["change_pct"] == 1.2 and rows[1]["date"] == "2026-10-30"
+    # 등락률 필드가 없으면 전일 종가로 계산 (71,500 → 70,000 기준 +2.14%)
+    rows2 = F.parse_trend_json([{"bizdate": "20261102", "closePrice": "71,500", "foreignerPureBuyQuant": "1", "organPureBuyQuant": "1"},
+                                {"bizdate": "20261030", "closePrice": "70,000", "foreignerPureBuyQuant": "1", "organPureBuyQuant": "1"}])
+    assert rows2[0]["change_pct"] == pytest.approx(2.14, abs=0.01) and rows2[1]["change_pct"] == 0
     wrapped = {"result": [{"date": "2026-11-02", "closePrice": 100, "foreignNetBuyQuant": "5", "institutionNetBuyQuant": "6"}]}
     assert F.parse_trend_json(wrapped)[0]["foreign_net_shares"] == 5
     assert F.parse_trend_json({"error": 1}) == [] and F.parse_trend_json("<html>") == []
