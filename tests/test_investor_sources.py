@@ -84,6 +84,7 @@ def test_parse_naver_3class_scales_and_marks_detail_unavailable():
 
 
 def test_collect_market_order_krx_mobile_pc(monkeypatch):
+    monkeypatch.setattr(MIB, "aggregate_from_flow_state", lambda code, days=30: [])
     monkeypatch.setattr(MIB, "fetch_krx_breakdown", lambda code, days=30: [])
     monkeypatch.setattr(MIB, "fetch_naver_mobile_3class", lambda code, days=30: [{"date": "2026-11-01", "detail_available": False}])
     assert MIB.collect_market("01")[0]["detail_available"] is False
@@ -92,7 +93,37 @@ def test_collect_market_order_krx_mobile_pc(monkeypatch):
     assert MIB.collect_market("01")[0]["date"] == "2026-10-30"
 
 
+def test_aggregate_flow_state_sums_top800_flows():
+    state = {"market": {"A": "KOSPI", "B": "KOSPI", "C": "KOSDAQ"},
+             "flows": {"A": [["2026-11-02", 1000, -500, 100_000], ["2026-10-30", 200, 200, 100_000]],
+                       "B": [["2026-11-02", -300, 100, 50_000]],
+                       "C": [["2026-11-02", 999, 999, 10_000]]}}
+    # n_codes 50 미만이면 [] — 테스트용으로 임계 우회
+    import market_investor_breakdown as M
+    many = {f"K{i}": "KOSPI" for i in range(60)}
+    state["market"].update(many)
+    state["flows"].update({k: [["2026-11-02", 0, 0, 1]] for k in many})
+    rows = M.aggregate_flow_state(state, "KOSPI", days=30)
+    assert rows[0]["date"] == "2026-11-02"
+    assert rows[0]["foreign"] == int(round((1000 * 100_000 - 300 * 50_000) / 1e6)) == 85          # 8,500만원 → 85백만원
+    assert rows[0]["institutional_total"] == int(round((-500 * 100_000 + 100 * 50_000) / 1e6)) == -45
+    assert rows[0]["personal"] == -(85 - 45) and rows[0]["detail_available"] is False and rows[0]["pension"] == 0
+    assert rows[1]["date"] == "2026-10-30" and rows[1]["foreign"] == 20
+    assert M.validate_breakdown(rows) and "시총 상위" in rows[0]["source_note"]
+    assert M.aggregate_flow_state({"market": {"A": "KOSPI"}, "flows": {"A": [["2026-11-02", 1, 1, 1]]}}, "KOSPI") == []   # 종목 수 부족
+    assert M.aggregate_flow_state({}, "KOSPI") == []
+
+
+def test_collect_market_uses_flow_aggregate_before_pc_page(monkeypatch):
+    monkeypatch.setattr(MIB, "fetch_krx_breakdown", lambda code, days=30: [])
+    monkeypatch.setattr(MIB, "fetch_naver_mobile_3class", lambda code, days=30: [])
+    monkeypatch.setattr(MIB, "aggregate_from_flow_state", lambda code, days=30: [{"date": "2026-11-02", "detail_available": False}])
+    monkeypatch.setattr(MIB, "fetch_breakdown_for_date", lambda code, d: {"2026-10-30": {"date": "2026-10-30"}})
+    assert MIB.collect_market("01")[0]["date"] == "2026-11-02"
+
+
 def test_collect_market_prefers_krx_then_naver(monkeypatch):
+    monkeypatch.setattr(MIB, "aggregate_from_flow_state", lambda code, days=30: [])
     monkeypatch.setattr(MIB, "fetch_naver_mobile_3class", lambda code, days=30: [])
     monkeypatch.setattr(MIB, "fetch_krx_breakdown", lambda code, days=30: [{"date": "2026-11-02", "personal": 1}])
     assert MIB.collect_market("01")[0]["date"] == "2026-11-02"

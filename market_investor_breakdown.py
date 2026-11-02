@@ -148,6 +148,9 @@ def collect_market(market_code: str, days_target: int = 30) -> list:
     rows = fetch_naver_mobile_3class(market_code, days_target)
     if rows:
         return rows[:days_target]
+    rows = aggregate_from_flow_state(market_code, days_target)
+    if rows:
+        return rows[:days_target]
     today_str = datetime.now().strftime("%Y%m%d")
     by_date = fetch_breakdown_for_date(market_code, today_str)
     if not by_date:
@@ -236,10 +239,58 @@ def fetch_naver_mobile_3class(market_code: str, days: int = 30) -> list:
         except Exception as e:
             err = f"{type(e).__name__}: {e}"
         print(f"  [WARN] 네이버 모바일 {u.split('/')[2]} {u.split('/')[-1][:20]}: {err}")
-        if not _MOBILE_DIAG["done"]:
-            _MOBILE_DIAG["done"] = True
-            print(f"  [DIAG] 응답 앞부분: {text[:300]!r}")
+        print(f"  [DIAG] 응답 앞부분: {text[:300]!r}")
     return []
+
+
+# ====================================================================
+# 자체 수집분 합산 — 수급 스크리너가 저장한 시총 상위 800종목 외국인·기관 순매수 (3분류, 최후 수단 직전)
+# ====================================================================
+FLOW_STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "flow_streak_state.json")
+FLOW_MARKET = {"01": "KOSPI", "02": "KOSDAQ"}
+
+
+def aggregate_flow_state(state: dict, market: str, days: int = 30) -> list:
+    """{market:{code:시장}, flows:{code:[[date,f_shares,i_shares,close],...]}} → 일별 합산 행(백만원).
+    개인 = -(외국인+기관) 잔여(기타법인 포함), 기관 세부 0, detail_available False."""
+    flows, mk = (state or {}).get("flows") or {}, (state or {}).get("market") or {}
+    by_date = {}
+    n_codes = 0
+    for code, rows in flows.items():
+        if mk.get(code) != market:
+            continue
+        n_codes += 1
+        for r in rows:
+            try:
+                d, f, i, c = r[0], float(r[1]), float(r[2]), float(r[3])
+            except (TypeError, ValueError, IndexError):
+                continue
+            if not d or not c:
+                continue
+            acc = by_date.setdefault(d, [0.0, 0.0])
+            acc[0] += f * c
+            acc[1] += i * c
+    if n_codes < 50 or not by_date:
+        return []
+    out = []
+    for d in sorted(by_date, reverse=True)[:days]:
+        f_m, i_m = int(round(by_date[d][0] / 1e6)), int(round(by_date[d][1] / 1e6))
+        out.append({"date": d, "unit": "백만원", "foreign": f_m, "institutional_total": i_m, "personal": -(f_m + i_m), "other_corp": 0,
+                    "detail_available": False, "source_note": f"시총 상위 {n_codes}종목 외국인·기관 순매수 합산(개인=잔여) · 기관 세부 미제공", **_ZERO_DETAIL})
+    return out
+
+
+def aggregate_from_flow_state(market_code: str, days: int = 30) -> list:
+    try:
+        with open(FLOW_STATE_FILE, encoding="utf-8") as f:
+            state = json.load(f)
+    except Exception as e:
+        print(f"  [WARN] flow_streak 상태 없음: {type(e).__name__}: {e}")
+        return []
+    rows = aggregate_flow_state(state, FLOW_MARKET.get(market_code, "KOSPI"), days)
+    if rows:
+        print(f"    자체 합산 {FLOW_MARKET.get(market_code)}: {len(rows)}일 (스크리너 수집분, 기준 {state.get('as_of')})")
+    return rows
 
 
 # ====================================================================
@@ -393,6 +444,7 @@ def main():
                 "summary_20d": summarize_recent(rows, 20),
                 "latest_date": rows[0]["date"] if rows else None,
                 "detail_available": rows[0].get("detail_available", True),
+                "source_note": rows[0].get("source_note"),
             }
             print(f"    수집 완료: {len(rows)}일, 최근일={rows[0]['date']}")
             # 5일 누적 출력
