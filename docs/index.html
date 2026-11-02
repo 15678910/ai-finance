@@ -9485,6 +9485,12 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   window.__mgSetTab = function (t) { window.__mgTab = t; if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } } };
   window.__mgPick = function (code) {
     window.__mgPicked = (window.__mgPicked === code) ? null : code;
+    // 차트 데이터(캔들·거래량·지표용 OHLCV)는 처음 클릭할 때만 내려받는다 (~수 MB, 하루 1회 갱신)
+    if (window.__mgPicked && !window.__mgCharts && !window.__mgChartsLoading) {
+      window.__mgChartsLoading = true;
+      fetch('./stock_charts.json?v=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(j => { window.__mgCharts = j || {}; window.__mgChartsLoading = false; if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } } });
+    }
     if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } }
   };
   window.__mgSetMa = function (key) {
@@ -9504,7 +9510,73 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const picked = window.__mgPicked || null;
     const stockOf = code => ((b && b.stocks) || []).find(x => x.code === code);
     const flowOf = code => (s ? [...(s.buy || []), ...(s.joint2 || []), ...(s.sell || [])] : []).find(x => x.code === code && Array.isArray(x.flow20) && x.flow20.length);
-    const priceSvg = st => {
+    // ── 트레이딩뷰 스타일 차트: 캔들 + 볼린저밴드(20,2) + 20/50/200일선 + 거래량 + 스토캐스틱(14,1,3) + RSI(14)
+    //    데이터: stock_charts.json {code: {d,o,h,l,c,v,cpre}} — 창 60거래일, cpre = 이전 종가 200개(지표 워밍업)
+    const tvChart = code => {
+      if (window.__mgChartsLoading && !window.__mgCharts) return '<div style="font-size:0.56rem;color:var(--text-muted);padding:20px 0;">차트 데이터 불러오는 중…</div>';
+      const d = window.__mgCharts && window.__mgCharts[code];
+      if (!d || !Array.isArray(d.c) || d.c.length < 5) return '<div style="font-size:0.56rem;color:var(--text-muted);">차트 데이터 없음 (다음 실행부터 제공)</div>';
+      const pre = d.cpre || [], all = pre.concat(d.c), off = pre.length, n = d.c.length;
+      const smaAt = (arr, i, k) => i + 1 >= k ? arr.slice(i + 1 - k, i + 1).reduce((a, v) => a + v, 0) / k : null;
+      const series = k => d.c.map((_, i) => smaAt(all, off + i, k));
+      const ma20 = series(20), ma50 = series(50), ma200 = series(200);
+      const bbU = [], bbL = [];
+      d.c.forEach((_, i) => { const j = off + i; if (j + 1 >= 20) { const w = all.slice(j - 19, j + 1), m = w.reduce((a, v) => a + v, 0) / 20, sd = Math.sqrt(w.reduce((a, v) => a + (v - m) ** 2, 0) / 20); bbU.push(m + 2 * sd); bbL.push(m - 2 * sd); } else { bbU.push(null); bbL.push(null); } });
+      // RSI(14, Wilder) — 전체(all) 기준으로 계산해 창 구간만 사용
+      const rsiAll = []; let ag = 0, al = 0;
+      for (let i = 1; i < all.length; i++) { const ch = all[i] - all[i - 1], g = Math.max(ch, 0), l = Math.max(-ch, 0);
+        if (i <= 14) { ag += g / 14; al += l / 14; rsiAll[i] = i === 14 ? (al === 0 ? 100 : 100 - 100 / (1 + ag / al)) : null; }
+        else { ag = (ag * 13 + g) / 14; al = (al * 13 + l) / 14; rsiAll[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al); } }
+      const rsi = d.c.map((_, i) => rsiAll[off + i] == null ? null : rsiAll[off + i]);
+      // 스토캐스틱(14,1,3): %K = (C-L14)/(H14-L14), %D = %K 3일 평균 (고저는 창 안 데이터만 있으므로 창 기준)
+      const kArr = d.c.map((c, i) => { if (i < 13) return null; const hs = d.h.slice(i - 13, i + 1), ls = d.l.slice(i - 13, i + 1); const hh = Math.max(...hs), ll = Math.min(...ls); return hh === ll ? 50 : (c - ll) / (hh - ll) * 100; });
+      const dArr = kArr.map((_, i) => (i >= 2 && kArr[i] != null && kArr[i - 1] != null && kArr[i - 2] != null) ? (kArr[i] + kArr[i - 1] + kArr[i - 2]) / 3 : null);
+      // 레이아웃
+      const W = 380, L = 4, R = 54, PH = 170, VH = 38, SH = 48, RH = 48, G = 6;
+      const yV = PH + G, yS = yV + VH + G, yR = yS + SH + G, H = yR + RH + 4;
+      const X = i => L + (W - L - R) * (i + 0.5) / n, cw = Math.max(1.5, (W - L - R) / n * 0.62);
+      const pv = d.h.concat(d.l, bbU.filter(v => v != null), bbL.filter(v => v != null), ma20.filter(v => v != null), ma50.filter(v => v != null), ma200.filter(v => v != null));
+      const lo = Math.min(...pv), hi = Math.max(...pv), span = (hi - lo) || hi * 0.02 || 1;
+      const Y = v => 4 + (PH - 8) * (1 - (v - lo) / span);
+      const path = (arr, yf) => arr.map((v, i) => v == null ? null : `${i && arr[i - 1] != null ? 'L' : 'M'}${X(i).toFixed(1)},${yf(v).toFixed(1)}`).filter(Boolean).join(' ');
+      const candles = d.c.map((c, i) => { const o = d.o[i], up = c >= o, col = up ? '#22c55e' : '#f87171', top = Y(Math.max(o, c)), bot = Y(Math.min(o, c));
+        return `<line x1="${X(i).toFixed(1)}" x2="${X(i).toFixed(1)}" y1="${Y(d.h[i]).toFixed(1)}" y2="${Y(d.l[i]).toFixed(1)}" stroke="${col}" stroke-width="1" vector-effect="non-scaling-stroke"/><rect x="${(X(i) - cw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${cw.toFixed(1)}" height="${Math.max(1, bot - top).toFixed(1)}" fill="${col}"/>`; }).join('');
+      const bbFill = (bbU.some(v => v != null)) ? `<path d="${path(bbU, Y)} ${bbL.map((v, i) => v == null ? null : `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).filter(Boolean).reverse().join(' ')} Z" fill="#60a5fa" opacity="0.07"/>` : '';
+      const vmax = Math.max(1, ...d.v), vol = d.v.map((v, i) => `<rect x="${(X(i) - cw / 2).toFixed(1)}" y="${(yV + VH - VH * v / vmax).toFixed(1)}" width="${cw.toFixed(1)}" height="${(VH * v / vmax).toFixed(1)}" fill="${d.c[i] >= d.o[i] ? '#22c55e' : '#f87171'}" opacity="0.6"/>`).join('');
+      const osc = (arr, y0, hh) => arr.map((v, i) => v == null ? null : `${i && arr[i - 1] != null ? 'L' : 'M'}${X(i).toFixed(1)},${(y0 + hh * (1 - v / 100)).toFixed(1)}`).filter(Boolean).join(' ');
+      const hline = (y0, hh, lv, col) => `<line x1="${L}" x2="${W - R}" y1="${(y0 + hh * (1 - lv / 100)).toFixed(1)}" y2="${(y0 + hh * (1 - lv / 100)).toFixed(1)}" stroke="${col}" stroke-width="0.6" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`;
+      const last = v => (v == null || Number.isNaN(v)) ? null : v;
+      const fmt = v => v == null ? '—' : Math.round(v).toLocaleString();
+      // 오른쪽 가격 태그 (겹치면 아래로 밀어냄)
+      const tags = [['#60a5fa', last(bbU[n - 1])], ['#ef4444', last(ma200[n - 1])], ['#a78bfa', last(ma50[n - 1])], ['#fbbf24', last(ma20[n - 1])], ['#e2e8f0', d.c[n - 1]], ['#60a5fa', last(bbL[n - 1])]]
+        .filter(t => t[1] != null).map(t => ({ col: t[0], v: t[1], y: Y(t[1]) })).sort((a, b) => a.y - b.y);
+      for (let i = 1; i < tags.length; i++) if (tags[i].y - tags[i - 1].y < 11) tags[i].y = tags[i - 1].y + 11;
+      const tagSvg = tags.map(t => `<rect x="${W - R + 3}" y="${(t.y - 5.5).toFixed(1)}" width="${R - 5}" height="11" rx="2" fill="${t.col}"/><text x="${W - R + 5}" y="${(t.y + 3.2).toFixed(1)}" font-size="7.5" font-family="monospace" fill="${t.col === '#e2e8f0' || t.col === '#fbbf24' ? '#0b1020' : '#fff'}">${fmt(t.v)}</text>`).join('');
+      const oscTag = (y0, hh, v, col) => v == null ? '' : `<rect x="${W - R + 3}" y="${(y0 + hh * (1 - v / 100) - 5.5).toFixed(1)}" width="${R - 5}" height="11" rx="2" fill="${col}"/><text x="${W - R + 5}" y="${(y0 + hh * (1 - v / 100) + 3.2).toFixed(1)}" font-size="7.5" font-family="monospace" fill="#fff">${v.toFixed(2)}</text>`;
+      const lastRow = { c: d.c[n - 1], o: d.o[n - 1], h: d.h[n - 1], l: d.l[n - 1], chg: n > 1 ? (d.c[n - 1] / d.c[n - 2] - 1) * 100 : null };
+      const vfmt = v => v >= 1e8 ? (v / 1e8).toFixed(2) + '억' : v >= 1e4 ? (v / 1e4).toFixed(1) + '만' : String(v);
+      const head = `<div style="font-size:0.54rem;color:var(--text-muted);line-height:1.5;font-family:var(--font-mono);">
+          <b style="color:var(--text-bright);">${h(code)} · 1일</b> 시 ${fmt(lastRow.o)} 고 ${fmt(lastRow.h)} 저 ${fmt(lastRow.l)} 종 <b style="color:${(lastRow.chg || 0) >= 0 ? '#22c55e' : '#f87171'};">${fmt(lastRow.c)} ${lastRow.chg == null ? '' : (lastRow.chg >= 0 ? '+' : '') + lastRow.chg.toFixed(2) + '%'}</b><br>
+          <span style="color:#60a5fa;">BB 20 2</span> ${fmt(last(bbU[n - 1]))} / ${fmt(last(bbL[n - 1]))} · <span style="color:#fbbf24;">MA 20</span> ${fmt(last(ma20[n - 1]))} · <span style="color:#a78bfa;">MA 50</span> ${fmt(last(ma50[n - 1]))} · <span style="color:#ef4444;">MA 200</span> ${fmt(last(ma200[n - 1]))} · 거래량 ${vfmt(d.v[n - 1])}</div>`;
+      return head + `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:${H}px;display:block;margin-top:3px;">
+        <rect x="0" y="0" width="${W}" height="${H}" fill="rgba(0,0,0,0.18)"/>
+        ${bbFill}<path d="${path(bbU, Y)}" fill="none" stroke="#60a5fa" stroke-width="0.9" vector-effect="non-scaling-stroke"/><path d="${path(bbL, Y)}" fill="none" stroke="#60a5fa" stroke-width="0.9" vector-effect="non-scaling-stroke"/>
+        ${candles}
+        <path d="${path(ma20, Y)}" fill="none" stroke="#fbbf24" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+        <path d="${path(ma50, Y)}" fill="none" stroke="#a78bfa" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+        <path d="${path(ma200, Y)}" fill="none" stroke="#ef4444" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+        ${tagSvg}
+        <text x="${L + 2}" y="${yV + 8}" font-size="7" fill="#94a3b8">거래량</text>${vol}
+        <text x="${L + 2}" y="${yS + 8}" font-size="7" fill="#94a3b8">스토캐스틱 14 1 3</text>${hline(yS, SH, 80, '#64748b')}${hline(yS, SH, 20, '#64748b')}
+        <path d="${osc(kArr, yS, SH)}" fill="none" stroke="#38bdf8" stroke-width="1" vector-effect="non-scaling-stroke"/><path d="${osc(dArr, yS, SH)}" fill="none" stroke="#fb923c" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        ${oscTag(yS, SH, last(kArr[n - 1]), '#38bdf8')}${oscTag(yS, SH, last(dArr[n - 1]), '#fb923c')}
+        <text x="${L + 2}" y="${yR + 8}" font-size="7" fill="#94a3b8">RSI 14</text>${hline(yR, RH, 70, '#64748b')}${hline(yR, RH, 30, '#64748b')}
+        <path d="${osc(rsi, yR, RH)}" fill="none" stroke="#c084fc" stroke-width="1" vector-effect="non-scaling-stroke"/>${oscTag(yR, RH, last(rsi[n - 1]), '#c084fc')}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:0.5rem;color:var(--text-muted);font-family:var(--font-mono);"><span>${h(d.d[0] || '')}</span><span>최근 ${n}거래일 · 캔들=일봉 · 파랑 띠=볼린저(20,2σ)</span><span>${h(d.d[n - 1] || '')}</span></div>`;
+    };
+    const priceSvg = st => tvChart(st && st.code);
+    const _legacyPriceSvg = st => {
       const c = (st && st.c90) || [];
       if (c.length < 10) return '<div style="font-size:0.56rem;color:var(--text-muted);">가격 이력 없음 (다음 실행부터 제공)</div>';
       const W = 320, H = 110, P = 4, n = Math.min(60, c.length), off = c.length - n;
@@ -9536,14 +9608,14 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     };
     const detailRow = (code, cols) => {
       if (picked !== code) return '';
-      const st = stockOf(code), fl = flowOf(code);
+      const st = stockOf(code) || { code }, fl = flowOf(code);
       const name = (st && st.name) || (fl && fl.name) || code;
       return `<tr><td colspan="${cols}" style="padding:8px 8px 10px;background:rgba(34,211,238,0.05);border-bottom:1px solid rgba(34,211,238,0.25);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
           <b style="font-size:0.66rem;color:var(--text-bright);">${h(name)} <span style="font-size:0.52rem;color:var(--text-muted);">${code}</span></b>
           <span><a href="https://m.stock.naver.com/domestic/stock/${code}/total" target="_blank" rel="noopener" style="font-size:0.54rem;color:#22d3ee;margin-right:8px;">네이버 상세 ↗</a><button onclick="event.stopPropagation();__mgPick('${code}')" style="font-size:0.52rem;padding:1px 7px;border-radius:7px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:var(--text-muted);cursor:pointer;">닫기</button></span></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <div style="flex:1 1 300px;min-width:280px;"><div style="font-size:0.54rem;color:var(--text-muted);margin-bottom:2px;">가격 (막대=일별 종가, 선=20·50일 이동평균)</div>${priceSvg(st)}</div>
+          <div style="flex:1 1 380px;min-width:300px;"><div style="font-size:0.54rem;color:var(--text-muted);margin-bottom:2px;">가격 차트 (캔들 · 볼린저밴드 · 20/50/200일선 · 거래량 · 스토캐스틱 · RSI)</div>${priceSvg(st)}</div>
           <div style="flex:1 1 300px;min-width:280px;"><div style="font-size:0.54rem;color:var(--text-muted);margin-bottom:2px;">외국인·기관 일별 순매수 (억원, 주식수×종가 근사)</div>${flowSvg(fl)}</div>
         </div></td></tr>`;
     };
@@ -9569,7 +9641,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <button onclick="__mgSetMa('side')" style="margin-left:auto;font-size:0.54rem;padding:2px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:var(--text);cursor:pointer;">${side === 'below' ? '위 종목 보기' : '아래 종목 보기'}</button>
           <button onclick="__mgSetMa('${key}')" style="font-size:0.54rem;padding:2px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:var(--text-muted);cursor:pointer;">닫기</button>
         </div>
-        <div style="overflow-x:auto;max-height:360px;overflow-y:auto;margin-top:5px;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
+        <div style="overflow-x:auto;${picked && rows.slice(0, 80).some(x => x.code === picked) ? 'max-height:none;' : 'max-height:360px;overflow-y:auto;'}margin-top:5px;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
           <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">${['#', '종목', '종가', lab + ' 대비', '위치'].map((t, i) => `<th style="padding:3px 5px;text-align:${i < 2 ? 'left' : 'right'};font-size:0.5rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${t}</th>`).join('')}</tr></thead>
           <tbody>${tr || '<tr><td colspan="5" style="padding:8px;font-size:0.58rem;color:var(--text-muted);text-align:center;">해당 종목 없음</td></tr>'}</tbody></table></div>
       </div>`;
