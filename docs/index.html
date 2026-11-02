@@ -7822,7 +7822,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       ['내 포트폴리오', /내 포트폴리오/],
       ['노후준비', /노후 준비/],
       ['뉴스', /지정학 리스크|주요 일정|이벤트 캘린더|메모리 가격|증권사 리포트|시장 뉴스|핵심 논쟁/],
-      ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체|디커플링 진단/],
+      ['한국 시장', /투자자 매매|투자자별|장중|챌린저|시가총액|ETF|수출|무역|외국인 보유|평단가|관심종목|수주·투자 공시|공매도|VKOSPI|코스피 시나리오|KOSPI 시나리오|유통주|DART|아시아 반도체|디커플링 진단|시장폭 게이트|수급 연속/],
       ['미국·거시', /CLARITY|입법|비트코인|신용 스프레드|미국|FRED|거시|M2|통화량|금융안정|외환위기|FX 스왑|엔\/달러|유동성|통화 저평가|외환개입|통화량·물가/],
       ['분석·평가', /IRR|DCF|저평가|실적|Forward|오토리서치|지식 그래프|민감도|퀀트|레버리지|변동성|패러다임|MV=PY|휴머노이드|CAPEX|시나리오|시뮬레이터|분봉|단타|감정지수|적중|평가지수|성적표|백테스트|OHLC|사이클 변곡점|이벤트 사전영향|이벤트 기반|기계 네이티브|논지 검증/],
       ['추세추종 보드', /추세추종 신호 보드|거장 매매 추적|과열|차익실현|공포·탐욕|Fear|종합 예측 신호/],
@@ -9471,6 +9471,101 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       const tmp = document.createElement('div'); tmp.innerHTML = html;
       const node = tmp.firstElementChild;
       const anchor = document.getElementById('earnings-section') || document.getElementById('sk-cycle-section') || document.getElementById('sk-forecast-section');
+      if (anchor) anchor.insertAdjacentElement('afterend', node);
+      else (document.getElementById('app') || document.body).appendChild(node);
+    }
+    scheduleNavRebuild();
+  }
+
+  // ── 🚦 시장폭 게이트 + 수급 연속 스크리너 ──
+  //    b = market_breadth.json (시총 상위 800 이동평균·신고가/신저가·게이트·지수 맥락), s = flow_streak.json (외인·기관 연속 순매수)
+  //    게이트가 '차단'이면 스크리너 표를 회색 처리 — 종목은 보여주되 "지금은 고를 장이 아니다"를 먼저 말한다.
+  window.__mgTab = window.__mgTab || 'buy';
+  function __mgSetTab(t) { window.__mgTab = t; if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } } }
+  function renderMarketGate(b, s) {
+    if (!b && !s) return;
+    window.__mgData = [b, s];
+    const tab = window.__mgTab || 'buy';
+    const pc = v => v == null ? '—' : v.toFixed(1) + '%';
+    const num = v => v == null ? '—' : Number(v).toLocaleString();
+    const sgn = (v, d = 1) => v == null ? '—' : `<span style="color:${v >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${v >= 0 ? '+' : ''}${Number(v).toFixed(d)}%</span>`;
+    // ── 게이트 카드
+    let gateHtml = '<div style="font-size:0.64rem;color:var(--text-muted);">시장폭 데이터 없음 (첫 실행 전)</div>';
+    if (b) {
+      const g = b.gate || {}, br = b.breadth || {}, open = g.open;
+      const gc = open === true ? '#22c55e' : open === false ? '#f87171' : '#94a3b8';
+      const gl = open === true ? '열림' : open === false ? '차단' : '판단 불가';
+      const bar = (lab, v) => `<div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;"><span style="width:62px;color:var(--text-muted);">${lab}</span>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="width:${Math.max(0, Math.min(100, v || 0))}%;height:100%;background:${(v || 0) >= 50 ? '#22c55e' : (v || 0) >= 25 ? '#fbbf24' : '#f87171'};"></div></div>
+        <b style="width:44px;text-align:right;font-family:var(--font-mono);color:var(--text-bright);">${pc(v)}</b></div>`;
+      const idxRow = (name, x) => !x ? '' : `<div style="font-size:0.58rem;color:var(--text-muted);margin-top:4px;line-height:1.5;"><b style="color:var(--text);">${name}</b>
+        고점(${h(x.high_date || '')}) 대비 ${sgn(x.drawdown_from_high_pct)} · 저점(${h(x.low_date || '')}) 대비 ${sgn(x.rebound_from_low_pct)} <span>${x.days_since_low}일차</span>
+        · FTD ${x.ftd ? `<span style="color:#22c55e;">확인 ${h(x.ftd.date)} (${x.ftd.day_n}일차 +${x.ftd.gain_pct}%)</span>` : x.ftd_window_open ? '<span style="color:#fbbf24;">대기 (4~12일차 창 열림)</span>' : '미확인'}
+        · 분배일 <b style="color:${(x.distribution_days_25 || 0) >= 6 ? '#f87171' : 'var(--text)'};">${x.distribution_days_25 == null ? '—' : x.distribution_days_25 + '/25'}</b>
+        · ${x.above_50dma == null ? '' : (x.above_50dma ? '50일선 위' : '<span style="color:#f87171;">50일선 아래</span>')}${x.above_200dma == null ? '' : (x.above_200dma ? ' · 200일선 위' : ' · <span style="color:#f87171;">200일선 아래</span>')}</div>`;
+      const spark = (typeof __mcSvg === 'function' && Array.isArray(b.history) && b.history.length >= 2)
+        ? __mcSvg(b.history.map(p => [p[0] + 'T15:30', p[1], 0]), 120, gc).svg : '';
+      gateHtml = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:1.6rem;font-weight:900;color:${gc};">🚦 ${gl}</div>
+          <div><div style="font-size:1.05rem;font-weight:800;font-family:var(--font-mono);color:var(--text-bright);">${b.score == null ? '—' : b.score + '점'} <span style="font-size:0.7rem;color:${gc};">${h(b.grade || '')}</span></div>
+            <div style="font-size:0.56rem;color:var(--text-muted);">${h(g.reason || '')}</div></div>
+          <div style="margin-left:auto;font-size:0.54rem;color:var(--text-muted);text-align:right;">기준일 ${h(b.as_of || '')}<br>${h((b.universe || {}).basis || '')} · ${(b.universe || {}).fetched || 0}종목</div>
+        </div>
+        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;">
+          ${bar('20일선 위', br.pct_above_20)}${bar('50일선 위', br.pct_above_50)}${bar('200일선 위', br.pct_above_200)}
+          <div style="font-size:0.6rem;display:flex;gap:10px;align-items:center;"><span style="color:var(--text-muted);width:62px;">신고가/신저가</span><b style="color:#22c55e;">${num(br.new_highs)}</b> vs <b style="color:#f87171;">${num(br.new_lows)}</b>
+            <span style="color:var(--text-muted);margin-left:8px;">상승/하락</span><b style="color:#22c55e;">${num(br.advancers)}</b> vs <b style="color:#f87171;">${num(br.decliners)}</b></div>
+        </div>
+        ${(b.by_market && b.by_market.KOSPI && b.by_market.KOSDAQ) ? `<div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;">코스피 50일선 위 ${pc(b.by_market.KOSPI.pct_above_50)} · 코스닥 50일선 위 ${pc(b.by_market.KOSDAQ.pct_above_50)}</div>` : ''}
+        ${idxRow('코스피', (b.index || {}).KOSPI)}${idxRow('코스닥', (b.index || {}).KOSDAQ)}
+        ${spark ? `<div style="margin-top:8px;"><div style="font-size:0.54rem;color:var(--text-muted);">종합 점수 추이 (최근 120일)</div>${spark}</div>` : ''}
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;line-height:1.45;">규칙: ${h(g.rule || '')}</div>`;
+    }
+    // ── 스크리너 표
+    let scrHtml = '<div style="font-size:0.64rem;color:var(--text-muted);">수급 데이터 없음 (첫 실행 전)</div>';
+    if (s) {
+      const c = s.counts || {}, blocked = !!s.gate_blocked;
+      const tabs = [['buy', `연속 순매수 ${c.buy || 0}`], ['joint2', `동반 2일+ ${c.joint2 || 0}`], ['sell', `동반 순매도 ${c.sell || 0}`]];
+      const tabBtn = ([k, lab]) => `<button onclick="__mgSetTab('${k}')" style="font-size:0.58rem;padding:3px 9px;border-radius:9px;border:1px solid ${tab === k ? '#22d3ee' : 'rgba(255,255,255,0.15)'};background:${tab === k ? 'rgba(34,211,238,0.15)' : 'transparent'};color:${tab === k ? '#22d3ee' : 'var(--text-muted)'};cursor:pointer;">${lab}</button>`;
+      const rows = (s[tab] || []).slice(0, 30);
+      const st = v => v == null ? '—' : `<span style="font-family:var(--font-mono);color:${v > 0 ? '#22c55e' : v < 0 ? '#f87171' : 'var(--text-muted)'};">${v > 0 ? '+' : ''}${v}일</span>`;
+      const trs = rows.map((x, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:4px 6px;font-size:0.58rem;color:var(--text-muted);">${i + 1}</td>
+          <td style="padding:4px 6px;font-size:0.64rem;color:var(--text-bright);white-space:nowrap;">${h(x.name)} <span style="font-size:0.5rem;color:var(--text-muted);">${x.market === 'KOSDAQ' ? '코스닥' : '코스피'} · ${x.mcap_b != null ? (x.mcap_b >= 1 ? x.mcap_b.toFixed(1) + '조' : Math.round(x.mcap_b * 10000) + '억') : ''}</span></td>
+          <td style="padding:4px 6px;text-align:right;">${st(x.f_streak)}</td>
+          <td style="padding:4px 6px;text-align:right;">${st(x.i_streak)}</td>
+          <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);font-size:0.62rem;color:${tab === 'sell' ? '#f87171' : '#22d3ee'};">${tab === 'sell' ? x.joint_sell : x.joint}일</td>
+          <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);font-size:0.6rem;color:var(--text);">${(x.f5_eok + x.i5_eok) >= 0 ? '+' : ''}${Math.round(x.f5_eok + x.i5_eok).toLocaleString()}억</td>
+          <td style="padding:4px 6px;text-align:right;">${sgn(x.chg_pct)}</td>
+        </tr>`).join('');
+      scrHtml = `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">${tabs.map(tabBtn).join('')}
+          <span style="margin-left:auto;font-size:0.54rem;color:var(--text-muted);">기준일 ${h(s.as_of || '')} · ${c.fetched || 0}/${c.universe || 0}종목</span></div>
+        ${blocked ? `<div style="font-size:0.6rem;color:#f87171;background:rgba(248,113,113,0.1);border-left:2px solid #f87171;padding:5px 9px;border-radius:4px;margin-bottom:6px;">시장 게이트 차단 중 — 아래 목록은 참고용입니다. 시장폭이 회복될 때까지 신규 매수 후보로 쓰지 않습니다.</div>` : ''}
+        <div style="overflow-x:auto;${blocked ? 'opacity:0.45;filter:grayscale(0.6);' : ''}"><table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
+            ${['#', '종목', '외국인', '기관', tab === 'sell' ? '동반매도' : '동반매수', '5일 순매수', '당일'].map((t, i) => `<th style="padding:4px 6px;text-align:${i < 2 ? 'left' : 'right'};font-size:0.54rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${t}</th>`).join('')}
+          </tr></thead><tbody>${trs || '<tr><td colspan="7" style="padding:10px;font-size:0.6rem;color:var(--text-muted);text-align:center;">해당 종목 없음</td></tr>'}</tbody></table></div>
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;line-height:1.45;">${h(s.rule || '')}<br>${h(s.note || '')}</div>`;
+    }
+    const html = `<section class="section-wrap" id="market-gate-section">
+      <div class="section-label" style="color:#22d3ee;">🚦 시장폭 게이트 · 수급 연속 스크리너 <span style="font-size:0.62rem;color:var(--text-muted);">(시총 상위 800종목 — 장이 좋은지 먼저, 종목은 그다음)</span>
+        <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신: ${h((b && b.generated_at) || (s && s.generated_at) || '')}</span></div>
+      <div class="glass-card" style="padding:14px 16px;">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+          <div style="flex:1 1 340px;min-width:300px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;">${gateHtml}</div>
+          <div style="flex:2 1 480px;min-width:320px;">${scrHtml}</div>
+        </div>
+        ${b && b.note ? `<div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(b.note)}</div>` : ''}
+      </div>
+    </section>`;
+    const existing = document.getElementById('market-gate-section');
+    if (existing) { existing.outerHTML = html; }
+    else {
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const node = tmp.firstElementChild;
+      let anchor = null;
+      document.querySelectorAll('.section-label').forEach(el => { if (!anchor && /투자자 매매 동향/.test(el.textContent || '')) anchor = el.closest('.section-wrap'); });
+      anchor = anchor || document.getElementById('market-cap-tracker-section') || document.getElementById('ai-valuegap-section');
       if (anchor) anchor.insertAdjacentElement('afterend', node);
       else (document.getElementById('app') || document.body).appendChild(node);
     }
@@ -14363,6 +14458,11 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./market_cap_tracker.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) { try { renderMarketCapTracker(d); } catch (e) { } } });
+      // 시장폭 게이트 + 수급 연속 스크리너 (둘 다 받아 한 섹션으로)
+      Promise.all([
+        fetch('./market_breadth.json?v=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('./flow_streak.json?v=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]).then(([b, s]) => { if (b || s) { try { renderMarketGate(b, s); } catch (e) { } } });
       // 노후 준비 설계 — BTC 시세(비트코인 스탠다드)를 받아 수량 목표 계산
       fetch('./bitcoin_standard.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)

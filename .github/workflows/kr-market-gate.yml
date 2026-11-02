@@ -1,0 +1,70 @@
+name: KR Market Gate (breadth + flow streak)
+
+# 시장폭 게이트(시총 상위 800종목 이동평균·신고가/신저가) + 외국인·기관 연속 순매수 스크리너.
+# 장 마감 후 투자자별 매매 확정치가 나온 뒤(KST 18:40) 하루 1회. `|| echo` 없음 — 실패는 빨갛게.
+on:
+  schedule:
+    - cron: '40 9 * * 1-5'   # UTC 09:40 = KST 18:40 평일
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      TZ: Asia/Seoul
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas numpy requests
+
+      - name: Run market breadth gate
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python market_breadth.py
+
+      - name: Run flow streak screener
+        if: always()
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python flow_streak_screener.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add docs/ 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Update market gate (breadth + flow streak) [automated]"
+          for i in 1 2 3 4 5; do
+            if git push 2>/dev/null; then
+              echo "Pushed on attempt $i"
+              exit 0
+            fi
+            git pull --rebase --strategy-option=theirs || git rebase --abort
+            sleep $((i * 2))
+          done
+          exit 1
