@@ -139,9 +139,13 @@ def fetch_breakdown_for_date(market_code: str, bizdate: str) -> dict | None:
 
 
 def collect_market(market_code: str, days_target: int = 30) -> list:
-    """단일 시장의 최근 N 거래일. KRX 정보데이터시스템(JSON) → 실패 시 네이버 PC 페이지.
-    2026-10-30 이후 네이버 PC 페이지가 Actions 에서 데이터를 돌려주지 않아 이 섹션이 비어 있었다."""
+    """단일 시장의 최근 N 거래일. KRX 정보데이터시스템(JSON) → 네이버 모바일 3분류(기관 세부 없음) → 네이버 PC 페이지.
+    2026-10-30 이후 네이버 PC 페이지가 Actions 에서 데이터를 돌려주지 않아 이 섹션이 비어 있었다.
+    반환 행에 detail_available 키가 False 이면 기관 세부(금융투자·연기금 등)가 0 으로 채워진 대체 데이터다."""
     rows = fetch_krx_breakdown(market_code, days_target)
+    if rows:
+        return rows[:days_target]
+    rows = fetch_naver_mobile_3class(market_code, days_target)
     if rows:
         return rows[:days_target]
     today_str = datetime.now().strftime("%Y%m%d")
@@ -153,18 +157,117 @@ def collect_market(market_code: str, days_target: int = 30) -> list:
 
 
 # ====================================================================
+# 네이버 모바일 — 지수 투자자별 매매동향 (개인·외국인·기관 3분류, 대체 경로)
+# ====================================================================
+NAVER_INDEX = {"01": "KOSPI", "02": "KOSDAQ"}
+NAVER_MOBILE_URLS = ("https://m.stock.naver.com/api/index/{idx}/investorTrend?pageSize={n}&page=1",
+                     "https://m.stock.naver.com/api/index/{idx}/trend?pageSize={n}&page=1",
+                     "https://api.stock.naver.com/index/{idx}/trend?pageSize={n}&page=1")
+_MOBILE_DIAG = {"done": False}
+_ZERO_DETAIL = {k: 0 for k in ("financial_inv", "insurance", "trust", "other_financial", "bank", "pension", "private_fund")}
+
+
+def _mnum(v):
+    try:
+        return float(str(v).replace(",", "").replace("+", "").replace("%", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_naver_3class(payload) -> list:
+    """모바일 지수 투자자 동향 JSON → 3분류 행(백만원). 단위는 값 크기로 추정(억원이면 ×100).
+    개인/외국인/기관 키를 못 찾으면 []."""
+    import re as _re
+    items = payload
+    if isinstance(payload, dict):
+        for k in ("result", "datas", "items", "list", "trend", "trends"):
+            if isinstance(payload.get(k), list):
+                items = payload[k]
+                break
+    if not isinstance(items, list):
+        return []
+    rows = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        d = _re.sub(r"[^0-9]", "", str(it.get("bizdate") or it.get("date") or it.get("localTradedAt") or ""))
+        if len(d) < 8:
+            continue
+        pk = next((k for k in it if _re.match(r"(individual|personal|private)[A-Za-z]*(PureBuy|NetBuy|netBuy|Net|Amount|Value)", k)), None)
+        fk = next((k for k in it if _re.match(r"(foreigner|foreign|frgn)[A-Za-z]*(PureBuy|NetBuy|netBuy|Net|Amount|Value)", k)), None)
+        ik = next((k for k in it if _re.match(r"(organ|institution|inst)[A-Za-z]*(PureBuy|NetBuy|netBuy|Net|Amount|Value)", k)), None)
+        if not (pk and fk and ik):
+            continue
+        p, f, i = _mnum(it.get(pk)), _mnum(it.get(fk)), _mnum(it.get(ik))
+        if p is None or f is None or i is None:
+            continue
+        rows.append({"date": f"{d[:4]}-{d[4:6]}-{d[6:8]}", "personal": p, "foreign": f, "institutional_total": i})
+    if not rows:
+        return []
+    # 단위 추정: 코스피 외국인 일별 순매수는 보통 수백~수천억 → 억원이면 |값| 10~50,000, 백만원이면 그 100배
+    med = sorted(abs(r["foreign"]) for r in rows)[len(rows) // 2]
+    scale = 1 if med > 50_000 else 100 if med > 5 else None
+    if scale is None:
+        return []
+    out = []
+    for r in rows:
+        row = {"date": r["date"], "unit": "백만원", "personal": int(round(r["personal"] * scale)),
+               "foreign": int(round(r["foreign"] * scale)), "institutional_total": int(round(r["institutional_total"] * scale)),
+               "other_corp": int(round(-(r["personal"] + r["foreign"] + r["institutional_total"]) * scale)),   # 잔여 = 기타법인(추정)
+               "detail_available": False, **_ZERO_DETAIL}
+        out.append(row)
+    out.sort(key=lambda r: r["date"], reverse=True)
+    return out
+
+
+def fetch_naver_mobile_3class(market_code: str, days: int = 30) -> list:
+    idx = NAVER_INDEX.get(market_code, "KOSPI")
+    for url in NAVER_MOBILE_URLS:
+        u = url.format(idx=idx, n=days)
+        text = ""
+        try:
+            r = requests.get(u, headers={"User-Agent": HEADERS["User-Agent"], "Referer": "https://m.stock.naver.com/", "Accept": "application/json"}, timeout=15)
+            text = r.text
+            rows = parse_naver_3class(r.json())
+            if rows:
+                print(f"    네이버 모바일 {idx}: {len(rows)}일 (3분류 — 기관 세부 없음)")
+                return rows
+            err = "0행"
+        except Exception as e:
+            err = f"{type(e).__name__}: {e}"
+        print(f"  [WARN] 네이버 모바일 {u.split('/')[2]} {u.split('/')[-1][:20]}: {err}")
+        if not _MOBILE_DIAG["done"]:
+            _MOBILE_DIAG["done"] = True
+            print(f"  [DIAG] 응답 앞부분: {text[:300]!r}")
+    return []
+
+
+# ====================================================================
 # KRX 정보데이터시스템 — 투자자별 거래실적 일별추이 (MDCSTAT02203)
 # ====================================================================
 KRX_URL = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd"
+KRX_PAGE = "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020203"
 KRX_BLD = "dbms/MDC/STAT/standard/MDCSTAT02203"
 KRX_MKT = {"01": "STK", "02": "KSQ"}          # 네이버 sosok 코드 → KRX mktId
 # KRX 응답 TRDVAL1..12 의 순서 (투자자별 거래실적 화면 열 순서와 동일)
 KRX_ORDER = ["financial_inv", "insurance", "trust", "private_fund", "bank", "other_financial", "pension",
              "institutional_total", "other_corp", "personal", "foreign", "other_foreign"]
-KRX_HEADERS = {"User-Agent": HEADERS["User-Agent"],
-               "Referer": "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020203",
-               "X-Requested-With": "XMLHttpRequest"}
+KRX_HEADERS = {"User-Agent": HEADERS["User-Agent"], "Referer": KRX_PAGE, "Origin": "https://data.krx.co.kr",
+               "X-Requested-With": "XMLHttpRequest", "Accept": "application/json, text/javascript, */*; q=0.01"}
 _KRX_DIAG = {"done": False}
+_KRX_SESSION = {"s": None}
+
+
+def _krx_session():
+    """첫 호출 때 메뉴 페이지를 GET 해 세션 쿠키를 받는다 — 쿠키 없이 POST 하면 본문이 'LOGOUT' 으로 온다(2026-11-02)."""
+    if _KRX_SESSION["s"] is None:
+        s = requests.Session()
+        try:
+            s.get(KRX_PAGE, headers={"User-Agent": HEADERS["User-Agent"]}, timeout=15)
+        except Exception as e:
+            print(f"  [WARN] KRX 세션 페이지: {type(e).__name__}: {e}")
+        _KRX_SESSION["s"] = s
+    return _KRX_SESSION["s"]
 
 
 def parse_krx_output(payload) -> list:
@@ -223,7 +326,7 @@ def fetch_krx_breakdown(market_code: str, days: int = 30) -> list:
               "share": "1", "money": "1", "csvxls_isNo": "false"}
     text = ""
     try:
-        r = requests.post(KRX_URL, data=params, headers=KRX_HEADERS, timeout=20)
+        r = _krx_session().post(KRX_URL, data=params, headers=KRX_HEADERS, timeout=20)
         text = r.text
         payload = r.json()
         rows = parse_krx_output(payload)
@@ -240,7 +343,7 @@ def fetch_krx_breakdown(market_code: str, days: int = 30) -> list:
         if not _KRX_DIAG["done"]:
             _KRX_DIAG["done"] = True
             print(f"  [DIAG] KRX 응답 앞부분: {text[:300]!r}")
-    print(f"  [WARN] KRX {KRX_MKT.get(market_code)}: {reason} → 네이버 PC 페이지 시도")
+    print(f"  [WARN] KRX {KRX_MKT.get(market_code)}: {reason} → 네이버 모바일/PC 페이지 시도")
     return []
 
 
@@ -289,6 +392,7 @@ def main():
                 "summary_5d": summarize_recent(rows, 5),
                 "summary_20d": summarize_recent(rows, 20),
                 "latest_date": rows[0]["date"] if rows else None,
+                "detail_available": rows[0].get("detail_available", True),
             }
             print(f"    수집 완료: {len(rows)}일, 최근일={rows[0]['date']}")
             # 5일 누적 출력
