@@ -152,6 +152,32 @@ def test_screen_filters_and_orders():
     assert r["counts"] == {"universe": 5, "fetched": 4, "buy": 2, "joint2": 2, "sell": 1}
 
 
+def test_parse_trend_json_variants():
+    payload = [{"bizdate": "20261102", "closePrice": "71,500", "fluctuationsRatio": "+1.20", "accumulatedTradingVolume": "12,345,678",
+                "foreignerPureBuyQuant": "+123,456", "organPureBuyQuant": "-2,000", "individualPureBuyQuant": "0", "foreignerHoldRatio": "52.1"},
+               {"bizdate": "20261030", "closePrice": "70,000", "foreignerPureBuyQuant": "10", "organPureBuyQuant": "20"}]
+    rows = F.parse_trend_json(payload)
+    assert rows[0]["date"] == "2026-11-02" and rows[0]["close"] == 71500 and rows[0]["foreign_net_shares"] == 123456 and rows[0]["institutional_net_shares"] == -2000
+    assert rows[0]["change_pct"] == 1.2 and rows[1]["date"] == "2026-10-30"
+    wrapped = {"result": [{"date": "2026-11-02", "closePrice": 100, "foreignNetBuyQuant": "5", "institutionNetBuyQuant": "6"}]}
+    assert F.parse_trend_json(wrapped)[0]["foreign_net_shares"] == 5
+    assert F.parse_trend_json({"error": 1}) == [] and F.parse_trend_json("<html>") == []
+    assert F.parse_trend_json([{"bizdate": "20261102", "closePrice": 1}]) == []           # 수급 필드 없음 → 행 버림
+
+
+def test_fetch_naver_flow_falls_back_to_html(monkeypatch):
+    calls = []
+    def fake_get(url, **kw):
+        calls.append(url.split("/")[2]); return "<html>blocked</html>"
+    monkeypatch.setattr(F, "_get", fake_get)
+    monkeypatch.setattr(F, "fetch_naver_flow_html", lambda code: _rows([1, 1, 1], [1, 1, 1]))
+    F._DIAG_ONCE["done"] = False
+    rows = F.fetch_naver_flow("005930")
+    assert len(rows) == 3 and calls == ["m.stock.naver.com", "api.stock.naver.com"]
+    monkeypatch.setattr(F, "_get", lambda url, **kw: json.dumps([{"bizdate": "20261102", "closePrice": "10", "foreignerPureBuyQuant": "1", "organPureBuyQuant": "1"}]))
+    assert F.fetch_naver_flow("005930")[0]["date"] == "2026-11-02"
+
+
 def test_screener_main_end_to_end(monkeypatch, tmp_path):
     monkeypatch.setattr(F, "OUTPUT_FILE", str(tmp_path / "fs.json"))
     bfile = tmp_path / "mb.json"
