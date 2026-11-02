@@ -9481,7 +9481,13 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   //    b = market_breadth.json (시총 상위 800 이동평균·신고가/신저가·게이트·지수 맥락), s = flow_streak.json (외인·기관 연속 순매수)
   //    게이트가 '차단'이면 스크리너 표를 회색 처리 — 종목은 보여주되 "지금은 고를 장이 아니다"를 먼저 말한다.
   window.__mgTab = window.__mgTab || 'buy';
-  function __mgSetTab(t) { window.__mgTab = t; if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } } }
+  // onclick 속성은 전역을 찾는다 — 이 스크립트는 IIFE 안이라 function 선언만으로는 안 보인다 (2026-11-02: 탭 클릭 무반응 원인)
+  window.__mgSetTab = function (t) { window.__mgTab = t; if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } } };
+  window.__mgSetMa = function (key) {
+    if (key === 'side') { window.__mgMaSide = (window.__mgMaSide === 'above') ? 'below' : 'above'; }
+    else { window.__mgMa = (window.__mgMa === key) ? null : key; }
+    if (window.__mgData) { try { renderMarketGate(window.__mgData[0], window.__mgData[1]); } catch (e) { } }
+  };
   function renderMarketGate(b, s) {
     if (!b && !s) return;
     window.__mgData = [b, s];
@@ -9489,13 +9495,41 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
     const pc = v => v == null ? '—' : v.toFixed(1) + '%';
     const num = v => v == null ? '—' : Number(v).toLocaleString();
     const sgn = (v, d = 1) => v == null ? '—' : `<span style="color:${v >= 0 ? '#22c55e' : '#f87171'};font-family:var(--font-mono);">${v >= 0 ? '+' : ''}${Number(v).toFixed(d)}%</span>`;
-    // ── 게이트 카드
+    // 이동평균선 아래/위 종목 패널 — b.stocks [{code,name,market,mcap_b,close,d20,d50,d200}] (dN = 이동평균 대비 % 거리)
+    const maPanel = (bb, key, side) => {
+      if (!key) return '';
+      if (!Array.isArray(bb.stocks) || !bb.stocks.length) return '<div style="font-size:0.58rem;color:var(--text-muted);margin-top:8px;">종목별 데이터는 다음 실행(평일 18:40)부터 제공됩니다.</div>';
+      const lab = { d20: '20일선', d50: '50일선', d200: '200일선' }[key] || key;
+      const all = bb.stocks.filter(x => x[key] != null);
+      const rows = all.filter(x => side === 'below' ? x[key] < 0 : x[key] >= 0)
+        .sort((a, c) => side === 'below' ? c[key] - a[key] : c[key] - a[key]);     // 아래: 선에 가까운 순 · 위: 많이 위에 있는 순
+      const mc = v => v == null ? '' : v >= 1 ? v.toFixed(1) + '조' : Math.round(v * 10000) + '억';
+      const tr = rows.slice(0, 80).map((x, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:3px 5px;font-size:0.54rem;color:var(--text-muted);">${i + 1}</td>
+          <td style="padding:3px 5px;font-size:0.6rem;color:var(--text-bright);white-space:nowrap;">${h(x.name)} <span style="font-size:0.48rem;color:var(--text-muted);">${x.market === 'KOSDAQ' ? '코스닥' : '코스피'} · ${mc(x.mcap_b)}</span></td>
+          <td style="padding:3px 5px;text-align:right;font-family:var(--font-mono);font-size:0.58rem;color:var(--text);">${x.close != null ? Number(x.close).toLocaleString() : '—'}</td>
+          <td style="padding:3px 5px;text-align:right;">${sgn(x[key])}</td>
+          <td style="padding:3px 5px;text-align:right;font-size:0.52rem;color:var(--text-muted);white-space:nowrap;">${x.d20 != null ? '20일 ' + (x.d20 >= 0 ? '위' : '아래') : ''} · ${x.d50 != null ? '50일 ' + (x.d50 >= 0 ? '위' : '아래') : ''} · ${x.d200 != null ? '200일 ' + (x.d200 >= 0 ? '위' : '아래') : ''}</td>
+        </tr>`).join('');
+      return `<div style="margin-top:9px;border-top:1px solid rgba(255,255,255,0.08);padding-top:7px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <b style="font-size:0.64rem;color:#22d3ee;">${lab} ${side === 'below' ? '아래' : '위'} 종목 ${rows.length.toLocaleString()}개</b>
+          <span style="font-size:0.52rem;color:var(--text-muted);">(전체 ${all.length.toLocaleString()} 중 · ${side === 'below' ? '선에 가까운 순' : '선에서 먼 순'} · 상위 80)</span>
+          <button onclick="__mgSetMa('side')" style="margin-left:auto;font-size:0.54rem;padding:2px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:var(--text);cursor:pointer;">${side === 'below' ? '위 종목 보기' : '아래 종목 보기'}</button>
+          <button onclick="__mgSetMa('${key}')" style="font-size:0.54rem;padding:2px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:var(--text-muted);cursor:pointer;">닫기</button>
+        </div>
+        <div style="overflow-x:auto;max-height:360px;overflow-y:auto;margin-top:5px;"><table style="width:100%;border-collapse:collapse;min-width:360px;">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">${['#', '종목', '종가', lab + ' 대비', '위치'].map((t, i) => `<th style="padding:3px 5px;text-align:${i < 2 ? 'left' : 'right'};font-size:0.5rem;color:var(--text-muted);font-weight:500;white-space:nowrap;">${t}</th>`).join('')}</tr></thead>
+          <tbody>${tr || '<tr><td colspan="5" style="padding:8px;font-size:0.58rem;color:var(--text-muted);text-align:center;">해당 종목 없음</td></tr>'}</tbody></table></div>
+      </div>`;
+    };
     let gateHtml = '<div style="font-size:0.64rem;color:var(--text-muted);">시장폭 데이터 없음 (첫 실행 전)</div>';
     if (b) {
       const g = b.gate || {}, br = b.breadth || {}, open = g.open;
       const gc = open === true ? '#22c55e' : open === false ? '#f87171' : '#94a3b8';
       const gl = open === true ? '열림' : open === false ? '차단' : '판단 불가';
-      const bar = (lab, v) => `<div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;"><span style="width:76px;flex:none;white-space:nowrap;color:var(--text-muted);">${lab}</span>
+      const maKey = window.__mgMa || null, maSide = window.__mgMaSide || 'below';
+      const bar = (lab, v, key) => `<div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;"><button onclick="__mgSetMa('${key}')" title="클릭: 이 이동평균선 ${maSide === 'below' ? '아래' : '위'} 종목 보기" style="width:84px;flex:none;white-space:nowrap;text-align:left;font-size:0.6rem;padding:1px 6px;border-radius:7px;cursor:pointer;border:1px solid ${maKey === key ? '#22d3ee' : 'rgba(255,255,255,0.15)'};background:${maKey === key ? 'rgba(34,211,238,0.15)' : 'transparent'};color:${maKey === key ? '#22d3ee' : 'var(--text-muted)'};">${lab} ▾</button>
         <div style="flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="width:${Math.max(0, Math.min(100, v || 0))}%;height:100%;background:${(v || 0) >= 50 ? '#22c55e' : (v || 0) >= 25 ? '#fbbf24' : '#f87171'};"></div></div>
         <b style="width:44px;text-align:right;font-family:var(--font-mono);color:var(--text-bright);">${pc(v)}</b></div>`;
       const idxRow = (name, x) => !x ? '' : `<div style="font-size:0.58rem;color:var(--text-muted);margin-top:4px;line-height:1.5;"><b style="color:var(--text);">${name}</b>
@@ -9512,14 +9546,15 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
           <div style="margin-left:auto;font-size:0.54rem;color:var(--text-muted);text-align:right;">기준일 ${h(b.as_of || '')}<br>${h((b.universe || {}).basis || '')} · ${(b.universe || {}).fetched || 0}종목</div>
         </div>
         <div style="margin-top:8px;display:grid;grid-template-columns:1fr;gap:5px;">
-          ${bar('20일선 위', br.pct_above_20)}${bar('50일선 위', br.pct_above_50)}${bar('200일선 위', br.pct_above_200)}
+          ${bar('20일선 위', br.pct_above_20, 'd20')}${bar('50일선 위', br.pct_above_50, 'd50')}${bar('200일선 위', br.pct_above_200, 'd200')}
           <div style="font-size:0.6rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:2px;"><span style="color:var(--text-muted);width:88px;flex:none;white-space:nowrap;">신고가/신저가</span><b style="color:#22c55e;">${num(br.new_highs)}</b> vs <b style="color:#f87171;">${num(br.new_lows)}</b>
             <span style="color:var(--text-muted);margin-left:8px;white-space:nowrap;">상승/하락</span><b style="color:#22c55e;">${num(br.advancers)}</b> vs <b style="color:#f87171;">${num(br.decliners)}</b></div>
         </div>
         ${(b.by_market && b.by_market.KOSPI && b.by_market.KOSDAQ) ? `<div style="font-size:0.56rem;color:var(--text-muted);margin-top:5px;">코스피 50일선 위 ${pc(b.by_market.KOSPI.pct_above_50)} · 코스닥 50일선 위 ${pc(b.by_market.KOSDAQ.pct_above_50)}</div>` : ''}
         ${idxRow('코스피', (b.index || {}).KOSPI)}${idxRow('코스닥', (b.index || {}).KOSDAQ)}
         ${spark ? `<div style="margin-top:8px;"><div style="font-size:0.54rem;color:var(--text-muted);">종합 점수 추이 (최근 120일)</div>${spark}</div>` : ''}
-        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;line-height:1.45;">규칙: ${h(g.rule || '')}</div>`;
+        <div style="font-size:0.54rem;color:var(--text-muted);margin-top:6px;line-height:1.45;">규칙: ${h(g.rule || '')}</div>
+        ${maPanel(b, maKey, maSide)}`;
     }
     // ── 스크리너 표
     let scrHtml = '<div style="font-size:0.64rem;color:var(--text-muted);">수급 데이터 없음 (첫 실행 전)</div>';
@@ -9576,7 +9611,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   //    quality: measured(정확) / estimated(지수 비례 추정) / stale(직전값) / unavailable. est 점은 점선(지수 일봉 역산 백필).
   //    암호화폐 카드는 CoinGecko 를 브라우저에서 직접 60초마다 갱신(CORS 허용) — 나머지는 Actions 주기.
   window.__mcRange = window.__mcRange || 30;
-  function __mcSetRange(days) { window.__mcRange = days; if (window.__mcData) { try { renderMarketCapTracker(window.__mcData); } catch (e) { } } }
+  window.__mcSetRange = function (days) { window.__mcRange = days; if (window.__mcData) { try { renderMarketCapTracker(window.__mcData); } catch (e) { } } };
   function __mcSvg(series, days, color) {
     const now = Date.now(), from = now - days * 86400000;
     let pts = (series || []).map(p => [Date.parse(p[0]), p[1], p[2]]).filter(p => isFinite(p[0]) && p[1] != null && p[0] >= from);
