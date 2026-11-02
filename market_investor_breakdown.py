@@ -473,7 +473,11 @@ def main():
             pass
         print(">>> [FAIL] 두 시장 모두 수집 실패 — 직전 데이터 유지")
         return 1
-    output["data_source"] = "KRX 정보데이터시스템 (투자자별 거래실적) · 대체: Naver 금융 investorDealTrendDay"
+    notes = {v.get("source_note") for v in output["markets"].values() if v.get("rows")}
+    if notes and all(notes):
+        output["data_source"] = " / ".join(sorted(notes))           # 실제로 쓴 소스를 그대로 표시 (예: 시총 상위 N종목 합산)
+    else:
+        output["data_source"] = "KRX 정보데이터시스템 (투자자별 거래실적) · 대체: Naver 금융"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
     print(f">>> 저장 완료: {out_path}")
