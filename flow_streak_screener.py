@@ -84,7 +84,9 @@ def compute_streaks(rows):
     eok = lambda vals: round(sum(v * r.get("close", 0) for v, r in zip(vals, rows[:5])) / 1e8, 1)
     return {"as_of": rows[0]["date"], "close": rows[0].get("close"), "chg_pct": rows[0].get("change_pct"),
             "f_streak": streak(f), "i_streak": streak(i), "joint": joint, "joint_sell": joint_sell,
-            "f5_eok": eok(f), "i5_eok": eok(i), "days": len(rows)}
+            "f5_eok": eok(f), "i5_eok": eok(i), "days": len(rows),
+            # 클릭 시 막대 차트용: [날짜, 외국인 순매수 주식수, 기관 순매수 주식수, 종가] 최근 20일(최신순)
+            "flow20": [[r["date"], r.get("foreign_net_shares", 0), r.get("institutional_net_shares", 0), r.get("close", 0)] for r in rows[:20]]}
 
 
 def screen(universe, flows):

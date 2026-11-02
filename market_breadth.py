@@ -224,7 +224,9 @@ def main():
         m = stock_metrics(closes)
         stocks.append({"code": u["code"], "name": u["name"], "market": u["market"], "mcap_b": u.get("mcap_b"),
                        "close": round(closes[-1], 2), **ma_distances(closes),
-                       "high52": m.get("high52"), "low52": m.get("low52")})
+                       "high52": m.get("high52"), "low52": m.get("low52"),
+                       # 클릭 시 차트용: 최근 90거래일 종가(60일 차트 + 20/50일선 계산분) 와 마지막 날짜
+                       "c90": [round(c) for c in closes[-90:]], "d_end": hist[sym]["dates"][-1]})
     stocks.sort(key=lambda x: -(x["mcap_b"] or 0))
     print(f"  20/50/200일선 위: {breadth['pct_above_20']}% / {breadth['pct_above_50']}% / {breadth['pct_above_200']}%"
           f" · 신고가 {breadth['new_highs']} vs 신저가 {breadth['new_lows']} · 종합 {sc['score']}점 {sc['grade']} · 게이트 {'열림' if sc['gate_open'] else '차단'}")
