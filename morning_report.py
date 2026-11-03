@@ -45,6 +45,17 @@ def main():
             pass
 
     now = datetime.now(KST)
+    # 예비 예약(07:50 KST)이 추가되면서 하루 두 번 돌 수 있다 — 오늘 자 리포트가 이미 있으면 건너뛴다(텔레그램 중복 방지).
+    # --force 를 주면 다시 만든다.
+    if "--force" not in sys.argv:
+        try:
+            with open(os.path.join(DOCS, "morning_report.json"), encoding="utf-8") as f:
+                prev_meta = json.load(f)
+            if prev_meta.get("date") == now.strftime("%Y-%m-%d"):
+                print(f"[SKIP] 오늘({prev_meta['date']}) 브리핑이 이미 있음 ({prev_meta.get('generated_at')}). 다시 만들려면 --force")
+                return 0
+        except Exception:
+            pass
     S = []                                              # 섹션 리스트 (섹션별 문자열)
 
     # 생성 시각은 실제 값을 쓴다 — GitHub Actions 예약 실행은 상습 지연되므로
