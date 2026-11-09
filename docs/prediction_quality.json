@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-11-09 12:48:40 KST",
+  "generated_at": "2026-11-10 02:04:56 KST",
   "model_version": "v1.3",
-  "pqi_overall": 57.4,
-  "grade": "🟡 보통",
-  "grade_color": "amber",
-  "trend": 7.2,
+  "pqi_overall": 58.4,
+  "grade": "🟢 양호",
+  "grade_color": "green",
+  "trend": -7.0,
   "models": [
     {
       "name": "KOSPI(선물)",
       "dir": 53,
-      "mae": 2.69,
+      "mae": 2.48,
       "range": null,
       "n": 15,
-      "pqi": 61.5,
+      "pqi": 62.8,
       "significance": {
         "n": 15,
         "k": 8,
@@ -25,17 +25,17 @@
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 58.5,
-      "pqi_prev": 44.6,
-      "big_miss_frac": 40
+      "pqi_recent": 51.6,
+      "pqi_prev": 53.2,
+      "big_miss_frac": 33
     },
     {
       "name": "SK하이닉스",
       "dir": 53,
-      "mae": 5.41,
+      "mae": 5.43,
       "range": 80,
       "n": 15,
-      "pqi": 51.8,
+      "pqi": 51.7,
       "significance": {
         "n": 15,
         "k": 8,
@@ -48,17 +48,17 @@
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 56.3,
-      "pqi_prev": 50.1,
+      "pqi_recent": 53.6,
+      "pqi_prev": 58.2,
       "big_miss_frac": 73
     },
     {
       "name": "삼성전자",
       "dir": 60,
-      "mae": 4.1,
-      "range": 67,
+      "mae": 3.94,
+      "range": 73,
       "n": 15,
-      "pqi": 58.8,
+      "pqi": 60.8,
       "significance": {
         "n": 15,
         "k": 9,
@@ -71,24 +71,31 @@
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 62.8,
-      "pqi_prev": 61.4,
+      "pqi_recent": 57.4,
+      "pqi_prev": 72.2,
       "big_miss_frac": 60
     }
   ],
   "diagnosis": {
     "dir_avg": 55.3,
-    "mae_avg": 4.07,
-    "range_avg": 73.5,
-    "big_miss_avg": 57.7
+    "mae_avg": 3.95,
+    "range_avg": 76.5,
+    "big_miss_avg": 55.3
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "급오차일(±3%↑) 빈발 (58%)",
+      "issue": "급오차일(±3%↑) 빈발 (55%)",
       "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
       "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
       "auto_safe": true
+    },
+    {
+      "priority": 1,
+      "issue": "PQI 하락 추세 (-7.0)",
+      "cause": "최근 레짐 변화(변동성 급등)로 성능 저하",
+      "fix": "밴드·베타 재추정 주기 단축 + 디커플링 보정 우선 적용",
+      "auto_safe": false
     }
   ],
   "version_table": [
@@ -121,7 +128,7 @@
       "note": "밴드에 잔차σ·디커플링 반영 — 반폭 = 꼬리×1.5 + 1.0σ×(1+0.6·(1−r²)). 범위적중 13~27%·급오차 80% 권고 대응. 채점·예측 동일 공식",
       "avg_pqi": 58.6,
       "start_date": "2026-08-04",
-      "last_date": "2026-11-09",
+      "last_date": "2026-11-10",
       "n_days": 90
     }
   ],
