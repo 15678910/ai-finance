@@ -192,10 +192,108 @@ class TestThreatC_Secrets:
 class TestThreatD_Injection:
     """메시지 파싱 오류, 파라미터 조작 차단."""
 
-    @pytest.mark.skip(reason="TODO: Telegram 메시지 파싱에서 command injection 가능성 확인")
     def test_d1_telegram_message_not_evaluated(self):
-        """Telegram 메시지 내용이 eval/exec로 처리되지 않음."""
-        pass
+        """Telegram 메시지 내용이 eval/exec로 처리되지 않음.
+
+        1) 소스 전체에 코드 실행 sink가 없어야 함 (메시지·외부 데이터가
+           흘러들 경로를 원천 차단).
+        2) send_message가 본문을 URL이 아닌 POST body에 urlencode해 넣어,
+           메시지에 섞인 `&chat_id=...`가 API 파라미터로 승격되지 않아야 함.
+        """
+        # ── 1) 정적 스캔: 코드 실행 sink ──────────────────────────────
+        # __import__는 제외: 하드코딩된 의존성 목록 점검(check_and_install)에
+        # 쓰이며 외부 입력이 닿지 않음.
+        dangerous = [
+            (re.compile(r'(?<![\w.])eval\s*\('), "eval()"),
+            (re.compile(r'(?<![\w.])exec\s*\('), "exec()"),
+            (re.compile(r'os\.system\s*\('), "os.system()"),
+            (re.compile(r'shell\s*=\s*True'), "shell=True"),
+            (re.compile(r'pickle\.loads?\s*\('), "pickle.load(s)"),
+            (re.compile(r'new\s+Function\s*\('), "new Function()"),
+            (re.compile(r'setTimeout\s*\(\s*["\']'), "setTimeout(문자열)"),
+        ]
+        yaml_load = re.compile(r'yaml\.load\s*\(')
+        safe_loader = re.compile(r'Safe(Loader|Load)')
+
+        found = []
+        scanned = 0
+        for root, dirs, files in os.walk(REPO_ROOT):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            if os.path.basename(root) == "tests":
+                continue  # 테스트 자신의 패턴 문자열은 제외
+            for f in files:
+                if not f.endswith((".py", ".js", ".html")):
+                    continue
+                path = os.path.join(root, f)
+                try:
+                    content = Path(path).read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                scanned += 1
+                rel = path.replace(str(REPO_ROOT), "")
+                for lineno, line in enumerate(content.splitlines(), 1):
+                    for pat, label in dangerous:
+                        if pat.search(line):
+                            found.append(f"{rel}:{lineno} {label}")
+                    if yaml_load.search(line) and not safe_loader.search(line):
+                        found.append(f"{rel}:{lineno} yaml.load(비-Safe)")
+
+        assert scanned > 0, "스캔된 파일이 없음 — 스캔 로직 자체를 점검할 것"
+        assert not found, f"코드 실행 sink 발견 (외부 입력 유입 시 RCE): {found}"
+
+        # ── 2) 기능: 메시지가 API 파라미터로 승격되지 않는지 ───────────
+        import urllib.parse
+        import urllib.request
+
+        from core import send_message
+
+        captured = {}
+
+        class _FakeResponse:
+            def read(self):
+                return b'{"ok": true}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def _fake_urlopen(req, *args, **kwargs):
+            captured["url"] = req.full_url
+            captured["body"] = req.data
+            return _FakeResponse()
+
+        # 메시지에 API 파라미터 주입 + 셸/템플릿 페이로드를 섞어 전송
+        payload = ("/start & chat_id=999999999 & text=hacked\n"
+                   "$(rm -rf /) `id` ${HOME}\n"
+                   "{{7*7}} <script>alert(1)</script>\n"
+                   "../../etc/passwd %0d%0aInjected: 1")
+
+        orig = urllib.request.urlopen
+        urllib.request.urlopen = _fake_urlopen
+        try:
+            ok = send_message(payload, bot_token="1111111111:TESTTOKEN",
+                              chat_id="42")
+        finally:
+            urllib.request.urlopen = orig
+
+        assert ok is True, "테스트 더블 전송 경로가 동작하지 않음"
+
+        # URL에는 토큰/메서드만, 메시지 본문은 포함되지 않아야 함
+        assert captured["url"].endswith("/sendMessage"), captured["url"]
+        assert "chat_id" not in captured["url"]
+        assert "hacked" not in captured["url"]
+
+        # POST body는 urlencode되어 파라미터 경계가 깨지지 않아야 함
+        parsed = urllib.parse.parse_qs(captured["body"].decode("utf-8"),
+                                       keep_blank_values=True)
+        assert parsed["chat_id"] == ["42"], \
+            f"메시지의 chat_id가 실제 파라미터를 덮어씀: {parsed.get('chat_id')}"
+        assert parsed["text"] == [payload], \
+            "메시지 본문이 전송 과정에서 해석·변형됨 (주입 위험)"
+        # 개행이 헤더로 승격되지 않도록 인코딩되어야 함 (CRLF injection)
+        assert "\n" not in captured["body"].decode("utf-8")
 
     @pytest.mark.skip(reason="TODO: 티커 심볼 입력이 허용 문자로만 구성되는지 확인")
     def test_d2_ticker_symbol_validated(self):
@@ -312,10 +410,61 @@ class TestThreatG_FinanceDomain:
         """금융 데이터의 타임스탬프가 설정된 임계값(예: 24시간)을 초과하면 경고."""
         pass
 
-    @pytest.mark.skip(reason="TODO: 투자 추천이 면책 조항 포함 확인")
     def test_g2_investment_recommendation_has_disclaimer(self):
-        """AI가 생성한 투자 추천 메시지에 '이는 투자 권유가 아닙니다' 면책 조항 포함."""
-        pass
+        """AI가 생성한 투자 추천 메시지에 '이는 투자 권유가 아닙니다' 면책 조항 포함.
+
+        docs/THREAT_MODEL.md T-G1의 완화책("시뮬레이션 전용 면책 문구 필수,
+        자동 매매 절대 금지")이 실제 산출물에 남아 있는지 회귀 차단.
+
+        검증 대상:
+          1) README.md — 면책 + 자동 매매 금지 명시
+          2) docs/index.html — 공개 대시보드 면책 조항
+          3) 투자의견(목표가·투자의견·비중확대 등)을 Telegram으로 보내는 모듈
+        """
+        disclaimer = re.compile(
+            r'투자자문\s*아님|투자\s*권유가?\s*아[님닙]|투자\s*권유가\s*아닙니다|'
+            r'정보\s*제공용?|정보용|참고용|not\s+investment\s+advice',
+            re.IGNORECASE)
+
+        # ── 1) README: 면책 + 자동 매매 금지 ──────────────────────────
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8",
+                                                     errors="ignore")
+        assert disclaimer.search(readme), \
+            "README.md에 면책 조항이 없음 (THREAT_MODEL T-G1 완화책 유실)"
+        assert re.search(r'자동\s*매매\s*(절대\s*)?금지|자동\s*매매.*금지', readme), \
+            "README.md에 '자동 매매 금지' 명시가 없음"
+
+        # ── 2) 공개 대시보드 ─────────────────────────────────────────
+        dashboard = REPO_ROOT / "docs" / "index.html"
+        if dashboard.exists():
+            html = dashboard.read_text(encoding="utf-8", errors="ignore")
+            assert disclaimer.search(html), \
+                "docs/index.html(공개 대시보드)에 면책 조항이 없음"
+
+        # ── 3) 투자의견을 Telegram으로 보내는 모듈 ────────────────────
+        # 수급 데이터(순매수/매도세)는 추천이 아니므로 제외하고,
+        # 명시적 투자의견 표현만 대상으로 함.
+        sends = re.compile(r'send_message\s*\(|send_telegram\s*\(')
+        opinion = re.compile(
+            r'목표가|목표\s*주가|투자의견|비중\s*(확대|축소)|추천\s*종목|'
+            r'손절|진입\s*가|\bBUY\b|\bSELL\b|OVERWEIGHT|UNDERWEIGHT')
+
+        violations = []
+        for path in sorted(REPO_ROOT.glob("*.py")):
+            try:
+                content = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if not sends.search(content):
+                continue
+            hits = sorted({m.group() for m in opinion.finditer(content)})
+            if hits and not disclaimer.search(content):
+                violations.append((path.name, hits[:5]))
+
+        assert not violations, (
+            "투자의견을 Telegram으로 전송하지만 면책 문구가 없는 모듈: "
+            f"{violations}"
+        )
 
     @pytest.mark.skip(reason="TODO: 브로커 API key 없이 실제 거래 실행 불가 확인")
     def test_g3_no_auto_trade_without_explicit_broker_key(self):
