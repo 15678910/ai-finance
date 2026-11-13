@@ -123,10 +123,66 @@ class TestThreatC_Secrets:
                     pass
         assert not found, f"Telegram bot token pattern found in source: {found}"
 
-    @pytest.mark.skip(reason="TODO: .env.example에 TELEGRAM_TOKEN, API key 항목 확인")
     def test_c3_required_env_vars_documented(self):
-        """필수 env var(TELEGRAM_TOKEN, 증권사 API key 등)가 문서화되어 있는지."""
-        pass
+        """필수 env var(TELEGRAM_TOKEN, 증권사 API key 등)가 문서화되어 있는지.
+
+        위협: 운영자가 필요한 secret을 모른 채 배포 → 해당 모듈이 조용히
+        스킵되거나 빈 데이터를 생성하고, 그 결과로 잘못된 투자 판단.
+        소스가 실제로 읽는 secret은 모두 SETUP.md/README.md에 기재되어야 함.
+        """
+        # get_secret("X") / os.environ.get("X") / os.environ["X"] / os.getenv("X")
+        patterns = [
+            re.compile(r'get_secret\(\s*["\']([A-Z][A-Z0-9_]{2,})["\']'),
+            re.compile(r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{2,})["\']'),
+            re.compile(r'os\.environ\[\s*["\']([A-Z][A-Z0-9_]{2,})["\']'),
+            re.compile(r'os\.getenv\(\s*["\']([A-Z][A-Z0-9_]{2,})["\']'),
+        ]
+        # secret이 아닌 런타임 환경변수는 문서화 대상에서 제외
+        RUNTIME_VARS = {
+            "PATH", "HOME", "TZ", "LANG", "LC_ALL", "TEMP", "TMP", "TMPDIR",
+            "PYTHONPATH", "PYTHONIOENCODING", "PYTHONUTF8", "VIRTUAL_ENV",
+            "CI", "GITHUB_ACTIONS", "GITHUB_WORKSPACE", "GITHUB_REPOSITORY",
+            "GITHUB_REF", "GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_OUTPUT",
+            "GITHUB_ENV", "RUNNER_OS", "USERPROFILE", "APPDATA",
+        }
+
+        used = {}  # var -> 처음 발견된 파일
+        for root, dirs, files in os.walk(REPO_ROOT):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            if os.path.basename(root) == "tests":
+                continue  # 테스트 자신의 참조는 제외
+            for f in files:
+                if not f.endswith(".py"):
+                    continue
+                path = os.path.join(root, f)
+                try:
+                    content = Path(path).read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                for pat in patterns:
+                    for m in pat.finditer(content):
+                        name = m.group(1)
+                        if name in RUNTIME_VARS:
+                            continue
+                        used.setdefault(name, path.replace(str(REPO_ROOT), ""))
+
+        assert used, "env var 스캔 결과가 비어 있음 — 스캔 로직 자체를 점검할 것"
+
+        # 문서 소스: SETUP.md, README.md, *.env.example
+        doc_text = ""
+        doc_names = []
+        for candidate in ("SETUP.md", "README.md", ".env.example",
+                          "config/.env.example"):
+            p = REPO_ROOT / candidate
+            if p.exists():
+                doc_text += p.read_text(encoding="utf-8", errors="ignore")
+                doc_names.append(candidate)
+        assert doc_names, "문서 파일(SETUP.md/README.md)이 없음"
+
+        missing = sorted((v, src) for v, src in used.items() if v not in doc_text)
+        assert not missing, (
+            f"소스에서 사용하지만 {doc_names}에 문서화되지 않은 env var: {missing}"
+        )
 
 
 # ============================================================

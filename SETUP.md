@@ -1,6 +1,7 @@
 # SETUP — API 키 발급 및 GitHub Secrets 등록
 
 이 프로젝트를 운영하려면 3개의 무료 API 키가 필요합니다.
+추가 모듈(M2·수출입·특허·미국 의회 등)을 쓰려면 [3번 선택 키](#3-선택-api-키-해당-모듈-사용-시)를 참고하세요.
 
 ## 1. Telegram Bot 토큰 (필수)
 
@@ -32,7 +33,26 @@
 3. 이메일 + 비밀번호 + API 사용 정보 입력
 4. 즉시 발급 (40자 영숫자)
 
-## 3. GitHub Secrets 등록
+## 3. 선택 API 키 (해당 모듈 사용 시)
+
+아래 키는 **없어도 전체 파이프라인은 동작**합니다. 다만 미설정 시 해당 모듈이
+스킵되거나 기존 JSON을 그대로 보존하므로, **대시보드의 해당 항목이 갱신되지 않습니다.**
+
+| Name | 용도 / 모듈 | 발급처 |
+|---|---|---|
+| `FRED_API_KEY` | 미국 거시지표 — M2, 신용스프레드, 부채/GDP, 경제 캘린더<br>(`m2_monitor`, `credit_spread_monitor`, `debt_gdp_monitor`, `economic_calendar`, `ai_paradigm_monitor`) | [FRED API](https://fred.stlouisfed.org/docs/api/api_key.html) (무료, 즉시 발급) |
+| `BOK_API_KEY` | 한국 M2 — 한국은행 ECOS (`m2_monitor`) | [ECOS OpenAPI](https://ecos.bok.or.kr/api/) (무료 인증키 신청) |
+| `CUSTOMS_API_KEY` | 수출입 동향 — 관세청 무역통계 (`trade_monitor`) | [공공데이터포털](https://www.data.go.kr/) → `관세청_품목별 국가별 수출입실적(GW)` 활용신청<br>⚠️ **디코딩 키** 등록 권장 |
+| `CONGRESS_API_KEY` | 미국 암호화폐 입법 추적 (`clarity_act_monitor`)<br>미설정 시 GovTrack API로 자동 폴백 | [api.congress.gov](https://api.congress.gov/sign-up/) (무료) |
+| `KIPRIS_API_KEY` | 기업 특허 현황 (`stock_dart_tech`)<br>미설정 시 DART 기술정보만 수집 | [KIPRIS Plus](https://plus.kipris.or.kr/) (무료 등록) |
+
+### 로컬 전용 (GitHub Secrets 등록 대상 아님)
+
+| Name | 용도 / 모듈 | 비고 |
+|---|---|---|
+| `KRX_ID` / `KRX_PW` | 종목 재무 스냅샷·퀀트 스크리너 (`stock_financials`, `stock_screener`) | pykrx의 KRX 로그인 계정.<br>**한국 IP 필요 → 로컬 스케줄러 전용**이며 GitHub Actions에서는 실행하지 않음 |
+
+## 4. GitHub Secrets 등록
 
 GitHub Actions에서 사용하기 위해 저장소 Secrets에 등록.
 
@@ -41,13 +61,23 @@ GitHub Actions에서 사용하기 위해 저장소 Secrets에 등록.
 https://github.com/15678910/ai-finance/settings/secrets/actions
 ```
 
-### 등록할 3개 Secret
+### 필수 3개 Secret
 
 | Name | Value |
 |---|---|
 | `TELEGRAM_FINANCE_BOT_TOKEN` | (1번에서 받은 봇 토큰) |
 | `TELEGRAM_FINANCE_CHAT_ID` | (1번에서 확인한 chat_id) |
 | `DART_API_KEY` | (2번에서 받은 인증키) |
+
+### 선택 Secret (3번 참조 · 쓰는 모듈만)
+
+| Name | 미설정 시 |
+|---|---|
+| `FRED_API_KEY` | 미국 거시지표 모듈이 기존 JSON 보존 후 종료 |
+| `BOK_API_KEY` | 한국 M2 항목만 누락 |
+| `CUSTOMS_API_KEY` | 수출입 데이터 갱신 스킵 |
+| `CONGRESS_API_KEY` | GovTrack API로 폴백 (정밀도 하락) |
+| `KIPRIS_API_KEY` | 특허 현황 항목만 누락 |
 
 ### 등록 절차
 
@@ -57,16 +87,28 @@ https://github.com/15678910/ai-finance/settings/secrets/actions
 4. **"Add secret"** 클릭
 5. 3개 모두 반복
 
-## 4. 로컬 테스트 (선택)
+## 5. 로컬 테스트 (선택)
 
 로컬에서 직접 실행하려면 `config/.env` 파일을 생성:
 
 ```bash
 mkdir -p config
 cat > config/.env << 'EOF'
+# ── 필수 ──
 TELEGRAM_FINANCE_BOT_TOKEN=your_token_here
 TELEGRAM_FINANCE_CHAT_ID=12345678
 DART_API_KEY=your_dart_key_here
+
+# ── 선택 (쓰는 모듈만 주석 해제) ──
+# FRED_API_KEY=your_fred_key_here
+# BOK_API_KEY=your_bok_key_here
+# CUSTOMS_API_KEY=your_customs_key_here
+# CONGRESS_API_KEY=your_congress_key_here
+# KIPRIS_API_KEY=your_kipris_key_here
+
+# ── 로컬 전용 (KRX 로그인 · 한국 IP 필요) ──
+# KRX_ID=your_krx_id
+# KRX_PW=your_krx_password
 EOF
 ```
 
@@ -75,7 +117,7 @@ EOF
 > git check-ignore -v config/.env
 > ```
 
-## 5. 검증
+## 6. 검증
 
 GitHub Actions 탭에서 워크플로 수동 실행:
 
