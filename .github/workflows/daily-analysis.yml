@@ -96,8 +96,20 @@ jobs:
           else
             DATE=$(date -u -d '+9 hours' +%Y-%m-%d)
             git commit -m "Update dashboard data ($DATE) [automated]"
-            git push
-            echo "Dashboard updated successfully"
+
+            # 다른 워크플로가 먼저 push하면 거절된다(2026-11-15/16 실패 원인). 리베이스 후 재시도.
+            for i in 1 2 3 4 5; do
+              if git push 2>/dev/null; then
+                echo "Dashboard updated successfully (push attempt $i)"
+                exit 0
+              fi
+              echo "Push attempt $i failed, rebasing..."
+              git pull --rebase --strategy-option=theirs || git rebase --abort
+              sleep $((i * 2))
+            done
+
+            echo "Failed to push after 5 attempts"
+            exit 1
           fi
 
       - name: Upload analysis artifacts
