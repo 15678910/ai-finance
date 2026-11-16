@@ -115,6 +115,7 @@
 | T-B2 | Telegram chat_id 화이트리스트 | 미구현 | 1h | Med |
 | T-C3 | 로그 마스킹 (`::add-mask::`) 전수 적용 | 다수 스크립트 점검 | 3h | High |
 | T-E1 | branch protection rule 설정 | GitHub 설정 레벨 | 0.5h | Med |
+| T-K1 | KRX 계정 잠금(로그인 실패 누적) | 사전 점검(`krx_login_check.py`)으로 실행당 실패를 약 10회→1회로 줄임. 다만 잠긴 동안에도 매일 1회 시도하므로, 잠김 중에는 작업 스케줄러 "KOSPI Valuation Update"를 꺼 둔다(2026-11-16 Disabled) | 0.5h(잠금 플래그) | Med |
 
 ---
 
@@ -138,3 +139,4 @@
 | 날짜 | 변경 | 작성 |
 |------|----|----|
 | 2026-05-30 | 초기 작성 — Glasswing 영감 P1-D, defusedxml XXE 완화 반영 | P1-D |
+| 2026-11-16 | T-K1 추가: KRX 로그인 사전 점검, 잠금 중 작업 비활성화 | Claude |

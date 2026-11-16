@@ -42,6 +42,18 @@ if not defined BR (
   goto end
 )
 
+REM 0.5) KRX login pre-check — ONE attempt. Each collector logs in twice (pykrx import + body),
+REM      so a wrong or expired password used to cost ~10 failures per run, and KRX locked the
+REM      ID/password login on 2026-11-16. On failure, clear the credentials for this run only
+REM      (setlocal scope): the collectors then skip KRX without trying to log in.
+"%PY%" krx_login_check.py >> "%LOG%" 2>&1
+if errorlevel 1 (
+  echo [%date% %time%] WARN: KRX login check failed - KRX collectors run WITHOUT credentials this time >> "%LOG%"
+  set "KRX_ID="
+  set "KRX_PW="
+  call :alert "KRX login check failed - KRX data skipped today to avoid an account lock. See update_kospi_valuation.log"
+)
+
 REM 1) collect
 "%PY%" kospi_valuation_monitor.py >> "%LOG%" 2>&1
 "%PY%" short_interest_monitor.py >> "%LOG%" 2>&1
