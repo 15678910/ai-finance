@@ -15,6 +15,7 @@ GitHub Pages 정적 대시보드(`docs/`). 수집기(`*.py`)가 `docs/*.json`을
 | 2026-11-16 | 오래된 rebase 상태를 `git rebase --abort`로 치우면 브랜치가 rebase 이전 시점으로 돌아간다 | 이미 브랜치를 따로 맞췄다면 HEAD를 건드리지 않는 `git rebase --quit`을 쓴다 |
 | 2026-11-16 | KRX 비밀번호 만료("패스워드 변경 필요") → 로컬 수집기 4개가 `KRX 로그인 거부`로 매일 중단 | 사용자가 krx.co.kr에서 변경 후 `KRX_PW` 재설정. Claude는 자격증명을 입력하지 않는다 |
 | 2026-11-16 | 비밀번호를 바꾼 뒤 확인 없이 전체 실행 + 단일 수집기 시험을 돌려 실패가 약 7번 쌓임 → KRX가 아이디/비밀번호 로그인을 잠금(카카오 로그인은 정상) | 자격증명을 바꾼 뒤에는 `python krx_login_check.py --registry`로 **한 번만** 확인하고 CD001일 때만 수집기를 돌린다. `.bat`은 이제 사전 점검 1회 후 실패하면 KRX 로그인 없이 진행하고 알린다 |
+| 2026-11-17 | 이전 세션이 "한국 시장 폭 지표가 없다"며 새 KRX 수집기를 제안했지만 `market_breadth.py`(시총 상위 800, GitHub Actions)가 이미 있었다 | 새 지표를 계획하기 전에 `grep -rli <주제> --include=*.py .`와 `docs/*.json`부터 확인한다 |
 | 2026-11-16 | pykrx는 사용자 site-packages에 있어 `python -I`로는 안 보이고, import 시점에 이모지를 출력해 cp949 콘솔에서 죽는다 | `C:\Python313\python.exe` + `PYTHONIOENCODING=utf-8 PYTHONUTF8=1` |
 
 ## 로컬 전용 수집기

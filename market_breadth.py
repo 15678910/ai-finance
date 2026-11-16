@@ -82,16 +82,22 @@ def ma_distances(closes):
     return out
 
 
-def compute_breadth(hist):
-    """{심볼: closes} → 집계. 비율은 해당 지표를 계산할 수 있었던 종목만 분모로 쓴다."""
+def compute_breadth(hist, stale=frozenset()):
+    """{심볼: closes} → 집계. 비율은 해당 지표를 계산할 수 있었던 종목만 분모로 쓴다.
+
+    stale: 마지막 봉이 기준일(as_of)이 아닌 심볼(거래정지·야후 지연). 상승/하락은 '그 날' 집계라
+    이 종목들은 상승/하락 수에서 뺀다. 이동평균·신고가는 마지막 종가 기준이라 그대로 센다.
+    """
     keys = ("above20", "above50", "above200", "high52", "low52", "adv", "dec")
     cnt = {k: 0 for k in keys}
     elig = {k: 0 for k in keys}
     n = 0
-    for closes in hist.values():
+    for sym, closes in hist.items():
         m = stock_metrics(closes)
         if not m:
             continue
+        if sym in stale:
+            m["adv"] = m["dec"] = None
         n += 1
         for k in keys:
             if m.get(k) is not None:
@@ -140,7 +146,11 @@ def index_context(closes, volumes, dates):
            "low_since_high": round(lo, 2), "low_date": dates[i_lo],
            "max_drawdown_pct": round((lo / hi - 1) * 100, 2),
            "rebound_from_low_pct": round((c / lo - 1) * 100, 2),
-           "days_since_low": len(closes) - 1 - i_lo}
+           "days_since_low": len(closes) - 1 - i_lo,
+           # 당일 등락과 그 날짜 — 모닝 브리핑이 '지수 vs 상승 종목수' 괴리를 볼 때 쓴다.
+           # 지수는 종목과 따로 받으므로 마지막 봉 날짜가 as_of 와 다를 수 있어 날짜를 같이 남긴다.
+           "date": dates[-1],
+           "change_pct": round((c / closes[-2] - 1) * 100, 2) if closes[-2] else None}
     # FTD: 저점 후 4~12일차, +1.5% 이상 & 거래량 전일 초과
     ftd = None
     if volumes and len(volumes) == len(closes):
@@ -240,9 +250,14 @@ def main():
         print(f"  [FAIL] 수집률 {cov:.0%} < {MIN_COVERAGE:.0%} → 기존 결과 유지, 실패 처리")
         return 1
 
+    as_of = max((h["dates"][-1] for h in hist.values()), default=now.strftime("%Y-%m-%d"))
+    stale = {s for s, h in hist.items() if h["dates"][-1] != as_of}
+    if stale:
+        print(f"  마지막 봉이 {as_of} 아닌 종목 {len(stale)}개 — 상승/하락 집계에서 제외")
     closes_all = {s: h["close"] for s, h in hist.items()}
-    breadth = compute_breadth(closes_all)
-    by_market = {m: compute_breadth({s: c for s, c in closes_all.items() if market_of.get(s) == m}) for m in ("KOSPI", "KOSDAQ")}
+    breadth = compute_breadth(closes_all, stale)
+    by_market = {m: compute_breadth({s: c for s, c in closes_all.items() if market_of.get(s) == m}, stale)
+                 for m in ("KOSPI", "KOSDAQ")}
     sc = score_breadth(breadth)
     # 종목별 이동평균 거리 — 화면의 '20/50/200일선 아래 종목' 버튼용
     info_of = {yf_symbol(u["code"], u["market"]): u for u in universe}
@@ -272,7 +287,6 @@ def main():
             print(f"  {m}: 고점대비 {idx[m].get('drawdown_from_high_pct')}% · 저점대비 +{idx[m].get('rebound_from_low_pct')}% ({idx[m].get('days_since_low')}일차)"
                   f" · FTD {idx[m].get('ftd') and idx[m]['ftd']['date'] or '없음'} · 분배일 {idx[m].get('distribution_days_25')}")
 
-    as_of = max((h["dates"][-1] for h in hist.values()), default=now.strftime("%Y-%m-%d"))
     state = load_state(STATE_NAME, {"history": []})
     hist_pts = [p for p in (state.get("history") or []) if p.get("date") != as_of]
     hist_pts.append({"date": as_of, "score": sc["score"], "pct50": breadth["pct_above_50"], "pct200": breadth["pct_above_200"],

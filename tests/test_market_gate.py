@@ -52,6 +52,9 @@ def test_stock_metrics_and_breadth():
     b = B.compute_breadth({"a": up, "b": down, "c": short})
     assert b["n"] == 3 and b["eligible_200"] == 2
     assert b["pct_above_50"] == 50.0 and b["new_highs"] == 1 and b["new_lows"] == 1 and b["advancers"] == 2 and b["decliners"] == 1
+    # 마지막 봉이 기준일이 아닌 종목(거래정지 등)은 상승/하락에서만 빠지고 이동평균·신고가는 그대로
+    s = B.compute_breadth({"a": up, "b": down, "c": short}, stale={"b"})
+    assert s["advancers"] == 2 and s["decliners"] == 0 and s["new_lows"] == 1 and s["pct_above_50"] == 50.0
 
 
 def test_score_grade_and_gate():
@@ -77,6 +80,8 @@ def test_index_context_ftd_and_distribution_days():
     assert ctx["max_drawdown_pct"] == pytest.approx(-24.0) and ctx["low_date"] == dates[i_lo]
     assert ctx["days_since_low"] == len(post) and ctx["ftd"]["day_n"] == 5 and ctx["ftd"]["gain_pct"] == pytest.approx(2.05, abs=0.01)
     assert ctx["rebound_from_low_pct"] == pytest.approx((810 / 760 - 1) * 100, abs=0.01)
+    assert ctx["change_pct"] == pytest.approx((810 / 805 - 1) * 100, abs=0.01)                    # 당일 등락
+    assert ctx["date"] == dates[-1]
     # 분배일: 마지막 25일 중 하락 & 거래량 증가 — 하락 구간은 거래량 동일(100)이라 0
     assert ctx["distribution_days_25"] == 0
     vols2 = list(vols)

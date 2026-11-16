@@ -37,6 +37,46 @@ def pct(v):
         return "—"
 
 
+# ── 시장 폭 괴리 (docs/market_breadth.json, 시총 상위 코스피·코스닥 각 400종목) ──
+BREADTH_MIN_MOVE = 0.5          # 지수가 ±0.5% 이상 움직인 날만 본다 — 보합 근처의 엇갈림은 잡음
+BREADTH_NARROW = 40.0           # 지수 상승인데 상승 종목 비율이 이보다 낮으면 '좁은 상승'
+BREADTH_BROAD = 60.0            # 지수 하락인데 상승 종목 비율이 이보다 높으면 '지수만 하락'
+BREADTH_MAX_AGE_DAYS = 5        # 금요일 자료를 월요일 아침에 쓰면 3일, 연휴를 감안해 5일까지
+
+
+def breadth_divergence(mb, today):
+    """지수와 종목 다수가 반대로 움직인 시장마다 경고 문장 하나. 괴리가 없거나 자료가 낡았으면 [].
+
+    상승 종목 비율 = 상승 / (상승 + 하락) — 보합은 뺀다.
+    """
+    try:
+        age = (today - date.fromisoformat(str(mb.get("as_of") or ""))).days
+    except ValueError:
+        return []
+    if not 0 <= age <= BREADTH_MAX_AGE_DAYS:
+        return []
+    out = []
+    for mkt in ("KOSPI", "KOSDAQ"):
+        bm = (mb.get("by_market") or {}).get(mkt) or {}
+        ix = (mb.get("index") or {}).get(mkt) or {}
+        if ix.get("date") != mb.get("as_of"):          # 지수 봉이 종목 집계와 다른 날이면 비교하지 않는다
+            continue
+        try:
+            chg = float(ix["change_pct"])
+            adv, dec = int(bm["advancers"]), int(bm["decliners"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if adv + dec <= 0:
+            continue
+        ratio = adv / (adv + dec) * 100
+        head = f"{mkt} {chg:+.2f}% · 상위 {bm.get('n', adv + dec)}종목 중 상승 {adv} / 하락 {dec} (상승 {ratio:.0f}%)"
+        if chg >= BREADTH_MIN_MOVE and ratio < BREADTH_NARROW:
+            out.append(f"  ⚠️ {head}\n     → 소수 대형주가 끌어올린 '좁은 상승' — 지수 상승이 종목 전반으로 퍼지지 않았다")
+        elif chg <= -BREADTH_MIN_MOVE and ratio > BREADTH_BROAD:
+            out.append(f"  ℹ️ {head}\n     → 대형주 몇 개가 끌어내린 하락 — 종목 다수는 버텼다")
+    return out
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -116,6 +156,13 @@ def main():
         lines.append(f"  ⚠️ {cs.get('warn_msg') or '디커플링 경고 — 선물신호 신뢰도 낮음'}")
     if lines:
         S.append("🔮 오늘 KOSPI\n" + "\n".join(lines))
+
+    # ── 시장 폭 괴리 — 엇갈린 날에만 섹션이 생긴다 ──
+    mb = L("market_breadth")
+    lines = breadth_divergence(mb, now.date())
+    if lines:
+        S.append(f"📊 시장 폭 괴리 (기준 {mb.get('as_of')})\n" + "\n".join(lines)
+                 + "\n  ※ 시총 상위 코스피·코스닥 각 400종목 기준, 보합 제외")
 
     # ── 시장 심리 ──
     vk = L("vkospi")
