@@ -10024,26 +10024,77 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
   // 📢 관심종목 DART 수주·투자 공시 (실제 계약·시설투자 추적)
   function renderDartDisclosures(d) {
     if (!d || !Array.isArray(d.disclosures)) return;
+    // 전역 h()는 null→'N/A' 변환일 뿐 이스케이프하지 않는다. 공시명·종목명은 외부 문자열이므로
+    // 이 함수 안에서는 진짜 이스케이프로 가린다. 링크도 DART 원문 주소만 허용한다.
+    const h = escapeHtml;
+    const dartUrl = u => /^https:\/\/dart\.fss\.or\.kr\/dsaf001\/main\.do\?rcpNo=\d{14}$/.test(u || '') ? u : '#';
+    // 악재/수주 분리 — 구버전 JSON(bad·good 없음)은 기존처럼 통합 표로 떨어진다.
+    const hasBad = Array.isArray(d.bad);
+    const bad = hasBad ? d.bad : [];
+    const resolved = Array.isArray(d.resolved) ? d.resolved : [];
+    const good = Array.isArray(d.good) ? d.good
+      : d.disclosures.filter(x => !x.kind || x.kind === '수주·투자');
+    const SEV = {
+      high: { c: '#f87171', bg: 'rgba(248,113,113,0.13)', t: '높음' },
+      mid: { c: '#fb923c', bg: 'rgba(251,146,60,0.13)', t: '중간' },
+      low: { c: '#fbbf24', bg: 'rgba(251,191,36,0.12)', t: '낮음' }
+    };
     const tagCol = nm => /공급계약|단일판매|수주/.test(nm) ? '#22c55e'
       : /시설투자|증설|취득|착공|투자/.test(nm) ? '#60a5fa' : 'var(--text-muted)';
-    const rows = d.disclosures.map(x => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+    const th = t => `<th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">${t}</th>`;
+    const tbl = (head, rows, minW) => `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:${minW}px;">
+      <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+
+    const badRows = bad.map(x => {
+      const s = Object.prototype.hasOwnProperty.call(SEV, x.severity) ? SEV[x.severity]
+        : { c: 'var(--text-muted)', bg: 'transparent', t: '—' };
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <td style="padding:5px 7px;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-muted);white-space:nowrap;">${h(x.rcept_dt || '')}</td>
+      <td style="padding:5px 7px;white-space:nowrap;"><span style="display:inline-block;padding:1px 6px;border-radius:7px;background:${s.bg};color:${s.c};font-size:0.56rem;font-weight:700;">${h(s.t)}</span></td>
+      <td style="padding:5px 7px;font-size:0.7rem;color:var(--text-bright);font-weight:600;white-space:nowrap;">${h(x.name || '')}</td>
+      <td style="padding:5px 7px;font-size:0.6rem;color:var(--text-muted);white-space:nowrap;">${h(x.category || '')}</td>
+      <td style="padding:5px 7px;font-size:0.66rem;"><a href="${h(dartUrl(x.url))}" target="_blank" rel="noopener" style="color:${s.c};text-decoration:none;">${h(x.report_nm || '')} ↗</a></td>
+    </tr>`;
+    }).join('');
+    const goodRows = good.map(x => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
       <td style="padding:5px 7px;font-size:0.64rem;font-family:var(--font-mono);color:var(--text-muted);white-space:nowrap;">${h(x.rcept_dt || '')}</td>
       <td style="padding:5px 7px;font-size:0.7rem;color:var(--text-bright);font-weight:600;white-space:nowrap;">${h(x.name || '')}</td>
-      <td style="padding:5px 7px;font-size:0.66rem;"><a href="${h(x.url || '#')}" target="_blank" rel="noopener" style="color:${tagCol(x.report_nm || '')};text-decoration:none;">${h(x.report_nm || '')} ↗</a></td>
+      <td style="padding:5px 7px;font-size:0.66rem;"><a href="${h(dartUrl(x.url))}" target="_blank" rel="noopener" style="color:${tagCol(x.report_nm || '')};text-decoration:none;">${h(x.report_nm || '')} ↗</a></td>
     </tr>`).join('');
-    const body = d.disclosures.length
-      ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:380px;">
-          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.12);">
-            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">접수일</th>
-            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">종목</th>
-            <th style="padding:5px 7px;text-align:left;font-size:0.56rem;color:var(--text-muted);font-weight:500;">공시명 (클릭→DART 원문)</th>
-          </tr></thead><tbody>${rows}</tbody></table></div>`
-      : `<div style="font-size:0.7rem;color:var(--text-muted);padding:10px 4px;">최근 ${''}관심종목 수주·투자 공시가 아직 없습니다. 신규 공급계약·시설투자 공시가 뜨면 여기에 표시되고 텔레그램으로 알립니다.</div>`;
+
+    // 표는 MAX_KEEP으로 잘려 있으니 건수는 n_bad(전체)를 쓴다.
+    const nBad = Number.isFinite(d.n_bad) ? d.n_bad : bad.length;
+    const nFailed = Number.isFinite(d.n_failed) ? d.n_failed : 0;
+    const failNote = nFailed
+      ? `<div style="font-size:0.62rem;color:#fbbf24;margin-bottom:10px;">⚠ ${h(String(nFailed))}개 종목 공시 조회 실패 — 아래 결과는 불완전합니다${Array.isArray(d.failed) && d.failed.length ? ' (' + h(d.failed.slice(0, 8).join(', ')) + ')' : ''}</div>`
+      : '';
+    const badBlock = bad.length
+      ? `<div style="margin-bottom:14px;">
+          <div style="font-size:0.66rem;color:#f87171;font-weight:700;margin-bottom:6px;">⚠️ 악재 공시 ${h(String(nBad))}건
+            <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">— 지분 희석·존속·위법·제재</span></div>
+          ${tbl(th('접수일') + th('위험') + th('종목') + th('구분') + th('공시명 (클릭→DART 원문)'), badRows, 460)}
+        </div>`
+      // 구버전 JSON에는 악재 분류 자체가 없다 — '0건'으로 안심시키면 거짓말이 된다.
+      : hasBad && !nFailed
+        ? `<div style="font-size:0.64rem;color:#34d399;margin-bottom:12px;">⚠️ 악재 공시 0건 — 최근 ${h(String(d.days_back || 4))}일 내 유상증자·감사의견·횡령·제재성 공시 없음</div>`
+        : '';
+    const resolvedBlock = resolved.length
+      ? `<div style="font-size:0.6rem;color:var(--text-muted);margin:-6px 0 12px;">✅ 악재 해소 공시 ${resolved.length}건: ${resolved.slice(0, 6).map(x =>
+          `<a href="${h(dartUrl(x.url))}" target="_blank" rel="noopener" style="color:#34d399;text-decoration:none;">${h(x.name || '')} ${h(x.report_nm || '')}</a>`).join(' · ')}</div>`
+      : '';
+    const goodBlock = good.length
+      ? `<div><div style="font-size:0.66rem;color:#34d399;font-weight:700;margin-bottom:6px;">📢 수주·투자 공시 ${good.length}건
+            <span style="font-size:0.56rem;color:var(--text-muted);font-weight:400;">— 단일판매·공급계약·시설투자</span></div>
+          ${tbl(th('접수일') + th('종목') + th('공시명 (클릭→DART 원문)'), goodRows, 380)}</div>`
+      : `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px;">최근 관심종목 수주·투자 공시가 아직 없습니다. 신규 공급계약·시설투자 공시가 뜨면 여기에 표시되고 텔레그램으로 알립니다.</div>`;
+
     const html = `<section class="section-wrap" id="dart-disclosures-section">
-      <div class="section-label" style="color:#34d399;">📢 관심종목 수주·투자 공시 <span style="font-size:0.62rem;color:var(--text-muted);">(DART — 단일판매·공급계약·시설투자)</span>
+      <div class="section-label" style="color:${bad.length ? '#f87171' : nFailed ? '#fbbf24' : '#34d399'};">📑 관심종목 공시 <span style="font-size:0.62rem;color:var(--text-muted);">(DART — 악재 + 수주·투자)</span>
         <span style="font-size:0.6rem;color:var(--text-muted);margin-left:8px;">갱신 ${h(d.generated_at || '')}</span></div>
       <div class="glass-card" style="padding:13px 16px;">
-        ${body}
+        ${failNote}${badBlock}
+        ${resolvedBlock}
+        ${goodBlock}
         <div style="font-size:0.54rem;color:var(--text-muted);margin-top:9px;line-height:1.5;">※ ${h(d.note || '')}</div>
       </div>
     </section>`;
@@ -14528,7 +14579,7 @@ HY < 3.5%p     → 위험자산 선호, 반도체·바이오 비중 확대 (현�
       fetch('./watchlist.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderWatchlist(d); });
-      // Load DART Disclosures (관심종목 수주·투자 공시)
+      // Load DART Disclosures (관심종목 공시 — 악재 + 수주·투자)
       fetch('./dart_disclosures.json?v=' + Date.now(), { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null).catch(() => null)
         .then(d => { if (d) renderDartDisclosures(d); });
