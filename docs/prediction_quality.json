@@ -1,41 +1,18 @@
 {
-  "generated_at": "2026-11-18 14:15:41 KST",
+  "generated_at": "2026-11-18 16:41:17 KST",
   "model_version": "v1.3",
-  "pqi_overall": 63.0,
+  "pqi_overall": 61.2,
   "grade": "🟢 양호",
   "grade_color": "green",
-  "trend": -1.5,
+  "trend": 3.4,
   "models": [
     {
       "name": "KOSPI(선물)",
-      "dir": 60,
-      "mae": 2.11,
+      "dir": 53,
+      "mae": 2.02,
       "range": null,
       "n": 15,
-      "pqi": 69.0,
-      "significance": {
-        "n": 15,
-        "k": 9,
-        "p_value": 0.3036,
-        "null_pctile": 77.9,
-        "boot_ci": [
-          40.0,
-          80.0
-        ],
-        "verdict": "우연과 구분 불가 · n=15",
-        "verdict_color": "red"
-      },
-      "pqi_recent": 50.5,
-      "pqi_prev": 58.4,
-      "big_miss_frac": 20
-    },
-    {
-      "name": "SK하이닉스",
-      "dir": 53,
-      "mae": 5.18,
-      "range": 93,
-      "n": 15,
-      "pqi": 55.6,
+      "pqi": 65.6,
       "significance": {
         "n": 15,
         "k": 8,
@@ -48,44 +25,74 @@
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 54.4,
-      "pqi_prev": 56.3,
-      "big_miss_frac": 67
+      "pqi_recent": 49.5,
+      "pqi_prev": 51.6,
+      "big_miss_frac": 13
     },
     {
-      "name": "삼성전자",
-      "dir": 60,
-      "mae": 3.75,
-      "range": 87,
+      "name": "SK하이닉스",
+      "dir": 47,
+      "mae": 4.94,
+      "range": 93,
       "n": 15,
-      "pqi": 64.5,
+      "pqi": 54.0,
       "significance": {
         "n": 15,
-        "k": 9,
-        "p_value": 0.3036,
-        "null_pctile": 77.9,
+        "k": 7,
+        "p_value": 0.6964,
+        "null_pctile": 39.8,
         "boot_ci": [
-          40.0,
-          80.0
+          26.7,
+          66.7
         ],
         "verdict": "우연과 구분 불가 · n=15",
         "verdict_color": "red"
       },
-      "pqi_recent": 68.2,
-      "pqi_prev": 62.8,
-      "big_miss_frac": 53
+      "pqi_recent": 54.8,
+      "pqi_prev": 53.6,
+      "big_miss_frac": 67
+    },
+    {
+      "name": "삼성전자",
+      "dir": 53,
+      "mae": 3.48,
+      "range": 93,
+      "n": 15,
+      "pqi": 63.9,
+      "significance": {
+        "n": 15,
+        "k": 8,
+        "p_value": 0.5,
+        "null_pctile": 60.0,
+        "boot_ci": [
+          33.3,
+          73.3
+        ],
+        "verdict": "우연과 구분 불가 · n=15",
+        "verdict_color": "red"
+      },
+      "pqi_recent": 68.6,
+      "pqi_prev": 57.4,
+      "big_miss_frac": 47
     }
   ],
   "diagnosis": {
-    "dir_avg": 57.7,
-    "mae_avg": 3.68,
-    "range_avg": 90.0,
-    "big_miss_avg": 46.7
+    "dir_avg": 51.0,
+    "mae_avg": 3.48,
+    "range_avg": 93.0,
+    "big_miss_avg": 42.3
   },
   "recommendations": [
     {
       "priority": 1,
-      "issue": "급오차일(±3%↑) 빈발 (47%)",
+      "issue": "방향 적중 낮음 (51% · 동전 수준)",
+      "cause": "선물 편중 → 디커플링·차익실현 날 방향 오류",
+      "fix": "디커플링 경고일은 종합신호(composite)로 방향 보정",
+      "auto_safe": false
+    },
+    {
+      "priority": 1,
+      "issue": "급오차일(±3%↑) 빈발 (42%)",
       "cause": "차익실현·외인수급 급변을 선물신호가 못 봄",
       "fix": "composite 디커플링 경고일 예측 신뢰도 하향 표시 + 밴드 추가확대",
       "auto_safe": true
